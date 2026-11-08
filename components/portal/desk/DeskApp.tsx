@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { initials } from "@/lib/lawyers";
 import { fmtDate, localDay } from "@/lib/date";
-import { IconFolder, IconLock } from "@/components/icons";
+import { IconFolder } from "@/components/icons";
 import { AppTile } from "./AppIcon";
 import { KINDS, kindOf, tileOf, type DeskApp as App, type DeskNav } from "./apps";
 import type { DeskOs } from "./deskMode";
@@ -22,7 +22,8 @@ export default function DeskApp({ os, nav, current, label, locked, name, childre
   const locale = useLocale();
   const kind = kindOf(current);
   const keys = KINDS.find((k) => k.kind === kind)?.keys ?? [current];
-  const siblings: App[] = keys.map((k) => nav.find((n) => n.key === k)).filter((n): n is DeskNav => !!n).map((n) => ({ ...n, label: label(n.key), locked: locked(n.key) }));
+  // A section this account may not open is left out (no locked rows).
+  const siblings: App[] = keys.map((k) => nav.find((n) => n.key === k)).filter((n): n is DeskNav => !!n && !locked(n.key)).map((n) => ({ ...n, label: label(n.key), locked: false }));
   const here = siblings.find((s) => s.key === current) ?? { ...(nav.find((n) => n.key === current) ?? nav[0]), label: label(current), locked: false };
   const [a, b] = tileOf(current);
   const [now, setNow] = useState(0);
@@ -84,13 +85,7 @@ export default function DeskApp({ os, nav, current, label, locked, name, childre
             {siblings.map((s) => {
               const Icon = s.Icon;
               const on = s.key === current;
-              return s.locked ? (
-                <span key={s.key} className="dapp__link is-locked" aria-disabled="true" title={t("locked")}>
-                  <Icon />
-                  <span>{s.label}</span>
-                  <IconLock />
-                </span>
-              ) : (
+              return (
                 <Link key={s.key} href={s.href} className={`dapp__link${on ? " is-on" : ""}`} aria-current={on ? "page" : undefined} style={{ "--app0": tileOf(s.key)[0], "--app1": tileOf(s.key)[1] } as CSSProperties}>
                   <i aria-hidden>
                     <Icon />

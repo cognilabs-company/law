@@ -14,16 +14,17 @@ import { SxDialog, SxDialogError } from "../editor/SxDialog";
 import { useEditorErrorText } from "../editor/useEditorErrorText";
 import { Field } from "../form/Field";
 import { TextInput } from "../form/TextInput";
+import { studioDenied } from "../denied";
 
 export const CLONE_NAME_MAX = 200;
 
-export type CloneDialogProps = { rec: StudioRecord | null; onClose: () => void; onCloned: () => void };
+export type CloneDialogProps = { rec: StudioRecord | null; onClose: () => void; onCloned: () => void; onDenied?: (rec: StudioRecord) => void };
 
 export function cloneNameOf(template: string): string {
   return template.slice(0, CLONE_NAME_MAX);
 }
 
-export function CloneDialog({ rec, onClose, onCloned }: CloneDialogProps): ReactElement {
+export function CloneDialog({ rec, onClose, onCloned, onDenied }: CloneDialogProps): ReactElement {
   const t = useTranslations("studio");
   const router = useRouter();
   const errText = useEditorErrorText();
@@ -49,6 +50,9 @@ export function CloneDialog({ rec, onClose, onCloned }: CloneDialogProps): React
     } catch (e) {
       logApiError("studio.clone", e);
       setError(e);
+      // Refused (403): the message stays in the dialog; the row's clone
+      // action is gone once it closes.
+      if (studioDenied(e)) onDenied?.(rec);
     } finally {
       setBusy(false);
     }

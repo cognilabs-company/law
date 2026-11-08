@@ -165,7 +165,8 @@ export function NeedCard({ lead }: { lead: CrmLead }) {
   );
 }
 
-export function CustomerCard({ lead, contacts, onDial }: { lead: CrmLead; contacts: CrmContact[] | null; onDial: () => void }) {
+// profile: the session may open the customer page (crm.customers.view).
+export function CustomerCard({ lead, contacts, onDial, profile = true }: { lead: CrmLead; contacts: CrmContact[] | null; onDial: () => void; profile?: boolean }) {
   const t = useTranslations("crm.side");
   const tg = useTranslations("crm.glance");
   const tx = useTranslations("admin.ccx.crmDetail");
@@ -192,9 +193,11 @@ export function CustomerCard({ lead, contacts, onDial }: { lead: CrmLead; contac
               <small>{t("noContacts")}</small>
             )}
           </span>
-          <Link href={customerHref(c.id)} className="opx-pbtn opx-jr-who__go">
-            {tx("openProfile")}
-          </Link>
+          {profile ? (
+            <Link href={customerHref(c.id)} className="opx-pbtn opx-jr-who__go">
+              {tx("openProfile")}
+            </Link>
+          ) : null}
         </>
       ) : (
         <p className="opx-cd-sub">{t("noCustomer")}</p>

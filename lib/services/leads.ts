@@ -16,7 +16,8 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { http, asDict, asStr, asNum, asArr, ApiError, parseServerTime } from "@/lib/http";
 import { adminUpdateLead, type Lead, type KanbanColumn } from "@/lib/services/backend";
 import { listAdminUsers, isLeadOperator, type AdminUser } from "@/lib/services/users";
-import { sessionRoles, type Session } from "@/lib/auth";
+import { type Session } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 
 export type LeadScore = "hot" | "warm" | "cold";
 export const LEAD_SCORES: readonly LeadScore[] = ["hot", "warm", "cold"];
@@ -142,9 +143,7 @@ export function patchLeadInColumns(cols: KanbanColumnX[], leadId: string, patch:
 // server's 403 is still handled by every caller — this only decides what to
 // show up front.
 export function canManageLeads(s: Session | null): boolean {
-  if (!s) return false;
-  if (sessionRoles(s).some((r) => r === "admin" || r === "superadmin")) return true;
-  return (s.permissions ?? []).includes("leads.manage");
+  return can(s, "leads.manage", { roles: ["admin"] });
 }
 
 // ── Assignment ───────────────────────────────────────────────────

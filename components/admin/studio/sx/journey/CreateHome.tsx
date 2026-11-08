@@ -28,6 +28,7 @@ import { useJourneyErrorText } from "./journeyErrors";
 import { isRetiredCode } from "./steps";
 import { JourneyTable } from "./JourneyTable";
 import { useCreationJourneys } from "./useCreationJourneys";
+import { studioDenied } from "../denied";
 
 export const JOURNEY_PAGE = 20;
 const INCOMPLETE_ID = "incomplete";
@@ -61,10 +62,13 @@ export function useJourneyActionRunner(onDone: (j: StudioCreationJourney) => voi
   error: unknown;
   clear: () => void;
   run: (j: StudioCreationJourney, action: JourneyAction) => Promise<StudioCreationJourney | null>;
+  denied: (j: StudioCreationJourney, action: JourneyAction) => boolean;
 } {
   const t = useTranslations("studio");
   const [acting, setActing] = useState("");
   const [error, setError] = useState<unknown>(null);
+  // Refused with 403: that journey's action leaves its row menu.
+  const [refused, setRefused] = useState<ReadonlySet<string>>(() => new Set());
   const running = useRef(false);
   const run = async (j: StudioCreationJourney, action: JourneyAction): Promise<StudioCreationJourney | null> => {
     if (running.current) return null;
@@ -89,13 +93,14 @@ export function useJourneyActionRunner(onDone: (j: StudioCreationJourney) => voi
     } catch (e) {
       logApiError(`studio.journeys.${action}`, e);
       setError(e);
+      if (studioDenied(e)) setRefused((cur) => new Set(cur).add(`${j.id}:${action}`));
       return null;
     } finally {
       running.current = false;
       setActing("");
     }
   };
-  return { acting, error, clear: () => setError(null), run };
+  return { acting, error, clear: () => setError(null), run, denied: (j, action) => refused.has(`${j.id}:${action}`) };
 }
 
 function JourneysPanel(): ReactElement {
@@ -156,6 +161,7 @@ function JourneysPanel(): ReactElement {
         busy={data.loading && hasRows}
         actingId={actions.acting}
         onAction={access.canEdit ? (j, a) => void actions.run(j, a) : undefined}
+        denied={actions.denied}
         error={
           failed ? (
             <SxNote

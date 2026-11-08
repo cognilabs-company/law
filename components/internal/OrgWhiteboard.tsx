@@ -153,7 +153,9 @@ export default function OrgWhiteboard({
   trees: Tree[];
   onEditUnit: (unitId: string) => void;
   onAddUnit: (parentId: string) => void;
-  onAddEmployee: (unitId: string) => void;
+  // Absent when the account may not create employees (internal_hr.manage):
+  // the menu item and the panel button are then not shown at all.
+  onAddEmployee?: (unitId: string) => void;
   onOpenEmployee: (employeeId: string) => void;
   // Right-click (and keyboard) actions on a unit.
   onRename: (unitId: string, name: string) => Promise<void>;
@@ -463,7 +465,7 @@ export default function OrgWhiteboard({
         { label: tb("addChild"), icon: IconPlus, kbd: "Tab", onSelect: () => onAddUnit(n.entityId) },
         { label: tb("addSibling"), icon: IconPlus, hidden: !b.parent, onSelect: () => b.parent && onAddUnit(b.parent.tree.node.entityId) },
         { label: tb("menu.addAbove"), icon: IconPlus, onSelect: () => onAddAbove(n.entityId) },
-        { label: tb("addEmployee"), icon: IconUserPlus, onSelect: () => onAddEmployee(n.entityId) },
+        { label: tb("addEmployee"), icon: IconUserPlus, hidden: !onAddEmployee, onSelect: () => onAddEmployee?.(n.entityId) },
         { kind: "separator" },
         { label: tb("menu.duplicate"), icon: IconLayers, kbd: `${MOD}D`, onSelect: () => onDuplicate(n.entityId) },
         { label: tb("menu.copyName"), icon: IconDocLines, onSelect: () => copyText(n.label, tb("menu.copiedName")) },
@@ -1218,7 +1220,7 @@ function UnitPanel({
   onSelect: (id: string) => void;
   onEditUnit: (id: string) => void;
   onAddUnit: (parentId: string) => void;
-  onAddEmployee: (unitId: string) => void;
+  onAddEmployee?: (unitId: string) => void;
   onOpenEmployee: (id: string) => void;
 }) {
   const t = useTranslations("internal.people");
@@ -1339,7 +1341,7 @@ function UnitPanel({
       <div className="ob-panel__foot">
         <button className="btn btn--line btn--sm" type="button" onClick={() => onEditUnit(unitId)}><IconEdit />{t("editUnit")}</button>
         <button className="btn btn--line btn--sm" type="button" onClick={() => onAddUnit(unitId)}><IconPlus />{tb("addSubUnit")}</button>
-        <button className="btn btn--pri btn--sm" type="button" onClick={() => onAddEmployee(unitId)}><IconUserPlus />{tb("addEmployee")}</button>
+        {onAddEmployee ? <button className="btn btn--pri btn--sm" type="button" onClick={() => onAddEmployee(unitId)}><IconUserPlus />{tb("addEmployee")}</button> : null}
       </div>
       {head ? null : <span className="ob-panel__hint"><IconUser aria-hidden />{tb("noHeadHint")}</span>}
     </aside>

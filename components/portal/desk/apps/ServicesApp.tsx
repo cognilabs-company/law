@@ -63,6 +63,15 @@ export function ServicesBoard({ scope, owner = false, head, extra, back, start =
   const [promote, setPromote] = useState<ManagedService | null>(null);
   const [rules, setRules] = useState<{ serviceId: string; focus: string[] } | null>(null);
   const [tick, setTick] = useState(0);
+  // A change the backend refused with 403: every change action leaves the
+  // board (the list stays readable); `promoDenied` drops only promotion.
+  const [denied, setDenied] = useState(false);
+  const [promoDenied, setPromoDenied] = useState(false);
+  const canPromote = !owner && !denied && !promoDenied;
+  const isDenied = (e: unknown) => {
+    const kind = serviceErrorOf(e).kind;
+    return kind === "forbidden" || kind === "pendingAccount";
+  };
   const [confirmNode, confirm] = useConfirm();
   const [toast, say] = useToast();
 
@@ -101,8 +110,10 @@ export function ServicesBoard({ scope, owner = false, head, extra, back, start =
       const ids = rulesBlockOf(e);
       if (ids && owner) say(t("rules.ownerNote"), "err");
       else if (ids) setRules({ serviceId: item.id, focus: ids });
-      else if (owner && serviceErrorOf(e).kind === "forbidden") say(t("errors.forbiddenOwner"), "err");
-      else say(t.has(`errors.${serviceErrorOf(e).kind}`) ? t(`errors.${serviceErrorOf(e).kind}`) : t("errors.unknown"), "err");
+      else if (isDenied(e)) {
+        setDenied(true);
+        say(owner && serviceErrorOf(e).kind === "forbidden" ? t("errors.forbiddenOwner") : t(`errors.${serviceErrorOf(e).kind}`), "err");
+      } else say(t.has(`errors.${serviceErrorOf(e).kind}`) ? t(`errors.${serviceErrorOf(e).kind}`) : t("errors.unknown"), "err");
     } finally {
       setBusy("");
     }
@@ -115,18 +126,30 @@ export function ServicesBoard({ scope, owner = false, head, extra, back, start =
       setData((cur) => (cur ? { ...cur, items: cur.items.filter((y) => y.id !== item.id) } : cur));
       setSel("");
       say(d("removed"));
-    } catch {
-      say(t("errors.unknown"), "err");
+    } catch (e) {
+      if (isDenied(e)) {
+        setDenied(true);
+        say(owner && serviceErrorOf(e).kind === "forbidden" ? t("errors.forbiddenOwner") : t(`errors.${serviceErrorOf(e).kind}`), "err");
+      } else say(t("errors.unknown"), "err");
     }
   }
-  const rowMenu = (e: MouseEvent, x: ManagedService) =>
-    menu?.(e, x.service.name, [
-      { id: "edit", label: t("card.edit"), icon: <IconEdit />, onSelect: () => setEdit({ item: x }) },
-      x.status === "active" ? { id: "pause", label: d("pause"), icon: <IconPause />, onSelect: () => void setStatus(x, "paused") } : { id: "on", label: d("activate"), icon: <IconPlay />, onSelect: () => void setStatus(x, "active") },
-      ...(owner ? [] : [{ id: "promo", label: t("card.promote"), icon: <IconMegaphone />, disabled: x.status !== "active", onSelect: () => setPromote(x) }]),
-      { sep: true, id: "s" },
-      { id: "del", label: t("card.remove"), icon: <IconTrash />, danger: true, onSelect: () => void remove(x) },
-    ]);
+  // Only what this account may do to this service right now: nothing after a
+  // 403; edit / switch on only while the catalog service is active; promote
+  // only an active service.
+  const rowMenu = (e: MouseEvent, x: ManagedService) => {
+    if (denied) return;
+    const live = x.service.isActive;
+    const acts = [
+      ...(live ? [{ id: "edit", label: t("card.edit"), icon: <IconEdit />, onSelect: () => setEdit({ item: x }) }] : []),
+      ...(x.status === "active"
+        ? [{ id: "pause", label: d("pause"), icon: <IconPause />, onSelect: () => void setStatus(x, "paused") }]
+        : live
+          ? [{ id: "on", label: d("activate"), icon: <IconPlay />, onSelect: () => void setStatus(x, "active") }]
+          : []),
+      ...(canPromote && x.status === "active" ? [{ id: "promo", label: t("card.promote"), icon: <IconMegaphone />, onSelect: () => setPromote(x) }] : []),
+    ];
+    menu?.(e, x.service.name, [...acts, ...(acts.length ? [{ sep: true as const, id: "s" }] : []), { id: "del", label: t("card.remove"), icon: <IconTrash />, danger: true, onSelect: () => void remove(x) }]);
+  };
   const count = (v: View) => (v === "all" ? items.length : items.filter((x) => x.status === v).length);
   const sections: NavSection[] = [
     {
@@ -172,8 +195,8 @@ export function ServicesBoard({ scope, owner = false, head, extra, back, start =
       ) : (
         <>
           <Toolbar title={title || t("title")} subtitle={data ? d("count", { n: shown.length }) : undefined} back={back} end={os === "mac" ? <Search value={q} onChange={setQ} placeholder={t("search")} /> : undefined}>
-            <Tool icon={<IconPlus />} label={t("add")} primary onClick={() => setEdit({ item: null })} />
-            {owner ? null : <Tool icon={<IconMegaphone />} label={t("promoteProfile")} onClick={() => setPromote(items.find((x) => x.status === "active") ?? items[0] ?? null)} disabled={!items.length} />}
+            {denied ? null : <Tool icon={<IconPlus />} label={t("add")} primary onClick={() => setEdit({ item: null })} />}
+            {canPromote && items.length ? <Tool icon={<IconMegaphone />} label={t("promoteProfile")} onClick={() => setPromote(items.find((x) => x.status === "active") ?? items[0] ?? null)} /> : null}
             {owner ? null : <Tool icon={<IconShieldCheck />} label={t("rules.drawerTitle")} onClick={() => setRules({ serviceId: "", focus: [] })} />}
             <Tool icon={<IconRefresh />} label={t("refresh")} onClick={() => setTick((n) => n + 1)} />
           </Toolbar>
@@ -186,13 +209,13 @@ export function ServicesBoard({ scope, owner = false, head, extra, back, start =
                   <Loading label={d("loading")} />
                 )
               ) : !items.length ? (
-                <Empty icon={<IconBriefcase />} title={t.has("empty.title") ? t("empty.title") : d("empty")} text={owner ? t("empty.textOwner") : undefined} action={<Btn kind="primary" icon={<IconPlus />} onClick={() => setEdit({ item: null })}>{t("addFirst")}</Btn>} />
+                <Empty icon={<IconBriefcase />} title={t.has("empty.title") ? t("empty.title") : d("empty")} text={owner ? t("empty.textOwner") : undefined} action={denied ? undefined : <Btn kind="primary" icon={<IconPlus />} onClick={() => setEdit({ item: null })}>{t("addFirst")}</Btn>} />
               ) : !shown.length ? (
                 <Empty icon={<IconSearch />} title={d("noResults")} />
               ) : (
                 <div className="dxv-scroll" role="listbox" aria-label={t("title")}>
                   {shown.map((x) => (
-                    <div key={x.id} role="option" tabIndex={sel === x.id ? 0 : -1} aria-selected={sel === x.id} className={`dxv-row${sel === x.id ? " is-on" : ""}`} onClick={() => setSel(x.id)} onDoubleClick={() => setEdit({ item: x })} onContextMenu={(e) => (e.preventDefault(), setSel(x.id), rowMenu(e, x))}>
+                    <div key={x.id} role="option" tabIndex={sel === x.id ? 0 : -1} aria-selected={sel === x.id} className={`dxv-row${sel === x.id ? " is-on" : ""}`} onClick={() => setSel(x.id)} onDoubleClick={() => !denied && x.service.isActive && setEdit({ item: x })} onContextMenu={(e) => (e.preventDefault(), setSel(x.id), rowMenu(e, x))}>
                       <span className="dxv-row__top">
                         <b>{x.service.name}</b>
                         <em>{x.effectivePrice ? `${som(x.effectivePrice)} ${t("card.som")}` : t("form.noPriceTag")}</em>
@@ -217,7 +240,7 @@ export function ServicesBoard({ scope, owner = false, head, extra, back, start =
               )}
             </section>
             {current && data ? (
-              <Sheet key={current.id} x={current} data={data} busy={busy === current.id} onStatus={(s) => void setStatus(current, s)} onEdit={() => setEdit({ item: current })} onPromote={owner ? undefined : () => setPromote(current)} onRemove={() => void remove(current)} />
+              <Sheet key={current.id} x={current} data={data} busy={busy === current.id} readOnly={denied} onStatus={(s) => void setStatus(current, s)} onEdit={() => setEdit({ item: current })} onPromote={canPromote ? () => setPromote(current) : undefined} onRemove={() => void remove(current)} />
             ) : (
               <div className="dxv-none">
                 <Empty icon={<IconBriefcase />} title={d("pick")} text={owner ? t("leadOwner") : t("lead")} />
@@ -240,9 +263,27 @@ export function ServicesBoard({ scope, owner = false, head, extra, back, start =
             say(msg);
           }}
           onRules={(ids, id) => setRules({ serviceId: id, focus: ids })}
+          onDenied={(msg) => {
+            setDenied(true);
+            setEdit(null);
+            say(msg, "err");
+          }}
         />
       ) : null}
-      {owner ? null : <PromoteDialog open={!!promote} start={promote ? "service_boost" : "profile_boost"} services={items.filter((x) => x.status === "active")} onClose={() => setPromote(null)} onSent={() => setTick((n) => n + 1)} />}
+      {canPromote ? (
+        <PromoteDialog
+          open={!!promote}
+          start={promote ? "service_boost" : "profile_boost"}
+          services={items.filter((x) => x.status === "active")}
+          onClose={() => setPromote(null)}
+          onSent={() => setTick((n) => n + 1)}
+          onDenied={(msg) => {
+            setPromoDenied(true);
+            setPromote(null);
+            say(msg, "err");
+          }}
+        />
+      ) : null}
       {rules && !owner ? <RulesDialog serviceId={rules.serviceId} focus={rules.focus} onClose={() => (setRules(null), void refreshRulesGate({ force: true }))} /> : null}
       {confirmNode}
       {toast}
@@ -250,7 +291,7 @@ export function ServicesBoard({ scope, owner = false, head, extra, back, start =
   );
 }
 
-function Sheet({ x, data, busy, onStatus, onEdit, onPromote, onRemove }: { x: ManagedService; data: ManagedServices; busy: boolean; onStatus: (s: ServiceStatus) => void; onEdit: () => void; onPromote?: () => void; onRemove: () => void }) {
+function Sheet({ x, data, busy, readOnly, onStatus, onEdit, onPromote, onRemove }: { x: ManagedService; data: ManagedServices; busy: boolean; readOnly?: boolean; onStatus: (s: ServiceStatus) => void; onEdit: () => void; onPromote?: () => void; onRemove: () => void }) {
   const t = useTranslations("sellerServices");
   const d = useTranslations("portal.desk.services");
   const reasons = hiddenReasons(x, data.profile);
@@ -267,33 +308,40 @@ function Sheet({ x, data, busy, onStatus, onEdit, onPromote, onRemove }: { x: Ma
         </div>
         <Tag tone={TONE[x.status]}>{t(`status.${x.status}`)}</Tag>
       </header>
-      <div className="dxv-acts">
-        {x.status === "active" ? (
-          <Btn icon={<IconPause />} busy={busy} onClick={() => onStatus("paused")}>
-            {d("pause")}
+      {/* A locked action is not rendered: nothing after a 403 (readOnly);
+          switch on / edit only while the catalog service is active; promote
+          only an active service. */}
+      {readOnly ? null : (
+        <div className="dxv-acts">
+          {x.status === "active" ? (
+            <Btn icon={<IconPause />} busy={busy} onClick={() => onStatus("paused")}>
+              {d("pause")}
+            </Btn>
+          ) : x.service.isActive ? (
+            <Btn kind="primary" icon={<IconPlay />} busy={busy} onClick={() => onStatus("active")}>
+              {d("activate")}
+            </Btn>
+          ) : null}
+          {x.service.isActive ? (
+            <Btn icon={<IconEdit />} onClick={onEdit}>
+              {t("card.edit")}
+            </Btn>
+          ) : null}
+          {onPromote && x.status === "active" ? (
+            <Btn icon={<IconMegaphone />} onClick={onPromote}>
+              {t("card.promote")}
+            </Btn>
+          ) : null}
+          {x.status !== "inactive" ? (
+            <Btn icon={<IconPower />} onClick={() => onStatus("inactive")}>
+              {d("deactivate")}
+            </Btn>
+          ) : null}
+          <Btn kind="danger" icon={<IconTrash />} onClick={onRemove}>
+            {t("card.remove")}
           </Btn>
-        ) : (
-          <Btn kind="primary" icon={<IconPlay />} busy={busy} disabled={!x.service.isActive} onClick={() => onStatus("active")}>
-            {d("activate")}
-          </Btn>
-        )}
-        <Btn icon={<IconEdit />} onClick={onEdit} disabled={!x.service.isActive}>
-          {t("card.edit")}
-        </Btn>
-        {onPromote ? (
-          <Btn icon={<IconMegaphone />} onClick={onPromote} disabled={x.status !== "active"} title={x.status !== "active" ? t("card.promoteInactive") : undefined}>
-            {t("card.promote")}
-          </Btn>
-        ) : null}
-        {x.status !== "inactive" ? (
-          <Btn icon={<IconPower />} onClick={() => onStatus("inactive")}>
-            {d("deactivate")}
-          </Btn>
-        ) : null}
-        <Btn kind="danger" icon={<IconTrash />} onClick={onRemove}>
-          {t("card.remove")}
-        </Btn>
-      </div>
+        </div>
+      )}
       {x.visible ? <Banner tone="ok" title={t("card.visible")} /> : <Banner tone="warn" title={t("card.hidden", { reasons: reasons.map((r) => t(`reasons.${r}`)).join(", ") })} />}
       <section className="dxv-box">
         <div className="dxv-price">
@@ -329,7 +377,7 @@ function Sheet({ x, data, busy, onStatus, onEdit, onPromote, onRemove }: { x: Ma
 
 // Adding a service from the catalogue, or editing one: its price within the
 // allowed range, negotiation, the experience note, the status.
-function ServiceDialog({ item, data, uid, scope, onClose, onSaved, onRules }: { item: ManagedService | null; data: ManagedServices; uid: string; scope: ServiceScope; onClose: () => void; onSaved: (x: ManagedService, msg: string) => void; onRules: (ids: string[], serviceId: string) => void }) {
+function ServiceDialog({ item, data, uid, scope, onClose, onSaved, onRules, onDenied }: { item: ManagedService | null; data: ManagedServices; uid: string; scope: ServiceScope; onClose: () => void; onSaved: (x: ManagedService, msg: string) => void; onRules: (ids: string[], serviceId: string) => void; onDenied: (message: string) => void }) {
   const t = useTranslations("sellerServices");
   const tf = useTranslations("sellerServices.form");
   const d = useTranslations("portal.desk.services");
@@ -386,6 +434,9 @@ function ServiceDialog({ item, data, uid, scope, onClose, onSaved, onRules }: { 
     if (r.stage === "config" && r.error.code === "service_rules_acceptance_required") {
       onRules(r.error.missingRuleIds, r.persisted.id);
       return onSaved(r.persisted, t("rules.savedNotEnabled"));
+    }
+    if (r.stage === "manage" && (r.error.kind === "forbidden" || r.error.kind === "pendingAccount")) {
+      return onDenied(scope.kind === "org" && r.error.kind === "forbidden" ? t("errors.forbiddenOwner") : t(`errors.${r.error.kind}`));
     }
     if (r.stage === "manage" && r.error.kind === "contact") {
       setNoteRefused({ message: r.error.detail });
@@ -599,9 +650,12 @@ function RulesDialog({ serviceId, focus, onClose }: { serviceId: string; focus: 
 // with why one can't be when it can't.
 function Packages() {
   const tp = useTranslations("sellerPackages");
+  const tc = useTranslations("sellerServices");
   const d = useTranslations("portal.desk.services");
   const [list, setList] = useState<SellerPackage[] | null>(null);
   const [busy, setBusy] = useState("");
+  // 403 on a switch: the switches leave; the packages stay readable.
+  const [denied, setDenied] = useState(false);
   const [toast, say] = useToast();
   useEffect(() => {
     const c = new AbortController();
@@ -615,8 +669,12 @@ function Packages() {
     try {
       const saved = on ? await enableMyPackage(p.id) : await setMyPackageStatus(p.id, "disabled");
       setList((l) => (l ?? []).map((x) => (x.id === p.id ? (saved ?? { ...x, enabled: on, status: on ? "active" : "disabled" }) : x)));
-    } catch {
-      say(d("packageFailed"), "err");
+    } catch (e) {
+      const kind = serviceErrorOf(e).kind;
+      if (kind === "forbidden" || kind === "pendingAccount") {
+        setDenied(true);
+        say(tc(`errors.${kind}`), "err");
+      } else say(d("packageFailed"), "err");
     } finally {
       setBusy("");
     }
@@ -640,7 +698,13 @@ function Packages() {
                   <b>{p.pkg.title}</b>
                   <small>{[p.pkg.categoryTitle, p.pkg.duration].filter(Boolean).join(" · ")}</small>
                 </span>
-                <Toggle checked={p.enabled} disabled={busy === p.id || (!p.enabled && !p.eligibility.eligible)} onChange={(v) => void toggle(p, v)} label={p.pkg.title} onText={d("on")} offText={d("off")} />
+                {/* An ineligible package cannot be switched on (the reasons are
+                    shown below), and nothing is switched after a 403. */}
+                {denied || (!p.enabled && !p.eligibility.eligible) ? (
+                  p.enabled ? <Tag tone="ok">{d("on")}</Tag> : null
+                ) : (
+                  <Toggle checked={p.enabled} disabled={busy === p.id} onChange={(v) => void toggle(p, v)} label={p.pkg.title} onText={d("on")} offText={d("off")} />
+                )}
               </header>
               <b className="dxv-pack__price">{p.pkg.price ? `${som(p.pkg.price)} UZS` : "—"}</b>
               {p.pkg.included.length ? (

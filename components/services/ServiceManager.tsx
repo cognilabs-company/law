@@ -123,6 +123,18 @@ export default function ServiceManager({
   const [removing, setRemoving] = useState(false);
   const [removeErr, setRemoveErr] = useState("");
   const [statusErr, setStatusErr] = useState<Record<string, string>>({});
+  // A change the backend refused with 403 (this account may not manage these
+  // services, or is still awaiting approval): the add / status / edit /
+  // promote / remove actions leave the screen; the list stays readable.
+  const [denied, setDenied] = useState<string | null>(null);
+  // A promotion request refused with 403: only the promote actions go.
+  const [promoDenied, setPromoDenied] = useState<string | null>(null);
+  const deny = (e: ServiceError) => {
+    if (e.kind !== "forbidden" && e.kind !== "pendingAccount") return false;
+    setDenied(skey);
+    setDialog(null);
+    return true;
+  };
   const onDataRef = useRef(onData);
   const mut = useRef({ seq: 0, skey: "" });
   const aiBase = orgId ? aiId("organization.member", memberId, "services") : "advocate.services";
@@ -151,7 +163,7 @@ export default function ServiceManager({
     const f = id.slice(id.lastIndexOf(".") + 1);
     if (isFilter(f)) setFilter(f);
   });
-  useAiModal(data ? `${aiBase}.form-modal` : "", () => setDialog({ kind: "add" }));
+  useAiModal(data && denied !== skey ? `${aiBase}.form-modal` : "", () => setDialog({ kind: "add" }));
 
   useEffect(() => {
     onDataRef.current = onData;
@@ -343,6 +355,7 @@ export default function ServiceManager({
       }
       const err = serviceErrorOf(e);
       toast(errText(err), { tone: "err" });
+      deny(err);
       if (err.kind === "notFound") reload();
     } finally {
       setBusyIds((b) => Object.fromEntries(Object.entries(b).filter(([k]) => k !== item.id)));
@@ -367,6 +380,8 @@ export default function ServiceManager({
         dropItem(item.id);
         setDialog(null);
         reload();
+      } else if (deny(err)) {
+        toast(errText(err), { tone: "err" });
       } else {
         setRemoveErr(errText(err));
       }
@@ -416,6 +431,8 @@ export default function ServiceManager({
     );
   }
 
+  const readOnly = denied === skey;
+  const noPromote = readOnly || promoDenied === skey;
   const lawyer = data.seller.role === "yurist" || (!owner && role === "lawyer") || isLawyerSeller(data.profile.sellerType);
   const sellerId = data.seller.id || data.profile.userId;
   const boost = items.find((x) => x.profileBoost)?.profileBoost ?? null;
@@ -449,18 +466,22 @@ export default function ServiceManager({
           <h2 className="svm__title">{title ?? t("title")}</h2>
           <p className="svm__lead">{owner ? t("leadOwner") : t("lead")}</p>
         </div>
-        <div className="svm__hero-a">
-          <button type="button" className="btn btn--grad" onClick={() => setDialog({ kind: "add" })} data-ai-target="button:add-service" data-ai-id={`${aiBase}.add`}>
-            <IconPlus aria-hidden="true" />
-            {t("add")}
-          </button>
-          {owner ? null : (
-            <Link href={`/portal/${role}/promotion`} className="btn btn--glass btn--sm">
-              <IconRocket aria-hidden="true" />
-              {t("promoteProfile")}
-            </Link>
-          )}
-        </div>
+        {readOnly && (owner || noPromote) ? null : (
+          <div className="svm__hero-a">
+            {readOnly ? null : (
+              <button type="button" className="btn btn--grad" onClick={() => setDialog({ kind: "add" })} data-ai-target="button:add-service" data-ai-id={`${aiBase}.add`}>
+                <IconPlus aria-hidden="true" />
+                {t("add")}
+              </button>
+            )}
+            {owner || noPromote ? null : (
+              <Link href={`/portal/${role}/promotion`} className="btn btn--glass btn--sm">
+                <IconRocket aria-hidden="true" />
+                {t("promoteProfile")}
+              </Link>
+            )}
+          </div>
+        )}
         <ul className="svm__stats">
           {stats.map(({ k, Icon, v }) => (
             <li key={k} className={`svm__stat svm__stat--${k}`}>
@@ -558,6 +579,8 @@ export default function ServiceManager({
                 }
                 statusError={statusErr[x.id] ?? ""}
                 showNegotiation={self}
+                readOnly={readOnly}
+                noPromote={noPromote}
                 onStatus={(s) => void changeStatus(x, s)}
                 onEdit={() => setDialog({ kind: "edit", item: x })}
                 onPromote={() => setDialog({ kind: "promote", item: x })}
@@ -583,10 +606,12 @@ export default function ServiceManager({
           </span>
           <b>{t("empty.title")}</b>
           <p>{owner ? t("empty.textOwner") : t("empty.text")}</p>
-          <button type="button" className="btn btn--pri" onClick={() => setDialog({ kind: "add" })}>
-            <IconPlus aria-hidden="true" />
-            {t("addFirst")}
-          </button>
+          {readOnly ? null : (
+            <button type="button" className="btn btn--pri" onClick={() => setDialog({ kind: "add" })}>
+              <IconPlus aria-hidden="true" />
+              {t("addFirst")}
+            </button>
+          )}
         </div>
       )}
 
@@ -609,6 +634,11 @@ export default function ServiceManager({
           }}
           onClose={() => setDialog(null)}
           onStale={reload}
+          onDenied={(msg) => {
+            toast(msg, { tone: "err" });
+            setDenied(skey);
+            setDialog(null);
+          }}
           onSaved={(saved, created) => {
             mut.current = { seq: mut.current.seq + 1, skey };
             replaceItem(saved);
@@ -628,6 +658,11 @@ export default function ServiceManager({
           owner={owner}
           onClose={() => setDialog(null)}
           onStale={reload}
+          onDenied={(msg) => {
+            toast(msg, { tone: "err" });
+            setPromoDenied(skey);
+            setDialog(null);
+          }}
           onSent={(req) => {
             if (req.telegramSent) toast(t("toast.promoSent"), { tone: "ok" });
           }}

@@ -6,7 +6,7 @@ import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { demoPrivateChat, getLawyerPrivateChat } from "@/lib/services/backend";
 import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
-import { ApiError, errDetail, isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
+import { ApiError, errDetail, isDemoUnavailable, isForbidden, isProviderUnavailable } from "@/lib/http";
 import { CheckoutIntent } from "@/components/portal/OrderMilestones";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
@@ -24,6 +24,8 @@ export default function PrivateChatButton({ sellerUserId, returnPath }: { seller
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
+  // Refused (403): the button goes, the reason stays.
+  const [refused, setRefused] = useState(false);
 
   useEffect(() => {
     const onShow = (e: PageTransitionEvent) => {
@@ -62,6 +64,7 @@ export default function PrivateChatButton({ sellerUserId, returnPath }: { seller
       }
     } catch (e) {
       const demoClosed = e instanceof ApiError && e.status === 400 && /demo/i.test(e.detail || "");
+      if (isForbidden(e)) setRefused(true);
       setErr(isProviderUnavailable(e) || isDemoUnavailable(e) || demoClosed ? tc("paymentUnavailable") : errDetail(e) || t("chatError"));
     } finally {
       if (!leaving) setBusy(false);
@@ -70,10 +73,12 @@ export default function PrivateChatButton({ sellerUserId, returnPath }: { seller
 
   return (
     <>
-      <button type="button" className="btn btn--line btn--sm mk-side__alt" onClick={() => void open()} disabled={busy} title={t("privateChatHint")}>
-        <IconChat />
-        {t("privateChat")}
-      </button>
+      {refused ? null : (
+        <button type="button" className="btn btn--line btn--sm mk-side__alt" onClick={() => void open()} disabled={busy} title={t("privateChatHint")}>
+          <IconChat />
+          {t("privateChat")}
+        </button>
+      )}
       {err ? <Notice ok={false} msg={err} /> : null}
       <Modal open={!!intent} onClose={() => setIntent(null)} title={tpay("intentTitle")}>
         {intent ? <CheckoutIntent intent={intent} onCancel={() => setIntent(null)} untitled /> : null}

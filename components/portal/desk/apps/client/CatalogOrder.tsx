@@ -186,9 +186,13 @@ export default function CatalogOrder({
             <b>{q ? `${som(q.totalAmount)} ${t("som")}` : quoting ? t("priceCalc") : service.price ? `${som(service.price)} ${t("som")}` : t("byRequest")}</b>
           </span>
           <Btn onClick={onClose}>{d("cancel")}</Btn>
-          <Btn kind="primary" type="submit" disabled={broken} icon={<IconArrowRight />}>
-            {t("buy")}
-          </Btn>
+          {/* A misconfigured package cannot be bought: no button, the
+              banner below says why. */}
+          {broken ? null : (
+            <Btn kind="primary" type="submit" icon={<IconArrowRight />}>
+              {t("buy")}
+            </Btn>
+          )}
         </>
       }
     >

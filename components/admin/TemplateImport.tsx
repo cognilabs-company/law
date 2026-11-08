@@ -18,7 +18,8 @@ const VIS = ["staff", "clients", "public"];
 // T1B-09 template constructor: upload a DOCX → the backend extracts the
 // {{field}} markers → check the field list and preview → the template is
 // created inactive (draft) for review. ZIP uploads import many at once.
-export default function TemplateImport({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: () => void }) {
+// `onForbidden`: a 403 on import — the opener takes its import action away.
+export default function TemplateImport({ open, onClose, onDone, onForbidden }: { open: boolean; onClose: () => void; onDone: () => void; onForbidden?: () => void }) {
   const t = useTranslations("admin.templates.import");
   const uid = useId();
   const [mode, setMode] = useState<"docx" | "zip">("docx");
@@ -73,6 +74,7 @@ export default function TemplateImport({ open, onClose, onDone }: { open: boolea
         document.getElementById(`${uid}-file`)?.focus();
       } else {
         notify.error(t("error"), { id: "tpl-import", error: err, map: { 403: t("forbidden"), 409: t("slugTaken") } });
+        if (status === 403) onForbidden?.();
       }
     } finally {
       setBusy(false);

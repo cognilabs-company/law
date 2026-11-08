@@ -87,6 +87,11 @@ export function Comments({ state, canWrite, versions, onSend, onRetry }: Comment
             </SxButton>
           </div>
         </form>
+      ) : failed ? (
+        // The composer left because the backend refused it (403); its reason stays.
+        <SxNote tone="error" role="alert" title={errText(sendError).title}>
+          {errText(sendError).text}
+        </SxNote>
       ) : null}
       {error && !items ? (
         <SxNote

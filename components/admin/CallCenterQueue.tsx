@@ -11,6 +11,7 @@ import { ApiError, isForbidden } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { aiId, aiSeg } from "@/lib/ai/ids";
 import { useAiReveal } from "@/lib/guide/targets";
+import { useCan } from "@/lib/useCan";
 import ListPager, { PAGE_STEP, usePaged } from "@/components/ui/ListPager";
 import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState";
 import PersonName from "@/components/ui/PersonName";
@@ -42,6 +43,13 @@ export default function CallCenterQueue({ onCount }: { onCount?: (n: number) => 
   const tn = useTranslations("common.notify");
   const locale = useLocale();
   const urg = useUrgentStatuses();
+  const canDo = useCan();
+  // Handing an order to the next seller is orders.manage (POST
+  // /matching/orders/{id}/assign-next); opening a lead needs the CRM.
+  // A 403 on assign removes the button for the rest of the visit.
+  const [assignDenied, setAssignDenied] = useState(false);
+  const canAssign = canDo("orders.manage") && !assignDenied;
+  const canOpenCrm = canDo("crm.leads.view");
   const [state, setState] = useState<State>({ status: "loading", items: [] });
   const [busyId, setBusyId] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -123,6 +131,7 @@ export default function CallCenterQueue({ onCount }: { onCount?: (n: number) => 
       notify.success(t("assignDone"), { id: `cc-queue-assign-${item.id}` });
       await load();
     } catch (e) {
+      if (isForbidden(e)) setAssignDenied(true);
       notify.error(t("assignFailed"), {
         id: `cc-queue-assign-${item.id}`,
         error: e,
@@ -215,6 +224,7 @@ export default function CallCenterQueue({ onCount }: { onCount?: (n: number) => 
                     {urgent && item.directions?.length ? <span>{item.directions.map((d) => directionLabel(te, d, tu)).join(", ")}</span> : null}
                     {urgent && item.requestedLawyerCount ? <span>{t("lawyersN", { n: item.requestedLawyerCount })}</span> : null}
                   </div>
+                  {urgent || (item.type === "order" ? canAssign : canOpenCrm) ? (
                   <div className="ccq__act">
                     {urgent ? (
                       // The claim / candidates / meeting / result actions all
@@ -238,6 +248,7 @@ export default function CallCenterQueue({ onCount }: { onCount?: (n: number) => 
                       </Link>
                     )}
                   </div>
+                  ) : null}
                 </div>
               );
             })}

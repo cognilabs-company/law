@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { dateOnly, fmtNum } from "@/lib/date";
-import { errDetail, logApiError } from "@/lib/http";
+import { errDetail, isForbidden, logApiError } from "@/lib/http";
 import type { ExperienceEvidence } from "@/lib/services/experience";
 import {
   SUSPENSION_FILE_MAX,
@@ -34,6 +34,16 @@ export default function VerifySuspensions({ sellerUserId, practice, onPractice, 
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [confirm, setConfirm] = useState("");
+  // A 403 on save/upload/archive: this account may not manage suspensions —
+  // add, edit and archive leave; the list stays readable.
+  const [denied, setDenied] = useState(false);
+  const refuse = (e: unknown) => {
+    if (!isForbidden(e)) return false;
+    setDenied(true);
+    setForm(null);
+    setConfirm("");
+    return true;
+  };
   const bad = !form || (!form.id && (!form.startedOn || form.startedOn > form.today)) || form.reason.trim().length < 2 || (!!form.endedOn && !!form.startedOn && form.endedOn < form.startedOn) || form.uploading !== null;
   const period = (s: Suspension) => [dateOnly(s.startedAt, locale), s.endedAt ? dateOnly(s.endedAt, locale) : tp("suspOpen")].join(" — ");
 
@@ -65,6 +75,7 @@ export default function VerifySuspensions({ sellerUserId, practice, onPractice, 
       setNote({ ok: true, msg: t("saved") });
     } catch (e) {
       logApiError("practice.suspension", e);
+      refuse(e);
       setNote({ ok: false, msg: errDetail(e) || t("failed") });
     } finally {
       setBusy(false);
@@ -90,6 +101,7 @@ export default function VerifySuspensions({ sellerUserId, practice, onPractice, 
     } catch (e) {
       logApiError("practice.suspension.evidence", e);
       setForm((f) => (f ? { ...f, uploading: null } : f));
+      refuse(e);
       setNote({ ok: false, msg: errDetail(e) || t("fileFailed") });
     }
   }
@@ -104,6 +116,7 @@ export default function VerifySuspensions({ sellerUserId, practice, onPractice, 
       setNote({ ok: true, msg: t("archived") });
     } catch (e) {
       logApiError("practice.suspension.archive", e);
+      refuse(e);
       setNote({ ok: false, msg: errDetail(e) || t("failed") });
     } finally {
       setBusy(false);
@@ -123,7 +136,7 @@ export default function VerifySuspensions({ sellerUserId, practice, onPractice, 
           <IcClock size={17} />
           {t("title")}
         </h3>
-        {!form ? (
+        {!form && !denied ? (
           <button type="button" className="opx-pbtn opx-vrf-sm" onClick={start} disabled={busy}>
             {t("add")}
           </button>
@@ -171,7 +184,7 @@ export default function VerifySuspensions({ sellerUserId, practice, onPractice, 
                     </span>
                   ) : null}
                 </span>
-                {s.id && !form && confirm !== s.id ? (
+                {s.id && !form && !denied && confirm !== s.id ? (
                   <span className="opx-vrf-slist__acts">
                     <button type="button" className="opx-pbtn opx-pbtn--ghost opx-vrf-sm" onClick={() => edit(s)} disabled={busy}>
                       {t("edit")}
@@ -182,7 +195,7 @@ export default function VerifySuspensions({ sellerUserId, practice, onPractice, 
                   </span>
                 ) : null}
               </div>
-              {confirm === s.id ? (
+              {confirm === s.id && !denied ? (
                 <div className="opx-vrf-confirm" role="group" aria-labelledby={`${uid}-c-${s.id}`}>
                   <b id={`${uid}-c-${s.id}`}>{t("archiveTitle")}</b>
                   <p>{t("archiveText", { period: period(s) })}</p>

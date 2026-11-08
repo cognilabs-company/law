@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { ApiError, errDetail, logApiError } from "@/lib/http";
+import { ApiError, errDetail, isForbidden, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { shortDateTime } from "@/lib/date";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
@@ -50,7 +50,8 @@ export default function MpComplaintDecide({ job, item: c, onDone, onClose, onDir
   const tp = useTranslations("marketplace.orderDetail.pricing");
   const tx = useTranslations("admin.ccx.panel");
   const tc = useTranslations("admin.ccx.cases");
-  const none = useTranslations("common")("none");
+  const tcom = useTranslations("common");
+  const none = tcom("none");
   const locale = useLocale();
   const once = useSameTickGuard();
   const visId = useId();
@@ -66,12 +67,20 @@ export default function MpComplaintDecide({ job, item: c, onDone, onClose, onDir
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<{ title: string; text: string } | null>(null);
+  // A 403 on the ruling or an upload: this account may not rule here — the
+  // decision leaves the panel and only the reason stays.
+  const [denied, setDenied] = useState("");
+  const deny = (e: unknown) => {
+    setDenied(errDetail(e) || tcom("forbidden"));
+    setAction("");
+    onDirty(false);
+  };
 
   const st = c.settlement;
   const evidence = [...c.evidence, ...files];
   const money = (n: number | null) => (n === null ? none : `${fmtUzs(n)} ${t("som")}`);
   const label = (group: string, v: string) => (v && t.has(`${group}.${v}`) ? t(`${group}.${v}`) : v ? t("other") : none);
-  const options = c.actions.filter((a) => t.has(`action.${a}`) && t.has(`confirm.${a}`));
+  const options: MpComplaintAction[] = denied ? [] : c.actions.filter((a) => t.has(`action.${a}`) && t.has(`confirm.${a}`));
   const act = action && options.includes(action) ? action : "";
   const danger = act !== "" && REFUNDS.has(act);
   const amountNum = amount ? Number(amount) : undefined;
@@ -132,6 +141,7 @@ export default function MpComplaintDecide({ job, item: c, onDone, onClose, onDir
       }
     } catch (e) {
       logApiError("mpComplaint.evidence", e);
+      if (isForbidden(e)) return deny(e);
       setErr({ title: t("err.upload"), text: errDetail(e) });
     } finally {
       setUploading(false);
@@ -156,6 +166,7 @@ export default function MpComplaintDecide({ job, item: c, onDone, onClose, onDir
         return;
       }
       logApiError("mpComplaint.resolve", e);
+      if (isForbidden(e)) return deny(e);
       setErr({ title: t("err.failed"), text: errDetail(e) });
     } finally {
       setBusy(false);
@@ -336,7 +347,10 @@ export default function MpComplaintDecide({ job, item: c, onDone, onClose, onDir
             </Section>
           </div>
         ) : (
-          left
+          <>
+            {left}
+            {denied ? <Note tone="bad">{denied}</Note> : null}
+          </>
         )}
       </div>
       <PanelFoot

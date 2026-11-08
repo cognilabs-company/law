@@ -11,7 +11,9 @@ import { RA_GROUPS, RA_NAV_TARGETS } from "@/lib/remoteAssist/registry";
 // its real title, searchable, and where the client is right now on top.
 // Opening still goes through route.navigate and the client's registry.
 
-export function RaPagePicker({ currentPageId, currentRoute, disabled, busyRoute, onOpen }: { currentPageId: string; currentRoute: string; disabled: boolean; busyRoute: string; onOpen: (route: string) => void }): ReactElement {
+// canOpen=false (no command permission or no route.navigate grant): only where
+// the client is is shown — no page buttons that could not be used.
+export function RaPagePicker({ currentPageId, currentRoute, canOpen = true, disabled, busyRoute, onOpen }: { currentPageId: string; currentRoute: string; canOpen?: boolean; disabled: boolean; busyRoute: string; onOpen: (route: string) => void }): ReactElement {
   const t = useTranslations("remoteAssist");
   const [q, setQ] = useState("");
   const title = (pageId: string) => (t.has(`pages.${raKey(pageId)}`) ? t(`pages.${raKey(pageId)}`) : pageId);
@@ -35,6 +37,8 @@ export function RaPagePicker({ currentPageId, currentRoute, disabled, busyRoute,
           {currentRoute ? <code>{currentRoute}</code> : null}
         </span>
       </div>
+      {canOpen ? (
+      <>
       <label className="ra-search">
         <IconSearch aria-hidden="true" />
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("op.pageSearch")} aria-label={t("op.pageSearch")} />
@@ -61,6 +65,8 @@ export function RaPagePicker({ currentPageId, currentRoute, disabled, busyRoute,
         </section>
       ))}
       {!groups.length ? <p className="ra-empty">{t("op.noMatch")}</p> : null}
+      </>
+      ) : null}
     </div>
   );
 }

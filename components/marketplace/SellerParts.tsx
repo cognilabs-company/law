@@ -99,6 +99,7 @@ export function SellerServiceRow({
   on,
   top,
   buyDisabled,
+  canBuy = true,
   onPick,
   onBuy,
   ph,
@@ -110,6 +111,9 @@ export function SellerServiceRow({
   on: boolean;
   top: boolean;
   buyDisabled: boolean;
+  // false: this account may not buy here at all (own profile, a seller or
+  // staff account, an unverified or busy seller) — no Buy button is shown.
+  canBuy?: boolean;
   onPick: () => void;
   onBuy: () => void;
   ph?: { title: string; category: string; price: string };
@@ -166,7 +170,7 @@ export function SellerServiceRow({
             <IconCheck aria-hidden="true" />
             {t("detail.bought")}
           </Link>
-        ) : (
+        ) : !canBuy ? null : (
         <button
           type="button"
           className="btn btn--pri btn--sm"

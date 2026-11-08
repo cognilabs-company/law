@@ -8,6 +8,7 @@ import { updateDocumentTemplate, deleteDocumentTemplate } from "@/lib/services/a
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { notify } from "@/lib/toast";
+import { isForbidden } from "@/lib/http";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import { AdminItem, useReload } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
@@ -32,6 +33,16 @@ export default function AdminTemplates() {
   const [q, setQ] = useState("");
   const [delBusy, setDelBusy] = useState(false);
   const [toggling, setToggling] = useState("");
+  // The page itself needs templates.manage (AdminShell). A 403 on a write
+  // still means this account may not change templates now: every write
+  // leaves the screen (the toast says why) instead of being offered again.
+  const [denied, setDenied] = useState(false);
+  const deny = () => {
+    setDenied(true);
+    setOpen(false);
+    setImportOpen(false);
+    setDel(null);
+  };
 
   const list = useMemo(() => {
     const terms = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -42,7 +53,9 @@ export default function AdminTemplates() {
     });
   }, [q, tpls.data]);
   useAiField("admin.templates.search.input", { get: () => q, set: setQ });
-  useAiModal("admin.templates.create-modal", () => setOpen(true));
+  useAiModal("admin.templates.create-modal", () => {
+    if (!denied) setOpen(true);
+  });
 
   const editorHref = (id: string) => `/admin/document-templates/${encodeURIComponent(id)}/editor`;
 
@@ -56,6 +69,7 @@ export default function AdminTemplates() {
       notify.success(t("form.deleted"), { id: `tpl-del-${del.id}`, body: del.name });
     } catch (e) {
       notify.error(t("form.deleteError"), { id: `tpl-del-${del.id}`, error: e });
+      if (isForbidden(e)) deny();
     } finally {
       setDelBusy(false);
     }
@@ -71,6 +85,7 @@ export default function AdminTemplates() {
       void tpls.refresh();
     } catch (e) {
       notify.error(t("form.updateError"), { id: `tpl-act-${d.id}`, error: e });
+      if (isForbidden(e)) deny();
     } finally {
       setToggling("");
     }
@@ -87,14 +102,18 @@ export default function AdminTemplates() {
         <b>{t("templates.listTitle")}</b>
         <span className="ahdr">
           <span className="advmuted">{tpls.data.length}</span>
-          <button className="btn btn--soft btn--sm" type="button" onClick={() => setImportOpen(true)} data-ai-target="button:import-templates" data-ai-id="admin.templates.import">
-            <IconUpload />
-            {t("templates.import.cta")}
-          </button>
-          <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)} data-ai-target="button:new-template" data-ai-id="admin.templates.create">
-            <IconPlus />
-            {te("list.newWord")}
-          </button>
+          {denied ? null : (
+            <>
+              <button className="btn btn--soft btn--sm" type="button" onClick={() => setImportOpen(true)} data-ai-target="button:import-templates" data-ai-id="admin.templates.import">
+                <IconUpload />
+                {t("templates.import.cta")}
+              </button>
+              <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)} data-ai-target="button:new-template" data-ai-id="admin.templates.create">
+                <IconPlus />
+                {te("list.newWord")}
+              </button>
+            </>
+          )}
         </span>
       </div>
 
@@ -155,7 +174,7 @@ export default function AdminTemplates() {
                       >
                         <IconEdit />
                       </Link>
-                      {draft ? null : (
+                      {draft || denied ? null : (
                         <button
                           className="aitem__act"
                           type="button"
@@ -168,9 +187,11 @@ export default function AdminTemplates() {
                           <IconPower />
                         </button>
                       )}
-                      <button className="aitem__act aitem__act--danger" type="button" aria-label={t("form.delete")} title={t("form.delete")} onClick={() => setDel(d)}>
-                        <IconTrash />
-                      </button>
+                      {denied ? null : (
+                        <button className="aitem__act aitem__act--danger" type="button" aria-label={t("form.delete")} title={t("form.delete")} onClick={() => setDel(d)}>
+                          <IconTrash />
+                        </button>
+                      )}
                     </>
                   }
                 />
@@ -180,12 +201,13 @@ export default function AdminTemplates() {
         </div>
       )}
 
-      <TemplateImport open={importOpen} onClose={() => setImportOpen(false)} onDone={reload} />
+      <TemplateImport open={importOpen && !denied} onClose={() => setImportOpen(false)} onDone={reload} onForbidden={deny} />
 
       <CreateDraftModal
         contractFrom={tpls.data[0]?.id ?? ""}
-        open={open}
+        open={open && !denied}
         onClose={() => setOpen(false)}
+        onForbidden={deny}
         onCreated={(s) => {
           setOpen(false);
           reload();

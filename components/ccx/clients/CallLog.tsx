@@ -8,6 +8,7 @@ import PersonName from "@/components/ui/PersonName";
 import { PAGE_STEP, usePaged } from "@/components/ui/ListPager";
 import { listCcCalls, type CcCall } from "@/lib/services/backend";
 import { isForbidden } from "@/lib/http";
+import { isCallCenterUser, useAuth } from "@/lib/auth";
 import { useResource } from "@/lib/useResource";
 import { notify } from "@/lib/toast";
 import { fmtDuration, shortDateTime } from "@/lib/date";
@@ -99,6 +100,9 @@ export default function CallLog({ reloadKey, loggedPhone, onOpen }: { reloadKey:
   }, [reloadKey, loggedPhone]);
 
   const denied = res.status === "error" && isForbidden(res.error);
+  // Logging a call is call-center work; refused (403) → neither offered.
+  const { session } = useAuth();
+  const canLog = isCallCenterUser(session) && !denied;
   const rest = Math.max(0, pager.total - pager.count);
 
   return (
@@ -119,24 +123,28 @@ export default function CallLog({ reloadKey, loggedPhone, onOpen }: { reloadKey:
             ))}
           </div>
         </div>
-        <div className="opx-cl-log__tools">
-          <button
-            type="button"
-            className={`opx-cl-icon${refreshing ? " is-spin" : ""}`}
-            onClick={refreshNow}
-            aria-label={tc("queue.refresh")}
-            title={tc("queue.refresh")}
-            aria-busy={refreshing || undefined}
-            disabled={refreshing}
-            data-ai-id="call_center.calls.refresh"
-          >
-            <IcRefresh size={18} />
-          </button>
-          <button type="button" className="opx-cl-btn opx-cl-btn--log opx-cl-btn--sm" onClick={() => setFormOpen(true)} data-ai-target="button:log-call">
-            <IcPlus size={17} />
-            {tc("logCall")}
-          </button>
-        </div>
+        {!denied ? (
+          <div className="opx-cl-log__tools">
+            <button
+              type="button"
+              className={`opx-cl-icon${refreshing ? " is-spin" : ""}`}
+              onClick={refreshNow}
+              aria-label={tc("queue.refresh")}
+              title={tc("queue.refresh")}
+              aria-busy={refreshing || undefined}
+              disabled={refreshing}
+              data-ai-id="call_center.calls.refresh"
+            >
+              <IcRefresh size={18} />
+            </button>
+            {canLog ? (
+              <button type="button" className="opx-cl-btn opx-cl-btn--log opx-cl-btn--sm" onClick={() => setFormOpen(true)} data-ai-target="button:log-call">
+                <IcPlus size={17} />
+                {tc("logCall")}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </header>
 
       {denied ? (
@@ -226,7 +234,7 @@ export default function CallLog({ reloadKey, loggedPhone, onOpen }: { reloadKey:
         </>
       )}
 
-      <Modal open={formOpen} onClose={() => setFormOpen(false)} title={tc("logCall")} busy={formBusy} dirty={formDirty} footer={<div className="ccslot" ref={setFormSlot} />}>
+      <Modal open={formOpen && canLog} onClose={() => setFormOpen(false)} title={tc("logCall")} busy={formBusy} dirty={formDirty} footer={<div className="ccslot" ref={setFormSlot} />}>
         <CcCallForm
           footSlot={formSlot}
           onDirtyChange={setFormDirty}

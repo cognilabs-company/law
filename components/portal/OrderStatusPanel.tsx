@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { isForbidden } from "@/lib/http";
 import { useTranslations, useLocale } from "next-intl";
 import { getOrderStatusHistory, updateOrderStatus, type OrderStatusEntry } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
@@ -32,6 +33,9 @@ export default function OrderStatusPanel({ orderId, side, status, onChanged }: {
   const [busy, setBusy] = useState<string | null>(null);
   const once = useSameTickGuard();
   const [note, setNote] = useState("");
+  // A 403 on a move: this account may not change the order's status, so the
+  // step buttons leave the panel (the history stays readable).
+  const [denied, setDenied] = useState(false);
 
   async function move(to: string) {
     if (busy || !once()) return;
@@ -44,6 +48,7 @@ export default function OrderStatusPanel({ orderId, side, status, onChanged }: {
       setKey((k) => k + 1);
       onChanged?.(to);
     } catch (e) {
+      if (isForbidden(e)) setDenied(true);
       notify.error(t("error"), { id: nid, error: e, map: { 409: t("conflict"), 403: t("forbidden") } });
     } finally {
       setBusy(null);
@@ -75,7 +80,7 @@ export default function OrderStatusPanel({ orderId, side, status, onChanged }: {
           ))}
         </ol>
       )}
-      {next.length ? (
+      {next.length && !denied ? (
         <div className="ohist__next">
           <label>{t("nextStep")}</label>
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("notePh")} maxLength={300} />

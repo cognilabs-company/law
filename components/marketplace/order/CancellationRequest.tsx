@@ -11,7 +11,9 @@ import { TextArea } from "@/components/admin/studio/sx/form/TextArea";
 import { useMarketError } from "@/components/marketplace/useMarketError";
 import { fmtUzs } from "@/lib/money";
 import { shortDateTime } from "@/lib/date";
-import { parseServerTime } from "@/lib/http";
+import { isForbidden, parseServerTime } from "@/lib/http";
+import { notify } from "@/lib/toast";
+import { markRefused, useRefused } from "./refused";
 import { marketChatHref, type MarketSignal } from "@/lib/services/marketplace";
 import { marketErrorInfo, requestCancellationReview, type CancellationReview } from "@/lib/services/marketRuntime";
 import { MessageSquareTextIcon, LifeBuoyIcon } from "./icons";
@@ -57,6 +59,7 @@ export default function CancellationRequest({ o, phase, view, aiBase, onChanged,
   const [busy, setBusy] = useState(false);
   const once = useSameTickGuard();
   const [error, setError] = useState<SxDialogErrorText>(null);
+  const refusedFor = useRefused();
 
   const review = o.cancellationReview;
   const resolved = isReviewResolved(review);
@@ -64,7 +67,7 @@ export default function CancellationRequest({ o, phase, view, aiBase, onChanged,
   const showReview = (phase === "review" || (!!review && !resolved)) && !(held && !resolved);
   const showResolution = resolved || !!held;
   const allowed = o.canRequestCancellation ?? (view === "seller" && (phase === "paid" || phase === "in_progress"));
-  const showRequest = allowed && !(review && !resolved) && !showReview;
+  const showRequest = allowed && !refusedFor(o.id, "cancellationReview") && !(review && !resolved) && !showReview;
 
   if (!showReview && !showResolution && !showRequest) return null;
 
@@ -111,6 +114,13 @@ export default function CancellationRequest({ o, phase, view, aiBase, onChanged,
       }
       const fallback = t("cancel.error");
       const msg = marketError(e, fallback);
+      // Refused (403): the "report a problem" panel leaves; the reason is told once.
+      if (isForbidden(e)) {
+        setOpen(false);
+        notify.error(fallback, { id: `cancel-review-refused-${o.id}`, body: msg === fallback ? undefined : msg });
+        markRefused(o.id, "cancellationReview");
+        return;
+      }
       setError({ title: fallback, text: msg === fallback ? "" : msg });
       if (info?.status === 409) onChanged();
     } finally {

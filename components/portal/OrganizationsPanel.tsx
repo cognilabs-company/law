@@ -16,6 +16,7 @@ import { Link } from "@/i18n/navigation";
 import { Skeleton, EmptyState, ErrorState } from "./DataState";
 import { AdminForm, AdminItem, UserSelect, useReload } from "@/components/admin/AdminBits";
 import { notify } from "@/lib/toast";
+import { isForbidden } from "@/lib/http";
 import Modal from "@/components/admin/Modal";
 import { IconBriefcase, IconBuilding, IconChartBar, IconPlus, IconUsers } from "@/components/icons";
 import { aiId } from "@/lib/ai/ids";
@@ -38,7 +39,12 @@ export default function OrganizationsPanel() {
   const [uid, setUid] = useState("");
   const [title, setTitle] = useState("");
   const [mBusy, setMBusy] = useState(false);
-  useAiModal("organization.create-modal", () => setCreateOpen(true));
+  // A 403 answer means this account may not do that here: the action leaves
+  // the screen (organization ids whose members it may not add; creating).
+  const [addDenied, setAddDenied] = useState<Set<string>>(() => new Set());
+  const [createDenied, setCreateDenied] = useState(false);
+  const canAdd = !!membersOrg && !addDenied.has(membersOrg.id);
+  useAiModal(createDenied ? "" : "organization.create-modal", () => setCreateOpen(true));
 
   // Reset the members form when another organization is opened (during render,
   // not in the effect).
@@ -78,6 +84,7 @@ export default function OrganizationsPanel() {
     try {
       await addOrgMember(org.id, { user_id: uid, title: title.trim() });
     } catch (err) {
+      if (isForbidden(err)) setAddDenied((s) => new Set(s).add(org.id));
       notify.error(t("memberAddFailed"), { id: nid, error: err });
       setMBusy(false);
       return;
@@ -106,10 +113,12 @@ export default function OrganizationsPanel() {
         <b>{t("title")}</b>
         <span className="ahdr">
           <span className="advmuted">{mine.length}</span>
-          <button className="btn btn--pri btn--sm" type="button" onClick={() => setCreateOpen(true)} data-ai-target="button:create-organization" data-ai-id="organization.create">
-            <IconPlus />
-            {t("create")}
-          </button>
+          {createDenied ? null : (
+            <button className="btn btn--pri btn--sm" type="button" onClick={() => setCreateOpen(true)} data-ai-target="button:create-organization" data-ai-id="organization.create">
+              <IconPlus />
+              {t("create")}
+            </button>
+          )}
         </span>
       </div>
       <p className="advmuted" style={{ marginBottom: 16 }}>{t("lead")}</p>
@@ -156,7 +165,7 @@ export default function OrganizationsPanel() {
         </div>
       )}
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={t("create")}>
+      <Modal open={createOpen && !createDenied} onClose={() => setCreateOpen(false)} title={t("create")}>
         <div data-ai-id="organization.create-modal" data-ai-type="modal" data-ai-label={t("create")} data-ai-private>
           <AdminForm
             fields={[
@@ -166,16 +175,21 @@ export default function OrganizationsPanel() {
               { name: "region", label: t("region") },
               { name: "address", label: t("address"), type: "textarea" },
             ]}
-            onSubmit={async (v) =>
-              void (await createOrganization({
-                name: String(v.name),
-                organization_type: "advokat_tashkiloti",
-                phone: String(v.phone),
-                inn: String(v.inn),
-                region: String(v.region),
-                address: String(v.address),
-              }))
-            }
+            onSubmit={async (v) => {
+              try {
+                await createOrganization({
+                  name: String(v.name),
+                  organization_type: "advokat_tashkiloti",
+                  phone: String(v.phone),
+                  inn: String(v.inn),
+                  region: String(v.region),
+                  address: String(v.address),
+                });
+              } catch (e) {
+                if (isForbidden(e)) setCreateDenied(true);
+                throw e;
+              }
+            }}
             submitLabel={t("save")}
             busyLabel={t("saving")}
             okMsg={t("created")}
@@ -221,7 +235,7 @@ export default function OrganizationsPanel() {
             ) : (
               <EmptyState icon={<IconUsers />} title={t("noMembers")} />
             )}
-            <form className="cform" style={{ maxWidth: "none" }} onSubmit={addMember} data-ai-target="organization:add-member" data-ai-label={t("addMember")} data-ai-id="organization.add-member" data-ai-private>
+            {canAdd ? <form className="cform" style={{ maxWidth: "none" }} onSubmit={addMember} data-ai-target="organization:add-member" data-ai-label={t("addMember")} data-ai-id="organization.add-member" data-ai-private>
               <UserSelect value={uid} onChange={setUid} label={t("member")} placeholder={t("selectMember")} />
               <div>
                 <label>{t("memberTitle")}</label>
@@ -230,7 +244,7 @@ export default function OrganizationsPanel() {
               <button className="btn btn--pri" type="submit" disabled={!uid || mBusy}>
                 {mBusy ? t("saving") : t("addMember")}
               </button>
-            </form>
+            </form> : null}
           </div>
         )}
       </Modal>

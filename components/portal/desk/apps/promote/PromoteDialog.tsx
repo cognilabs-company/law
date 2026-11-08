@@ -24,7 +24,9 @@ const MAX_MB = 12;
 const HTTP_URL = /^https?:\/\/\S+\.\S+/i;
 const SCOPE: ServiceScope = { kind: "me" };
 
-export default function PromoteDialog({ open, start, services, onClose, onSent }: { open: boolean; start: PromotionPlacement; services: ManagedService[]; onClose: () => void; onSent: (r: PromotionRequest) => void }) {
+// onDenied: a 403 on the request — the caller closes the dialog and removes
+// its promote actions (the message is shown there).
+export default function PromoteDialog({ open, start, services, onClose, onSent, onDenied }: { open: boolean; start: PromotionPlacement; services: ManagedService[]; onClose: () => void; onSent: (r: PromotionRequest) => void; onDenied?: (message: string) => void }) {
   const t = useTranslations("sellerServices.promote");
   const tc = useTranslations("sellerServices");
   const packName = usePackageName();
@@ -116,6 +118,11 @@ export default function PromoteDialog({ open, start, services, onClose, onSent }
       if (!promotionErrorRetryable(e)) attempt.current = "";
       const code = promotionErrorCode(e);
       const kind = serviceErrorOf(e).kind;
+      if (!code && onDenied && (kind === "forbidden" || kind === "pendingAccount")) {
+        attempt.current = "";
+        onDenied(tc(`errors.${kind}`));
+        return;
+      }
       setErr(code ? t(`errors.${code}`) : kind === "notFound" ? t("notFound") : tc.has(`errors.${kind}`) ? tc(`errors.${kind}`) : tc("errors.unknown"));
     } finally {
       setBusy(false);

@@ -217,33 +217,35 @@ export default function Drawer({ task, loading, failed, busy, notice, now, appro
               ))}
             </div>
           ) : null}
-          <div className="opx-tk-drawer__more">
-            {task.actions.canEdit ? (
-              <button type="button" className="opx-pbtn opx-pbtn--ghost" onClick={() => onEdit(task)} disabled={busy}>
-                <IcPencil size={16} />
-                {t("edit")}
-              </button>
-            ) : null}
-            {task.actions.canAssign ? (
-              <button type="button" className="opx-pbtn opx-pbtn--ghost" onClick={() => onAssign(task)} disabled={busy}>
-                <IcUsers size={16} />
-                {t("assign")}
-              </button>
-            ) : null}
-            {task.actions.canDelete ? (
-              approveArchive ? (
-                <button type="button" className="opx-pbtn opx-pbtn--main" onClick={() => onDelete(task)} disabled={busy}>
-                  <IcArchive size={16} />
-                  {t("approveArchive")}
+          {task.actions.canEdit || task.actions.canAssign || task.actions.canDelete ? (
+            <div className="opx-tk-drawer__more">
+              {task.actions.canEdit ? (
+                <button type="button" className="opx-pbtn opx-pbtn--ghost" onClick={() => onEdit(task)} disabled={busy}>
+                  <IcPencil size={16} />
+                  {t("edit")}
                 </button>
-              ) : (
-                <button type="button" className="opx-pbtn opx-pbtn--rose" onClick={() => onDelete(task)} disabled={busy}>
-                  <IcTrash size={16} />
-                  {t("delete")}
+              ) : null}
+              {task.actions.canAssign ? (
+                <button type="button" className="opx-pbtn opx-pbtn--ghost" onClick={() => onAssign(task)} disabled={busy}>
+                  <IcUsers size={16} />
+                  {t("assign")}
                 </button>
-              )
-            ) : null}
-          </div>
+              ) : null}
+              {task.actions.canDelete ? (
+                approveArchive ? (
+                  <button type="button" className="opx-pbtn opx-pbtn--main" onClick={() => onDelete(task)} disabled={busy}>
+                    <IcArchive size={16} />
+                    {t("approveArchive")}
+                  </button>
+                ) : (
+                  <button type="button" className="opx-pbtn opx-pbtn--rose" onClick={() => onDelete(task)} disabled={busy}>
+                    <IcTrash size={16} />
+                    {t("delete")}
+                  </button>
+                )
+              ) : null}
+            </div>
+          ) : null}
         </footer>
       ) : null}
 

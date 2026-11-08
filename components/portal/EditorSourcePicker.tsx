@@ -17,7 +17,7 @@ import { notify } from "@/lib/toast";
 import FieldError from "@/components/ui/FieldError";
 import InlineAlert from "@/components/ui/InlineAlert";
 import { ErrorState, Skeleton } from "./DataState";
-import { IconFileText, IconEdit, IconSparkle, IconPaperclip, IconCheck, IconUpload, IconLock } from "@/components/icons";
+import { IconFileText, IconEdit, IconSparkle, IconPaperclip, IconCheck, IconUpload } from "@/components/icons";
 
 // LEXGO_FRONTEND_CLIENT_WORKS_QUALITY_EDITOR_2026-09-29.md §7-8.
 //
@@ -26,9 +26,9 @@ import { IconFileText, IconEdit, IconSparkle, IconPaperclip, IconCheck, IconUplo
 // any DOCX the client attached. The advocate can also upload their own.
 //
 // Two rules from the MD, both enforced here:
-//   • "Frontend available=false bo'lgan variantni disabled ko'rsatsin" — an
-//     unavailable option is shown and greyed, never hidden, so the advocate
-//     can see the AI draft exists and simply was not ordered.
+//   • available=false: the MD asked for a greyed option, but the owner law
+//     (2026-11-08) is that an action that cannot be taken is not shown at
+//     all — so an unavailable option is left out of the list.
 //   • "Faqat .docx editable source sifatida qabul qilinadi" — checked in the
 //     browser, so a PDF is refused before the upload rather than by a 4xx
 //     after it.
@@ -149,7 +149,7 @@ export default function EditorSourcePicker({
           />
         ) : (
           <div className="esrc__list" data-ai-target="doc-editor:sources" data-ai-label={t("title")}>
-            {(data?.options ?? []).map((o) => {
+            {(data?.options ?? []).filter((o) => o.available).map((o) => {
               const key = o.sourceType + (o.attachmentId || "");
               const Icon = SOURCE_ICON[o.sourceType] ?? IconFileText;
               const on = data?.currentSource === o.sourceType;
@@ -157,21 +157,17 @@ export default function EditorSourcePicker({
                 <button
                   key={key}
                   type="button"
-                  className={`esrc__o${on ? " esrc__o--on" : ""}${o.available ? "" : " esrc__o--off"}`}
+                  className={`esrc__o${on ? " esrc__o--on" : ""}`}
                   onClick={() => void pick(o)}
-                  disabled={!o.available || !!busy}
+                  disabled={!!busy}
                   aria-pressed={on}
                 >
                   <span className="esrc__i" aria-hidden><Icon /></span>
                   <span className="esrc__m">
                     <b>{o.title || (t.has(`kind.${o.sourceType}`) ? t(`kind.${o.sourceType}`) : o.sourceType)}</b>
                     {o.note ? <small>{o.note}</small> : null}
-                    {/* Why it is greyed, when the backend says. Without this an
-                        unavailable AI draft looks like a broken button. */}
-                    {!o.available && !o.note ? <small>{t("unavailable")}</small> : null}
                   </span>
                   {on ? <span className="esrc__on" aria-hidden><IconCheck /></span> : null}
-                  {!o.available ? <span className="esrc__lock" aria-hidden><IconLock /></span> : null}
                 </button>
               );
             })}

@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { ApiError, errDetail } from "@/lib/http";
+import { ApiError, errDetail, isForbidden } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { shortDateTime } from "@/lib/date";
 import { markPayoutPaid, resolvePayoutRecovery, type Payout, type PayoutStatus, type Recovery } from "@/lib/services/payouts";
@@ -18,6 +18,7 @@ export default function PayoutDecide({ job, item, onDone, onClose, onDirty }: De
   const t = useTranslations("callCenter.payouts");
   const tx = useTranslations("admin.ccx.panel");
   const tc = useTranslations("admin.ccx.cases");
+  const tcom = useTranslations("common");
   const locale = useLocale();
   const recovery = job.queue === "recoveries";
   const box = useRef<HTMLDivElement>(null);
@@ -26,6 +27,8 @@ export default function PayoutDecide({ job, item, onDone, onClose, onDirty }: De
   const [busy, setBusy] = useState(false);
   const [refErr, setRefErr] = useState("");
   const [err, setErr] = useState("");
+  // A 403: this account may not settle it — the form and button leave.
+  const [denied, setDenied] = useState(false);
 
   const stage = "stage" in item && item.stage !== "other" ? item.stage : "";
   const percent = "percent" in item ? item.percent : null;
@@ -36,7 +39,7 @@ export default function PayoutDecide({ job, item, onDone, onClose, onDirty }: De
   };
 
   const submit = async () => {
-    if (busy) return;
+    if (busy || denied) return;
     const ref = reference.trim();
     if (!ref) {
       setRefErr(t("err.reference"));
@@ -52,6 +55,12 @@ export default function PayoutDecide({ job, item, onDone, onClose, onDirty }: De
       onDone(recovery ? t("doneRecovered") : t("donePaid"));
     } catch (e) {
       const code = e instanceof ApiError ? e.code : "";
+      if (isForbidden(e)) {
+        setDenied(true);
+        onDirty(false);
+        setErr(errDetail(e) || tcom("forbidden"));
+        return;
+      }
       setErr(code && t.has(`code.${code}`) ? t(`code.${code}`) : errDetail(e) || t("err.generic"));
     } finally {
       setBusy(false);
@@ -81,14 +90,22 @@ export default function PayoutDecide({ job, item, onDone, onClose, onDirty }: De
         >
           {item.reason ? <p>{item.reason}</p> : null}
         </CaseBox>
-        <Note tone="info">{recovery ? t("recoverPolicy") : t("policy")}</Note>
-        <section className="opx-psec">
-          <Field label={t("reference")} value={reference} onChange={edit(setReference)} max={120} required hint={t("referenceHelp")} error={refErr} />
-          <Field label={t("note")} value={note} onChange={edit(setNote)} max={1000} multiline />
-        </section>
+        {denied ? null : (
+          <>
+            <Note tone="info">{recovery ? t("recoverPolicy") : t("policy")}</Note>
+            <section className="opx-psec">
+              <Field label={t("reference")} value={reference} onChange={edit(setReference)} max={120} required hint={t("referenceHelp")} error={refErr} />
+              <Field label={t("note")} value={note} onChange={edit(setNote)} max={1000} multiline />
+            </section>
+          </>
+        )}
         {err ? <Note tone="bad">{err}</Note> : null}
       </div>
-      <PanelFoot onCancel={onClose} primary={() => void submit()} primaryLabel={recovery ? t("markRecovered") : t("markPaid")} busy={busy} />
+      {denied ? (
+        <PanelFoot onCancel={onClose} cancelLabel={tx("close")} />
+      ) : (
+        <PanelFoot onCancel={onClose} primary={() => void submit()} primaryLabel={recovery ? t("markRecovered") : t("markPaid")} busy={busy} />
+      )}
     </>
   );
 }

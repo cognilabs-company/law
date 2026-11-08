@@ -317,6 +317,14 @@ let roleDeniedHandler: RoleDeniedHandler | null = null;
 export function setRoleDeniedHandler(fn: RoleDeniedHandler | null): void {
   roleDeniedHandler = fn;
 }
+// Any other 403 (an action the account may no longer do): lib/auth.tsx
+// registers a handler that re-reads the session's roles/permissions, so every
+// screen gated with can() drops the action, and says so once.
+type ForbiddenHandler = (code: string) => void;
+let forbiddenHandler: ForbiddenHandler | null = null;
+export function setForbiddenHandler(fn: ForbiddenHandler | null): void {
+  forbiddenHandler = fn;
+}
 export const isRoleDenied = (e: unknown): boolean => e instanceof ApiError && e.status === 403 && e.code === "role_page_access_denied";
 
 // Build an ApiError from a failed response. detail = a string `detail`, else
@@ -348,6 +356,13 @@ export async function toApiError(res: Response): Promise<ApiError> {
   if (denied && roleDeniedHandler) {
     try {
       roleDeniedHandler(denied);
+    } catch {
+      /* the caller still gets its ApiError */
+    }
+  }
+  if (res.status === 403 && !denied && forbiddenHandler) {
+    try {
+      forbiddenHandler(code ?? "");
     } catch {
       /* the caller still gets its ApiError */
     }

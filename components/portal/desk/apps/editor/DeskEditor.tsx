@@ -161,16 +161,20 @@ export default function DeskEditor({ v }: { v: EditorView }) {
       ) : null}
     </span>
   );
-  const send = (
-    <Btn
-      kind="primary"
-      icon={<IconCheck />}
-      disabled={!v.finalize.can}
-      onClick={() => v.finalize.setOpen(true)}
-    >
-      {v.isSent ? t("statusSent") : t("finalize")}
-    </Btn>
-  );
+  // Status locks (sent, not ready, no meeting link) remove the action
+  // rather than grey it out; `busy` keeps it while its request runs.
+  const send =
+    v.finalize.can || v.finalize.busy ? (
+      <Btn
+        kind="primary"
+        icon={<IconCheck />}
+        disabled={v.finalize.busy}
+        onClick={() => v.finalize.setOpen(true)}
+      >
+        {t("finalize")}
+      </Btn>
+    ) : null;
+  const meetOk = v.meeting.canStart || (v.meeting.busy && !v.meeting.has);
 
   return (
     <App
@@ -196,18 +200,21 @@ export default function DeskEditor({ v }: { v: EditorView }) {
           active={v.panels.left}
           onClick={() => v.panels.setLeft(!v.panels.left)}
         />
-        <Tool
-          icon={<IconLayers />}
-          label={t("chooseSource")}
-          disabled={!v.source.can}
-          onClick={() => v.source.setOpen(true)}
-        />
-        <Tool
-          icon={<IconVideo />}
-          label={v.meeting.busy ? t("processingShort") : t("startMeeting")}
-          disabled={!v.meeting.canStart}
-          onClick={v.meeting.start}
-        />
+        {v.source.can ? (
+          <Tool
+            icon={<IconLayers />}
+            label={t("chooseSource")}
+            onClick={() => v.source.setOpen(true)}
+          />
+        ) : null}
+        {meetOk ? (
+          <Tool
+            icon={<IconVideo />}
+            label={v.meeting.busy ? t("processingShort") : t("startMeeting")}
+            disabled={v.meeting.busy}
+            onClick={v.meeting.start}
+          />
+        ) : null}
         <Tool
           icon={<IconChat />}
           label={t("tabChat")}
@@ -323,26 +330,21 @@ function Stage({ v }: { v: EditorView }) {
           <p>{t("startLead")}</p>
         </header>
         <div className="dxe-start__grid">
-          {v.startOptions.map((o) => (
+          {v.startOptions.filter((o) => o.enabled).map((o) => (
             <button
               key={o.key}
               type="button"
-              className={`dxe-opt${o.recommended && o.enabled ? " is-rec" : ""}`}
+              className={`dxe-opt${o.recommended ? " is-rec" : ""}`}
               onClick={() => v.start(o.key)}
-              disabled={!o.enabled}
             >
               <span className={`dxe-opt__art is-${o.key}`} aria-hidden>
                 <span className="dxe-opt__sheet">{START_ICON[o.key]}</span>
               </span>
               <b>{o.title}</b>
               <small>{o.text}</small>
-              {o.enabled ? (
-                o.recommended ? (
-                  <Tag tone="accent">{t("startRecommended")}</Tag>
-                ) : null
-              ) : (
-                <Tag>{t("startUnavailable")}</Tag>
-              )}
+              {o.recommended ? (
+                <Tag tone="accent">{t("startRecommended")}</Tag>
+              ) : null}
             </button>
           ))}
         </div>
@@ -550,6 +552,7 @@ function Inspector({ v }: { v: EditorView }) {
   const t = useTranslations(v.ns);
   const locale = useLocale();
   const tab = v.panels.tab;
+  const meetOk = v.meeting.canStart || (v.meeting.busy && !v.meeting.has);
   return (
     <aside className="dxe-insp" aria-label={t(TAB_KEY[tab])}>
       <header className="dxe-insp__h">
@@ -613,17 +616,16 @@ function Inspector({ v }: { v: EditorView }) {
               >
                 {t("meetingJoin")}
               </Btn>
-            ) : (
+            ) : meetOk ? (
               <Btn
                 kind="primary"
                 icon={<IconVideo />}
                 busy={v.meeting.busy}
-                disabled={!v.meeting.canStart}
                 onClick={v.meeting.start}
               >
                 {t("startMeeting")}
               </Btn>
-            )}
+            ) : null}
             {v.meeting.has ? (
               <section className="dxe-sec">
                 <h3>
@@ -830,7 +832,8 @@ function SourceDialog({ v }: { v: EditorView }) {
         />
       ) : (
         <div className="dxe-src" role="listbox" aria-label={t("title")}>
-          {(data?.options ?? []).map((o) => {
+          {/* An unavailable source is left out (owner law: no dead options). */}
+          {(data?.options ?? []).filter((o) => o.available).map((o) => {
             const on = data?.currentSource === o.sourceType;
             const key = o.sourceType + (o.attachmentId || "");
             return (
@@ -840,7 +843,7 @@ function SourceDialog({ v }: { v: EditorView }) {
                 role="option"
                 aria-selected={on}
                 className={`dxe-src__o${on ? " is-on" : ""}`}
-                disabled={!o.available || !!busy}
+                disabled={!!busy}
                 onClick={() => void pick(o.sourceType, o.attachmentId)}
               >
                 <span className="dxe-src__ic">{icon(o.sourceType)}</span>
@@ -851,16 +854,12 @@ function SourceDialog({ v }: { v: EditorView }) {
                         ? t(`kind.${o.sourceType}`)
                         : o.sourceType)}
                   </b>
-                  {o.note || !o.available ? (
-                    <small>{o.note || t("unavailable")}</small>
-                  ) : null}
+                  {o.note ? <small>{o.note}</small> : null}
                 </span>
                 {busy === key ? (
                   <Spinner small />
                 ) : on ? (
                   <IconCheck className="dxe-src__ok" />
-                ) : !o.available ? (
-                  <IconLock className="dxe-src__lock" />
                 ) : null}
               </button>
             );

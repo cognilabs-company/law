@@ -77,11 +77,14 @@ export default function CcClientSearch({
         <h2 className="ppanel__t cch__t"><span className="pico"><IconSearch /></span><span className="cch__tt">{t("search")}</span></h2>
         <BusinessHoursBadge holidayTitle={false} />
       </div>
+      {/* A refused lookup keeps its note; the search box leaves with it. */}
+      {forbidden ? null : (
       <form className="lsp__search" onSubmit={(e) => { e.preventDefault(); void run(q.trim()); }} style={{ marginBottom: 12 }} data-ai-target="callcenter:client-search">
         <IconSearch />
         <input ref={input} type="search" enterKeyHint="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("search")} autoComplete="off" />
         <button type="submit" className="btn btn--pri btn--sm" disabled={q.trim().length < 2 || searching}>{searching ? t("searching") : t("searchBtn")}</button>
       </form>
+      )}
       {forbidden ? (
         <InlineAlert tone="locked" compact>{t("searchNoAccess")}</InlineAlert>
       ) : failure ? (

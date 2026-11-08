@@ -10,7 +10,7 @@ import { useResource } from "@/lib/useResource";
 import { useReload } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import Modal from "@/components/admin/Modal";
-import { ApiError } from "@/lib/http";
+import { ApiError, isForbidden } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import FilterBar from "@/components/filters/FilterBar";
 import { useAiSelection } from "@/lib/ai/registry";
@@ -107,6 +107,10 @@ export default function AdminReviews() {
   // Ratings are recomputed by the backend's own policy; this only asks.
   const [recalc, setRecalc] = useState<"" | "ask" | "running">("");
   const once = useSameTickGuard();
+  // A 403 keeps its message and takes that action off the page: moderation
+  // (the page's own lawyers.verify) or the ratings recalculation (backend
+  // gap: no permission code named for it).
+  const [denied, setDenied] = useState<{ moderate?: boolean; recalc?: boolean }>({});
   useAiSelection("admin_reviews_seller_type", tab === "all" ? "" : tab);
 
   async function recalculate() {
@@ -118,6 +122,7 @@ export default function AdminReviews() {
       reload();
     } catch (e) {
       notify.error(t("recalc.failed"), { id: "ratings-recalc", error: e });
+      if (isForbidden(e)) setDenied((d) => ({ ...d, recalc: true }));
     } finally {
       setRecalc("");
     }
@@ -131,6 +136,7 @@ export default function AdminReviews() {
       notify.success(ok ? t("notify.approved") : t("notify.rejected"), { id: `review-${id}`, body: name || undefined });
       reload();
     } catch (e) {
+      if (isForbidden(e)) setDenied((d) => ({ ...d, moderate: true }));
       notify.error(ok ? t("notify.approveFailed") : t("notify.rejectFailed"), {
         id: `review-${id}`,
         error: e,
@@ -149,10 +155,12 @@ export default function AdminReviews() {
         <b>{t("title")}</b>
         <span className="ahdr">
           <span className="advmuted">{res.data.length}</span>
-          <button type="button" className="btn btn--line btn--sm" onClick={() => setRecalc("ask")} disabled={recalc === "running"} data-ai-id="admin.reviews.recalculate">
-            <IconRefresh />
-            {recalc === "running" ? t("recalc.running") : t("recalc.button")}
-          </button>
+          {denied.recalc ? null : (
+            <button type="button" className="btn btn--line btn--sm" onClick={() => setRecalc("ask")} disabled={recalc === "running"} data-ai-id="admin.reviews.recalculate">
+              <IconRefresh />
+              {recalc === "running" ? t("recalc.running") : t("recalc.button")}
+            </button>
+          )}
         </span>
       </div>
       <Modal open={recalc === "ask"} onClose={() => setRecalc("")} title={t("recalc.title")}>
@@ -207,7 +215,7 @@ export default function AdminReviews() {
                 <button className="aitem__act" type="button" aria-label={t("detailTitle")} title={t("detailTitle")} onClick={() => setDetail(r.id)}><IconEye /></button>
               </div>
               {r.comment ? <p className="rvw__c">{r.comment}</p> : null}
-              {r.status === "pending" ? (
+              {r.status === "pending" && !denied.moderate ? (
                 <div className="rvw__acts" data-ai-target="reviews:moderation">
                   <button className="btn btn--pri btn--sm" type="button" disabled={busy === r.id} onClick={() => moderate(r.id, "approved", r.lawyerName)}><IconCheck />{t("approve")}</button>
                   <button className="btn btn--line btn--sm" type="button" disabled={busy === r.id} onClick={() => moderate(r.id, "rejected", r.lawyerName)}><IconClose />{t("reject")}</button>

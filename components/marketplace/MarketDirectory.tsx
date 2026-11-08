@@ -828,19 +828,23 @@ export default function MarketDirectory({
               <IconSparkle />
               <b>{t("empty")}</b>
               <span>{q ? t("emptyTextAi") : t("emptyText")}</span>
+              {activeFilters || q ? (
               <div className="mk-empty__acts">
                 {activeFilters || q ? (
                   <button type="button" className="btn btn--line btn--sm" onClick={resetFilters} data-ai-id="marketplace.results.reset">
                     {t("filters.reset")}
                   </button>
                 ) : null}
-                {q ? (
+                {/* Client support is the client's page: a guest is sent to log
+                    in first; a seller or staff account is not offered it. */}
+                {q && (!authSession || authSession.role === "client") ? (
                   <Link href="/portal/client/support?topic=marketplace" className="btn btn--pri btn--sm" data-ai-target="button:operator-support" data-ai-id="marketplace.results.ask-support">
                     <IconHeadset />
                     {t("askSupport")}
                   </Link>
                 ) : null}
               </div>
+              ) : null}
             </div>
           ) : (
             <div className={`mk-grid${aiThinking ? " is-busy" : ""}`} data-ai-target="marketplace:lawyer-list" data-ai-id="marketplace.results" data-ai-type="list">

@@ -4,6 +4,8 @@ import { useMemo, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { notify } from "@/lib/toast";
+import { useAuth } from "@/lib/auth";
+import { canInternal } from "@/lib/services/internalHrm";
 import { hrmErrorOf } from "@/lib/services/hrm";
 import {
   createManualEvent,
@@ -52,6 +54,10 @@ export function TeamTodayPanel() {
   const [unit, setUnit] = useState("");
   const [group, setGroup] = useState<TeamGroup>("working");
   const [fix, setFix] = useState<{ employee: string } | null>(null);
+  // A mark for someone else (POST …/attendance/events/manual) is a time
+  // manager's (internal_time.manage); others only see the team.
+  const { session } = useAuth();
+  const manage = canInternal(session, "internal_time.manage");
   const { data, error, reload } = useOps((s) => getTeamToday(unit, s), [unit], ["attendance", "time"]);
   // The first group with anyone in it is the one opened first.
   const shown = data && !data.groups[group].length ? (TEAM_GROUPS.find((g) => data.groups[g].length) ?? group) : group;
@@ -62,7 +68,7 @@ export function TeamTodayPanel() {
       icon={IconUsers}
       className="ops-panel"
       count={data ? TEAM_GROUPS.reduce((s, g) => s + data.counts[g], 0) : undefined}
-      actions={<button type="button" className="btn btn--pri btn--sm" onClick={() => setFix({ employee: "" })}><IconEdit />{t("manual")}</button>}
+      actions={manage ? <button type="button" className="btn btn--pri btn--sm" onClick={() => setFix({ employee: "" })}><IconEdit />{t("manual")}</button> : undefined}
     >
       {dir.unitOptions.length ? (
         <div className="hrm-toolbar__sel ops-sel">
@@ -88,14 +94,14 @@ export function TeamTodayPanel() {
                     {m.firstIn ? `${f.time(m.firstIn)}${m.lastOut ? ` – ${f.time(m.lastOut)}` : ""}` : null}
                     {m.lateMinutes > 0 ? <em className="hrm-late">{t("lateBy", { m: f.minutes(m.lateMinutes) })}</em> : null}
                   </span>
-                  <button type="button" className="btn btn--soft btn--sm" onClick={() => setFix({ employee: m.id })} aria-label={t("manualFor", { name: m.name })}><IconEdit /></button>
+                  {manage ? <button type="button" className="btn btn--soft btn--sm" onClick={() => setFix({ employee: m.id })} aria-label={t("manualFor", { name: m.name })}><IconEdit /></button> : null}
                 </li>
               ))}
             </ul>
           ) : <p className="hrm-muted ops-note">{t("emptyGroup")}</p>}
         </>
       )}
-      {fix ? <ManualEventDrawer employee={fix.employee} onClose={() => setFix(null)} onDone={() => { setFix(null); reload(); }} /> : null}
+      {fix && manage ? <ManualEventDrawer employee={fix.employee} onClose={() => setFix(null)} onDone={() => { setFix(null); reload(); }} /> : null}
     </HrmPanel>
   );
 }
@@ -188,6 +194,9 @@ export function TimesheetsPanel() {
   const [unit, setUnit] = useState("");
   const [openId, setOpenId] = useState("");
   const [creating, setCreating] = useState(false);
+  // Generating a month's sheet: internal_time.manage (HRM 10-13 §1.2).
+  const { session } = useAuth();
+  const manage = canInternal(session, "internal_time.manage");
   const [y, m] = month.split("-").map(Number);
   const { data, error, reload } = useOps((s) => listTimesheets({ year: y, month: m, unitId: unit || undefined }, s), [month, unit], ["timesheet", "attendance"]);
   const open = data?.items.find((x) => x.id === openId) ?? null;
@@ -197,14 +206,14 @@ export function TimesheetsPanel() {
       icon={IconClipboardList}
       className="ops-panel"
       count={data?.total}
-      actions={<button type="button" className="btn btn--pri btn--sm" onClick={() => setCreating(true)}><IconPlus />{t("new")}</button>}
+      actions={manage ? <button type="button" className="btn btn--pri btn--sm" onClick={() => setCreating(true)}><IconPlus />{t("new")}</button> : undefined}
     >
       <div className="ops-bar">
         <div className="ops-bar__m"><MonthPicker value={month} onChange={(v) => setMonth(v || monthOf())} placeholder={t("month")} ariaLabel={t("month")} /></div>
         {dir.unitOptions.length ? <div className="hrm-toolbar__sel"><EntitySelect value={unit} onChange={setUnit} options={dir.unitOptions} placeholder={t("allUnits")} ariaLabel={t("unit")} /></div> : null}
       </div>
       {error ? <HrmError text={t("error")} onRetry={reload} retryLabel={t("retry")} /> : !data ? <HrmLoading rows={3} /> : !data.items.length ? (
-        <HrmEmpty icon={IconClipboardList} title={t("empty", { month: f.period(month) })} text={t("emptyText")} action={<button type="button" className="btn btn--pri btn--sm" onClick={() => setCreating(true)}><IconPlus />{t("new")}</button>} />
+        <HrmEmpty icon={IconClipboardList} title={t("empty", { month: f.period(month) })} text={manage ? t("emptyText") : undefined} action={manage ? <button type="button" className="btn btn--pri btn--sm" onClick={() => setCreating(true)}><IconPlus />{t("new")}</button> : undefined} />
       ) : (
         <ul className="ops-sheets">
           {data.items.map((s) => (
@@ -219,7 +228,7 @@ export function TimesheetsPanel() {
         </ul>
       )}
       {open ? <SheetGrid sheet={open} /> : null}
-      {creating ? (
+      {creating && manage ? (
         <SheetCreate
           month={month}
           unit={unit}

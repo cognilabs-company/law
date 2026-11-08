@@ -404,7 +404,7 @@ function Conversation({ roomId, room, title, urgentId, service, workId, join, pi
     const o = chat.msgs.find((x) => x.id === r.id);
     return o ? excerpt(o) : excerpt({ messageType: r.messageType, content: r.content });
   };
-  const canReply = (m: ChatMsg) => !chat.finished && !!m.id && !m.pending && !m.failed && !m.id.startsWith("tmp-");
+  const canReply = (m: ChatMsg) => !chat.finished && !chat.denied && !!m.id && !m.pending && !m.failed && !m.id.startsWith("tmp-");
   const many = new Set(chat.msgs.map((m) => m.senderId).filter(Boolean)).size > 2;
   const jump = (id: string) => {
     const el = body.current?.querySelector<HTMLElement>(`[data-mid="${CSS.escape(id)}"]`);
@@ -463,7 +463,7 @@ function Conversation({ roomId, room, title, urgentId, service, workId, join, pi
     menu?.(e, excerpt(m).slice(0, 40), [
       ...(canReply(m) ? [{ id: "reply", label: t("reply"), icon: <IconReply />, onSelect: () => (setReply(m), field.current?.focus()) }] : []),
       ...(txt ? [{ id: "copy", label: d("copy"), icon: <IconCopy />, onSelect: () => void navigator.clipboard?.writeText(txt).then(() => say(d("copied"))) }] : []),
-      ...(m.failed && m.messageType === "text" ? [{ id: "again", label: d("resend"), icon: <IconSend />, onSelect: () => void chat.send(m.filteredContent, null) }] : []),
+      ...(m.failed && m.messageType === "text" && !chat.finished && !chat.denied ? [{ id: "again", label: d("resend"), icon: <IconSend />, onSelect: () => void chat.send(m.filteredContent, null) }] : []),
     ]);
   };
   const calls = !pane && canMakeCalls(session) && !callsOff;
@@ -489,12 +489,12 @@ function Conversation({ roomId, room, title, urgentId, service, workId, join, pi
           </small>
         </div>
         <div className="dxm-head__tools">
-          {calls ? (
+          {calls && !chat.finished && !chat.denied ? (
             <>
-              <button type="button" className="dxm-hb" onClick={() => void chat.call("audio")} disabled={chat.finished} aria-label={t("audioCall")} title={t("audioCall")}>
+              <button type="button" className="dxm-hb" onClick={() => void chat.call("audio")} aria-label={t("audioCall")} title={t("audioCall")}>
                 <IconPhone />
               </button>
-              <button type="button" className="dxm-hb" onClick={() => void chat.call("video")} disabled={chat.finished} aria-label={t("videoCall")} title={t("videoCall")}>
+              <button type="button" className="dxm-hb" onClick={() => void chat.call("video")} aria-label={t("videoCall")} title={t("videoCall")}>
                 <IconVideo />
               </button>
             </>
@@ -603,10 +603,10 @@ function Conversation({ roomId, room, title, urgentId, service, workId, join, pi
         )}
       </div>
 
-      {chat.finished ? (
+      {chat.finished || chat.denied ? (
         <footer className="dxm-done">
           <IconLock aria-hidden />
-          {t("chatFinished")}
+          {chat.finished ? t("chatFinished") : t("wsForbidden")}
         </footer>
       ) : (
         <footer className="dxm-compose">

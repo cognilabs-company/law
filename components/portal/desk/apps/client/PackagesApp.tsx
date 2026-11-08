@@ -359,7 +359,27 @@ function Sellers({ pkg, title, onClose, onPick }: { pkg: BackendPackage; title: 
               const blocked = !s.packagePurchaseUrl || !s.eligibility.eligible;
               return (
                 <li key={s.userId}>
-                  <button type="button" disabled={blocked} onClick={() => onPick(s)}>
+                  {/* Not eligible (or no purchase link): the seller is listed
+                      with the reason, but cannot be picked. */}
+                  {blocked ? (
+                    <div className="dxco-pick__off">
+                    <Avatar name={s.name || "•"} size={36} />
+                    <span className="dxco-pick__m">
+                      <b>
+                        {s.name || t("noName")}
+                        {s.verified ? <IconShieldCheck className="dxcl-ok" aria-label={t("verified")} /> : null}
+                      </b>
+                      <small>{[s.rated ? t("rating", { r: s.ratingLabel || s.rating.toFixed(1), n: s.reviews }) : t("newSeller"), s.completedOrders ? t("completed", { n: s.completedOrders }) : "", s.experienceYears ? t("experience", { n: s.experienceYears }) : "", [s.district, s.region].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}</small>
+                      <span className="dxcw-tags">
+                        {s.eligibility.extendedVerified ? <Tag tone="accent">{t("extended")}</Tag> : null}
+                        {s.sellerType ? <Tag>{t.has(`types.${s.sellerType}`) ? t(`types.${s.sellerType}`) : s.sellerType}</Tag> : null}
+                        {s.onlineNow ? <Tag tone="ok">{t("online")}</Tag> : null}
+                      </span>
+                      {blocked && s.eligibility.reasons.length ? <small className="dx-field__e">{s.eligibility.reasons.map((r) => (tr.has(r) ? tr(r) : r.replace(/_/g, " "))).join(" · ")}</small> : null}
+                    </span>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => onPick(s)}>
                     <Avatar name={s.name || "•"} size={36} />
                     <span className="dxco-pick__m">
                       <b>
@@ -375,9 +395,10 @@ function Sellers({ pkg, title, onClose, onPick }: { pkg: BackendPackage; title: 
                       {blocked && s.eligibility.reasons.length ? <small className="dx-field__e">{s.eligibility.reasons.map((r) => (tr.has(r) ? tr(r) : r.replace(/_/g, " "))).join(" · ")}</small> : null}
                     </span>
                     <span className="dxco-pick__p">
-                      {t("pick")} <IconArrowRight aria-hidden />
-                    </span>
-                  </button>
+                        {t("pick")} <IconArrowRight aria-hidden />
+                      </span>
+                    </button>
+                  )}
                 </li>
               );
             })}

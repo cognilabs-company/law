@@ -1,5 +1,6 @@
 import { asArr, asDict, asNum, asStr, http, httpBlob, type Dict } from "@/lib/http";
 import type { Session } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 
 export const INTERNAL_PERMISSIONS = [
   "internal_hr.manage",
@@ -34,11 +35,8 @@ export function hasInternalAccess(session: Session | null): boolean {
 }
 
 export function canInternal(session: Session | null, permission: InternalPermission): boolean {
-  if (!session) return false;
-  const roles = internalRoles(session);
-  if (roles.some((role) => ADMIN_ROLES.has(role))) return true;
-  if (roles.some((role) => MANAGER_ROLES.has(role)) && MANAGER_PERMISSIONS.has(permission)) return true;
-  return session.permissions?.includes(permission) ?? false;
+  const roles = [...ADMIN_ROLES, ...(MANAGER_PERMISSIONS.has(permission) ? MANAGER_ROLES : [])];
+  return can(session, permission, { roles });
 }
 
 export type InternalPage<T> = {

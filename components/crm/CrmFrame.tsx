@@ -388,6 +388,8 @@ function LeadSheet({ meta, preset, onClose }: { meta: CrmMeta; preset: { custome
   const [busy, setBusy] = useState(false);
   const [dupWarn, setDupWarn] = useState(false);
   const reqRef = useRef(0);
+  // A new customer from inside the lead form only with crm.customers.manage.
+  const canNewCustomer = crmCan(meta, "crm.customers.manage");
   const titleRef = useRef<HTMLInputElement>(null);
   const pickCustomer = (c: CustomerOption | null) => {
     setCustomer(c);
@@ -463,8 +465,8 @@ function LeadSheet({ meta, preset, onClose }: { meta: CrmMeta; preset: { custome
         <div className="crm-pop">
           <div className="crm-field" data-err={show("who") ? "" : undefined}>
             <span id="crm-lead-cust">{t("customer")}</span>
-            <CustomerPicker value={customer} onChange={pickCustomer} onNew={() => setCreating(true)} invalid={!!show("who")} labelId="crm-lead-cust" />
-            {show("who") ? <em>{show("who")}</em> : <small>{t("customerHelp")}</small>}
+            <CustomerPicker value={customer} onChange={pickCustomer} onNew={canNewCustomer ? () => setCreating(true) : undefined} invalid={!!show("who")} labelId="crm-lead-cust" />
+            {show("who") ? <em>{show("who")}</em> : <small>{canNewCustomer ? t("customerHelp") : t("customerHelpPick")}</small>}
           </div>
           <label className="crm-field" data-err={show("title") ? "" : undefined}>
             <span>{t("titleLabel")}</span>
@@ -515,7 +517,7 @@ function LeadSheet({ meta, preset, onClose }: { meta: CrmMeta; preset: { custome
           ) : null}
         </div>
       </Modal>
-      {creating ? (
+      {creating && canNewCustomer ? (
         <NewCustomerModal
           meta={meta}
           nested

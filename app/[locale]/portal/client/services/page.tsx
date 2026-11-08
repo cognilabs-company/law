@@ -562,9 +562,13 @@ export default function ClientServices() {
               ) : null}
               {/* Not disabled while the advocate is unpicked: buy() answers the
                   press instead — see `missing`. */}
-              <button className="btn btn--grad btn--full btn--lg" type="button" disabled={Boolean(pkg?.unresolvedServiceCodes.length)} onClick={buy}>
-                {t("buy")}
-              </button>
+              {/* A package whose services the backend could not resolve
+                  cannot be bought (the alert above says so): no button. */}
+              {pkg?.unresolvedServiceCodes.length ? null : (
+                <button className="btn btn--grad btn--full btn--lg" type="button" onClick={buy}>
+                  {t("buy")}
+                </button>
+              )}
               <p className="rf__hint">{t("orderNote")}</p>
             </div>
           )}

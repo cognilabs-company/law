@@ -132,6 +132,7 @@ export default function PromoteModal({
   onClose,
   onSent,
   onStale,
+  onDenied,
   aiId,
 }: {
   item?: ManagedService;
@@ -144,6 +145,9 @@ export default function PromoteModal({
   onClose: () => void;
   onSent: (req: PromotionRequest) => void;
   onStale?: () => void;
+  // A 403 on the request: the parent closes the dialog and removes the
+  // promote actions (the message is shown there).
+  onDenied?: (message: string) => void;
   aiId?: string;
 }) {
   const t = useTranslations("sellerServices.promote");
@@ -330,6 +334,11 @@ export default function PromoteModal({
         return;
       }
       const se = serviceErrorOf(e);
+      if (onDenied && (se.kind === "forbidden" || se.kind === "pendingAccount")) {
+        attemptKey.current = "";
+        onDenied(errLine(se));
+        return;
+      }
       setErr(errLine(se));
       if (se.kind === "notFound" || se.kind === "inactivePromo") onStale?.();
     } finally {

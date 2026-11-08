@@ -33,7 +33,7 @@ import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState"
 
 const NOTE_MIN = 5;
 
-function ResolveDialog({ claim, onClose, onDone }: { claim: WarrantyClaim; onClose: () => void; onDone: (r: WarrantyDecision, files: number | null) => void }): ReactElement {
+function ResolveDialog({ claim, onClose, onDone, onForbidden }: { claim: WarrantyClaim; onClose: () => void; onDone: (r: WarrantyDecision, files: number | null) => void; onForbidden: () => void }): ReactElement {
   const t = useTranslations("callCenter.warranty");
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const [resolution, setResolution] = useState<WarrantyDecision | "">("");
@@ -63,6 +63,8 @@ function ResolveDialog({ claim, onClose, onDone }: { claim: WarrantyClaim; onClo
       onDone(resolution, r.transferred ? r.files : null);
     } catch (e) {
       logApiError("warranty.resolve", e);
+      // Refused: the message stays here and Resolve leaves the row.
+      if (isForbidden(e)) onForbidden();
       if (e instanceof ApiError && e.code === "material_transfer_consent_required") {
         setTransfer(false);
         setError({ title: t("err.failed"), text: t("err.noConsent") });
@@ -149,7 +151,7 @@ function Party({ p }: { p: MpParty | null }): ReactElement {
   return <>{[p.name, p.lexgoId, p.phone].filter(Boolean).join(" · ")}</>;
 }
 
-function Row({ claim, onResolve }: { claim: WarrantyClaim; onResolve: () => void }): ReactElement {
+function Row({ claim, refused, onResolve }: { claim: WarrantyClaim; refused: boolean; onResolve: () => void }): ReactElement {
   const t = useTranslations("callCenter.warranty");
   const none = useTranslations("common")("none");
   const tp = useTranslations("marketplace.orderDetail.pricing");
@@ -202,7 +204,7 @@ function Row({ claim, onResolve }: { claim: WarrantyClaim; onResolve: () => void
               </div>
             ) : null}
           </dl>
-          {!settled && claim.resolutions.length ? (
+          {refused ? null : !settled && claim.resolutions.length ? (
             <div className="esc__acts sx">
               <SxButton size="sm" variant="primary" onClick={onResolve} aiId="call_center.warranty.open">
                 {t("resolve")}
@@ -225,6 +227,7 @@ export default function WarrantyQueue({ onCount }: { onCount?: (n: number) => vo
   const [page, setPage] = useState<{ items: WarrantyClaim[]; total: number; hasMore: boolean } | null>(null);
   const [failed, setFailed] = useState(false);
   const [denied, setDenied] = useState(false);
+  const [refusedIds, setRefusedIds] = useState<ReadonlySet<string>>(() => new Set());
   const [acting, setActing] = useState<WarrantyClaim | null>(null);
   const [done, setDone] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -296,7 +299,7 @@ export default function WarrantyQueue({ onCount }: { onCount?: (n: number) => vo
       {page?.items.length ? (
         <ul className="esc__list">
           {page.items.map((c) => (
-            <Row key={c.id} claim={c} onResolve={() => setActing(c)} />
+            <Row key={c.id} claim={c} refused={refusedIds.has(c.id)} onResolve={() => setActing(c)} />
           ))}
         </ul>
       ) : null}
@@ -315,6 +318,7 @@ export default function WarrantyQueue({ onCount }: { onCount?: (n: number) => vo
         <ResolveDialog
           claim={acting}
           onClose={() => setActing(null)}
+          onForbidden={() => setRefusedIds((cur) => new Set(cur).add(acting.id))}
           onDone={(r, files) => {
             setDone([t(`done.${r}`), files !== null ? t("filesMoved", { n: files }) : ""].filter(Boolean).join(" "));
             setActing(null);

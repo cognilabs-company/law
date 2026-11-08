@@ -200,9 +200,13 @@ export default function SellerPage({ base, openApp, openLink, onRoute, route, us
             </span>
           </div>
           <div className="dxcs-hero__buy">
-            <Btn kind="primary" icon={<IconArrowRight />} disabled={!selected || !!blocked || selected.price <= 0} onClick={() => selected && buy(selected)}>
-              {t("detail.buy")}
-            </Btn>
+            {/* Own listing, a seller account, an unverified or busy seller:
+                buying is not offered (the reason shows in the order box). */}
+            {blocked ? null : (
+              <Btn kind="primary" icon={<IconArrowRight />} disabled={!selected || selected.price <= 0} onClick={() => selected && buy(selected)}>
+                {t("detail.buy")}
+              </Btn>
+            )}
             <small>{price}</small>
           </div>
         </header>
@@ -364,10 +368,11 @@ export default function SellerPage({ base, openApp, openLink, onRoute, route, us
                 <p className="dxcs-block">
                   <IconLock aria-hidden /> {blocked}
                 </p>
-              ) : null}
-              <Btn kind="primary" icon={<IconArrowRight />} disabled={!selected || !!blocked || selected.price <= 0} onClick={() => selected && buy(selected)}>
-                {t("detail.buy")}
-              </Btn>
+              ) : (
+                <Btn kind="primary" icon={<IconArrowRight />} disabled={!selected || selected.price <= 0} onClick={() => selected && buy(selected)}>
+                  {t("detail.buy")}
+                </Btn>
+              )}
             </section>
             <section className="dxcs-box dxcs-safe">
               <h3>

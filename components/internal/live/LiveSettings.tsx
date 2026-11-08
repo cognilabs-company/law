@@ -7,6 +7,7 @@ import Select from "@/components/Select";
 import CheckBox from "@/components/CheckBox";
 import type { SearchOption } from "@/components/SearchSelect";
 import InternalField from "@/components/internal/InternalField";
+import { isForbidden } from "@/lib/http";
 import {
   MEMBERSHIP_TYPES,
   createGrant,
@@ -29,25 +30,32 @@ import CharacterArt, { backdropOf } from "./CharacterArt";
 import { OPTION_COUNT, PRESETS, type Look } from "./character";
 
 type Section = "rooms" | "characters" | "memberships" | "grants" | "registry";
-type Cast = { lookOf: (id: string) => Look; onDress: (person: { id: string; name: string }) => void };
+// onDress absent: this viewer may not change people's characters (it saves
+// to the HRM employee record), so the Characters section is not offered.
+type Cast = { lookOf: (id: string) => Look; onDress?: (person: { id: string; name: string }) => void };
 type Opts = { unitOptions: SearchOption[]; employeeOptions: SearchOption[]; userOptions: SearchOption[]; unitName: (id: string) => string };
 
 // Admin side of the Live Office: rooms per unit (§8), each person's primary
 // and additional department (§8), temporary monitoring access (§13) and the
 // activity registry that turns request paths into readable actions (§21).
-export default function LiveSettings({ opts, grants, onChanged, cast }: { opts: Opts; grants: LiveGrant[]; onChanged: () => void; cast: Cast }) {
+// A section whose list or save the backend refuses (403) keeps showing what
+// it could read, with its add / edit / revoke buttons taken away.
+export default function LiveSettings({ opts, grants, onChanged, cast, roomsLocked = false, onRoomsForbidden }: { opts: Opts; grants: LiveGrant[]; onChanged: () => void; cast: Cast; roomsLocked?: boolean; onRoomsForbidden?: () => void }) {
   const { t } = useLiveText();
-  const [section, setSection] = useState<Section>("rooms");
+  const [picked, setPicked] = useState<Section>("rooms");
+  const sections = (["rooms", "characters", "memberships", "grants", "registry"] as Section[]).filter((s) => s !== "characters" || cast.onDress);
+  const section = sections.includes(picked) ? picked : sections[0];
+  const onDress = cast.onDress;
   return (
     <div className="lv-set">
       <div className="hrm-tabs lv-set__tabs" role="tablist" aria-label={t("settings.title")}>
-        {(["rooms", "characters", "memberships", "grants", "registry"] as Section[]).map((s) => (
-          <button key={s} type="button" role="tab" aria-selected={section === s} className={section === s ? "on" : ""} onClick={() => setSection(s)}>
+        {sections.map((s) => (
+          <button key={s} type="button" role="tab" aria-selected={section === s} className={section === s ? "on" : ""} onClick={() => setPicked(s)}>
             {t(`settings.${s}`)}
           </button>
         ))}
       </div>
-      {section === "rooms" ? <Rooms opts={opts} onChanged={onChanged} /> : section === "characters" ? <Characters opts={opts} cast={cast} /> : section === "memberships" ? <Memberships opts={opts} onChanged={onChanged} /> : section === "grants" ? <Grants opts={opts} known={grants} /> : <Registry opts={opts} />}
+      {section === "rooms" ? <Rooms opts={opts} onChanged={onChanged} locked={roomsLocked} onForbidden={onRoomsForbidden} /> : section === "characters" && onDress ? <Characters opts={opts} lookOf={cast.lookOf} onDress={onDress} /> : section === "memberships" ? <Memberships opts={opts} onChanged={onChanged} /> : section === "grants" ? <Grants opts={opts} known={grants} /> : <Registry opts={opts} />}
     </div>
   );
 }
@@ -55,7 +63,7 @@ export default function LiveSettings({ opts, grants, onChanged, cast }: { opts: 
 // ── Characters ──────────────────────────────────────────────────────────────
 
 // Everyone with their Live Office character, to dress one after another.
-function Characters({ opts, cast }: { opts: Opts; cast: Cast }) {
+function Characters({ opts, lookOf, onDress }: { opts: Opts; lookOf: Cast["lookOf"]; onDress: NonNullable<Cast["onDress"]> }) {
   const { t } = useLiveText();
   const [q, setQ] = useState("");
   const needle = q.trim().toLocaleLowerCase();
@@ -76,7 +84,7 @@ function Characters({ opts, cast }: { opts: Opts; cast: Cast }) {
       {list.length ? (
         <ul className="lv-cast">
           {list.map((o) => {
-            const look = cast.lookOf(o.value);
+            const look = lookOf(o.value);
             return (
               <li key={o.value}>
                 <span className="lv-cast__av" style={{ background: backdropOf(look) }} aria-hidden>
@@ -86,7 +94,7 @@ function Characters({ opts, cast }: { opts: Opts; cast: Cast }) {
                   <b>{o.label}</b>
                   {o.sub ? <small>{o.sub}</small> : null}
                 </span>
-                <button type="button" className="btn btn--line btn--sm" onClick={() => cast.onDress({ id: o.value, name: o.label })} aria-label={t("avatar.dressNamed", { name: o.label })}>
+                <button type="button" className="btn btn--line btn--sm" onClick={() => onDress({ id: o.value, name: o.label })} aria-label={t("avatar.dressNamed", { name: o.label })}>
                   <IconEdit />
                   <span>{t("avatar.dress")}</span>
                 </button>
@@ -103,19 +111,30 @@ function Characters({ opts, cast }: { opts: Opts; cast: Cast }) {
 
 // ── Rooms ───────────────────────────────────────────────────────────────────
 
-function Rooms({ opts, onChanged }: { opts: Opts; onChanged: () => void }) {
+function Rooms({ opts, onChanged, locked, onForbidden }: { opts: Opts; onChanged: () => void; locked: boolean; onForbidden?: () => void }) {
   const { t, roomType } = useLiveText();
   const [rows, setRows] = useState<LiveRoom[] | null>(null);
   const [err, setErr] = useState("");
+  const [refused, setDenied] = useState(false);
+  const denied = refused || locked;
+  const deny = useCallback(() => {
+    setDenied(true);
+    onForbidden?.();
+  }, [onForbidden]);
   const [tick, setTick] = useState(0);
   const [edit, setEdit] = useState<LiveRoom | "new" | null>(null);
   useEffect(() => {
     const c = new AbortController();
     getLiveRooms({}, c.signal)
       .then((r) => !c.signal.aborted && (setRows(r), setErr("")))
-      .catch((e) => !c.signal.aborted && (setRows([]), setErr(apiMessage(e, t("errors.load")))));
+      .catch((e) => {
+        if (c.signal.aborted) return;
+        setRows([]);
+        setErr(apiMessage(e, t("errors.load")));
+        if (isForbidden(e)) deny();
+      });
     return () => c.abort();
-  }, [tick, t]);
+  }, [tick, t, deny]);
   const sorted = useMemo(() => [...(rows ?? [])].sort((a, b) => opts.unitName(a.unitId).localeCompare(opts.unitName(b.unitId)) || a.order - b.order), [rows, opts]);
   return (
     <HrmPanel
@@ -124,10 +143,12 @@ function Rooms({ opts, onChanged }: { opts: Opts; onChanged: () => void }) {
       count={rows?.length}
       flush
       actions={
-        <button type="button" className="btn btn--pri btn--sm" onClick={() => setEdit("new")}>
-          <IconPlus />
-          {t("rooms.new")}
-        </button>
+        denied ? undefined : (
+          <button type="button" className="btn btn--pri btn--sm" onClick={() => setEdit("new")}>
+            <IconPlus />
+            {t("rooms.new")}
+          </button>
+        )
       }
     >
       {err ? <HrmError text={err} /> : null}
@@ -145,7 +166,7 @@ function Rooms({ opts, onChanged }: { opts: Opts; onChanged: () => void }) {
                 <th>{t("rooms.type")}</th>
                 <th className="hrm-num">{t("rooms.capacity")}</th>
                 <th>{t("rooms.status")}</th>
-                <th aria-label={t("rooms.edit")} />
+                {denied ? null : <th aria-label={t("rooms.edit")} />}
               </tr>
             </thead>
             <tbody>
@@ -163,11 +184,13 @@ function Rooms({ opts, onChanged }: { opts: Opts; onChanged: () => void }) {
                   <td>
                     <HrmStatus value={r.status} />
                   </td>
-                  <td>
-                    <button type="button" className="org-detail__edit" onClick={() => setEdit(r)} aria-label={t("rooms.edit")} title={t("rooms.edit")}>
-                      <IconEdit />
-                    </button>
-                  </td>
+                  {denied ? null : (
+                    <td>
+                      <button type="button" className="org-detail__edit" onClick={() => setEdit(r)} aria-label={t("rooms.edit")} title={t("rooms.edit")}>
+                        <IconEdit />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -187,6 +210,7 @@ function Rooms({ opts, onChanged }: { opts: Opts; onChanged: () => void }) {
             setTick((n) => n + 1);
             onChanged();
           }}
+          onForbidden={deny}
         />
       ) : null}
     </HrmPanel>
@@ -204,6 +228,7 @@ function Memberships({ opts, onChanged }: { opts: Opts; onChanged: () => void })
   const [tick, setTick] = useState(0);
   const [adding, setAdding] = useState(false);
   const [err, setErr] = useState("");
+  const [denied, setDenied] = useState(false);
   useEffect(() => {
     const c = new AbortController();
     getLiveRooms({ status: "active" }, c.signal).then((r) => !c.signal.aborted && setRooms(r)).catch(() => undefined);
@@ -214,7 +239,11 @@ function Memberships({ opts, onChanged }: { opts: Opts; onChanged: () => void })
     const c = new AbortController();
     getMemberships(employee, c.signal)
       .then((list) => !c.signal.aborted && (setRows({ id: employee, list }), setErr("")))
-      .catch((e) => !c.signal.aborted && setErr(apiMessage(e, t("errors.load"))));
+      .catch((e) => {
+        if (c.signal.aborted) return;
+        setErr(apiMessage(e, t("errors.load")));
+        if (isForbidden(e)) setDenied(true);
+      });
     return () => c.abort();
   }, [employee, tick, t]);
   const roomName = (id: string) => rooms.find((r) => r.id === id)?.name ?? "";
@@ -224,7 +253,7 @@ function Memberships({ opts, onChanged }: { opts: Opts; onChanged: () => void })
       title={t("settings.memberships")}
       icon={IconUsers}
       actions={
-        employee ? (
+        employee && !denied ? (
           <button type="button" className="btn btn--pri btn--sm" onClick={() => setAdding(true)}>
             <IconPlus />
             {t("memberships.new")}
@@ -266,22 +295,25 @@ function Memberships({ opts, onChanged }: { opts: Opts; onChanged: () => void })
             setTick((n) => n + 1);
             onChanged();
           }}
+          onForbidden={() => setDenied(true)}
         />
       ) : null}
     </HrmPanel>
   );
 }
 
-function MembershipDrawer({ employee, opts, rooms, onClose, onSaved }: { employee: string; opts: Opts; rooms: LiveRoom[]; onClose: () => void; onSaved: () => void }) {
+function MembershipDrawer({ employee, opts, rooms, onClose, onSaved, onForbidden }: { employee: string; opts: Opts; rooms: LiveRoom[]; onClose: () => void; onSaved: () => void; onForbidden: () => void }) {
   const { t, membership } = useLiveText();
   const [form, setForm] = useState({ unit: "", room: "", type: "primary", status: "active", fromDate: dayIso(0), fromTime: "09:00", toDate: "", toTime: "18:00" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  // Refused by the backend (403): the message stays, the save button goes.
+  const [denied, setDenied] = useState(false);
   const set = (k: keyof typeof form) => (v: string) => setForm((c) => ({ ...c, [k]: v, ...(k === "unit" ? { room: "" } : {}) }));
   const roomOpts = rooms.filter((r) => !form.unit || r.unitId === form.unit).map((r) => ({ value: r.id, label: r.name, sub: r.code }));
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (busy || !form.unit) return;
+    if (busy || denied || !form.unit) return;
     setBusy(true);
     setErr("");
     try {
@@ -297,6 +329,10 @@ function MembershipDrawer({ employee, opts, rooms, onClose, onSaved }: { employe
       onSaved();
     } catch (cause) {
       setErr(apiMessage(cause, t("errors.save")));
+      if (isForbidden(cause)) {
+        setDenied(true);
+        onForbidden();
+      }
     } finally {
       setBusy(false);
     }
@@ -333,10 +369,12 @@ function MembershipDrawer({ employee, opts, rooms, onClose, onSaved }: { employe
         </div>
         {form.type === "primary" ? <p className="hrm-form__note">{t("memberships.primaryNote")}</p> : null}
         <div className="hrm-form__foot">
-          <button className="btn btn--pri btn--sm" type="submit" disabled={busy || !form.unit}>
-            <IconCheck />
-            {busy ? t("saving") : t("save")}
-          </button>
+          {denied ? null : (
+            <button className="btn btn--pri btn--sm" type="submit" disabled={busy || !form.unit}>
+              <IconCheck />
+              {busy ? t("saving") : t("save")}
+            </button>
+          )}
           <button className="btn btn--line btn--sm" type="button" onClick={onClose}>
             {t("cancel")}
           </button>
@@ -356,6 +394,9 @@ function Grants({ opts, known }: { opts: Opts; known: LiveGrant[] }) {
   const [revoked, setRevoked] = useState<Record<string, true>>({});
   const [adding, setAdding] = useState(false);
   const [revoking, setRevoking] = useState<LiveGrant | null>(null);
+  // Refused by the backend (403): giving / revoking access is taken away.
+  const [noGive, setNoGive] = useState(false);
+  const [noRevoke, setNoRevoke] = useState(false);
   const all = useMemo(() => {
     const m = new Map<string, LiveGrant>();
     for (const g of [...known, ...made]) m.set(g.id || `${g.granteeUserId}-${g.validUntil}`, g);
@@ -376,10 +417,12 @@ function Grants({ opts, known }: { opts: Opts; known: LiveGrant[] }) {
       icon={IconLock}
       count={all.length}
       actions={
-        <button type="button" className="btn btn--pri btn--sm" onClick={() => setAdding(true)}>
-          <IconPlus />
-          {t("grants.new")}
-        </button>
+        noGive ? undefined : (
+          <button type="button" className="btn btn--pri btn--sm" onClick={() => setAdding(true)}>
+            <IconPlus />
+            {t("grants.new")}
+          </button>
+        )
       }
     >
       <p className="hrm-form__note">{t("grants.lead")}</p>
@@ -402,7 +445,7 @@ function Grants({ opts, known }: { opts: Opts; known: LiveGrant[] }) {
                 </span>
                 {off ? (
                   <HrmStatus value={revoked[g.id] ? "revoked" : g.status === "active" ? "expired" : g.status} />
-                ) : g.id ? (
+                ) : g.id && !noRevoke ? (
                   <button type="button" className="btn btn--line btn--sm" onClick={() => setRevoking(g)}>
                     {t("grants.revoke")}
                   </button>
@@ -422,6 +465,7 @@ function Grants({ opts, known }: { opts: Opts; known: LiveGrant[] }) {
             setAdding(false);
             setMade((cur) => [g, ...cur]);
           }}
+          onForbidden={() => setNoGive(true)}
         />
       ) : null}
       <ReasonModal
@@ -436,16 +480,19 @@ function Grants({ opts, known }: { opts: Opts; known: LiveGrant[] }) {
           await revokeGrant(revoking.id, reason);
           setRevoked((cur) => ({ ...cur, [revoking.id]: true }));
         }}
+        onForbidden={() => setNoRevoke(true)}
       />
     </HrmPanel>
   );
 }
 
-function GrantDrawer({ opts, onClose, onSaved }: { opts: Opts; onClose: () => void; onSaved: (g: LiveGrant) => void }) {
+function GrantDrawer({ opts, onClose, onSaved, onForbidden }: { opts: Opts; onClose: () => void; onSaved: (g: LiveGrant) => void; onForbidden: () => void }) {
   const { t } = useLiveText();
   const [form, setForm] = useState({ user: "", scopeType: "org_unit", scope: "", fromDate: dayIso(0), fromTime: "09:00", toDate: dayIso(0), toTime: "18:00", reason: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  // Refused by the backend (403): the message stays, the save button goes.
+  const [denied, setDenied] = useState(false);
   const set = (k: keyof typeof form) => (v: string) => setForm((c) => ({ ...c, [k]: v, ...(k === "scopeType" ? { scope: "" } : {}) }));
   const from = zonedIso(form.fromDate, form.fromTime);
   const until = zonedIso(form.toDate, form.toTime);
@@ -453,7 +500,7 @@ function GrantDrawer({ opts, onClose, onSaved }: { opts: Opts; onClose: () => vo
   const ready = form.user && form.scope && form.reason.trim() && from && until && !badRange;
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (busy || !ready) return;
+    if (busy || denied || !ready) return;
     setBusy(true);
     setErr("");
     try {
@@ -461,6 +508,10 @@ function GrantDrawer({ opts, onClose, onSaved }: { opts: Opts; onClose: () => vo
       onSaved({ ...g, granteeUserId: g.granteeUserId || form.user, scopeType: g.scopeType || form.scopeType, scopeId: g.scopeId || form.scope, validFrom: g.validFrom || from, validUntil: g.validUntil || until, reason: g.reason || form.reason.trim() });
     } catch (cause) {
       setErr(apiMessage(cause, t("errors.save")));
+      if (isForbidden(cause)) {
+        setDenied(true);
+        onForbidden();
+      }
     } finally {
       setBusy(false);
     }
@@ -497,10 +548,12 @@ function GrantDrawer({ opts, onClose, onSaved }: { opts: Opts; onClose: () => vo
         </div>
         {badRange ? <HrmError text={t("grants.badRange")} /> : <p className="hrm-form__note">{t("grants.viewOnly")}</p>}
         <div className="hrm-form__foot">
-          <button className="btn btn--pri btn--sm" type="submit" disabled={busy || !ready}>
-            <IconCheck />
-            {busy ? t("saving") : t("grants.give")}
-          </button>
+          {denied ? null : (
+            <button className="btn btn--pri btn--sm" type="submit" disabled={busy || !ready}>
+              <IconCheck />
+              {busy ? t("saving") : t("grants.give")}
+            </button>
+          )}
           <button className="btn btn--line btn--sm" type="button" onClick={onClose}>
             {t("cancel")}
           </button>
@@ -518,12 +571,18 @@ function Registry({ opts }: { opts: Opts }) {
   const [err, setErr] = useState("");
   const [tick, setTick] = useState(0);
   const [adding, setAdding] = useState(false);
+  const [denied, setDenied] = useState(false);
   const [q, setQ] = useState("");
   useEffect(() => {
     const c = new AbortController();
     getActivityRegistry(c.signal)
       .then((r) => !c.signal.aborted && (setRows(r), setErr("")))
-      .catch((e) => !c.signal.aborted && (setRows([]), setErr(apiMessage(e, t("errors.load")))));
+      .catch((e) => {
+        if (c.signal.aborted) return;
+        setRows([]);
+        setErr(apiMessage(e, t("errors.load")));
+        if (isForbidden(e)) setDenied(true);
+      });
     return () => c.abort();
   }, [tick, t]);
   const needle = q.trim().toLowerCase();
@@ -536,10 +595,12 @@ function Registry({ opts }: { opts: Opts }) {
       count={rows?.length}
       flush
       actions={
-        <button type="button" className="btn btn--pri btn--sm" onClick={() => setAdding(true)}>
-          <IconPlus />
-          {t("registry.new")}
-        </button>
+        denied ? undefined : (
+          <button type="button" className="btn btn--pri btn--sm" onClick={() => setAdding(true)}>
+            <IconPlus />
+            {t("registry.new")}
+          </button>
+        )
       }
     >
       <div className="lv-set__pick">
@@ -598,22 +659,25 @@ function Registry({ opts }: { opts: Opts }) {
             setAdding(false);
             reload();
           }}
+          onForbidden={() => setDenied(true)}
         />
       ) : null}
     </HrmPanel>
   );
 }
 
-function RegistryDrawer({ opts, onClose, onSaved }: { opts: Opts; onClose: () => void; onSaved: () => void }) {
+function RegistryDrawer({ opts, onClose, onSaved, onForbidden }: { opts: Opts; onClose: () => void; onSaved: () => void; onForbidden: () => void }) {
   const { t } = useLiveText();
   const [form, setForm] = useState({ method: "POST", path: "", module: "", code: "", label: "", entity: "", detail: "", unit: "", active: true });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  // Refused by the backend (403): the message stays, the save button goes.
+  const [denied, setDenied] = useState(false);
   const set = (k: keyof typeof form) => (v: string) => setForm((c) => ({ ...c, [k]: v }));
   const ok = form.path.trim().startsWith("/") && form.module.trim() && form.code.trim() && form.label.trim();
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (busy || !ok) return;
+    if (busy || denied || !ok) return;
     setBusy(true);
     setErr("");
     try {
@@ -633,6 +697,10 @@ function RegistryDrawer({ opts, onClose, onSaved }: { opts: Opts; onClose: () =>
       onSaved();
     } catch (cause) {
       setErr(apiMessage(cause, t("errors.save")));
+      if (isForbidden(cause)) {
+        setDenied(true);
+        onForbidden();
+      }
     } finally {
       setBusy(false);
     }
@@ -671,10 +739,12 @@ function RegistryDrawer({ opts, onClose, onSaved }: { opts: Opts; onClose: () =>
           {t("registry.active")}
         </CheckBox>
         <div className="hrm-form__foot">
-          <button className="btn btn--pri btn--sm" type="submit" disabled={busy || !ok}>
-            <IconCheck />
-            {busy ? t("saving") : t("save")}
-          </button>
+          {denied ? null : (
+            <button className="btn btn--pri btn--sm" type="submit" disabled={busy || !ok}>
+              <IconCheck />
+              {busy ? t("saving") : t("save")}
+            </button>
+          )}
           <button className="btn btn--line btn--sm" type="button" onClick={onClose}>
             {t("cancel")}
           </button>

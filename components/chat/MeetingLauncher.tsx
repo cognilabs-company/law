@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { useAuth, canMakeCalls, sessionRoles } from "@/lib/auth";
+import { useAuth, canMakeCalls } from "@/lib/auth";
 import { createSecureChat, startCall, listAdminCalls, getAdminCallDetail, type AdminCallDetail, type AdminCallRow, type LiveKitJoin } from "@/lib/services/backend";
-import { http, asArr, asDict, asNum, asStr, ApiError, parseServerTime } from "@/lib/http";
+import { http, asArr, asDict, asNum, asStr, ApiError, isForbidden, parseServerTime } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { useResource } from "@/lib/useResource";
 import { dateTimeFull, fmtDate, fmtDateTime, fmtDuration, localDay as localDayKey, shortDateTime, timeOnly } from "@/lib/date";
@@ -31,6 +31,7 @@ import MiniCalendar, { type MiniCalEvent } from "@/components/portal/MiniCalenda
 import { IconVideo, IconClock, IconRefresh, IconUsers, IconUser, IconCalendar, IconPlus, IconMoreHorizontal, IconPhone, IconClipboardCheck, IconSearch, IconChevronRight, IconChevronDown } from "@/components/icons";
 import { regionLabel, humanize, statusMap, statusSpecOf, type StatusMap, type StatusTone, type StatusToneRule } from "@/lib/labels";
 import { subscribeUserEvents } from "@/lib/userSocket";
+import { can } from "@/lib/permissions";
 
 const DETAIL_SHOWN = 8;
 const PART_JOINED = new Set(["joined", "left"]);
@@ -317,6 +318,9 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   const [picks, setPicks] = useState<string[]>([]);
   const [pickNames, setPickNames] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  // POST create/start answered 403: hosting is not this account's to do — the
+  // create form leaves the page (owner law 2026-11-08).
+  const [hostRefused, setHostRefused] = useState(false);
   const [pickErr, setPickErr] = useState("");
   const [howOpen, setHowOpen] = useState(false);
   const pickErrId = useId();
@@ -339,7 +343,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   // platform, not just this account's own — folded in as a second tab here
   // instead of a separate nav entry, gated the same way that page's nav link
   // used to be (superadmin, or the leads.manage permission).
-  const canSeeAllHistory = !rich && (sessionRoles(session).includes("superadmin") || (session?.permissions ?? []).includes("leads.manage"));
+  const canSeeAllHistory = !rich && can(session, "leads.manage");
   const [scopeMemo, pickScope] = useTabMemory<Scope>(canSeeAllHistory ? SCOPE_STORE : undefined, SCOPES, "mine");
   const histTab: Scope = canSeeAllHistory && scopeMemo === "all" ? "all" : "mine";
   const [platOn, setPlatOn] = useState(false);
@@ -546,6 +550,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
         lk: call.livekitToken ? { url: call.livekitUrl, room: call.livekitRoom, token: call.livekitToken, hints: call.hints, quality: call.quality } : null,
       });
     } catch (e) {
+      if (isForbidden(e)) setHostRefused(true);
       notify.error(t("startFailed"), {
         id: START_ID,
         error: e,
@@ -611,7 +616,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
     );
   }
 
-  const canHost = canMakeCalls(session);
+  const canHost = canMakeCalls(session) && !hostRefused;
   const canDetail = canSeeAllHistory;
   const statusOf = (s: string) => statusSpecOf(callMap, s)?.label ?? "";
   const thisYear = localDayKey(new Date()).slice(0, 4);
@@ -878,9 +883,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
           {!rich ? <span className="mform__enter">{t("enterHint")}</span> : null}
         </div>
       </form>
-    ) : (
-      <InlineAlert tone="locked" className="mcreate__lock">{t("noPermission")}</InlineAlert>
-    );
+    ) : null;
 
   const historyBody =
     history === null ? (
@@ -950,6 +953,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
     );
     return (
       <div className="mlaunch">
+        {canHost ? (
         <section className="ppanel mnew" data-ai-target="meetings:create" aria-labelledby={`${uid}-new`}>
           <div className="mnew__head">
             <h2 id={`${uid}-new`} className="ppanel__t mnew__t"><span className="pico"><IconPlus /></span>{t("newMeeting")}</h2>
@@ -959,10 +963,14 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
             <div className="mnew__main">{formBody(false)}</div>
             <div className="mnew__side">
               {liveBlock}
-              {canHost ? howTo : null}
+              {howTo}
             </div>
           </div>
         </section>
+        ) : (
+          // No hosting right: no create form, no "how to" — only what is live now.
+          <div className="ppanel">{liveBlock}</div>
+        )}
         <div className="ppanel mhist">
           <div className="ppanel__h mhist__h">
             <h2 className="ppanel__t"><span className="pico"><IconClock /></span>{canSeeAllHistory ? tch("title") : t("history")}</h2>
@@ -1195,8 +1203,8 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
         </div>
       ) : null}
 
-      <div className="mgrid3">
-        {createForm}
+      <div className={canHost ? "mgrid3" : "pgrid2"} style={canHost ? undefined : { marginBottom: 16, alignItems: "start" }}>
+        {canHost ? createForm : null}
 
         <div className="ppanel" data-ai-target="meetings:today">
           <div className="ppanel__h">

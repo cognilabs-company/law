@@ -10,6 +10,7 @@ import { Link } from "@/i18n/navigation";
 import { IconClipboardList } from "@/components/icons";
 import PlanChangePreview from "./PlanChangePreview";
 import { useStudioCatalog } from "@/lib/studio/catalogLink";
+import { useStudioAccess } from "@/lib/services/studio";
 import { shortDateTime } from "@/lib/date";
 import { errDetail, isAborted, isCodeLike, logApiError, type Dict } from "@/lib/http";
 import {
@@ -247,6 +248,9 @@ export default function PlanVersions({ planId }: { planId: string }): ReactEleme
   const lab = useVersionLabels();
   const issueText = useIssueText();
   const studio = useStudioCatalog();
+  // The Studio link only for an account Studio admits.
+  const studioOk = useStudioAccess().any;
+  const k17Href = studioOk ? studio.listHref("K17") : "";
   const [data, setData] = useState<Versions | null>(null);
   const [failed, setFailed] = useState(false);
   const [registry, setRegistry] = useState<FeatureRegistry | null>(null);
@@ -310,9 +314,9 @@ export default function PlanVersions({ planId }: { planId: string }): ReactEleme
       {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
       {!data.items.length ? (
         <div className="trf-empty">
-          <p>{studio.has("K17") ? t("noVersions") : t("noVersionsNoStudio")}</p>
-          {studio.has("K17") ? (
-            <Link className="btn btn--line btn--sm" href={studio.listHref("K17")}>
+          <p>{k17Href ? t("noVersions") : t("noVersionsNoStudio")}</p>
+          {k17Href ? (
+            <Link className="btn btn--line btn--sm" href={k17Href}>
               {t("openStudio")}
             </Link>
           ) : null}

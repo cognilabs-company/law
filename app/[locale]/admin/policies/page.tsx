@@ -15,7 +15,8 @@ import {
   type UnverifiedSellersMode,
 } from "@/lib/services/backend";
 import { useResourceOne } from "@/lib/useResource";
-import { ApiError } from "@/lib/http";
+import { ApiError, isForbidden } from "@/lib/http";
+import { useCan } from "@/lib/useCan";
 import { notify } from "@/lib/toast";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import { useReload } from "@/components/admin/AdminBits";
@@ -56,6 +57,13 @@ export default function AdminPolicies() {
   // T0-10 §5: unverified sellers in the catalogue — badge or hidden.
   const [unvMode, setUnvMode] = useState<UnverifiedSellersMode | null>(null);
   const [unvBusy, setUnvBusy] = useState(false);
+  // PUT /admin/platform/policies/{section} needs users.manage
+  // (lib/services/catalogOverrides.ts): without it the sections, the
+  // unverified-sellers mode and the pricing card are read-only. A 403 on a
+  // save (permission revoked mid-session) takes the edit controls away too.
+  const canDo = useCan();
+  const [saveDenied, setSaveDenied] = useState(false);
+  const canEditPolicies = canDo("users.manage") && !saveDenied;
   useEffect(() => {
     let alive = true;
     getUnverifiedSellersMode().then((m) => { if (alive) setUnvMode(m); });
@@ -69,10 +77,11 @@ export default function AdminPolicies() {
       setUnvMode(mode);
       notify.success(t("unverified.saved"), { id: "policy-unverified", body: t(`unverified.${mode}`) });
     } catch (e) {
+      if (isForbidden(e)) setSaveDenied(true);
       notify.error(t("unverified.saveFailed"), {
         id: "policy-unverified",
         error: e,
-        action: transient(e) ? { label: tn("retry"), onClick: () => void saveUnv(mode) } : undefined,
+        action: transient(e) && !isForbidden(e) ? { label: tn("retry"), onClick: () => void saveUnv(mode) } : undefined,
       });
     } finally {
       setUnvBusy(false);
@@ -128,7 +137,7 @@ export default function AdminPolicies() {
                     <b>{t(`sections.${sec}`)}</b>
                     <span>
                       <button type="button" className="btn btn--line btn--sm" onClick={() => setHistory(sec)}><IconClock />{t("history")}</button>
-                      <button type="button" className="btn btn--soft btn--sm" onClick={() => setEdit(sec)}><IconEdit />{t("edit")}</button>
+                      {canEditPolicies ? <button type="button" className="btn btn--soft btn--sm" onClick={() => setEdit(sec)}><IconEdit />{t("edit")}</button> : null}
                     </span>
                   </div>
                   {!entries.length ? <p className="advmuted">{t("emptySection")}</p> : (
@@ -148,12 +157,19 @@ export default function AdminPolicies() {
         )}
       </div>
 
-      <MarketplacePricingCard />
+      <MarketplacePricingCard canEdit={canEditPolicies} onDenied={() => setSaveDenied(true)} />
 
       <div className="ppanel">
         <div className="ppanel__h" data-ai-target="policies:unverified"><b className="ppanel__t"><span className="pico"><IconShieldCheck /></span>{t("unverified.title")}</b></div>
         <p className="ppanel__note">{t("unverified.lead")}</p>
-        {unvMode === null ? <Skeleton rows={2} /> : (
+        {unvMode === null ? <Skeleton rows={2} /> : !canEditPolicies ? (
+          <div className="unvmode">
+            <div className="unvmode__opt on" style={{ cursor: "default" }}>
+              <span className="unvmode__dot" aria-hidden="true" />
+              <span className="unvmode__m"><b>{t(`unverified.${unvMode}`)}</b><small>{t(`unverified.${unvMode}Text`)}</small></span>
+            </div>
+          </div>
+        ) : (
           <div className="unvmode" role="radiogroup" aria-label={t("unverified.title")}>
             {(["badge", "hidden"] as UnverifiedSellersMode[]).map((m) => (
               <label key={m} className={`unvmode__opt${unvMode === m ? " on" : ""}`}>
@@ -168,7 +184,7 @@ export default function AdminPolicies() {
 
       <BusinessCalendarCard />
 
-      <EditModal section={edit} data={edit ? res.data?.[edit] ?? {} : {}} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); setKey((k) => k + 1); }} />
+      <EditModal section={canEditPolicies ? edit : null} data={edit ? res.data?.[edit] ?? {} : {}} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); setKey((k) => k + 1); }} onDenied={() => { setSaveDenied(true); setEdit(null); }} />
       <HistoryModal section={history} onClose={() => setHistory(null)} />
     </>
   );
@@ -203,7 +219,7 @@ function blankLike(v: unknown): unknown {
 }
 const isScalarList = (v: unknown) => Array.isArray(v) && v.every((x) => x === null || typeof x !== "object");
 
-function EditModal({ section, data, onClose, onSaved }: { section: PolicySection | null; data: Record<string, unknown>; onClose: () => void; onSaved: () => void }) {
+function EditModal({ section, data, onClose, onSaved, onDenied }: { section: PolicySection | null; data: Record<string, unknown>; onClose: () => void; onSaved: () => void; onDenied: () => void }) {
   const t = useTranslations("admin.policies");
   const [form, setForm] = useState<{ sec: string; value: Record<string, unknown> }>({ sec: "", value: {} });
   const [bad, setBad] = useState<Set<string>>(new Set());
@@ -236,6 +252,7 @@ function EditModal({ section, data, onClose, onSaved }: { section: PolicySection
       onSaved();
     } catch (e) {
       notify.error(t("saveFailed"), { id: "policy-save", error: e });
+      if (isForbidden(e)) onDenied();
     } finally {
       setBusy(false);
     }

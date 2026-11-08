@@ -1135,13 +1135,15 @@ export default function DocumentRequestPanel({
               </div>
             </div>
           ) : (
-            <>
-              <button className="btn btn--line btn--sm" type="button" onClick={() => setReviewOpen(true)} disabled={!!lawyerHeldNote} title={lawyerHeldNote || undefined} data-ai-id="documents.constructor.result.review">
+            // A lawyer already holds the document: the reason, no dead button.
+            lawyerHeldNote ? (
+              <p className="dgate__note">{lawyerHeldNote}</p>
+            ) : (
+              <button className="btn btn--line btn--sm" type="button" onClick={() => setReviewOpen(true)} data-ai-id="documents.constructor.result.review">
                 <IconHeadset />
                 {t("reviewOpen")}
               </button>
-              {lawyerHeldNote ? <p className="dgate__note">{lawyerHeldNote}</p> : null}
-            </>
+            )
           )}
           <div className="docoffer">
             <b>{t("offerTitle")}</b>

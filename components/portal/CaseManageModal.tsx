@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { updateCase, type BackendCase } from "@/lib/services/backend";
 import { notify } from "@/lib/toast";
+import { isForbidden } from "@/lib/http";
+import { humanizeSlug } from "@/lib/lawyers";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import { IconUser } from "@/components/icons";
@@ -29,6 +31,9 @@ export default function CaseManageModal({
   const [stage, setStage] = useState(target?.stage || "");
   const [nextAction, setNextAction] = useState(target?.nextAction || "");
   const [busy, setBusy] = useState(false);
+  // 403 on save: this account may not change this case — the form turns
+  // into a read-only summary instead of offering the save again.
+  const [denied, setDenied] = useState(false);
   const copilotCase = target ? { type: "legal_case", id: target.id, code: target.caseNumber || undefined, title: target.caseType || target.title || undefined } : null;
   const copilotOn = useCopilotAvailable(copilotCase ?? false);
 
@@ -36,6 +41,7 @@ export default function CaseManageModal({
   const [prevTarget, setPrevTarget] = useState(target);
   if (target !== prevTarget) {
     setPrevTarget(target);
+    setDenied(false);
     if (target) {
       setStatus(target.status || "active");
       setStage(target.stage || "");
@@ -45,7 +51,7 @@ export default function CaseManageModal({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!target || busy) return;
+    if (!target || busy || denied) return;
     setBusy(true);
     const nid = `case-save-${target.id}`;
     try {
@@ -58,6 +64,7 @@ export default function CaseManageModal({
       onSaved();
       onClose();
     } catch (err) {
+      if (isForbidden(err)) setDenied(true);
       notify.error(t("saveFailed"), { id: nid, error: err });
     } finally {
       setBusy(false);
@@ -85,21 +92,44 @@ export default function CaseManageModal({
               </div>
             ) : null}
           </div>
-          <div data-ai-target="case:status">
-            <label>{t("status")}</label>
-            <Select value={status} onChange={setStatus} options={statusOpts} ariaLabel={t("status")} />
-          </div>
-          <div>
-            <label>{t("stage")}</label>
-            <input value={stage} onChange={(e) => setStage(e.target.value)} placeholder={t("stagePh")} />
-          </div>
-          <div>
-            <label>{t("nextAction")}</label>
-            <input value={nextAction} onChange={(e) => setNextAction(e.target.value)} placeholder={t("nextActionPh")} />
-          </div>
-          <button className="btn btn--pri btn--full" type="submit" disabled={busy}>
-            {busy ? t("saving") : t("save")}
-          </button>
+          {denied ? (
+            <dl style={{ display: "grid", gap: 10, margin: 0 }}>
+              <div>
+                <dt className="advmuted">{t("status")}</dt>
+                <dd style={{ margin: 0, fontWeight: 600 }}>{statusOpts.find((o) => o.value === (target.status || "active"))?.label ?? humanizeSlug(target.status)}</dd>
+              </div>
+              {target.stage ? (
+                <div>
+                  <dt className="advmuted">{t("stage")}</dt>
+                  <dd style={{ margin: 0, fontWeight: 600 }}>{target.stage}</dd>
+                </div>
+              ) : null}
+              {target.nextAction ? (
+                <div>
+                  <dt className="advmuted">{t("nextAction")}</dt>
+                  <dd style={{ margin: 0, fontWeight: 600 }}>{target.nextAction}</dd>
+                </div>
+              ) : null}
+            </dl>
+          ) : (
+            <>
+              <div data-ai-target="case:status">
+                <label>{t("status")}</label>
+                <Select value={status} onChange={setStatus} options={statusOpts} ariaLabel={t("status")} />
+              </div>
+              <div>
+                <label>{t("stage")}</label>
+                <input value={stage} onChange={(e) => setStage(e.target.value)} placeholder={t("stagePh")} />
+              </div>
+              <div>
+                <label>{t("nextAction")}</label>
+                <input value={nextAction} onChange={(e) => setNextAction(e.target.value)} placeholder={t("nextActionPh")} />
+              </div>
+              <button className="btn btn--pri btn--full" type="submit" disabled={busy}>
+                {busy ? t("saving") : t("save")}
+              </button>
+            </>
+          )}
           {target.orderId ? <OrderStatusPanel orderId={target.orderId} side="seller" onChanged={onSaved} /> : null}
           <CaseAiTools caseId={target.id} />
         </form>

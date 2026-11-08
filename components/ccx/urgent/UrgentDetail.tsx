@@ -17,9 +17,10 @@ import {
   type UrgentRequest,
 } from "@/lib/services/backend";
 import { subscribeUserEvents } from "@/lib/userSocket";
-import { errDetail, logApiError } from "@/lib/http";
+import { errDetail, isForbidden, logApiError } from "@/lib/http";
 import { notify, notifyStore } from "@/lib/toast";
-import { useAuth, sessionRoles } from "@/lib/auth";
+import { useAuth, canMakeCalls } from "@/lib/auth";
+import { can as canFor } from "@/lib/permissions";
 import { dateTimeFull } from "@/lib/date";
 import { humanize, regionLabel, statusLabel, statusSpecOf } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
@@ -90,7 +91,13 @@ export default function UrgentDetail({
   const urgLabel = (s: string) => statusSpecOf(urg, s, statusLabel(tcm, s))?.label ?? "";
   const { session } = useAuth();
   const me = session?.id ?? "";
-  const isAdmin = sessionRoles(session).some((r) => r === "superadmin" || r === "admin");
+  // Taking over someone else's claim: admins (and superadmin) only.
+  const isAdmin = canFor(session, [], { roles: ["admin"] });
+  // Starting the meeting follows meetings.manage (canMakeCalls).
+  const hostCalls = canMakeCalls(session);
+  // Actions that answered 403 on this record leave the panel.
+  const [refused, setRefused] = useState<string[]>([]);
+  const off = (key: string) => refused.includes(key);
 
   const [req, setReq] = useState<UrgentRequest | null>(seed);
   const [load2, setLoad2] = useState<"loading" | "ready" | "error">(seed ? "ready" : "loading");
@@ -180,6 +187,7 @@ export default function UrgentDetail({
       return true;
     } catch (e) {
       logApiError("urgent " + key, e);
+      if (isForbidden(e)) setRefused((r) => (r.includes(key) ? r : [...r, key]));
       notify.error(msgs.fail, { id: ntfId(id), error: e, map: errDetail(e) ? undefined : msgs.map });
       return false;
     } finally {
@@ -197,6 +205,7 @@ export default function UrgentDetail({
       onChanged({ id: req.id, title: t("meetingStarted"), status: moved?.status });
     } catch (e) {
       logApiError("urgent meeting", e);
+      if (isForbidden(e)) setRefused((r) => (r.includes("meeting") ? r : [...r, "meeting"]));
       notify.error(t("notify.meetingFailed"), { id: ntfId(req.id), error: e });
     } finally {
       setBusy("");
@@ -220,22 +229,22 @@ export default function UrgentDetail({
   const finished = !!req && req.nextStatuses.length === 0;
   const claimOpen = !!req && (req.status === "open_pool" || req.nextStatuses.includes("claimed"));
   const takeOver = claimOpen && !!req?.claimedByUserId && req.claimedByUserId !== me && isAdmin;
-  const canClaim = (claimOpen && !req?.claimedByUserId) || takeOver;
+  const canClaim = ((claimOpen && !req?.claimedByUserId) || takeOver) && !off("claim");
   const claimMsgs: Msgs = {
     ok: (r) => ({ title: t("notify.claimed"), body: r.secureChatRoomId ? t("notify.chatOpened") : undefined }),
     fail: t("notify.claimFailed"),
     map: { 409: t("alreadyTaken") },
   };
-  const statusChoices = req ? statusChoicesOf(req, me) : [];
+  const statusChoices = req && !off("status") ? statusChoicesOf(req, me).filter((s) => s !== "claimed" || !off("claim")) : [];
   const working = !!req && !finished && req.status !== "open_pool";
   const can = {
-    meeting: working && req?.channel !== "chat",
+    meeting: working && req?.channel !== "chat" && hostCalls && !off("meeting"),
     chat: !!req?.secureChatRoomId,
-    complete: working,
-    transfer: working,
+    complete: working && !off("complete"),
+    transfer: working && !off("transfer"),
     status: statusChoices.length > 0,
-    cancel: !!req && !finished,
-    group: !!req && isGroup && !finished,
+    cancel: !!req && !finished && !off("cancel"),
+    group: !!req && isGroup && !finished && !off("group"),
   };
   const primary = !req
     ? ""
@@ -388,6 +397,7 @@ export default function UrgentDetail({
       </button>
     ) : null;
 
+  const hasSecondary = (can.meeting && primary !== "meeting") || (can.complete && primary !== "complete") || can.transfer;
   const secondary = (
     <>
       {can.meeting && primary !== "meeting" ? (
@@ -499,6 +509,7 @@ export default function UrgentDetail({
                 finishStep();
                 onChanged({ id, title: msg, status: r.status });
               }}
+              onRefused={() => setRefused((r) => (r.includes("group") ? r : [...r, "group"]))}
             />
           ) : (
             <StatusStep
@@ -765,7 +776,7 @@ export default function UrgentDetail({
             ) : null}
           </div>
 
-          {secondary || items.length > 0 || can.cancel ? (
+          {hasSecondary || items.length > 0 || can.cancel ? (
             <footer className="opx-ug-acts">
               {secondary}
               <MoreMenu items={items} title={t("moreTitle")} up disabled={!!busy} aiId={aiId(AI_ITEM, req.id, "more")} />

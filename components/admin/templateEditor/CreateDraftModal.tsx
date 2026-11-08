@@ -31,7 +31,20 @@ type Mode = "blank" | "device_upload";
 // `contractFrom`: any existing template — its ui-contract says how a new one
 // may be started (blank, or from a file on the device) and which files the
 // editor takes. Without one the modal offers the blank document only.
-export default function CreateDraftModal({ open, onClose, onCreated, contractFrom = "" }: { open: boolean; onClose: () => void; onCreated: (s: EditorSession) => void; contractFrom?: string }) {
+// `onForbidden`: a 403 on create — the opener takes its "new" action away.
+export default function CreateDraftModal({
+  open,
+  onClose,
+  onCreated,
+  onForbidden,
+  contractFrom = "",
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: (s: EditorSession) => void;
+  onForbidden?: () => void;
+  contractFrom?: string;
+}) {
   const t = useTranslations("admin.templateEditor");
   const ti = useTranslations("admin.templates.import");
   const id = useId();
@@ -153,6 +166,7 @@ export default function CreateDraftModal({ open, onClose, onCreated, contractFro
         setErrors({ file: errDetail(err) || (err.status === 413 ? t("upload.tooBigN", { mb: maxMb }) : t("upload.badFile")) });
       } else {
         notify.error(t("create.error"), { id: "tpe-create", error: err, map: { 503: t("upload.converterDown"), 403: t("create.forbidden") } });
+        if (err instanceof ApiError && err.status === 403) onForbidden?.();
       }
     } finally {
       setBusy(false);

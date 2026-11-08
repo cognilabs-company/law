@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import type { SearchOption } from "@/components/SearchSelect";
-import { ApiError } from "@/lib/http";
+import { isForbidden } from "@/lib/http";
 import { subscribeLiveOffice } from "@/lib/liveOfficeSocket";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { CORRECTION_DECISIONS, CORRECTION_TYPES, createCorrection, getCorrections, reviewCorrection, type Correction } from "@/lib/services/internalLive";
@@ -27,7 +27,8 @@ export default function LiveCorrections({
   unitName: (id: string) => string;
   roomName: (id: string) => string;
   canReview: boolean;
-  onNew: () => void;
+  // Absent: this viewer cannot file a correction, so no button for it.
+  onNew?: () => void;
 }) {
   const { t, correctionType } = useLiveText();
   const f = useHrmFormat();
@@ -44,8 +45,12 @@ export default function LiveCorrections({
       .then((rows) => !c.signal.aborted && setState({ key, rows, err: "" }))
       .catch((e) => {
         if (c.signal.aborted) return;
-        // No right to review: the tab is simply not offered.
-        if (view === "review" && e instanceof ApiError && e.status === 403) setNoReview(true);
+        // No right to review: the tab is simply not offered, and the
+        // viewer is taken back to their own requests.
+        if (view === "review" && isForbidden(e)) {
+          setNoReview(true);
+          setView("mine");
+        }
         setState({ key, rows: [], err: apiMessage(e, t("errors.load")) });
       });
     return () => c.abort();
@@ -73,21 +78,25 @@ export default function LiveCorrections({
       icon={IconFlag}
       count={rows?.length}
       actions={
-        <>
-          {reviewTab ? (
-            <div className="hrm-tabs lv-seg" role="tablist">
-              {(["mine", "review"] as const).map((v) => (
-                <button key={v} type="button" role="tab" aria-selected={view === v} className={view === v ? "on" : ""} onClick={() => setView(v)}>
-                  {t(`corrections.${v}`)}
-                </button>
-              ))}
-            </div>
-          ) : null}
-          <button type="button" className="btn btn--pri btn--sm" onClick={onNew}>
-            <IconPlus />
-            {t("corrections.new")}
-          </button>
-        </>
+        reviewTab || onNew ? (
+          <>
+            {reviewTab ? (
+              <div className="hrm-tabs lv-seg" role="tablist">
+                {(["mine", "review"] as const).map((v) => (
+                  <button key={v} type="button" role="tab" aria-selected={view === v} className={view === v ? "on" : ""} onClick={() => setView(v)}>
+                    {t(`corrections.${v}`)}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {onNew ? (
+              <button type="button" className="btn btn--pri btn--sm" onClick={onNew}>
+                <IconPlus />
+                {t("corrections.new")}
+              </button>
+            ) : null}
+          </>
+        ) : undefined
       }
     >
       {err ? <HrmError text={err} onRetry={reload} retryLabel={t("retry")} /> : null}
@@ -111,7 +120,7 @@ export default function LiveCorrections({
                   {c.reviewer ? <small> — {c.reviewer}</small> : null}
                 </p>
               ) : null}
-              {view === "review" && ["pending", "returned", "new"].includes(c.status) ? (
+              {view === "review" && reviewTab && ["pending", "returned", "new"].includes(c.status) ? (
                 <button type="button" className="btn btn--line btn--sm" onClick={() => setReviewing(c)}>
                   {t("corrections.review")}
                 </button>
@@ -122,21 +131,26 @@ export default function LiveCorrections({
       ) : (
         <HrmEmpty icon={IconFlag} title={view === "mine" ? t("corrections.emptyMine") : t("corrections.emptyReview")} />
       )}
-      <ReviewModal correction={reviewing} onClose={() => setReviewing(null)} onDone={reload} />
+      <ReviewModal correction={reviewing} onClose={() => setReviewing(null)} onDone={reload} onForbidden={() => {
+          setNoReview(true);
+          setView("mine");
+        }} />
     </HrmPanel>
   );
 }
 
-function ReviewModal({ correction, onClose, onDone }: { correction: Correction | null; onClose: () => void; onDone: () => void }) {
+function ReviewModal({ correction, onClose, onDone, onForbidden }: { correction: Correction | null; onClose: () => void; onDone: () => void; onForbidden: () => void }) {
   const { t, decision: decisionName } = useLiveText();
   const [decision, setDecision] = useState("approved");
   const [resolution, setResolution] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  // Refused by the backend (403): the message stays, the submit button goes.
+  const [denied, setDenied] = useState(false);
   if (!correction) return null;
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!resolution.trim() || busy || !correction) return;
+    if (!resolution.trim() || busy || denied || !correction) return;
     setBusy(true);
     setErr("");
     try {
@@ -146,12 +160,22 @@ function ReviewModal({ correction, onClose, onDone }: { correction: Correction |
       onClose();
     } catch (cause) {
       setErr(apiMessage(cause, t("errors.save")));
+      if (isForbidden(cause)) {
+        setDenied(true);
+        onForbidden();
+      }
     } finally {
       setBusy(false);
     }
   }
+  const close = () => {
+    if (busy) return;
+    setErr("");
+    setDenied(false);
+    onClose();
+  };
   return (
-    <Modal open onClose={() => !busy && onClose()} title={t("corrections.reviewTitle")}>
+    <Modal open onClose={close} title={t("corrections.reviewTitle")}>
       <form className="hrm-form" onSubmit={submit}>
         <p className="hrm-form__note">
           <b>{correction.title}</b>
@@ -169,11 +193,13 @@ function ReviewModal({ correction, onClose, onDone }: { correction: Correction |
         </label>
         {err ? <HrmError text={err} /> : null}
         <div className="hrm-form__foot">
-          <button className="btn btn--pri btn--sm" type="submit" disabled={busy || !resolution.trim()}>
-            <IconCheck />
-            {busy ? t("saving") : t("corrections.submitReview")}
-          </button>
-          <button className="btn btn--line btn--sm" type="button" onClick={onClose}>
+          {denied ? null : (
+            <button className="btn btn--pri btn--sm" type="submit" disabled={busy || !resolution.trim()}>
+              <IconCheck />
+              {busy ? t("saving") : t("corrections.submitReview")}
+            </button>
+          )}
+          <button className="btn btn--line btn--sm" type="button" onClick={close}>
             {t("cancel")}
           </button>
         </div>
@@ -188,12 +214,14 @@ export function CorrectionForm({
   target,
   onClose,
   onSent,
+  onForbidden,
   unitOptions,
   roomOptions,
 }: {
   target: CorrectionTarget | null;
   onClose: () => void;
   onSent: () => void;
+  onForbidden?: () => void;
   unitOptions: SearchOption[];
   roomOptions: SearchOption[];
 }) {
@@ -206,10 +234,12 @@ export function CorrectionForm({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [done, setDone] = useState(false);
+  // Refused by the backend (403): the message stays, the send button goes.
+  const [denied, setDenied] = useState(false);
   if (!target) return null;
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (busy || !title.trim() || !description.trim() || !target) return;
+    if (busy || denied || !title.trim() || !description.trim() || !target) return;
     setBusy(true);
     setErr("");
     try {
@@ -221,6 +251,10 @@ export function CorrectionForm({
       onSent();
     } catch (cause) {
       setErr(apiMessage(cause, t("errors.save")));
+      if (isForbidden(cause)) {
+        setDenied(true);
+        onForbidden?.();
+      }
     } finally {
       setBusy(false);
     }
@@ -273,10 +307,12 @@ export function CorrectionForm({
           ) : null}
           {err ? <HrmError text={err} /> : null}
           <div className="hrm-form__foot">
-            <button className="btn btn--pri btn--sm" type="submit" disabled={busy || !title.trim() || !description.trim()}>
-              <IconFlag />
-              {busy ? t("saving") : t("corrections.send")}
-            </button>
+            {denied ? null : (
+              <button className="btn btn--pri btn--sm" type="submit" disabled={busy || !title.trim() || !description.trim()}>
+                <IconFlag />
+                {busy ? t("saving") : t("corrections.send")}
+              </button>
+            )}
             <button className="btn btn--line btn--sm" type="button" onClick={onClose}>
               {t("cancel")}
             </button>

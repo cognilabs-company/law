@@ -6,8 +6,10 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { IconAlert, IconCalendar, IconChartBar, IconDownload, IconPlus, IconPower, IconRefresh, IconTarget } from "@/components/icons";
 import { fmtNum } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
-import { crmCan, isFinalStatus, getMyCrmMetrics, listCrmLeads, type CrmLead, type CrmMeta, type CrmMetrics } from "@/lib/services/crm";
+import { crmCan, crmGlobalAnalytics, isFinalStatus, getMyCrmMetrics, listCrmLeads, type CrmLead, type CrmMeta, type CrmMetrics } from "@/lib/services/crm";
 import { useCrmEvents, useNow } from "@/lib/crm/useCrm";
+import { useAuth } from "@/lib/auth";
+import { isSuperadmin } from "@/lib/permissions";
 import CrmFrame from "./CrmFrame";
 import { Empty, StatusPill, WhenChip, useCrmError } from "./bits";
 import { StatusDonut } from "./StatusDonut";
@@ -99,6 +101,8 @@ function Mission({ meta }: { meta: CrmMeta }): ReactElement {
   const prevQueue = useRef<number | null>(null);
   const canLeads = crmCan(meta, "crm.leads.view");
   const canSelf = crmCan(meta, "crm.analytics.self");
+  // Global analytics is superadmin-only (ROP contract §3): its link too.
+  const superadmin = isSuperadmin(useAuth().session);
 
   const loadLists = useCallback(
     async (signal?: AbortSignal) => {
@@ -165,23 +169,25 @@ function Mission({ meta }: { meta: CrmMeta }): ReactElement {
           <h2 id="crm-hero-t">{t("hero")}</h2>
           <p>{t("heroLead")}</p>
         </div>
-        <div className="crm-counters">
-          <Link className="crm-counter" href="/admin/crm/leads?tab=queue" data-bump={bump ? bump : undefined} key={`q-${bump}`}>
-            <small>{t("queue")}</small>
-            <b>{queue === null ? "—" : fmtNum(queue, locale)}</b>
-            <span>{t("queueSub")}</span>
-          </Link>
-          <Link className="crm-counter" href="/admin/crm/leads?tab=mine">
-            <small>{t("mine")}</small>
-            <b>{mineTotal === null ? "—" : fmtNum(metrics?.active ?? mineTotal, locale)}</b>
-            <span>{t("mineSub")}</span>
-          </Link>
-          <Link className="crm-counter" href="/admin/crm/leads?tab=mine&due=overdue" data-tone={overdue > 0 ? "bad" : undefined}>
-            <small>{t("overdue")}</small>
-            <b>{fmtNum(overdue, locale)}</b>
-            <span>{t("overdueSub")}</span>
-          </Link>
-        </div>
+        {canLeads ? (
+          <div className="crm-counters">
+            <Link className="crm-counter" href="/admin/crm/leads?tab=queue" data-bump={bump ? bump : undefined} key={`q-${bump}`}>
+              <small>{t("queue")}</small>
+              <b>{queue === null ? "—" : fmtNum(queue, locale)}</b>
+              <span>{t("queueSub")}</span>
+            </Link>
+            <Link className="crm-counter" href="/admin/crm/leads?tab=mine">
+              <small>{t("mine")}</small>
+              <b>{mineTotal === null ? "—" : fmtNum(metrics?.active ?? mineTotal, locale)}</b>
+              <span>{t("mineSub")}</span>
+            </Link>
+            <Link className="crm-counter" href="/admin/crm/leads?tab=mine&due=overdue" data-tone={overdue > 0 ? "bad" : undefined}>
+              <small>{t("overdue")}</small>
+              <b>{fmtNum(overdue, locale)}</b>
+              <span>{t("overdueSub")}</span>
+            </Link>
+          </div>
+        ) : null}
       </section>
 
       {err ? (
@@ -274,7 +280,7 @@ function Mission({ meta }: { meta: CrmMeta }): ReactElement {
             </section>
           ) : null}
           <Telephony meta={meta} />
-          {crmCan(meta, "crm.analytics.global") && meta.revenueVisible ? (
+          {crmGlobalAnalytics(meta, superadmin) && meta.revenueVisible ? (
             <Link href="/admin/crm/analytics" className="crm-btn" style={{ justifySelf: "start" }}>
               <IconChartBar aria-hidden="true" />
               {t("toAnalytics")}

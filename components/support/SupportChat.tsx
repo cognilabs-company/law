@@ -872,47 +872,51 @@ export default function SupportChat({
               {readOnlyNote || t("readOnly")}
             </p>
           ) : null}
-          <form
-            className="supchat__form"
-            data-ai-private
-            onSubmit={(e) => {
-              e.preventDefault();
-              void send();
-            }}
-          >
-            <div className="supchat__field">
-              <textarea
-                ref={field}
-                value={text}
-                onChange={(e) => {
-                  setText(e.target.value);
-                  if (error) setError(null);
-                  const el = e.currentTarget;
-                  el.style.height = "auto";
-                  el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
-                }}
-                onKeyDown={(e) => {
-                  if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
-                  if (window.matchMedia("(pointer: coarse)").matches) return;
-                  e.preventDefault();
-                  void send();
-                }}
-                placeholder={t("ph")}
-                aria-label={t("ph")}
-                rows={1}
-                maxLength={4000}
-                disabled={!writable}
-                data-ai-target="support:message-input"
-                data-ai-id={aiInput}
-              />
-              <button type="submit" className="supchat__send" disabled={!writable || sending || !text.trim()} aria-label={t("send")} title={t("send")}>
-                <IconSend />
-              </button>
-            </div>
-            <span className="supchat__keys" aria-hidden="true">
-              {t("chat.enterHint")}
-            </span>
-          </form>
+          {/* Read-only for anyone but the ticket's writer (assignee-only on
+              the backend): no disabled composer left on screen. */}
+          {canWrite ? (
+            <form
+              className="supchat__form"
+              data-ai-private
+              onSubmit={(e) => {
+                e.preventDefault();
+                void send();
+              }}
+            >
+              <div className="supchat__field">
+                <textarea
+                  ref={field}
+                  value={text}
+                  onChange={(e) => {
+                    setText(e.target.value);
+                    if (error) setError(null);
+                    const el = e.currentTarget;
+                    el.style.height = "auto";
+                    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
+                    if (window.matchMedia("(pointer: coarse)").matches) return;
+                    e.preventDefault();
+                    void send();
+                  }}
+                  placeholder={t("ph")}
+                  aria-label={t("ph")}
+                  rows={1}
+                  maxLength={4000}
+                  disabled={!writable}
+                  data-ai-target="support:message-input"
+                  data-ai-id={aiInput}
+                />
+                <button type="submit" className="supchat__send" disabled={!writable || sending || !text.trim()} aria-label={t("send")} title={t("send")}>
+                  <IconSend />
+                </button>
+              </div>
+              <span className="supchat__keys" aria-hidden="true">
+                {t("chat.enterHint")}
+              </span>
+            </form>
+          ) : null}
         </>
       )}
       {error ? contactBlockedOf(error) ? <ContactBlockedNote error={error} /> : <p className="supchat__err" role="alert">{errorText(error, tc)}</p> : null}

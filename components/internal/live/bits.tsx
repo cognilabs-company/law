@@ -3,7 +3,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { ApiError, isCodeLike } from "@/lib/http";
+import { ApiError, isCodeLike, isForbidden } from "@/lib/http";
 import { humanize } from "@/lib/labels";
 import { IconArrowRight, IconCheck } from "@/components/icons";
 import Modal from "@/components/admin/Modal";
@@ -97,6 +97,7 @@ export function ReasonModal({
   submitLabel,
   onClose,
   onSubmit,
+  onForbidden,
   children,
 }: {
   open: boolean;
@@ -107,22 +108,27 @@ export function ReasonModal({
   submitLabel: string;
   onClose: () => void;
   onSubmit: (reason: string) => Promise<void>;
+  // The backend refused the action (403): the caller takes its button off
+  // the screen; this dialog keeps the message and drops its submit button.
+  onForbidden?: () => void;
   children?: ReactNode;
 }) {
   const { t } = useLiveText();
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [denied, setDenied] = useState(false);
   const close = () => {
     if (busy) return;
     setReason("");
     setErr("");
+    setDenied(false);
     onClose();
   };
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const r = reason.trim();
-    if (!r || busy) return;
+    if (!r || busy || denied) return;
     setBusy(true);
     setErr("");
     try {
@@ -131,6 +137,10 @@ export function ReasonModal({
       onClose();
     } catch (cause) {
       setErr(apiMessage(cause, t("errors.save")));
+      if (isForbidden(cause)) {
+        setDenied(true);
+        onForbidden?.();
+      }
     } finally {
       setBusy(false);
     }
@@ -148,10 +158,12 @@ export function ReasonModal({
         </label>
         {err ? <HrmError text={err} /> : null}
         <div className="hrm-form__foot">
-          <button className="btn btn--pri btn--sm" type="submit" disabled={busy || !reason.trim()}>
-            <IconCheck />
-            {busy ? t("saving") : submitLabel}
-          </button>
+          {denied ? null : (
+            <button className="btn btn--pri btn--sm" type="submit" disabled={busy || !reason.trim()}>
+              <IconCheck />
+              {busy ? t("saving") : submitLabel}
+            </button>
+          )}
           <button className="btn btn--line btn--sm" type="button" onClick={close}>
             {t("cancel")}
           </button>

@@ -11,7 +11,7 @@ import { IconBookmark, IconX } from "./icons";
 import { shortDateTime } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
-import { claimCrmLead, crmCan, isClaimRace, leadCan, listCrmLeads, listCrmOperators, type CrmLead, type CrmMeta, type CrmOperator } from "@/lib/services/crm";
+import { claimCrmLead, crmCan, isClaimRace, isCrmDenied, leadCan, listCrmLeads, listCrmOperators, type CrmLead, type CrmMeta, type CrmOperator } from "@/lib/services/crm";
 import { useCrmEvents, useNow } from "@/lib/crm/useCrm";
 import CrmFrame from "./CrmFrame";
 import { LeadBoard } from "./LeadBoard";
@@ -263,6 +263,10 @@ function LeadTable({ meta, fixed }: { meta: CrmMeta; fixed?: "table" | "board" }
           return n;
         });
         toast(crmErr(e), { tone: "err" });
+        // Refused (e.g. claim right revoked): the list is read again so the
+        // lead's allowed_actions drop the claim button (crmErr also re-reads
+        // the meta permissions on a 403).
+        if (isCrmDenied(e)) refresh(0);
       }
     }
   };
@@ -311,6 +315,8 @@ function LeadTable({ meta, fixed }: { meta: CrmMeta; fixed?: "table" | "board" }
     setNaming(null);
   };
 
+  // The row-action column exists only while some row offers a claim.
+  const anyClaim = (rows ?? []).some((l) => leadCan(l, "claim") && !l.operatorId);
   // The board (GET /crm/kanban) has its own scope: mine or everything the
   // operator may see; the common queue and the other filters are the list's.
   const tabs: Tab[] = view === "board" ? ["mine", "all"] : ["queue", "mine", "all"];
@@ -349,7 +355,7 @@ function LeadTable({ meta, fixed }: { meta: CrmMeta; fixed?: "table" | "board" }
             {tb("manage")}
           </button>
         ) : null}
-        {view === "table" ? <span className="crm-hint crm-hide-sm">{t.rich("keys", { k: (c) => <kbd>{c}</kbd> })}</span> : null}
+        {view === "table" ? <span className="crm-hint crm-hide-sm">{t.rich(crmCan(meta, "crm.leads.claim") ? "keys" : "keysNoClaim", { k: (c) => <kbd>{c}</kbd> })}</span> : null}
       </div>
       {managingCols ? <KanbanColumns meta={meta} counts={{}} onClose={() => setManagingCols(false)} /> : null}
 
@@ -475,7 +481,7 @@ function LeadTable({ meta, fixed }: { meta: CrmMeta; fixed?: "table" | "board" }
         </div>
       ) : !rows.length ? (
         <div className="crm-card">
-          <Empty icon={tab === "queue" ? <IconCheck /> : <IconLayers />} title={t(`empty.${tab}`)} text={t(`emptyText.${tab}`)} />
+          <Empty icon={tab === "queue" ? <IconCheck /> : <IconLayers />} title={t(`empty.${tab}`)} text={tab === "mine" && !crmCan(meta, "crm.leads.claim") ? undefined : t(`emptyText.${tab}`)} />
         </div>
       ) : (
         <div className="crm-tablewrap">
@@ -490,9 +496,11 @@ function LeadTable({ meta, fixed }: { meta: CrmMeta; fixed?: "table" | "board" }
                 <th scope="col" className="crm-hide-sm">
                   {t("col.created")}
                 </th>
-                <th scope="col">
-                  <span className="crm-vh">{t("col.actions")}</span>
-                </th>
+                {anyClaim ? (
+                  <th scope="col">
+                    <span className="crm-vh">{t("col.actions")}</span>
+                  </th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
@@ -540,14 +548,16 @@ function LeadTable({ meta, fixed }: { meta: CrmMeta; fixed?: "table" | "board" }
                       )}
                     </td>
                     <td className="crm-hide-sm crm-muted">{l.createdAt ? shortDateTime(l.createdAt, locale) : ""}</td>
-                    <td onClick={(e) => e.stopPropagation()}>
-                      {leadCan(l, "claim") && !l.operatorId ? (
-                        <button type="button" className="crm-btn crm-btn--pri crm-btn--sm crm-claim" data-done={h === "done" || undefined} onClick={() => void claim(l)} disabled={!!h} aria-busy={h === "hold" || undefined}>
-                          {h === "done" ? <IconCheck aria-hidden="true" /> : null}
-                          {h === "done" ? t("claimDone") : t("claim")}
-                        </button>
-                      ) : null}
-                    </td>
+                    {anyClaim ? (
+                      <td onClick={(e) => e.stopPropagation()}>
+                        {leadCan(l, "claim") && !l.operatorId ? (
+                          <button type="button" className="crm-btn crm-btn--pri crm-btn--sm crm-claim" data-done={h === "done" || undefined} onClick={() => void claim(l)} disabled={!!h} aria-busy={h === "hold" || undefined}>
+                            {h === "done" ? <IconCheck aria-hidden="true" /> : null}
+                            {h === "done" ? t("claimDone") : t("claim")}
+                          </button>
+                        ) : null}
+                      </td>
+                    ) : null}
                   </tr>
                 );
               })}

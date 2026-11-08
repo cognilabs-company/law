@@ -807,7 +807,8 @@
   list-style: none;
 }
 
-.opx-cm-legend a {
+.opx-cm-legend a,
+.opx-cm-legend__row {
   display: grid;
   grid-template-columns: 10px minmax(0, 1fr) auto auto;
   align-items: center;
@@ -826,7 +827,8 @@
   text-decoration: none;
 }
 
-.opx-cm-legend a[data-zero] {
+.opx-cm-legend a[data-zero],
+.opx-cm-legend__row[data-zero] {
   opacity: 0.55;
 }
 

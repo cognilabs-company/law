@@ -10,6 +10,7 @@ import TimePicker from "@/components/TimePicker";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { notify } from "@/lib/toast";
 import { isPrimaryOnly } from "@/lib/services/superadvokat";
+import { useAuth } from "@/lib/auth";
 import {
   TRACKS,
   createMtmRelease,
@@ -36,8 +37,18 @@ export default function MtmReleases() {
   const res = useMtmLoad<MtmRelease[]>((s) => listMtmReleases(s), "releases");
   const online = useMtmLive(LIVE, () => res.reload(true));
   const [form, setForm] = useState<{ mode: "create" } | { mode: "edit"; rel: MtmRelease } | null>(null);
+  // Every release action is the primary superadmin's (/auth/me
+  // is_primary_superadmin; others get 403 primary_superadmin_required): no
+  // "new release" button for anyone else, not even while the list loads, and
+  // a 403 on an action takes them all away.
+  const primary = useAuth().session?.isPrimarySuperadmin === true;
+  const [denied, setDenied] = useState(false);
+  const deny = () => {
+    setForm(null);
+    setDenied(true);
+  };
 
-  if (res.status === "error" && isPrimaryOnly(res.error)) {
+  if (!primary || denied || (res.status === "error" && isPrimaryOnly(res.error))) {
     return (
       <MtmFrame>
         <MtmForbidden />
@@ -71,7 +82,7 @@ export default function MtmReleases() {
         ) : sorted.length ? (
           <ul className="mtm-rels" data-testid="mtm-releases">
             {sorted.map((r) => (
-              <ReleaseRow key={r.id} r={r} onEdit={() => setForm({ mode: "edit", rel: r })} onChanged={() => res.reload(true)} />
+              <ReleaseRow key={r.id} r={r} onEdit={() => setForm({ mode: "edit", rel: r })} onChanged={() => res.reload(true)} onDenied={deny} />
             ))}
           </ul>
         ) : (
@@ -88,6 +99,7 @@ export default function MtmReleases() {
           key={form.mode === "edit" ? form.rel.id : "new"}
           rel={form.mode === "edit" ? form.rel : null}
           onClose={() => setForm(null)}
+          onDenied={deny}
           onSaved={() => {
             setForm(null);
             res.reload(true);
@@ -98,7 +110,7 @@ export default function MtmReleases() {
   );
 }
 
-function ReleaseRow({ r, onEdit, onChanged }: { r: MtmRelease; onEdit: () => void; onChanged: () => void }) {
+function ReleaseRow({ r, onEdit, onChanged, onDenied }: { r: MtmRelease; onEdit: () => void; onChanged: () => void; onDenied: () => void }) {
   const t = useTranslations("admin.mtm.rel");
   const tm = useTranslations("admin.mtm");
   const L = useLabels();
@@ -117,6 +129,7 @@ function ReleaseRow({ r, onEdit, onChanged }: { r: MtmRelease; onEdit: () => voi
           onChanged();
         } catch (e) {
           notify.error(tm(`err.${mtmErrorKey(e)}`));
+          if (isPrimaryOnly(e)) onDenied();
           throw e;
         }
       },
@@ -219,7 +232,7 @@ const draftOf = (r: MtmRelease | null): Draft => {
   };
 };
 
-function ReleaseForm({ rel, onClose, onSaved }: { rel: MtmRelease | null; onClose: () => void; onSaved: () => void }) {
+function ReleaseForm({ rel, onClose, onSaved, onDenied }: { rel: MtmRelease | null; onClose: () => void; onSaved: () => void; onDenied: () => void }) {
   const t = useTranslations("admin.mtm.rel");
   const tf = useTranslations("admin.mtm.rel.form");
   const tm = useTranslations("admin.mtm");
@@ -268,6 +281,11 @@ function ReleaseForm({ rel, onClose, onSaved }: { rel: MtmRelease | null; onClos
       onSaved();
     } catch (e) {
       const key = mtmErrorKey(e);
+      if (isPrimaryOnly(e)) {
+        notify.error(tm(`err.${key}`));
+        onDenied();
+        return;
+      }
       const fields = releaseFieldErrors(e);
       const next: Partial<Record<ReleaseField, string>> = {};
       for (const f of fields) next[f] = key === "releaseExists" && f === "version_code" ? tf("err.exists", { code: v.code }) : tf(`fieldErr.${f}`);

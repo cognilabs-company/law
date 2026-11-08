@@ -43,6 +43,7 @@ import HrmFieldInput, { useHrmRefs } from "./HrmFieldInput";
 import LeavePanel, { LeaveCheckNote, useLeaveCheck } from "@/components/internal/ops/LeaveOps";
 import { ScheduleMatrixPanel, TimesheetsPanel } from "@/components/internal/ops/TimeOps";
 import { useHrmText } from "./text";
+import { REOPEN_SHEET, useHrmAccess } from "./access";
 
 type Dict = Record<string, unknown>;
 type View = "list" | "board" | "calendar";
@@ -329,10 +330,25 @@ function ModuleView({ cat, mod }: { cat: HrmCatalog; mod: HrmModule }) {
   const byStatus = Object.entries(summary?.byStatus ?? {}).sort((a, b) => b[1] - a[1]);
   const pendingCount = (summary?.byStatus.pending ?? 0) + (summary?.byStatus.review ?? 0);
   const Ops = OPS[mod.key];
+  // Writing is offered only where the account may write (owner law
+  // 2026-11-08): per record type, from the permission the HRM menu puts on
+  // it; a move only along the record's own allowed_transitions; a closed
+  // timesheet reopens only for time AND payroll managers.
+  const access = useHrmAccess();
+  const canWrite = (typeKey: string) => access.canType(mod.key, typeKey);
+  const writable = mod.types.filter((x) => canWrite(x.key));
+  const createType = type ? (canWrite(type.key) ? type : null) : (writable[0] ?? null);
+  const movesOf = (r: HrmRow) => (!canWrite(r.type) ? [] : mod.key === "timesheet" && r.status === "closed" && !access.canAll(REOPEN_SHEET) ? [] : r.allowed);
+  const newButton = createType ? (
+    <button className="btn btn--pri btn--sm" type="button" onClick={() => setForm({ row: null, type: createType, parentId: "" })}>
+      <IconPlus />
+      {type ? t("newOf", { type: typeName(type) }) : t("new")}
+    </button>
+  ) : null;
 
   const onBoardMove = (r: HrmRow, toStatus: string) => {
     setNotice("");
-    if (r.allowed.includes(toStatus)) setMove({ row: r, to: toStatus });
+    if (movesOf(r).includes(toStatus)) setMove({ row: r, to: toStatus });
     else setNotice(t("moveNotAllowed", { from: ts(r.status), to: ts(toStatus) }));
   };
 
@@ -347,10 +363,7 @@ function ModuleView({ cat, mod }: { cat: HrmCatalog; mod: HrmModule }) {
               <IconRefresh />
               {t("refresh")}
             </button>
-            <button className="btn btn--pri btn--sm" type="button" onClick={() => setForm({ row: null, type: type ?? mod.types[0], parentId: "" })}>
-              <IconPlus />
-              {type ? t("newOf", { type: typeName(type) }) : t("new")}
-            </button>
+            {newButton}
           </>
         }
       />
@@ -454,6 +467,7 @@ function ModuleView({ cat, mod }: { cat: HrmCatalog; mod: HrmModule }) {
           columnOf={(r) => r.status}
           idOf={(r) => r.id}
           onMove={(r, s) => onBoardMove(r, s)}
+          canMove={(r) => movesOf(r).length > 0}
           onOpen={(r) => setOpenId(r.id)}
           emptyText={t("boardEmpty")}
           renderCard={(r) => (
@@ -507,7 +521,7 @@ function ModuleView({ cat, mod }: { cat: HrmCatalog; mod: HrmModule }) {
               icon={IconList}
               title={filtered ? t("noMatch") : t("empty")}
               text={filtered ? undefined : t("emptyText")}
-              action={<button className="btn btn--pri btn--sm" type="button" onClick={() => setForm({ row: null, type: type ?? mod.types[0], parentId: "" })}><IconPlus />{t("new")}</button>}
+              action={createType ? <button className="btn btn--pri btn--sm" type="button" onClick={() => setForm({ row: null, type: createType, parentId: "" })}><IconPlus />{t("new")}</button> : undefined}
             />
           )}
           {view === "list" && total > 0 ? (
@@ -534,6 +548,7 @@ function ModuleView({ cat, mod }: { cat: HrmCatalog; mod: HrmModule }) {
         <RecordForm
           key={`${form.row?.id ?? "new"}-${form.type.key}-${form.parentId}`}
           mod={mod}
+          types={form.row ? mod.types : writable}
           type={form.type}
           row={form.row}
           parentId={form.parentId}
@@ -555,6 +570,8 @@ function ModuleView({ cat, mod }: { cat: HrmCatalog; mod: HrmModule }) {
           titleOf={titleOf}
           ref_={ref}
           onClose={() => setOpenId("")}
+          canWrite={canWrite}
+          movesOf={movesOf}
           onEdit={(r) => setForm({ row: r, type: typeOfRow(r) ?? mod.types[0], parentId: r.parentId })}
           onChild={(r) => setForm({ row: null, type: typeOfRow(r) ?? mod.types[0], parentId: r.id })}
           onOpen={setOpenId}
@@ -581,7 +598,7 @@ function ModuleView({ cat, mod }: { cat: HrmCatalog; mod: HrmModule }) {
 
 // ── Form ────────────────────────────────────────────────────────────────────
 
-function RecordForm({ mod, type, row, parentId, onType, onClose, onSaved }: { mod: HrmModule; type: HrmType; row: HrmRow | null; parentId: string; onType: (t: HrmType) => void; onClose: () => void; onSaved: (r: HrmRow | null) => void }) {
+function RecordForm({ mod, types, type, row, parentId, onType, onClose, onSaved }: { mod: HrmModule; types: HrmType[]; type: HrmType; row: HrmRow | null; parentId: string; onType: (t: HrmType) => void; onClose: () => void; onSaved: (r: HrmRow | null) => void }) {
   const { t, type: typeName, field: fieldName, module } = useHrmText();
   const dir = useHrmDirectory();
   const [values, setValues] = useState<Dict>(() => {
@@ -708,9 +725,9 @@ function RecordForm({ mod, type, row, parentId, onType, onClose, onSaved }: { mo
     <HrmDrawer open onClose={onClose} title={row ? t("editOf", { type: typeName(type) }) : t("newOf", { type: typeName(type) })} sub={`${module(mod)}${row?.code ? ` · ${row.code}` : ""}`}>
       <form className="hrm-form hrmc-form" onSubmit={save} noValidate>
         {general ? <HrmError text={general} /> : null}
-        {!row && mod.types.length > 1 && !parentId ? (
+        {!row && types.length > 1 && !parentId ? (
           <InternalField label={t("form.type")}>
-            <Select value={type.key} onChange={(k) => onType(mod.types.find((x) => x.key === k) ?? type)} options={mod.types.map((x) => ({ value: x.key, label: typeName(x) }))} ariaLabel={t("form.type")} />
+            <Select value={type.key} onChange={(k) => onType(types.find((x) => x.key === k) ?? type)} options={types.map((x) => ({ value: x.key, label: typeName(x) }))} ariaLabel={t("form.type")} />
           </InternalField>
         ) : null}
         <div className="hrm-form__grid">
@@ -753,6 +770,8 @@ function RecordDrawer({
   titleOf,
   ref_,
   onClose,
+  canWrite,
+  movesOf,
   onEdit,
   onChild,
   onOpen,
@@ -764,6 +783,8 @@ function RecordDrawer({
   titleOf: (r: HrmRow) => string;
   ref_: (source: string, id: string) => string;
   onClose: () => void;
+  canWrite: (typeKey: string) => boolean;
+  movesOf: (r: HrmRow) => string[];
   onEdit: (r: HrmRow) => void;
   onChild: (r: HrmRow) => void;
   onOpen: (id: string) => void;
@@ -796,6 +817,8 @@ function RecordDrawer({
   const longs = fields.filter((x) => LONG.has(x.type) && !empty(r.payload[x.key]));
   const extra = Object.keys(r.payload).filter((k) => !fields.some((x) => x.key === k));
   const checklist = Array.isArray(r.payload.checklist) ? (r.payload.checklist as unknown[]).filter(isDict) : [];
+  const writes = canWrite(r.type);
+  const moves = movesOf(r);
   return (
     <HrmDrawer
       open
@@ -803,16 +826,18 @@ function RecordDrawer({
       title={titleOf(r)}
       sub={[r.code, typeName(type, mod.key, r.type)].filter(Boolean).join(" · ")}
       footer={
-        <>
-          {/* The backend takes an edit only while a record is a draft or
-              was sent back; in any other state it is changed by moving it. */}
-          {EDITABLE.includes(r.status) ? (
-            <button type="button" className="btn btn--line btn--sm" onClick={() => onEdit(r)}>{t("edit")}</button>
-          ) : (
-            <small className="hrm-muted hrmc-noedit">{t("noEdit")}</small>
-          )}
-          {type?.allowChildren ? <button type="button" className="btn btn--line btn--sm" onClick={() => onChild(r)}><IconPlus />{t("addChild")}</button> : null}
-        </>
+        writes ? (
+          <>
+            {/* The backend takes an edit only while a record is a draft or
+                was sent back; in any other state it is changed by moving it. */}
+            {EDITABLE.includes(r.status) ? (
+              <button type="button" className="btn btn--line btn--sm" onClick={() => onEdit(r)}>{t("edit")}</button>
+            ) : (
+              <small className="hrm-muted hrmc-noedit">{t("noEdit")}</small>
+            )}
+            {type?.allowChildren ? <button type="button" className="btn btn--line btn--sm" onClick={() => onChild(r)}><IconPlus />{t("addChild")}</button> : null}
+          </>
+        ) : undefined
       }
     >
       {err ? <HrmError text={err} /> : null}
@@ -821,10 +846,10 @@ function RecordDrawer({
         <span className="hrmc-code">{r.code}</span>
         <span className="hrm-muted">{t("schemaVersion", { n: r.schemaVersion })}</span>
       </div>
-      {r.allowed.length ? (
+      {moves.length ? (
         <HrmSection label={t("moves")}>
           <div className="hr-moves">
-            {r.allowed.map((m) => (
+            {moves.map((m) => (
               <button key={m} type="button" className={`btn btn--sm ${["rejected", "returned", "cancelled", "archived", "draft", "blocked", "on_hold"].includes(m) ? "btn--line" : "btn--pri"}`} onClick={() => onMove(r, m)}>
                 <IconArrowRight />
                 {t.has(`move.${m}`) ? t(`move.${m}`) : ts(m)}
@@ -832,9 +857,9 @@ function RecordDrawer({
             ))}
           </div>
         </HrmSection>
-      ) : (
+      ) : writes ? (
         <p className="hrm-muted">{t("noMoves")}</p>
-      )}
+      ) : null}
       <HrmKv
         rows={[
           ...(r.employeeId && !fields.some((x) => x.key === "employee_id") ? [{ label: t("employee"), value: ref_("/internal/employees", r.employeeId) }] : []),

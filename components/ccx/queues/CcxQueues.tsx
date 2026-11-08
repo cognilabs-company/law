@@ -16,6 +16,8 @@ import { useQueues } from "./useQueues";
 import QueuesBoard, { CallRows } from "./QueuesBoard";
 import { FamIcon, JobCard, QueueIcon } from "./parts";
 import Select from "@/components/Select";
+import { useCan } from "@/lib/useCan";
+import { REVIEW_PERMISSION } from "@/lib/permissions";
 
 type Mode = "board" | "family";
 
@@ -47,7 +49,10 @@ export default function CcxQueues() {
   const locale = useLocale();
   const prefs = useCcxPrefs();
   const { session } = useAuth();
-  const { state, now, reload } = useQueues(session?.id ?? "");
+  const canDo = useCan();
+  // CRM leads open only with the CRM page's own permission (AdminShell NAV).
+  const canLeads = canDo("crm.leads.view");
+  const { state, now, reload } = useQueues(session?.id ?? "", canDo(REVIEW_PERMISSION));
   const params = useSearchParams();
   const router = useRouter();
   const fromTab = QUEUE_OF_TAB[params.get("tab") ?? ""];
@@ -193,7 +198,7 @@ export default function CcxQueues() {
       ) : null}
 
       {mode === "board" ? (
-        <QueuesBoard lanes={lanes} calls={state.calls} onDrill={drill} onRetry={reload} onOpen={setOpen} />
+        <QueuesBoard lanes={lanes} calls={state.calls} canLeads={canLeads} onDrill={drill} onRetry={reload} onOpen={setOpen} />
       ) : (
         <div className="opx-fam">
           <div className="opx-fam__cards" role="group" aria-label={t("famAria")}>
@@ -235,13 +240,15 @@ export default function CcxQueues() {
 
           {fam?.key === "people" ? (
             <div className="opx-fam__people">
-              <section className="opx-qcard opx-qcard--link">
-                <h3>{t("people.leads")}</h3>
-                <p>{t("people.leadsLead")}</p>
-                <Link href="/admin/call-center?view=crm&s=leads" className="opx-qbtn opx-qbtn--call">
-                  {t("people.leadsGo")}
-                </Link>
-              </section>
+              {canLeads ? (
+                <section className="opx-qcard opx-qcard--link">
+                  <h3>{t("people.leads")}</h3>
+                  <p>{t("people.leadsLead")}</p>
+                  <Link href="/admin/call-center?view=crm&s=leads" className="opx-qbtn opx-qbtn--call">
+                    {t("people.leadsGo")}
+                  </Link>
+                </section>
+              ) : null}
               <section className="opx-qcard opx-qcard--link">
                 <h3>{t("people.clients")}</h3>
                 {state.calls ? <CallRows calls={state.calls} max={5} /> : <p>{t("people.clientsLead")}</p>}

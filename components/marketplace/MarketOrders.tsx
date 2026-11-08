@@ -6,7 +6,7 @@ import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
 import { IconArrowRight, IconChat, IconCheck, IconClock, IconCoins, IconPackage, IconPause, IconPhone, IconRefresh, IconSearch, IconSparkle, IconVideo, IconClose, IconUser } from "@/components/icons";
-import { errDetail } from "@/lib/http";
+import { errDetail, isForbidden } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { shortDateTime } from "@/lib/date";
 import { matchesSearch } from "@/lib/searchText";
@@ -39,6 +39,7 @@ import { dealAmount as dealOf } from "./order/negotiationRules";
 import ContactAdvocate, { callStateOf } from "./order/ContactAdvocate";
 import { useContactSpeedText } from "./order/contactSpeed";
 import { clientPhoneShow, lawyerPhoneShow, telHref } from "./order/phone";
+import { markRefused, useRefused } from "./order/refused";
 import "./order/cards.css";
 import "./order/orderList.css";
 import SellerOrderActions from "@/components/portal/OrderActions";
@@ -74,6 +75,7 @@ export default function MarketOrders({ view }: { view: View }) {
   const [completeFor, setCompleteFor] = useState<MarketOrder | null>(null);
   const [supFor, setSupFor] = useState<MarketOrder | null>(null);
   const [flash, setFlash] = useState("");
+  const refusedFor = useRefused();
   const seq = useRef(0);
   const owner = useAuth().session?.id ?? "";
   const ownerRef = useRef(owner);
@@ -330,8 +332,13 @@ export default function MarketOrders({ view }: { view: View }) {
         keep={t("keep")}
         danger
         onClose={() => setCancelFor(null)}
+        refused={(o) => refusedFor(o.id, "cancel")}
         run={async (o, text) => {
-          const r = await cancelMarketplaceOrder(o.id, text, o.urls.cancel);
+          const r = await cancelMarketplaceOrder(o.id, text, o.urls.cancel).catch((e: unknown) => {
+            // Refused: the dialog keeps the message, the Cancel action goes.
+            if (isForbidden(e)) markRefused(o.id, "cancel");
+            throw e;
+          });
           patch(o.id, { status: r.status, paymentStatus: r.paymentStatus });
           setFlash(t("updated"));
           void load(true);
@@ -398,6 +405,7 @@ function OrderCard({
   const currency = !o.currency || o.currency === "UZS" ? te("currency") : o.currency;
   const [calling, setCalling] = useState<"" | "audio" | "video">("");
   const [callErr, setCallErr] = useState("");
+  const refusedFor = useRefused();
   const counterpart = view === "client" ? o.lawyerName : o.clientName;
   const counterpartId = view === "client" ? o.lawyerUserId : o.clientUserId;
   const phoneShow = clientPhoneShow(o);
@@ -417,6 +425,7 @@ function OrderCard({
     } catch (e) {
       setCallErr(errDetail(e) || t("callError"));
       setCalling("");
+      if (isForbidden(e)) markRefused(o.id, "call");
     }
   }
 
@@ -527,14 +536,14 @@ function OrderCard({
 
       <div className="mko-card__acts">
         {contact ? (
-          <ContactAdvocate tone="site" size="sm" chatHref={chatHref} roomId={o.roomId} callTitle={o.serviceTitle || o.workId || "LexGo"} counterpartId={counterpartId} calls={stage === "cancelled" || stage === "completed" ? "closed" : callStateOf(o)} callTypes={o.callTypes} aiId={sub("contact") ?? "marketplace.orders.item.contact"} chatAiId={sub("chat")} />
+          <ContactAdvocate tone="site" size="sm" chatHref={chatHref} roomId={o.roomId} callTitle={o.serviceTitle || o.workId || "LexGo"} counterpartId={counterpartId} calls={stage === "cancelled" || stage === "completed" ? "closed" : refusedFor(o.id, "call") ? "unavailable" : callStateOf(o)} callTypes={o.callTypes} aiId={sub("contact") ?? "marketplace.orders.item.contact"} chatAiId={sub("chat")} />
         ) : o.canStartChat ? (
           <Link href={chatHref} className="btn btn--pri btn--sm" data-ai-id={sub("chat")} data-ai-label={t("openChat")}>
             <IconChat />
             {t("openChat")}
           </Link>
         ) : null}
-        {!contact && o.canCreateCall && o.callsAllowed && stage !== "cancelled" && stage !== "completed" ? (
+        {!contact && o.canCreateCall && o.callsAllowed && stage !== "cancelled" && stage !== "completed" && !refusedFor(o.id, "call") ? (
           <span className="mk-callgrp" role="group" aria-label={t("call")} data-ai-id={sub("call")} data-ai-type="call_button" data-ai-label={t("call")}>
             {o.callTypes.includes("audio") ? (
               <button type="button" className="btn btn--line btn--sm" disabled={!!calling} onClick={() => void call("audio")}>
@@ -550,19 +559,19 @@ function OrderCard({
             ) : null}
           </span>
         ) : null}
-        {view === "seller" && stage === "active" && !o.workPaused && (o.serviceId || o.packageId) ? (
+        {view === "seller" && stage === "active" && !o.workPaused && (o.serviceId || o.packageId) && !refusedFor(o.id, "supplemental") ? (
           <button type="button" className="btn btn--line btn--sm" onClick={onSupplemental} data-ai-id={sub("supplemental")} data-ai-label={t("supplemental")}>
             <IconCoins />
             {t("supplemental")}
           </button>
         ) : null}
-        {view === "seller" && o.canComplete && stage === "active" && !(phase === "paid" && o.canStart) ? (
+        {view === "seller" && o.canComplete && stage === "active" && !(phase === "paid" && o.canStart) && !refusedFor(o.id, "complete") ? (
           <button type="button" className="btn btn--grad btn--sm" disabled={o.workPaused} title={o.workPaused ? t("pausedHint") : undefined} onClick={onComplete} data-ai-id={sub("complete")} data-ai-label={t("complete")}>
             <IconCheck />
             {t("complete")}
           </button>
         ) : null}
-        {view === "client" && o.canCancel && stage === "pending" ? (
+        {view === "client" && o.canCancel && stage === "pending" && !refusedFor(o.id, "cancel") ? (
           <button type="button" className="btn btn--line btn--sm mk-danger" onClick={onCancel} data-ai-id={sub("cancel")} data-ai-label={t("cancel")}>
             <IconClose />
             {t("cancel")}
@@ -629,6 +638,7 @@ function ActionDialog({
   keep,
   danger,
   onClose,
+  refused,
   run,
 }: {
   aiId: string;
@@ -643,6 +653,8 @@ function ActionDialog({
   keep: string;
   danger?: boolean;
   onClose: () => void;
+  // The action was refused for this order: the confirm button is not offered.
+  refused?: (o: MarketOrder) => boolean;
   run: (o: MarketOrder, text: string) => Promise<void>;
 }) {
   const [text, setText] = useState("");
@@ -687,9 +699,11 @@ function ActionDialog({
         </label>
         {err ? <Notice ok={false} msg={err} /> : null}
         <div className="mk-buy__acts">
-          <button type="button" className={`btn ${danger ? "btn--line mk-danger" : "btn--grad"}`} disabled={busy} onClick={() => void go()}>
-            {busy ? busyLabel : confirm}
-          </button>
+          {refused?.(target) ? null : (
+            <button type="button" className={`btn ${danger ? "btn--line mk-danger" : "btn--grad"}`} disabled={busy} onClick={() => void go()}>
+              {busy ? busyLabel : confirm}
+            </button>
+          )}
           <button type="button" className="btn btn--line" disabled={busy} onClick={onClose}>
             {keep}
           </button>

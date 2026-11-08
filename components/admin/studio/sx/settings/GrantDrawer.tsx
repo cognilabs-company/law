@@ -27,6 +27,7 @@ import { useStudioLabels } from "../useStudioLabels";
 import { ROLE_HUE, ROLE_ICON, SET_AI, USER_ID_RE, byCtorRank, grantLexgo, groupKeyOf, roleCodeOf } from "./model";
 import { Avatar, useRoleName } from "./parts";
 import { UserPlusIcon } from "lucide-react";
+import { studioDenied } from "../denied";
 
 export type GrantMode = { kind: "new" } | { kind: "edit"; grant: StudioAccessGrant };
 export type GrantSaved = { input: StudioAccessInput; grant: StudioAccessGrant; userName: string };
@@ -46,12 +47,14 @@ export type GrantDrawerProps = {
   onClose: () => void;
   onSaved: (s: GrantSaved) => void;
   onMissing: () => void;
+  // The backend refused the save (403): the page drops its write actions.
+  onDenied?: () => void;
 };
 
-export function GrantDrawer({ mode, grants, onClose, onSaved, onMissing }: GrantDrawerProps): ReactElement | null {
+export function GrantDrawer({ mode, grants, onClose, onSaved, onMissing, onDenied }: GrantDrawerProps): ReactElement | null {
   if (!mode) return null;
   const key = mode.kind === "edit" ? `e-${mode.grant.id || mode.grant.userId}` : "new";
-  return <GrantForm key={key} mode={mode} grants={grants} onClose={onClose} onSaved={onSaved} onMissing={onMissing} />;
+  return <GrantForm key={key} mode={mode} grants={grants} onClose={onClose} onSaved={onSaved} onMissing={onMissing} onDenied={onDenied} />;
 }
 
 function startRoles(base: StudioAccessGrant | null): string[] {
@@ -64,7 +67,7 @@ function startRoles(base: StudioAccessGrant | null): string[] {
   return out;
 }
 
-function GrantForm({ mode, grants, onClose, onSaved, onMissing }: GrantDrawerProps & { mode: GrantMode }): ReactElement {
+function GrantForm({ mode, grants, onClose, onSaved, onMissing, onDenied }: GrantDrawerProps & { mode: GrantMode }): ReactElement {
   const t = useTranslations("studio");
   const { fieldErr } = useStudioText();
   const labels = useStudioLabels();
@@ -167,6 +170,7 @@ function GrantForm({ mode, grants, onClose, onSaved, onMissing }: GrantDrawerPro
         codes: fe.constructor_codes || fe.constructors || "",
       });
       setError(err);
+      if (studioDenied(err)) onDenied?.();
     } finally {
       setBusy(false);
     }

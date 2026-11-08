@@ -3,6 +3,9 @@
 import { useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { notify } from "@/lib/toast";
+import { isForbidden } from "@/lib/http";
+import { useAuth } from "@/lib/auth";
+import { canInternal } from "@/lib/services/internalHrm";
 import { hrmErrorOf } from "@/lib/services/hrm";
 import { createPayrollRun, getMyPayslips, listPayrollRuns, payrollRunAction, RUN_ACTIONS, RUN_NEXT, type PayrollRun, type RunAction } from "@/lib/services/hrmOps";
 import DatePicker from "@/components/DatePicker";
@@ -32,6 +35,9 @@ export function PayrollRunsPanel() {
   const [period, setPeriod] = useState("");
   const [openId, setOpenId] = useState("");
   const [creating, setCreating] = useState(false);
+  // Opening and moving a run: internal_payroll.manage (10-08 guide).
+  const { session } = useAuth();
+  const manage = canInternal(session, "internal_payroll.manage");
   const { data, error, reload } = useOps((s) => listPayrollRuns({ period: period || undefined }, s), [period], ["payroll"]);
   const open = data?.items.find((r) => r.id === openId) ?? null;
   return (
@@ -43,7 +49,7 @@ export function PayrollRunsPanel() {
       actions={
         <>
           <button type="button" className="btn btn--line btn--sm" onClick={reload}><IconRefresh />{t("refresh")}</button>
-          <button type="button" className="btn btn--pri btn--sm" onClick={() => setCreating(true)}><IconPlus />{t("new")}</button>
+          {manage ? <button type="button" className="btn btn--pri btn--sm" onClick={() => setCreating(true)}><IconPlus />{t("new")}</button> : null}
         </>
       }
     >
@@ -51,7 +57,7 @@ export function PayrollRunsPanel() {
         <div className="ops-bar__m"><MonthPicker value={period} onChange={setPeriod} placeholder={t("anyPeriod")} ariaLabel={t("period")} clearLabel={t("clear")} /></div>
       </div>
       {error ? <HrmError text={t("error")} onRetry={reload} retryLabel={t("retry")} /> : !data ? <HrmLoading rows={3} /> : !data.items.length ? (
-        <HrmEmpty icon={IconCoins} title={t("empty")} text={t("emptyText")} action={<button type="button" className="btn btn--pri btn--sm" onClick={() => setCreating(true)}><IconPlus />{t("new")}</button>} />
+        <HrmEmpty icon={IconCoins} title={t("empty")} text={t("emptyText")} action={manage ? <button type="button" className="btn btn--pri btn--sm" onClick={() => setCreating(true)}><IconPlus />{t("new")}</button> : undefined} />
       ) : (
         <div className="hrm-table-wrap">
           <table className="hrm-table">
@@ -73,13 +79,13 @@ export function PayrollRunsPanel() {
           </table>
         </div>
       )}
-      {open ? <RunDrawer run={open} onClose={() => setOpenId("")} onChanged={reload} /> : null}
-      {creating ? <RunCreate onClose={() => setCreating(false)} onDone={(r) => { setCreating(false); reload(); if (r.id) setOpenId(r.id); }} /> : null}
+      {open ? <RunDrawer run={open} manage={manage} onClose={() => setOpenId("")} onChanged={reload} /> : null}
+      {creating && manage ? <RunCreate onClose={() => setCreating(false)} onDone={(r) => { setCreating(false); reload(); if (r.id) setOpenId(r.id); }} /> : null}
     </HrmPanel>
   );
 }
 
-function RunDrawer({ run: seed, onClose, onChanged }: { run: PayrollRun; onClose: () => void; onChanged: () => void }) {
+function RunDrawer({ run: seed, manage, onClose, onChanged }: { run: PayrollRun; manage: boolean; onClose: () => void; onChanged: () => void }) {
   const t = useTranslations("internal.ops.runs");
   const f = useHrmFormat();
   const label = useStatusLabel();
@@ -88,7 +94,9 @@ function RunDrawer({ run: seed, onClose, onChanged }: { run: PayrollRun; onClose
   const [busy, setBusy] = useState<RunAction | "">("");
   const [err, setErr] = useState("");
   const [asking, setAsking] = useState<RunAction | "">("");
-  const allowed = (run.allowed.length ? run.allowed.filter((a): a is RunAction => (RUN_ACTIONS as readonly string[]).includes(a)) : RUN_NEXT[run.status] ?? []);
+  // The backend refused a move (403): no move is offered again.
+  const [refused, setRefused] = useState(false);
+  const allowed: RunAction[] = !manage || refused ? [] : (run.allowed.length ? run.allowed.filter((a): a is RunAction => (RUN_ACTIONS as readonly string[]).includes(a)) : RUN_NEXT[run.status] ?? []);
   async function act(a: RunAction, reason = "") {
     setBusy(a);
     setErr("");
@@ -98,6 +106,7 @@ function RunDrawer({ run: seed, onClose, onChanged }: { run: PayrollRun; onClose
       notify.success(t(`done.${a}`));
       onChanged();
     } catch (cause) {
+      if (isForbidden(cause)) setRefused(true);
       setErr(hrmErrorOf(cause).message || opsError(cause) || t("actionError"));
       // The run may have moved on elsewhere: read it again.
       onChanged();
@@ -120,7 +129,7 @@ function RunDrawer({ run: seed, onClose, onChanged }: { run: PayrollRun; onClose
             </button>
           ))}
         </div>
-      ) : <p className="hrm-muted">{t("noActions")}</p>}
+      ) : manage && !refused ? <p className="hrm-muted">{t("noActions")}</p> : null}
       <div className="ldrw__sec">
         <span className="ldrw__lbl">{t("totals")}</span>
         {totals.length ? (

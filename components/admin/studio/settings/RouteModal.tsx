@@ -22,6 +22,7 @@ import { StudioErrorNote } from "../bits";
 import { useStudioHuman } from "../human";
 import { useStudioLabels } from "../sx/useStudioLabels";
 import { IconAlert, IconChevronLeft, IconChevronRight, IconCircleCheck, IconMinus, IconPlus } from "@/components/icons";
+import { studioDenied } from "../sx/denied";
 
 // A route is written for one of three levels (contract §16): everything, a
 // section, or a single constructor. Editing keeps the level it was saved at.
@@ -44,6 +45,8 @@ type Props = {
   superadmin: StudioPerson | null;
   onClose: () => void;
   onSaved: (s: RouteSaved) => void;
+  // The backend refused the save (403): the panel drops its edit actions.
+  onDenied?: () => void;
 };
 
 export default function RouteModal({ mode, ...rest }: Omit<Props, "mode"> & { mode: RouteMode | null }) {
@@ -59,7 +62,7 @@ export default function RouteModal({ mode, ...rest }: Omit<Props, "mode"> & { mo
 
 const whole = (v: string) => (/^\d+$/.test(v.trim()) ? Number(v.trim()) : NaN);
 
-function RouteForm({ mode, codes, groups, taken, superadmin, onClose, onSaved }: Props) {
+function RouteForm({ mode, codes, groups, taken, superadmin, onClose, onSaved, onDenied }: Props) {
   const { t, fieldErr, role } = useStudioHuman();
   const labels = useStudioLabels();
   const uid = useId();
@@ -157,6 +160,7 @@ function RouteForm({ mode, codes, groups, taken, superadmin, onClose, onSaved }:
       setServerErr(studioErrorOf(err).fieldErrors);
       setError(err);
       setConfirm(false);
+      if (studioDenied(err)) onDenied?.();
     } finally {
       setBusy(false);
     }

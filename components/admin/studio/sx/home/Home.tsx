@@ -25,6 +25,7 @@ import { useSearchParams } from "next/navigation";
 import { retiredMoveOf } from "@/lib/studio/retired";
 import { RetiredNote } from "../layout/Retired";
 import { SxPageNotice } from "../layout/Page";
+import { studioDenied } from "../denied";
 
 const ZERO: Readonly<Record<GroupCardKind, number>> = { returned: 0, review: 0, publish: 0 };
 const SK_CARDS = [0, 1, 2, 3, 4, 5];
@@ -70,6 +71,8 @@ export function Home(): ReactElement {
   const errText = useEditorErrorText();
   const headingId = useId();
   const [exporting, setExporting] = useState(false);
+  // An export the backend refused (403) is not offered again.
+  const [exportDenied, setExportDenied] = useState(false);
   const gone = retiredMoveOf(useSearchParams().get("retired"));
 
   const doExport = async () => {
@@ -81,15 +84,17 @@ export function Home(): ReactElement {
     } catch (e) {
       logApiError("studio.export", e);
       notify.error(errText(e).text || t("sx.home.exportFail"));
+      if (studioDenied(e)) setExportDenied(true);
     } finally {
       setExporting(false);
     }
   };
 
+  const canExport = acc.isAdmin && !exportDenied;
   const head =
-    acc.isAdmin || acc.canEdit ? (
+    canExport || acc.canEdit ? (
       <>
-        {acc.isAdmin ? (
+        {canExport ? (
           <SxButton variant="secondary" size="sm" icon={DownloadIcon} busy={exporting} onClick={() => void doExport()} aiId="admin.studio.export" aiLabel={t("sx.home.excelAria")} aria-label={t("sx.home.excelAria")}>
             {t("sx.home.excel")}
           </SxButton>

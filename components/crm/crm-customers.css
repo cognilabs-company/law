@@ -13,6 +13,7 @@
 .crm-leadcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
 .crm-leadcard { display: grid; gap: 6px; padding: 12px; border-radius: 14px; background: var(--crm-soft); color: inherit; text-decoration: none; box-shadow: inset 3px 0 0 var(--sc, var(--crm-line)); }
 .crm-leadcard:hover { background: color-mix(in srgb, var(--crm-acc) 7%, var(--crm-soft)); }
+div.crm-leadcard:hover { background: var(--crm-soft); }
 .crm-leadcard b { font-size: .86rem; }
 .crm-leadcard small { color: var(--crm-muted); font-size: .74rem; }
 

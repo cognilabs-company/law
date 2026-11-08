@@ -12,13 +12,13 @@ import { normRole } from "./approvals/helpers";
 import { StudioErrorNote } from "./bits";
 import { useStudioHuman } from "./human";
 import { IconAlert, IconCheck, IconClock, IconHourglass, IconRefresh, IconUsers } from "@/components/icons";
+import { can } from "@/lib/permissions";
 
 // The two workflow permissions, straight from the session: never guessed
 // from a role name or from which page is open (contract §3).
 export function useStudioPerms(): { workflow: boolean; reassign: boolean } {
   const { session } = useAuth();
-  const p = session?.permissions ?? [];
-  return { workflow: p.includes(STUDIO_PERM_WORKFLOW), reassign: p.includes(STUDIO_PERM_REASSIGN) };
+  return { workflow: can(session, STUDIO_PERM_WORKFLOW), reassign: can(session, STUDIO_PERM_REASSIGN) };
 }
 
 const pending = (s: StudioStep) => !/approv|done|complete|pass|skip|reject|declin|change|return/.test(s.status);

@@ -6,7 +6,9 @@ import { ApiError, asDict, asNum } from "@/lib/http";
 import { saveBlob } from "@/lib/download";
 import { humanize } from "@/lib/labels";
 import { subscribeUserEvents } from "@/lib/userSocket";
+import { useAuth } from "@/lib/auth";
 import {
+  canInternal,
   createAttendanceEvent,
   createExecutionTask,
   createKpiMetric,
@@ -27,6 +29,7 @@ import {
   type HrmPayroll,
   type HrmTask,
   type InternalPage,
+  type InternalPermission,
 } from "@/lib/services/internalHrm";
 import { calculatePayroll, exportInternalAnalytics, setPayrollStatus, type PayrollCalc } from "@/lib/services/internalLive";
 import { IconGrid, IconList, IconAlert, IconBriefcase, IconCalendar, IconCard, IconChartBar, IconChat, IconCheck, IconClock, IconDownload, IconFolder, IconPlus, IconRefresh, IconTrash, IconTrendingUp, IconUsers } from "@/components/icons";
@@ -81,6 +84,13 @@ const IconCalculator = (p: { className?: string }) => (
 const EMPTY_PAGE = { items: [], total: 0, offset: 0, limit: 25, hasMore: false };
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 const aborted = (e: unknown) => e instanceof ApiError && e.detail === "aborted";
+
+// Does the signed-in account hold this internal_* code? An action it does
+// not is not rendered at all (owner law 2026-11-08).
+function useInternalCan(code: InternalPermission): boolean {
+  const { session } = useAuth();
+  return canInternal(session, code);
+}
 
 export default function InternalOperationsPages({ mode }: { mode: Mode }) {
   if (mode === "execution") return <ExecutionPage />;
@@ -163,6 +173,9 @@ function ExecutionPage() {
   const [creating, setCreating] = useState(false);
   const [view, setView] = useState<WorkView>("list");
   const [moveErr, setMoveErr] = useState(false);
+  // POST /internal/execution/tasks and any status change of anyone's task:
+  // internal_execution.manage (10-08 guide).
+  const manage = useInternalCan("internal_execution.manage");
   const set = (k: keyof typeof filters) => (v: string) => { setFilters((c) => ({ ...c, [k]: v })); setOffset(0); };
 
   const { page, loading, error, reload } = usePaged<HrmTask>(
@@ -195,7 +208,7 @@ function ExecutionPage() {
 
   return (
     <section className="hrm-page">
-      <HrmHead kicker={t("kicker")} title={t("titles.execution")} lead={t("subtitles.execution")} actions={<><RefreshButton onClick={reload} busy={loading} label={t("refresh")} /><button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("new.execution")}</button></>} />
+      <HrmHead kicker={t("kicker")} title={t("titles.execution")} lead={t("subtitles.execution")} actions={<><RefreshButton onClick={reload} busy={loading} label={t("refresh")} />{manage ? <button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("new.execution")}</button> : null}</>} />
       <div className="hrm-stats">
         <HrmStat icon={IconBriefcase} tone="blue" label={t("stat.open")} value={loading ? "…" : stats.open} />
         <HrmStat icon={IconChat} tone="warn" label={t("stat.review")} value={loading ? "…" : stats.review} />
@@ -237,7 +250,7 @@ function ExecutionPage() {
             items={page.items}
             columnOf={(x) => x.status}
             idOf={(x) => x.id}
-            onMove={(x, to) => void moveTask(x, to)}
+            onMove={manage ? (x, to) => void moveTask(x, to) : undefined}
             onOpen={(x) => setOpenId(x.id)}
             emptyText={t("view.none")}
             renderCard={(x) => {
@@ -279,12 +292,12 @@ function ExecutionPage() {
               </tbody>
             </table>
           </div>
-        ) : <HrmEmpty icon={IconBriefcase} title={t("empty.execution")} text={t("emptyExecutionLead")} action={<button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("new.execution")}</button>} />}
+        ) : <HrmEmpty icon={IconBriefcase} title={t("empty.execution")} text={t("emptyExecutionLead")} action={manage ? <button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("new.execution")}</button> : undefined} />}
         <InternalPagination page={page} onChange={setOffset} />
       </HrmPanel>
       )}
-      <TaskDrawer task={open} manage onClose={() => setOpenId("")} onChanged={reload} unitName={open ? dir.unitName(open.unitId) : ""} />
-      <TaskCreate open={creating} onClose={() => setCreating(false)} onCreated={() => { setCreating(false); reload(); }} />
+      <TaskDrawer task={open} manage={manage} canMove={manage} onClose={() => setOpenId("")} onChanged={reload} unitName={open ? dir.unitName(open.unitId) : ""} />
+      {manage ? <TaskCreate open={creating} onClose={() => setCreating(false)} onCreated={() => { setCreating(false); reload(); }} /> : null}
     </section>
   );
 }
@@ -464,6 +477,8 @@ function KpiPage() {
   const [filters, setFilters] = useState({ employee: "", period: "" });
   const [offset, setOffset] = useState(0);
   const [creating, setCreating] = useState(false);
+  // POST /internal/kpi/metrics: internal_kpi.manage (10-08 guide).
+  const manage = useInternalCan("internal_kpi.manage");
   const set = (k: keyof typeof filters) => (v: string) => { setFilters((c) => ({ ...c, [k]: v })); setOffset(0); };
 
   const { page, loading, error, reload } = usePaged<HrmKpi>(
@@ -484,7 +499,7 @@ function KpiPage() {
 
   return (
     <section className="hrm-page">
-      <HrmHead kicker={t("kicker")} title={t("titles.kpi")} lead={t("subtitles.kpi")} actions={<><RefreshButton onClick={reload} busy={loading} label={t("refresh")} /><button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("new.kpi")}</button></>} />
+      <HrmHead kicker={t("kicker")} title={t("titles.kpi")} lead={t("subtitles.kpi")} actions={<><RefreshButton onClick={reload} busy={loading} label={t("refresh")} />{manage ? <button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("new.kpi")}</button> : null}</>} />
       <div className="hrm-stats">
         <HrmStat icon={IconTrendingUp} tone="blue" label={t("stat.avgScore")} value={loading ? "…" : f.num(sum.avg)} />
         <HrmStat icon={IconChartBar} tone="violet" label={t("stat.metrics")} value={loading ? "…" : page.total} />
@@ -523,10 +538,10 @@ function KpiPage() {
               </tbody>
             </table>
           </div>
-        ) : <HrmEmpty icon={IconChartBar} title={t("empty.kpi")} action={<button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("new.kpi")}</button>} />}
+        ) : <HrmEmpty icon={IconChartBar} title={t("empty.kpi")} action={manage ? <button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("new.kpi")}</button> : undefined} />}
         <InternalPagination page={page} onChange={setOffset} />
       </HrmPanel>
-      <KpiCreate open={creating} onClose={() => setCreating(false)} onCreated={() => { setCreating(false); reload(); }} />
+      {manage ? <KpiCreate open={creating} onClose={() => setCreating(false)} onCreated={() => { setCreating(false); reload(); }} /> : null}
     </section>
   );
 }
@@ -611,6 +626,9 @@ function PayrollPage() {
   // Runs (contract §11) are how a month is paid; single entries stay for
   // one-off corrections.
   const [tab, setTab] = useState<"runs" | "entries">("runs");
+  // Entries, the calculator and status moves: internal_payroll.manage
+  // (10-08 guide); anyone else only reads their own entries.
+  const manage = useInternalCan("internal_payroll.manage");
   const set = (k: keyof typeof filters) => (v: string) => { setFilters((c) => ({ ...c, [k]: v })); setOffset(0); };
 
   const { page, loading, error, reload } = usePaged<HrmPayroll>(
@@ -628,7 +646,7 @@ function PayrollPage() {
 
   return (
     <section className="hrm-page">
-      <HrmHead kicker={t("kicker")} title={t("titles.payroll")} lead={t("subtitles.payroll")} actions={<><RefreshButton onClick={reload} busy={loading} label={t("refresh")} /><button className="btn btn--line btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("new.payroll")}</button><button className="btn btn--pri btn--sm" type="button" onClick={() => setCalculating(true)}><IconCalculator />{t("calc.open")}</button></>} />
+      <HrmHead kicker={t("kicker")} title={t("titles.payroll")} lead={t("subtitles.payroll")} actions={<><RefreshButton onClick={reload} busy={loading} label={t("refresh")} />{manage ? <><button className="btn btn--line btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("new.payroll")}</button><button className="btn btn--pri btn--sm" type="button" onClick={() => setCalculating(true)}><IconCalculator />{t("calc.open")}</button></> : null}</>} />
       <div className="hrm-tabs hrm-viewtabs" role="tablist" aria-label={t("titles.payroll")}>
         {(["runs", "entries"] as const).map((k) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{k === "runs" ? <IconTrendingUp /> : <IconList />}{t(`payTabs.${k}`)}</button>
@@ -672,7 +690,7 @@ function PayrollPage() {
         {loading ? <div style={{ padding: 16 }}><HrmLoading rows={5} /></div> : page.items.length ? (
           <div className="hrm-table-wrap">
             <table className="hrm-table">
-              <thead><tr><th>{t("columns.employee")}</th><th>{t("entryType")}</th><th>{t("columns.period")}</th><th className="hrm-num">{t("columns.amount")}</th><th>{t("columns.status")}</th><th>{t("calc.changeStatus")}</th></tr></thead>
+              <thead><tr><th>{t("columns.employee")}</th><th>{t("entryType")}</th><th>{t("columns.period")}</th><th className="hrm-num">{t("columns.amount")}</th><th>{t("columns.status")}</th>{manage ? <th>{t("calc.changeStatus")}</th> : null}</tr></thead>
               <tbody>
                 {page.items.map((p) => {
                   const who = personOf(dir, p.employeeId);
@@ -684,7 +702,7 @@ function PayrollPage() {
                       <td className="hrm-muted">{f.period(p.period)}</td>
                       <td className={`hrm-num${negative ? " hrm-late" : ""}`}>{negative ? "−" : ""}{f.money(p.amount)}</td>
                       <td><HrmStatus value={p.status} /></td>
-                      <td className="hrm-pay-st">
+                      {manage ? <td className="hrm-pay-st">
                         {PAYROLL_NEXT[p.status]?.length ? (
                           <Select
                             value=""
@@ -705,20 +723,20 @@ function PayrollPage() {
                             ariaLabel={t("calc.changeStatus")}
                           />
                         ) : <span className="hrm-muted">—</span>}
-                      </td>
+                      </td> : null}
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
-        ) : <HrmEmpty icon={IconCard} title={t("empty.payroll")} action={<button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("new.payroll")}</button>} />}
+        ) : <HrmEmpty icon={IconCard} title={t("empty.payroll")} action={manage ? <button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("new.payroll")}</button> : undefined} />}
         <InternalPagination page={page} onChange={setOffset} />
       </HrmPanel>
       </>
       )}
-      <PayrollCreate open={creating} onClose={() => setCreating(false)} onCreated={() => { setCreating(false); reload(); }} typeLabel={typeLabel} />
-      <PayrollCalculate open={calculating} onClose={() => setCalculating(false)} onDone={reload} />
+      {manage ? <PayrollCreate open={creating} onClose={() => setCreating(false)} onCreated={() => { setCreating(false); reload(); }} typeLabel={typeLabel} /> : null}
+      {manage ? <PayrollCalculate open={calculating} onClose={() => setCalculating(false)} onDone={reload} /> : null}
     </section>
   );
 }
@@ -872,6 +890,8 @@ function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [exporting, setExporting] = useState(false);
+  // GET /internal/analytics/export.xlsx: internal_analytics.view (10-08).
+  const canExport = useInternalCan("internal_analytics.view");
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -916,7 +936,7 @@ function AnalyticsPage() {
 
   return (
     <section className="hrm-page">
-      <HrmHead kicker={t("kicker")} title={t("titles.analytics")} lead={t("subtitles.analytics")} actions={<><RefreshButton onClick={() => void load()} busy={loading} label={t("refresh")} /><button className="btn btn--pri btn--sm" type="button" onClick={() => void exportXlsx()} disabled={exporting}><IconDownload />{exporting ? t("exporting") : t("export")}</button></>} />
+      <HrmHead kicker={t("kicker")} title={t("titles.analytics")} lead={t("subtitles.analytics")} actions={<><RefreshButton onClick={() => void load()} busy={loading} label={t("refresh")} />{canExport ? <button className="btn btn--pri btn--sm" type="button" onClick={() => void exportXlsx()} disabled={exporting}><IconDownload />{exporting ? t("exporting") : t("export")}</button> : null}</>} />
       <div className="hrm-tabs hrm-viewtabs" role="tablist" aria-label={t("titles.analytics")}>
         {(["overview", "hr"] as const).map((k) => (
           <button key={k} type="button" role="tab" aria-selected={dashTab === k} className={dashTab === k ? "on" : ""} onClick={() => setDashTab(k)}>{k === "overview" ? <IconChartBar /> : <IconUsers />}{th(`tab.${k}`)}</button>

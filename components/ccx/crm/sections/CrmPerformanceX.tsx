@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { fmtNum } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
-import { getMyCrmMetrics, type CrmMeta, type CrmMetrics } from "@/lib/services/crm";
+import { crmCan, getMyCrmMetrics, type CrmMeta, type CrmMetrics } from "@/lib/services/crm";
 import { useCrmEvents } from "@/lib/crm/useCrm";
 import { Note } from "../../panel/bits";
 import { IcAward, IcChart, IcClock, IcFlag, IcLayers, IcUser } from "../../icons";
@@ -184,6 +184,8 @@ function StatusBars({ meta, counts }: { meta: CrmMeta; counts: Record<string, nu
   const locale = useLocale();
   if (!Object.values(counts).some(Boolean)) return <Empty icon={<IcChart size={24} />} title={t("empty")} text={t("emptyText")} />;
   const slices = meta.statuses.map((s) => ({ s, n: counts[s] ?? 0 }));
+  // The rows open the lead list only for a session that can see leads.
+  const leads = crmCan(meta, "crm.leads.view");
   const total = slices.reduce((a, x) => a + x.n, 0);
   const pct = (v: number) => (total ? Math.round((v / total) * 100) : 0);
   const paint = (s: string) => ({ ["--c" as string]: colorOf(meta, s) }) as CSSProperties;
@@ -201,12 +203,21 @@ function StatusBars({ meta, counts }: { meta: CrmMeta; counts: Record<string, nu
       <ul className="opx-cm-legend">
         {slices.map((x) => (
           <li key={x.s}>
-            <Link href={crmHref("leads", { scope: "mine", status: x.s })} style={paint(x.s)} data-zero={x.n === 0 || undefined} aria-label={td("row", { status: label(x.s), n: x.n, p: pct(x.n) })}>
-              <i aria-hidden="true" />
-              <span>{label(x.s)}</span>
-              <b className="opx-num">{fmtNum(x.n, locale)}</b>
-              <small className="opx-num">{pct(x.n)}%</small>
-            </Link>
+            {leads ? (
+              <Link href={crmHref("leads", { scope: "mine", status: x.s })} style={paint(x.s)} data-zero={x.n === 0 || undefined} aria-label={td("row", { status: label(x.s), n: x.n, p: pct(x.n) })}>
+                <i aria-hidden="true" />
+                <span>{label(x.s)}</span>
+                <b className="opx-num">{fmtNum(x.n, locale)}</b>
+                <small className="opx-num">{pct(x.n)}%</small>
+              </Link>
+            ) : (
+              <div className="opx-cm-legend__row" style={paint(x.s)} data-zero={x.n === 0 || undefined}>
+                <i aria-hidden="true" />
+                <span>{label(x.s)}</span>
+                <b className="opx-num">{fmtNum(x.n, locale)}</b>
+                <small className="opx-num">{pct(x.n)}%</small>
+              </div>
+            )}
           </li>
         ))}
       </ul>

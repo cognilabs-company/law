@@ -5,7 +5,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useGuardedField } from "@/components/ui/ContactGuardNote";
 import { dateOnly } from "@/lib/date";
-import { errDetail, isAborted, logApiError } from "@/lib/http";
+import { errDetail, isAborted, isForbidden, logApiError } from "@/lib/http";
 import { reviewAchievement } from "@/lib/services/achievements";
 import { reviewLicense } from "@/lib/services/advocatePractice";
 import { canApprove, reviewExperience, type CheckRow, type CheckRows, type ReviewDecision, type ReviewSeller } from "@/lib/services/experience";
@@ -57,6 +57,7 @@ function VerifyBody({ job, item, onDone, onClose, onDirty }: DecideProps<VerifyI
   const tpe = useTranslations("portal.experience");
   const tpa = useTranslations("portal.achievements");
   const tpp = useTranslations("portal.practice");
+  const tcom = useTranslations("common");
   const locale = useLocale();
   const uid = useId();
   const kind = kindOfQueue(job.queue);
@@ -73,6 +74,8 @@ function VerifyBody({ job, item, onDone, onClose, onDirty }: DecideProps<VerifyI
   const sending = useRef(false);
   const [err, setErr] = useState("");
   const [spot, setSpot] = useState<ErrSpot>("");
+  // A 403 on the decision: this account may not review — the decision leaves.
+  const [denied, setDenied] = useState("");
 
   useEffect(() => {
     const ctl = new AbortController();
@@ -91,7 +94,9 @@ function VerifyBody({ job, item, onDone, onClose, onDirty }: DecideProps<VerifyI
 
   const detail = st.detail;
   const keys = detail ? detail.checks.map((c) => c.key) : [];
-  const locked = !detail || !detail.pending || detail.blocked;
+  const locked = !detail || !detail.pending || detail.blocked || Boolean(denied);
+  // Already reviewed (or refused): nothing to decide, so no decision form.
+  const decidable = Boolean(detail?.pending) && !denied;
   const approvable = canApprove(keys, rows);
   const needsPublic = kind === "achievement";
   const pubMissing = needsPublic && !pub.trim();
@@ -133,6 +138,12 @@ function VerifyBody({ job, item, onDone, onClose, onDirty }: DecideProps<VerifyI
     } catch (e) {
       sending.current = false;
       logApiError(`${kind}.review`, e);
+      if (isForbidden(e)) {
+        setDenied(errDetail(e) || tcom("forbidden"));
+        setDecision("");
+        onDirty(false);
+        return;
+      }
       const code = errCodeOf(e);
       const at = errSpotOf(code);
       setSpot(at);
@@ -218,27 +229,28 @@ function VerifyBody({ job, item, onDone, onClose, onDirty }: DecideProps<VerifyI
                 <PastReviews detail={detail} />
               </div>
               <div className="opx-vrf-col">
-                {!detail.pending ? <Note tone="warn">{t("notPending")}</Note> : detail.blocked ? <Note tone="warn">{kind === "license" ? tl("aiPendingBlock") : tca("aiPending")}</Note> : null}
-                <VerifyChecklist checks={detail.checks} rows={rows} onSet={setRow} locked={!detail.pending} bad={spot === "checklist"} />
-                <section className="opx-psec opx-vrf-dec">
-                  <Choice label={t("decision.title")} options={options} value={decision} onChange={pick} />
-                  {!locked && !approvable && !decision ? <p className="opx-vrf-muted">{t("approveNeeds")}</p> : null}
-                  {needsReason ? (
-                    <Field
-                      label={decision === "rejected" ? t("reasonReject") : t("reasonChanges")}
-                      value={reason}
-                      onChange={(v) => {
-                        setReason(v);
-                        onDirty(true);
-                      }}
-                      max={2000}
-                      multiline
-                      rows={4}
-                      required
-                      placeholder={t("reasonPh")}
-                      hint={reasonShort ? t("reasonMin", { n: REASON_MIN }) : undefined}
-                      error={spot === "reason" && err ? err : undefined}
-                    />
+                {denied ? <Note tone="bad">{denied}</Note> : !detail.pending ? <Note tone="warn">{t("notPending")}</Note> : detail.blocked ? <Note tone="warn">{kind === "license" ? tl("aiPendingBlock") : tca("aiPending")}</Note> : null}
+                <VerifyChecklist checks={detail.checks} rows={rows} onSet={setRow} locked={!decidable} bad={spot === "checklist"} />
+                {decidable ? (
+                  <section className="opx-psec opx-vrf-dec">
+                    <Choice label={t("decision.title")} options={options} value={decision} onChange={pick} />
+                    {!locked && !approvable && !decision ? <p className="opx-vrf-muted">{t("approveNeeds")}</p> : null}
+                    {needsReason ? (
+                      <Field
+                        label={decision === "rejected" ? t("reasonReject") : t("reasonChanges")}
+                        value={reason}
+                        onChange={(v) => {
+                          setReason(v);
+                          onDirty(true);
+                        }}
+                        max={2000}
+                        multiline
+                        rows={4}
+                        required
+                        placeholder={t("reasonPh")}
+                        hint={reasonShort ? t("reasonMin", { n: REASON_MIN }) : undefined}
+                        error={spot === "reason" && err ? err : undefined}
+                      />
                   ) : null}
                   {decision === "approved" && needsPublic ? (
                     <div className={`opx-field opx-vrf-pub${pubBad ? " has-error" : ""}`}>
@@ -278,12 +290,13 @@ function VerifyBody({ job, item, onDone, onClose, onDirty }: DecideProps<VerifyI
                   ) : null}
                   {err && spot !== "reason" && spot !== "public" ? <Note tone="bad">{err}</Note> : null}
                 </section>
+                ) : null}
               </div>
             </div>
           </>
         )}
       </div>
-      <PanelFoot onCancel={onClose} primary={() => void submit()} primaryLabel={decision ? t(`confirm.${decision}`) : t("confirm.none")} busy={busy} disabled={cannot} danger={decision === "rejected"} />
+      <PanelFoot onCancel={onClose} primary={decidable ? () => void submit() : undefined} primaryLabel={decision ? t(`confirm.${decision}`) : t("confirm.none")} busy={busy} disabled={cannot} danger={decision === "rejected"} />
     </>
   );
 }

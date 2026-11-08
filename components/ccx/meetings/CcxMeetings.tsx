@@ -5,7 +5,7 @@ import "./meetings.css";
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
-import { useAuth, canMakeCalls, sessionRoles } from "@/lib/auth";
+import { useAuth, canMakeCalls } from "@/lib/auth";
 import { localDay } from "@/lib/date";
 import { statusSpecOf } from "@/lib/labels";
 import { notify } from "@/lib/toast";
@@ -47,6 +47,7 @@ import NewMeeting from "./NewMeeting";
 import QuickStart from "./QuickStart";
 import AllMeetings from "./AllMeetings";
 import CallDetail from "./CallDetail";
+import { can } from "@/lib/permissions";
 
 type MineTab = Exclude<Tab, "all">;
 
@@ -75,7 +76,7 @@ export default function CcxMeetings() {
   const shownRef = useRef(false);
 
   const canHost = canMakeCalls(session);
-  const canSeeAll = sessionRoles(session).includes("superadmin") || (session?.permissions ?? []).includes("leads.manage");
+  const canSeeAll = can(session, "leads.manage");
   const tab: Tab = tabPick === "all" && !canSeeAll ? "today" : tabPick;
   const mineTab: MineTab = tab === "all" ? "today" : tab;
   if (tab === "all" && !platOn) setPlatOn(true);
@@ -403,10 +404,12 @@ export default function CcxMeetings() {
           ) : null}
         </section>
 
-        <div className="opx-mtg-side" ref={sideRef} hidden={!creating}>
-          <NewMeeting onOpen={setActive} />
-          {canHost ? <QuickStart onOpen={setActive} /> : null}
-        </div>
+        {canHost ? (
+          <div className="opx-mtg-side" ref={sideRef} hidden={!creating}>
+            <NewMeeting onOpen={setActive} />
+            <QuickStart onOpen={setActive} />
+          </div>
+        ) : null}
       </div>
 
       {canSeeAll && detailId ? <CallDetail key={detailId} id={detailId} onClose={() => setDetailId(null)} /> : null}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+import { isForbidden } from "@/lib/http";
 import { saveLiveCharacter } from "@/lib/services/internalLive";
 import Modal from "@/components/admin/Modal";
 import { IconCheck, IconRefresh, IconSparkle, IconUsers } from "@/components/icons";
@@ -30,7 +31,7 @@ function roving(e: KeyboardEvent<HTMLElement>) {
 
 // The character studio: an admin picks one of the 30 ready characters for
 // a person, or dresses one part by part, watching the figure change.
-export default function CharacterStudio({ person, look: start, preset: startPreset, onClose, onSaved }: { person: { id: string; name: string }; look: Look; preset: string; onClose: () => void; onSaved: (look: Look) => void }) {
+export default function CharacterStudio({ person, look: start, preset: startPreset, onClose, onSaved, onForbidden }: { person: { id: string; name: string }; look: Look; preset: string; onClose: () => void; onSaved: (look: Look) => void; onForbidden?: () => void }) {
   const { t } = useLiveText();
   const [look, setLook] = useState<Look>(start);
   const [preset, setPreset] = useState(startPreset);
@@ -38,12 +39,14 @@ export default function CharacterStudio({ person, look: start, preset: startPres
   const [sex, setSex] = useState<"" | "m" | "f">("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  // Refused by the backend (403): the message stays, the save button goes.
+  const [denied, setDenied] = useState(false);
   const dirty = JSON.stringify(look) !== JSON.stringify(start);
   const set = <K extends Part>(k: K, v: Look[K]) => setLook((l) => ({ ...l, [k]: v }));
   const opt = (part: Part, v: string) => (t.has(`avatar.opt.${part}.${v}`) ? t(`avatar.opt.${part}.${v}`) : v);
 
   async function save() {
-    if (busy) return;
+    if (busy || denied) return;
     setBusy(true);
     setErr("");
     try {
@@ -51,6 +54,10 @@ export default function CharacterStudio({ person, look: start, preset: startPres
       onSaved(look);
     } catch (cause) {
       setErr(apiMessage(cause, t("avatar.saveError")));
+      if (isForbidden(cause)) {
+        setDenied(true);
+        onForbidden?.();
+      }
     } finally {
       setBusy(false);
     }
@@ -74,10 +81,12 @@ export default function CharacterStudio({ person, look: start, preset: startPres
       footer={
         <>
           <button type="button" className="btn btn--line btn--sm" onClick={onClose} disabled={busy}>{t("cancel")}</button>
-          <button type="button" className="btn btn--pri btn--sm" onClick={() => void save()} disabled={busy || !dirty}>
-            <IconCheck />
-            {busy ? t("saving") : t("save")}
-          </button>
+          {denied ? null : (
+            <button type="button" className="btn btn--pri btn--sm" onClick={() => void save()} disabled={busy || !dirty}>
+              <IconCheck />
+              {busy ? t("saving") : t("save")}
+            </button>
+          )}
         </>
       }
     >

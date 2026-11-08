@@ -43,7 +43,7 @@ import {
 const NOTE_MIN = 5;
 const isMpComplaintEvent = (name: unknown) => /^marketplace\.complaint_/.test(String(name ?? ""));
 
-function ResolveDialog({ c, onClose, onDone, onStale }: { c: MpComplaint; onClose: () => void; onDone: (action: MpComplaintAction) => void; onStale: () => void }): ReactElement {
+function ResolveDialog({ c, onClose, onDone, onStale, onForbidden }: { c: MpComplaint; onClose: () => void; onDone: (action: MpComplaintAction) => void; onStale: () => void; onForbidden: () => void }): ReactElement {
   const t = useTranslations("callCenter.mpComplaints");
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const [action, setAction] = useState<MpComplaintAction | "">("");
@@ -53,6 +53,8 @@ function ResolveDialog({ c, onClose, onDone, onStale }: { c: MpComplaint; onClos
   const [picked, setPicked] = useState<string[]>([]);
   const [visibility, setVisibility] = useState<"staff" | "parties">("staff");
   const [uploading, setUploading] = useState(false);
+  // An upload the backend refused: the message stays, the file picker leaves.
+  const [noUpload, setNoUpload] = useState(false);
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<SxDialogErrorText>(null);
@@ -82,6 +84,7 @@ function ResolveDialog({ c, onClose, onDone, onStale }: { c: MpComplaint; onClos
       }
     } catch (e) {
       logApiError("mpComplaint.evidence", e);
+      if (isForbidden(e)) setNoUpload(true);
       setError({ title: t("err.upload"), text: errDetail(e) });
     } finally {
       setUploading(false);
@@ -99,6 +102,8 @@ function ResolveDialog({ c, onClose, onDone, onStale }: { c: MpComplaint; onClos
       onDone(action);
     } catch (e) {
       if (e instanceof ApiError && e.code === "marketplace_complaint_already_resolved") return onStale();
+      // Refused: the message stays here and Resolve leaves the row.
+      if (isForbidden(e)) onForbidden();
       logApiError("mpComplaint.resolve", e);
       setError({ title: t("err.failed"), text: errDetail(e) });
     } finally {
@@ -156,6 +161,7 @@ function ResolveDialog({ c, onClose, onDone, onStale }: { c: MpComplaint; onClos
         ) : (
           <p className="esc__muted">{t("noEvidence")}</p>
         )}
+        {noUpload ? null : (
         <span className="esc__up sx">
           <span className="esc__vis">
             <Select
@@ -174,6 +180,7 @@ function ResolveDialog({ c, onClose, onDone, onStale }: { c: MpComplaint; onClos
           </label>
           <small className="esc__muted">{t("fileHint")}</small>
         </span>
+        )}
       </div>
       {danger ? <SxNote tone="warn">{t("refundNote")}</SxNote> : null}
       <SxDialogError error={error} />
@@ -265,7 +272,7 @@ function Row({ c, settled, onResolve }: { c: MpComplaint; settled: boolean; onRe
               ))}
             </span>
           ) : null}
-          {c.actions.length && !settled ? (
+          {c.actions.length > 0 && !settled ? (
             <div className="esc__acts sx">
               <SxButton size="sm" variant="primary" onClick={onResolve} aiId="call_center.mp_complaints.open">
                 {t("resolve")}
@@ -287,6 +294,7 @@ export default function MarketplaceComplaints({ onCount }: { onCount?: (n: numbe
   const [denied, setDenied] = useState(false);
   const [acting, setActing] = useState<MpComplaint | null>(null);
   const [settledIds, setSettledIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [refusedIds, setRefusedIds] = useState<ReadonlySet<string>>(() => new Set());
   const [done, setDone] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const onCountRef = useRef(onCount);
@@ -358,7 +366,7 @@ export default function MarketplaceComplaints({ onCount }: { onCount?: (n: numbe
       {page?.items.length ? (
         <ul className="esc__list">
           {page.items.map((c) => (
-            <Row key={c.id} c={c} settled={settledIds.has(c.id)} onResolve={() => setActing(c)} />
+            <Row key={c.id} c={c} settled={settledIds.has(c.id) || refusedIds.has(c.id)} onResolve={() => setActing(c)} />
           ))}
         </ul>
       ) : null}
@@ -383,6 +391,7 @@ export default function MarketplaceComplaints({ onCount }: { onCount?: (n: numbe
             setActing(null);
             void load();
           }}
+          onForbidden={() => setRefusedIds((cur) => new Set(cur).add(acting.id))}
           onStale={() => {
             setDone(t("alreadyResolved"));
             setActing(null);

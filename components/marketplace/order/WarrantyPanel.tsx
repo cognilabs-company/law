@@ -13,7 +13,9 @@ import { ChoiceCards, type ChoiceCard } from "@/components/admin/studio/sx/form/
 import { useMarketError } from "@/components/marketplace/useMarketError";
 import { requestOrderWarranty, warrantyResolutions, type OrderWarranty, type WarrantyResolution } from "@/lib/services/marketplace";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
-import { ApiError } from "@/lib/http";
+import { ApiError, isForbidden } from "@/lib/http";
+import { notify } from "@/lib/toast";
+import { markRefused, useRefused } from "./refused";
 import { LifeBuoyIcon } from "./icons";
 import { SECTION_ID, type OrderSectionProps } from "./types";
 
@@ -41,6 +43,7 @@ export default function WarrantyPanel({ o, view, phase, aiBase, onChanged }: Ord
   const [error, setError] = useState<SxDialogErrorText>(null);
   const [sent, setSent] = useState<OrderWarranty | null>(null);
   const [resolutions, setResolutions] = useState<readonly WarrantyResolution[]>([]);
+  const refusedFor = useRefused();
   useEffect(() => {
     let alive = true;
     void warrantyResolutions().then((r) => alive && setResolutions(r));
@@ -54,7 +57,7 @@ export default function WarrantyPanel({ o, view, phase, aiBase, onChanged }: Ord
   // What the client can ask for: the backend's remedies, never a rejection.
   const remedies = resolutions.filter((r) => r !== "rejected");
   if (view !== "client" || phase === "pending" || phase === "cancelled") return null;
-  if (!filed && (!o.warranty.url || !remedies.length)) return null;
+  if (!filed && (!o.warranty.url || !remedies.length || refusedFor(o.id, "warranty"))) return null;
   const ai = `${aiBase}.warranty`;
 
   if (filed) {
@@ -97,6 +100,13 @@ export default function WarrantyPanel({ o, view, phase, aiBase, onChanged }: Ord
       }
       const fallback = t("error");
       const msg = marketError(e, fallback);
+      // Refused (403): the warranty panel leaves; the reason is told once.
+      if (isForbidden(e)) {
+        setOpen(false);
+        notify.error(fallback, { id: `warranty-refused-${o.id}`, body: msg === fallback ? undefined : msg });
+        markRefused(o.id, "warranty");
+        return;
+      }
       setError({ title: fallback, text: msg === fallback ? "" : msg });
     } finally {
       setBusy(false);

@@ -171,9 +171,14 @@ function Detail({ fallback, kind, label, onJoin, onChat }: { fallback: UrgentReq
       {r.scheduledAt && (r.status === "scheduled" || r.status === "meeting_active") ? <Banner tone={r.status === "meeting_active" ? "err" : "warn"} title={t("upcoming")}>{dateTimeFull(r.scheduledAt, locale)}</Banner> : null}
       <div className="dxu-acts">
         {r.callId || r.status === "scheduled" || r.status === "meeting_active" ? (
-          <Btn kind="primary" icon={<IconVideo />} disabled={!canJoin} title={canJoin ? undefined : t("joinWaiting")} onClick={onJoin}>
-            {t("joinMeeting")}
-          </Btn>
+          canJoin ? (
+            <Btn kind="primary" icon={<IconVideo />} onClick={onJoin}>
+              {t("joinMeeting")}
+            </Btn>
+          ) : (
+            // No meeting yet: a note, not a dead button.
+            <Tag tone="warn">{t("joinPending")}</Tag>
+          )
         ) : null}
         {r.secureChatRoomId ? (
           <Btn icon={<IconChat />} onClick={onChat}>

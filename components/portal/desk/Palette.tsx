@@ -9,7 +9,7 @@ export type PaletteApp = { id: string; label: string; icon: ReactNode; folder?: 
 type Row = { id: string; label: string; sub: string; icon?: ReactNode; disabled?: boolean; go: () => void; menu?: (e: MouseEvent) => void };
 
 // One box for everything (§11–§13, Ctrl/Cmd+K): the apps and folders that
-// match, the backend's commands (disabled ones shown, never run), and once
+// match, the backend's commands (disabled ones left out), and once
 // two letters are typed a search across orders, chats, files, services and
 // documents — the backend filters it to what this account owns. Results
 // open only the deep link they come with. Spotlight on the Mac-style desk,
@@ -63,7 +63,9 @@ export default function Palette({
   if (appRows.length) sections.push({ id: "apps", title: t("apps"), rows: appRows.map((a) => ({ id: `a-${a.id}`, label: a.label, sub: a.folder ? t("folder") : t("app"), icon: a.icon, go: () => onApp(a) })) });
   if (!low && pinned.length) sections.push({ id: "pinned", title: t("pinned"), rows: pinned.slice(0, 5).map((p) => ({ id: `p-${p.id}`, label: p.title, sub: p.subtitle || p.badge, go: () => onLink({ appId: p.appId, route: p.route }, p.title) })) });
   if (!low && recent.length) sections.push({ id: "recent", title: t("recent"), rows: recent.slice(0, 5).map((p) => ({ id: `r-${p.id}`, label: p.title, sub: p.subtitle || p.badge, go: () => onLink({ appId: p.appId, route: p.route }, p.title) })) });
-  if (commands.length) sections.push({ id: "cmd", title: t("commands"), rows: commands.slice(0, 8).map((c) => ({ id: `c-${c.id}`, label: t.has(`cmd.${c.id}`) ? t(`cmd.${c.id}`) : c.label, sub: c.enabled ? c.group || c.hint : t("disabled"), disabled: !c.enabled, go: () => onLink(c.link, c.label) })) });
+  // A command the backend marks disabled for this account is not listed.
+  const live = commands.filter((c) => c.enabled);
+  if (live.length) sections.push({ id: "cmd", title: t("commands"), rows: live.slice(0, 8).map((c) => ({ id: `c-${c.id}`, label: t.has(`cmd.${c.id}`) ? t(`cmd.${c.id}`) : c.label, sub: c.group || c.hint, go: () => onLink(c.link, c.label) })) });
   if (needle.length >= 2 && hits?.q === needle)
     sections.push({
       id: "hits",

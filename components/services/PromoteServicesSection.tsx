@@ -53,6 +53,8 @@ export default function PromoteServicesSection({ role, onData }: { role: "lawyer
   const [tick, setTick] = useState(0);
   const [load, setLoad] = useState<Load | null>(null);
   const [promote, setPromote] = useState<ManagedService | null>(null);
+  // A promotion request refused with 403: the promote buttons leave.
+  const [denied, setDenied] = useState(false);
   const key = `${locale}|${tick}`;
   const onDataRef = useRef(onData);
   const messages = (): Toasts => ({
@@ -167,7 +169,7 @@ export default function PromoteServicesSection({ role, onData }: { role: "lawyer
                     <IconClock aria-hidden="true" />
                     {t("card.pending")}
                   </span>
-                ) : (
+                ) : denied ? null : (
                   <button type="button" className="btn btn--grad btn--sm" onClick={() => setPromote(x)}>
                     <IconMegaphone aria-hidden="true" />
                     {t("card.promote")}
@@ -195,6 +197,11 @@ export default function PromoteServicesSection({ role, onData }: { role: "lawyer
           owner={false}
           onClose={() => setPromote(null)}
           onStale={() => setTick((n) => n + 1)}
+          onDenied={(msg) => {
+            setPromote(null);
+            setDenied(true);
+            toast(msg, { tone: "err" });
+          }}
           onSent={(req) => {
             if (req.telegramSent) toast(t("toast.promoSent"), { tone: "ok" });
           }}

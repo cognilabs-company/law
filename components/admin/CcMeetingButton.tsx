@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useAuth, canMakeCalls } from "@/lib/auth";
 import { createSecureChat, startCall, searchUsers, type LiveKitJoin } from "@/lib/services/backend";
 import { notify } from "@/lib/toast";
+import { isForbidden } from "@/lib/http";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import CallRoom from "@/components/chat/CallRoom";
 import { IconVideo } from "@/components/icons";
@@ -61,7 +62,9 @@ export default function CcMeetingButton({ clientUserId, phone, clientName, title
   const [busy, setBusy] = useState(false);
   const [active, setActive] = useState<Active | null>(null);
   const asking = useRef(false);
-  if (!session || !canMakeCalls(session) || (!clientUserId && !phone) || clientUserId === session.id) return null;
+  // A 403 (the right was taken away mid-session) removes the button.
+  const [denied, setDenied] = useState(false);
+  if (denied || !session || !canMakeCalls(session) || (!clientUserId && !phone) || clientUserId === session.id) return null;
 
   const name = clientName?.trim() || "";
   const meetTitle = title?.trim() || (name ? t("ccTitle", { name }) : t("ccStart"));
@@ -88,6 +91,7 @@ export default function CcMeetingButton({ clientUserId, phone, clientName, title
     } catch (e) {
       const denied = t("noPermission");
       const missing = t("backendMissing");
+      if (isForbidden(e)) setDenied(true);
       notify.error(t("ccFailed"), { id: "cc-meet", error: e, map: { 402: denied, 403: denied, 404: missing, 405: missing, 501: missing } });
     } finally {
       setBusy(false);

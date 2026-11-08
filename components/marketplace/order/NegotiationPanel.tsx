@@ -15,7 +15,7 @@ import { useMarketError } from "@/components/marketplace/useMarketError";
 import { useAuth } from "@/lib/auth";
 import { fmtUzs } from "@/lib/money";
 import { shortDateTime } from "@/lib/date";
-import { parseServerTime } from "@/lib/http";
+import { isForbidden, parseServerTime } from "@/lib/http";
 import { marketErrorInfo, priceCapOf, proposeNegotiation, respondNegotiation, type Negotiation, type NegotiationResponse } from "@/lib/services/marketRuntime";
 import { CheckIcon, CircleCheckIcon, TimerIcon, CoinsIcon, HandCoinsIcon, HourglassIcon, BanIcon, XIcon, glyph } from "./icons";
 import { SECTION_ID, type OrderSectionProps } from "./types";
@@ -77,6 +77,9 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState<Busy>("");
   const [live, setLive] = useState("");
+  // The backend refused this account a negotiation action (403): every
+  // negotiation action leaves the panel; the history stays readable.
+  const [refused, setRefused] = useState(false);
 
   const acceptedAmount = st === "accepted" && n ? dealAmount(n) : 0;
   const acceptedKey = view === "client" && st === "accepted" && n && acceptedAmount > 0 ? `${n.id}:${acceptedAmount}` : "";
@@ -93,7 +96,7 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
   const ai = `${aiBase}.negotiation`;
   const cur = (v: number) => `${fmtUzs(v)} ${!o.currency || o.currency === "UZS" ? te("currency") : o.currency}`;
   const cap = negotiationCap(runtime ? priceCapOf(runtime.pricing) : null, n);
-  const mayPropose = canProposeNegotiation(o);
+  const mayPropose = !refused && canProposeNegotiation(o);
   const errParams = { price: cur(o.price), max: cap !== null ? cur(cap) : "—" };
   const amountId = `${uid}-amount`;
   const noteId = `${uid}-note`;
@@ -123,6 +126,13 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
   });
 
   const fail = (e: unknown, fallback: "generic" | "respond", place: "amount" | "counter" | "none") => {
+    if (isForbidden(e)) {
+      setRefused(true);
+      setFormOpen(false);
+      setCounterOpen(false);
+      setErr(marketError(e, t(`negotiation.err.${fallback}`)));
+      return;
+    }
     const info = marketErrorInfo(e);
     const key = negotiationErrorKey(info?.code ?? "");
     if (key) {
@@ -341,13 +351,14 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
       body = offer(t("negotiation.yourOffer"), n.amount, n.note, st, expiry(n));
     } else if (st === "countered" && n) {
       const gate = negotiationGate(n, "client", owner);
-      const canAccept = gate ? gate.accept : negotiationActions(n).includes("accept");
-      const canReject = gate?.reject === true;
+      const canAccept = !refused && (gate ? gate.accept : negotiationActions(n).includes("accept"));
+      const canReject = !refused && gate?.reject === true;
       body = (
         <>
           {offer(t("negotiation.counterOffer"), n.counterAmount, n.responseNote, st, expiry(n))}
           <p className="mng-line">{t("negotiation.counterClient", { price: n.counterAmount > 0 ? cur(n.counterAmount) : "—" })}</p>
           {errNote}
+          {canAccept || canReject || mayPropose ? (
           <div className="mng-actions">
             {canAccept ? (
               <SxButton variant="primary" icon={CheckIcon} busy={busy === "accept"} disabled={!!busy && busy !== "accept"} onClick={() => void respond({ action: "accept" }, "accept")} aiId={`${ai}.accept`}>
@@ -375,12 +386,13 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
             </SxButton>
             ) : null}
           </div>
+          ) : null}
         </>
       );
     }
   } else if (n) {
     const sellerGate = negotiationGate(n, "seller", owner);
-    const sellerMay = (a: "accept" | "counter" | "reject") => (sellerGate ? sellerGate[a] : true);
+    const sellerMay = (a: "accept" | "counter" | "reject") => !refused && (sellerGate ? sellerGate[a] : true);
     if (st === "proposed") {
       body = (
         <>
@@ -449,6 +461,7 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
           ) : (
             <>
               {errNote}
+              {sellerMay("accept") || sellerMay("counter") || sellerMay("reject") ? (
               <div className="mng-actions" data-seller="">
                 {sellerMay("accept") ? (
                   <SxButton variant="primary" icon={CheckIcon} busy={busy === "accept"} disabled={!!busy && busy !== "accept"} onClick={() => void respond({ action: "accept" }, "accept")} aiId={`${ai}.accept`}>
@@ -476,6 +489,7 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
                   </SxButton>
                 ) : null}
               </div>
+              ) : null}
             </>
           )}
         </>

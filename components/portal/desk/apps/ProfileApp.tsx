@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { findContacts } from "@/lib/contactGuard";
 import ContactGuardNote, { useContactStrip, type ContactRefusal } from "@/components/ui/ContactGuardNote";
 import { useLocale, useTranslations } from "next-intl";
-import { useAuth } from "@/lib/auth";
+import { requiresTwoFactor, useAuth } from "@/lib/auth";
 import { contactBlockedOf } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { dateOnly, shortDateTime } from "@/lib/date";
@@ -398,6 +398,8 @@ export function Security({ say }: { say: (text: string, tone?: "ok" | "err") => 
   const locale = useLocale();
   const { session, update } = useAuth();
   const on = !!session?.twoFactorEnabled;
+  // Staff/seller roles must keep 2FA (DELETE /auth/2fa → 403): no Disable.
+  const mandatory = requiresTwoFactor(session);
   const supportHref = `/portal/${session?.role === "advocate" || session?.role === "lawyer" ? session.role : "client"}/support`;
   const [stage, setStage] = useState<"" | "sms" | "totp">("");
   const [vid, setVid] = useState("");
@@ -496,12 +498,14 @@ export function Security({ say }: { say: (text: string, tone?: "ok" | "err") => 
   }
   return (
     <>
-      <Group title={t("title")} footer={t("desc")}>
+      <Group title={t("title")} footer={mandatory && on ? t("mandatory") : t("desc")}>
         <SettingRow icon={<IconLock />} title={on ? t("enabledBadge") : t("title")} desc={on ? t("currentMethod", { method: session?.twoFactorMethod === "totp" ? t("methodTotp") : t("methodTelegram") }) : undefined}>
           {on ? (
-            <Btn small busy={busy} onClick={() => void off()}>
-              {t("disable")}
-            </Btn>
+            mandatory ? null : (
+              <Btn small busy={busy} onClick={() => void off()}>
+                {t("disable")}
+              </Btn>
+            )
           ) : stage ? null : (
             <span className="dxq-row-btns">
               <Btn small busy={busy} onClick={() => void startSms()}>

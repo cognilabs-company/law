@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { registerReveal, revealTarget } from "@/lib/guide/targets";
 import { useScrollEdges } from "@/lib/useScrollEdges";
 import "./callcenter/console.css";
+import { EmptyState } from "@/components/portal/DataState";
 import { IconArrowRight, IconAward, IconBolt, IconCircleX, IconCoins, IconFlag, IconGrid, IconStar, IconHeadset, IconInbox, IconSearch, IconShield, IconShieldCheck, IconUsers } from "@/components/icons";
 
 export type CcTab = "cockpit" | "queue" | "urgent" | "escalations" | "complaints" | "mpComplaints" | "warranty" | "cancellations" | "experience" | "achievements" | "licenses" | "payouts" | "leads" | "clients";
@@ -16,9 +17,16 @@ const ALL: CcTab[] = ["cockpit", "queue", "urgent", "escalations", "complaints",
 const OPEN: CcTab[] = ["leads", "clients"];
 // The three verification queues need marketplace.experience.review (final
 // contract 2026-10-29 §1), never a role name; a 403 still hides a tab.
-export const REVIEW_PERMISSION = "marketplace.experience.review";
+export { REVIEW_PERMISSION } from "@/lib/permissions";
 const REVIEW: CcTab[] = ["experience", "achievements", "licenses"];
-const baseTabs = (cc: boolean, canReview: boolean): CcTab[] => (cc ? ALL : [...REVIEW, ...OPEN]).filter((k) => canReview || !REVIEW.includes(k));
+// Leads (the CRM board, crm.leads.view) and Clients (lookup: call-center
+// staff or users.manage) are left out up front for an account that can't
+// use them, so their tabs never flash in.
+export type CcOpenAccess = { leads?: boolean; clients?: boolean };
+const baseTabs = (cc: boolean, canReview: boolean, open: CcOpenAccess): CcTab[] =>
+  (cc ? ALL : [...REVIEW, ...OPEN]).filter(
+    (k) => (canReview || !REVIEW.includes(k)) && (k !== "leads" || open.leads !== false) && (k !== "clients" || open.clients !== false),
+  );
 const STORE = "lexgo_cc_tab";
 
 const ICON: Record<CcTab, ComponentType<SVGProps<SVGSVGElement>>> = {
@@ -136,10 +144,11 @@ export type CcConsole = {
   attach: (el: HTMLDivElement | null) => void;
 };
 
-export function useCcConsole(cc: boolean, canReview = false): CcConsole {
+export function useCcConsole(cc: boolean, canReview = false, open: CcOpenAccess = {}): CcConsole {
   const params = useSearchParams();
   const fromUrl = params.get("tab") ?? "";
-  const base = useMemo(() => baseTabs(cc, canReview), [cc, canReview]);
+  const { leads, clients } = open;
+  const base = useMemo(() => baseTabs(cc, canReview, { leads, clients }), [cc, canReview, leads, clients]);
   const [gone, setGone] = useState<CcTab[]>([]);
   const tabs = base.filter((k) => !gone.includes(k));
   const [pick, setPick] = useState(() => (isTab(fromUrl) ? fromUrl : readTab()));
@@ -294,6 +303,18 @@ export default function CallCenterConsole({ con, children }: { con: CcConsole; c
     document.getElementById(`ccon-tab-${next}`)?.focus();
   }
 
+  // Nothing this account may work on here: one calm message instead of an
+  // empty bar and tab strip. The (empty) panels still mount, hidden, so the
+  // console keeps its bookkeeping.
+  if (!tabs.length) {
+    return (
+      <div className="ccon" ref={attach}>
+        <EmptyState icon={<IconShield />} title={t("noAccessTitle")} text={t("noAccessText")} />
+        <div hidden>{children}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="ccon" ref={attach}>
       {/* One control panel: what is waiting and the client search on top,
@@ -304,7 +325,8 @@ export default function CallCenterConsole({ con, children }: { con: CcConsole; c
             <i aria-hidden="true" />
             {waiting ? t("waiting", { n: waiting }) : t("calm")}
           </p>
-          <SearchBox q={q} setQ={setQ} find={find} select={select} />
+          {/* The search opens the Clients tab: only where that tab exists. */}
+          {tabs.includes("clients") ? <SearchBox q={q} setQ={setQ} find={find} select={select} /> : null}
         </div>
         <div className="ccnav scue-x" role="tablist" aria-label={t("tabsAria")} aria-orientation="horizontal" ref={listRef}>
           {FAMILIES.map((fam) => {

@@ -12,7 +12,7 @@ import {
   type B2bClient,
   type B2bDocument,
 } from "@/lib/services/backend";
-import { httpBlob } from "@/lib/http";
+import { httpBlob, isForbidden } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { saveBlob } from "@/lib/download";
 import { useResource } from "@/lib/useResource";
@@ -38,9 +38,17 @@ export default function AdminB2b() {
   const [open, setOpen] = useState(false);
   const [doc, setDoc] = useState<{ kind: "invoice" | "contract" | "report"; client: B2bClient } | null>(null);
   const stageOpts = STAGES.map((s) => ({ value: s, label: t.has(`stage.${s}`) ? t(`stage.${s}`) : s }));
+  // Every /b2b/* write needs the page's own b2b.manage. If the backend still
+  // answers 403 (revoked mid-session), the message stays and the add, stage
+  // and document actions leave the screen; the list stays readable.
+  const [denied, setDenied] = useState(false);
 
   async function setStage(c: B2bClient, stage: string) {
-    try { await updateB2bClient(c.id, { stage }); reload(); } catch { /* ignore */ }
+    try { await updateB2bClient(c.id, { stage }); reload(); } catch (e) {
+      if (!isForbidden(e)) return;
+      setDenied(true);
+      notify.error(t("forbidden"), { id: `b2b-stage-${c.id}`, error: e });
+    }
   }
 
   return (
@@ -49,12 +57,12 @@ export default function AdminB2b() {
         <b>{t("title")}</b>
         <span className="ahdr">
           <span className="advmuted">{res.data.length}</span>
-          <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)} data-ai-target="button:new-b2b-client"><IconPlus />{t("add")}</button>
+          {denied ? null : <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)} data-ai-target="button:new-b2b-client"><IconPlus />{t("add")}</button>}
         </span>
       </div>
       <p className="ppanel__note">{t("lead")}</p>
-      <Modal open={open} onClose={() => setOpen(false)} title={t("add")}>
-        <ClientForm onCreated={() => void res.refresh()} onDone={() => { reload(); setOpen(false); }} onCancel={() => setOpen(false)} />
+      <Modal open={open && !denied} onClose={() => setOpen(false)} title={t("add")}>
+        <ClientForm onCreated={() => void res.refresh()} onDenied={() => { setDenied(true); setOpen(false); }} onDone={() => { reload(); setOpen(false); }} onCancel={() => setOpen(false)} />
       </Modal>
       {res.status === "loading" ? (
         <Skeleton rows={4} />
@@ -68,26 +76,32 @@ export default function AdminB2b() {
               <div className="aitem__m">
                 <b>{c.name || "—"}</b>
                 <span className="aitem__meta">{[c.industry, c.contact].filter(Boolean).join(" · ")}</span>
-                <div className="aitem__tags" style={{ marginTop: 6 }} data-ai-target="b2b:documents">
-                  <button type="button" className="btn btn--line btn--sm" onClick={() => setDoc({ kind: "invoice", client: c })}><IconCard />{t("invoice")}</button>
-                  <button type="button" className="btn btn--line btn--sm" onClick={() => setDoc({ kind: "contract", client: c })}><IconFileText />{t("contract")}</button>
-                  <button type="button" className="btn btn--line btn--sm" onClick={() => setDoc({ kind: "report", client: c })}><IconDownload />{t("report")}</button>
-                </div>
+                {denied ? null : (
+                  <div className="aitem__tags" style={{ marginTop: 6 }} data-ai-target="b2b:documents">
+                    <button type="button" className="btn btn--line btn--sm" onClick={() => setDoc({ kind: "invoice", client: c })}><IconCard />{t("invoice")}</button>
+                    <button type="button" className="btn btn--line btn--sm" onClick={() => setDoc({ kind: "contract", client: c })}><IconFileText />{t("contract")}</button>
+                    <button type="button" className="btn btn--line btn--sm" onClick={() => setDoc({ kind: "report", client: c })}><IconDownload />{t("report")}</button>
+                  </div>
+                )}
               </div>
               <div className="aitem__r" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }} data-ai-target="b2b:stage">
                 {c.value ? <b className="b2b__val">{som(c.value)}</b> : null}
-                <Select value={STAGES.includes(c.stage) ? c.stage : "discovered"} onChange={(v) => setStage(c, v)} options={stageOpts} ariaLabel={t("stageLabel")} />
+                {denied ? (
+                  <span className="creq__badge" aria-label={t("stageLabel")}>{stageOpts.find((o) => o.value === (STAGES.includes(c.stage) ? c.stage : "discovered"))?.label}</span>
+                ) : (
+                  <Select value={STAGES.includes(c.stage) ? c.stage : "discovered"} onChange={(v) => setStage(c, v)} options={stageOpts} ariaLabel={t("stageLabel")} />
+                )}
               </div>
             </div>
           ))}
         </div>
       )}
-      <DocModal target={doc} onClose={() => setDoc(null)} />
+      <DocModal target={denied ? null : doc} onClose={() => setDoc(null)} onDenied={() => { setDenied(true); setDoc(null); }} />
     </div>
   );
 }
 
-function ClientForm({ onCreated, onDone, onCancel }: { onCreated: () => void; onDone: () => void; onCancel: () => void }) {
+function ClientForm({ onCreated, onDenied, onDone, onCancel }: { onCreated: () => void; onDenied: () => void; onDone: () => void; onCancel: () => void }) {
   const t = useTranslations("admin.b2b");
   const tf = useTranslations("admin.form");
   const created = useRef("");
@@ -105,18 +119,13 @@ function ClientForm({ onCreated, onDone, onCancel }: { onCreated: () => void; on
         { name: "sla", label: t("cSla"), placeholder: t("cSlaPh") },
       ]}
       onSubmit={async (v) => {
-        const base = { name: String(v.name), industry: String(v.industry), contact: String(v.contact), inn: String(v.inn) };
-        const retry = created.current !== "";
-        if (!retry) {
-          created.current = (await createB2bClient(base)).id;
-          onCreated();
+        try {
+          await save(v);
+        } catch (e) {
+          // AdminForm still shows its message; the add action then leaves.
+          if (isForbidden(e)) onDenied();
+          throw e;
         }
-        // Director / monthly payment / SLA are stored through the update endpoint.
-        const patch: Record<string, unknown> = retry ? { ...base } : {};
-        if (String(v.director).trim()) patch.director = String(v.director).trim();
-        if (String(v.monthly_payment).trim()) patch.monthly_payment = parseInt(String(v.monthly_payment), 10) || 0;
-        if (String(v.sla).trim()) patch.sla = String(v.sla).trim();
-        if (Object.keys(patch).length) await updateB2bClient(created.current, patch);
       }}
       submitLabel={t("save")}
       busyLabel={t("saving")}
@@ -125,9 +134,24 @@ function ClientForm({ onCreated, onDone, onCancel }: { onCreated: () => void; on
       onDone={onDone}
     />
   );
+
+  async function save(v: Record<string, string | boolean>) {
+    const base = { name: String(v.name), industry: String(v.industry), contact: String(v.contact), inn: String(v.inn) };
+    const retry = created.current !== "";
+    if (!retry) {
+      created.current = (await createB2bClient(base)).id;
+      onCreated();
+    }
+    // Director / monthly payment / SLA are stored through the update endpoint.
+    const patch: Record<string, unknown> = retry ? { ...base } : {};
+    if (String(v.director).trim()) patch.director = String(v.director).trim();
+    if (String(v.monthly_payment).trim()) patch.monthly_payment = parseInt(String(v.monthly_payment), 10) || 0;
+    if (String(v.sla).trim()) patch.sla = String(v.sla).trim();
+    if (Object.keys(patch).length) await updateB2bClient(created.current, patch);
+  }
 }
 
-function DocModal({ target, onClose }: { target: { kind: "invoice" | "contract" | "report"; client: B2bClient } | null; onClose: () => void }) {
+function DocModal({ target, onClose, onDenied }: { target: { kind: "invoice" | "contract" | "report"; client: B2bClient } | null; onClose: () => void; onDenied: () => void }) {
   const t = useTranslations("admin.b2b");
   const [amount, setAmount] = useState("");
   const [desc, setDesc] = useState("");
@@ -152,6 +176,7 @@ function DocModal({ target, onClose }: { target: { kind: "invoice" | "contract" 
       notify.success(t("docReady"), { id });
     } catch (err) {
       notify.error(t("docFailed"), { id, error: err, map: { 403: t("forbidden") } });
+      if (isForbidden(err)) onDenied();
     } finally {
       setBusy(false);
     }

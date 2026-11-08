@@ -83,6 +83,10 @@ export default function OrderActions({
     );
   }
 
+  // No right to answer orders (available_actions.accept_orders=false): the
+  // buttons are not offered at all.
+  if (!canAct) return null;
+
   if (forbidden) {
     return (
       <span className="pcase__done pcase__done--blocked">
@@ -94,11 +98,11 @@ export default function OrderActions({
 
   return (
     <div className="pcase__act">
-      <button className="btn btn--pri btn--sm" type="button" disabled={!!busy || !canAct} onClick={() => run("accept")} data-ai-id={aiBase ? `${aiBase}.accept` : undefined} data-ai-label={aiBase ? tc("accept") : undefined}>
+      <button className="btn btn--pri btn--sm" type="button" disabled={!!busy} onClick={() => run("accept")} data-ai-id={aiBase ? `${aiBase}.accept` : undefined} data-ai-label={aiBase ? tc("accept") : undefined}>
         <IconCheck aria-hidden="true" />
         {busy === "accept" ? tc("accepting") : tc("accept")}
       </button>
-      <button className="btn btn--line btn--sm" type="button" disabled={!!busy || !canAct} onClick={() => run("decline")} data-ai-id={aiBase ? `${aiBase}.decline` : undefined} data-ai-label={aiBase ? tc("decline") : undefined}>
+      <button className="btn btn--line btn--sm" type="button" disabled={!!busy} onClick={() => run("decline")} data-ai-id={aiBase ? `${aiBase}.decline` : undefined} data-ai-label={aiBase ? tc("decline") : undefined}>
         <IconClose aria-hidden="true" />
         {tc("decline")}
       </button>

@@ -3,7 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { assignUrgentGroup, listUrgentCandidates, searchUrgentCandidates, urgentAssignRefusal, type UrgentCandidate, type UrgentRequest } from "@/lib/services/backend";
-import { logApiError } from "@/lib/http";
+import { isForbidden, logApiError } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { regionKeyOf, regionLabel } from "@/lib/labels";
 import { directionLabel } from "@/components/admin/UrgentAdvocateQueue";
@@ -26,12 +26,15 @@ export default function UrgentCandidates({
   onDirty,
   onBusy,
   onDone,
+  onRefused,
 }: {
   req: UrgentRequest;
   onBack: () => void;
   onDirty: (dirty: boolean) => void;
   onBusy: (busy: boolean) => void;
   onDone: (r: UrgentRequest, msg: string) => void;
+  // A 403 on assigning: the assign step leaves the record's panel.
+  onRefused?: () => void;
 }) {
   const t = useTranslations("admin.urgent");
   const te = useTranslations("enums");
@@ -159,6 +162,7 @@ export default function UrgentCandidates({
       } else {
         logApiError("urgent assign-group", e);
         notify.error(t("notify.groupFailed"), { id: ntfId(req.id), error: e });
+        if (isForbidden(e)) onRefused?.();
       }
     } finally {
       setBusy(false);

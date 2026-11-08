@@ -13,6 +13,9 @@ import { fmtUzs } from "@/lib/money";
 import { humanize, labelOf, regionLabel } from "@/lib/labels";
 import { assignNextSeller, claimUrgentRequest } from "@/lib/services/backend";
 import { useCrmMeta } from "@/lib/crm/useCrm";
+import { crmCan } from "@/lib/services/crm";
+import { isForbidden } from "@/lib/http";
+import { useCan } from "@/lib/useCan";
 import { isSellerJob, prettyPhone, toneOf, type NowJob } from "./feed";
 import { queueHref, useJobText } from "./text";
 import NowTabs from "./NowTabs";
@@ -91,6 +94,9 @@ export default function NowFocus({
   const [logDirty, setLogDirty] = useState(false);
   const [more, setMore] = useState(false);
   const crm = useCrmMeta().meta;
+  const canDo = useCan();
+  // Jobs whose action answered 403: that action leaves the card.
+  const [refused, setRefused] = useState<string[]>([]);
   const categoryName = useCategoryName();
 
   const lead = detail?.lead;
@@ -143,19 +149,30 @@ export default function NowFocus({
   if (!steps.length && created) steps.push({ id: "created", at: created, title: t("created"), sub: text.kind(job) });
 
   const claimedBy = urgent?.claimedByUserId || job.queue?.claimedByUserId || "";
-  const resolve: Resolve =
-    job.kind === "lead"
-      ? { href: leadHref(job.id), label: t("act.openCrm") }
+  // The CRM lead opens only with the CRM's own lead permission (GET /crm/meta;
+  // the session's codes until it loads). Assigning an order follows
+  // orders.manage (POST /matching/orders/{id}/assign-next). An urgent request
+  // is claimable only while its lifecycle still allows it.
+  const canLeads = crm ? crmCan(crm, "crm.leads.view") : canDo("crm.leads.view");
+  const claimable = !claimedBy && (!urgent || urgent.status === "open_pool" || urgent.nextStatuses.includes("claimed"));
+  const resolve: Resolve | null = refused.includes(job.key)
+    ? null
+    : job.kind === "lead"
+      ? canLeads
+        ? { href: leadHref(job.id), label: t("act.openCrm") }
+        : null
       : job.kind === "urgent"
-        ? claimedBy
+        ? !claimable
           ? { href: queueHref(job), label: t("act.openBoard") }
           : { label: t("act.claim"), run: () => claimUrgentRequest(job.id), done: t("act.claimed"), fail: t("act.claimFailed") }
         : job.kind === "order"
-          ? { label: t("act.assign"), run: () => assignNextSeller(job.id), done: t("act.assigned"), fail: t("act.assignFailed") }
+          ? canDo("orders.manage")
+            ? { label: t("act.assign"), run: () => assignNextSeller(job.id), done: t("act.assigned"), fail: t("act.assignFailed") }
+            : null
           : { href: queueHref(job), label: t("act.openQueue") };
 
   const run = async () => {
-    if ("href" in resolve || running) return;
+    if (!resolve || "href" in resolve || running) return;
     setRunning(true);
     try {
       await resolve.run();
@@ -163,6 +180,7 @@ export default function NowFocus({
       onChanged();
     } catch (e) {
       notify.error(resolve.fail, { id: `ccx-now-${job.key}`, error: e, map: { 403: tq("noPermission") } });
+      if (isForbidden(e)) setRefused((r) => [...r, job.key]);
     } finally {
       setRunning(false);
     }
@@ -193,8 +211,7 @@ export default function NowFocus({
       <span>{t("act.logCall")}</span>
     </button>
   );
-  const resolveEl =
-    "href" in resolve ? (
+  const resolveEl = !resolve ? null : "href" in resolve ? (
       <Link className="opx-act opx-act--done" href={resolve.href} data-key="e">
         <IcArrowRight size={21} />
         <span>{resolve.label}</span>
@@ -206,7 +223,7 @@ export default function NowFocus({
       </button>
     );
   // One thing to do: a job that needs taking is taken first, otherwise the client is called.
-  const callFirst = "href" in resolve && (!!dial || asksClient);
+  const callFirst = !resolve || ("href" in resolve && (!!dial || asksClient));
 
   return (
     <section className="opx-focus" data-tone={tone} aria-labelledby="opx-focus-code" data-ai-target="callcenter:now:focus">

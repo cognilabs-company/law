@@ -13,6 +13,7 @@ import { FamIcon } from "./parts";
 type Props = {
   lanes: Partial<Record<QKey, LaneView>>;
   calls: CcCall[] | null;
+  canLeads: boolean;
   onDrill: (fam: FamKey, queue: QKey) => void;
   onRetry: () => void;
   onOpen: (job: QView) => void;
@@ -36,7 +37,7 @@ export function CallRows({ calls, max }: { calls: CcCall[]; max: number }) {
   );
 }
 
-export default function QueuesBoard({ lanes, calls, onDrill, onRetry, onOpen }: Props) {
+export default function QueuesBoard({ lanes, calls, canLeads, onDrill, onRetry, onOpen }: Props) {
   const t = useTranslations("admin.ccx.queues");
   const [showEmpty, setShowEmpty] = useState(false);
   const rows = FAMILIES.flatMap((f) => f.queues.map((q) => ({ fam: f.key, lane: lanes[q] })).filter((r): r is { fam: FamKey; lane: LaneView } => Boolean(r.lane) && r.lane?.status !== "denied"));
@@ -88,10 +89,12 @@ export default function QueuesBoard({ lanes, calls, onDrill, onRetry, onOpen }: 
       </ul>
 
       <div className="opx-board2__links">
-        <Link href="/admin/call-center?view=crm&s=leads" className="opx-pbtn">
-          {t("people.leadsGo")}
-          <IcArrowRight size={15} />
-        </Link>
+        {canLeads ? (
+          <Link href="/admin/call-center?view=crm&s=leads" className="opx-pbtn">
+            {t("people.leadsGo")}
+            <IcArrowRight size={15} />
+          </Link>
+        ) : null}
         <Link href="/admin/call-center?view=clients" className="opx-pbtn">
           {t("people.clientsGo")}
           <IcArrowRight size={15} />

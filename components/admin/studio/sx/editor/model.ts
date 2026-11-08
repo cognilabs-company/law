@@ -258,6 +258,9 @@ export type ActionsInput = {
   lifecycle?: SxLifecycle;
   reviewEdit?: boolean;
   reviewNeedsPermission?: boolean;
+  // Actions the backend already refused with 403 on this object: they leave
+  // the screen instead of being offered again (owner law 2026-11-08).
+  denied?: readonly (keyof EditorState["can"])[];
 };
 
 export function editableOf(access: Pick<StudioAccess, "canEdit">, life: SxLifecycle | undefined): boolean {
@@ -305,15 +308,23 @@ export function actionsOf(input: ActionsInput): { can: EditorState["can"]; prima
     withdraw,
     restore,
   };
+  const denied = input.denied ?? [];
+  for (const k of denied) can[k] = false;
+  // A refused save also takes what rides on it: the file upload, and the
+  // submit that saves first (the lifecycle contract offers submit itself).
+  if (denied.includes("save")) {
+    can.upload = false;
+    if (!contract) can.submit = false;
+  }
   let primary: EditorPrimary = null;
   if (blocked) primary = null;
   else if (mode === "runtime-view") primary = can.edit ? "edit" : null;
-  else if (reviewEdit) primary = save && dirty ? "save" : review ? "openReview" : null;
-  else if (submit) primary = direct ? "publishDirect" : mode !== "object" || dirty ? "saveSubmit" : "submit";
-  else if (publish && !dirty) primary = "publish";
-  else if (review) primary = "openReview";
-  else if (save && dirty) primary = "save";
-  else if (restore) primary = "restore";
+  else if (reviewEdit) primary = can.save && dirty ? "save" : can.review ? "openReview" : null;
+  else if (can.submit) primary = direct ? "publishDirect" : mode !== "object" || dirty ? "saveSubmit" : "submit";
+  else if (can.publish && !dirty) primary = "publish";
+  else if (can.review) primary = "openReview";
+  else if (can.save && dirty) primary = "save";
+  else if (can.restore) primary = "restore";
   return { can, primary };
 }
 

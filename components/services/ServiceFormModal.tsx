@@ -119,6 +119,7 @@ export default function ServiceFormModal({
   aiId,
   rules,
   onPersist,
+  onDenied,
 }: {
   item: ManagedService | null;
   scope: ServiceScope;
@@ -134,6 +135,9 @@ export default function ServiceFormModal({
   aiId?: string;
   rules?: RulesProp | null;
   onPersist?: (saved: ManagedService) => void;
+  // A 403 on the save: the parent closes the form and removes the actions
+  // this account may not take (the message is shown there).
+  onDenied?: (message: string) => void;
 }) {
   const t = useTranslations("sellerServices");
   const tv = useTranslations("sellerServices.preview");
@@ -372,6 +376,10 @@ export default function ServiceFormModal({
       }
       if (res.stage === "manage") {
         const se = res.error;
+        if (onDenied && (se.kind === "forbidden" || se.kind === "pendingAccount")) {
+          onDenied(errText(se));
+          return;
+        }
         setErr(se);
         if ((se.kind === "range" || se.kind === "noPrice") && se.limits) setServerBand({ key: service.id, band: se.limits });
         if (se.kind === "belowMin" && se.min > 0) setServerMin({ key: service.id, min: se.min });
@@ -382,7 +390,9 @@ export default function ServiceFormModal({
       keep(res.persisted);
       applyConfigError(res.error, res.rolledBack, service.id);
     } catch (e) {
-      setErr(serviceErrorOf(e, locale));
+      const se = serviceErrorOf(e, locale);
+      if (onDenied && (se.kind === "forbidden" || se.kind === "pendingAccount")) onDenied(errText(se));
+      else setErr(se);
     } finally {
       setBusy(false);
     }

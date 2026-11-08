@@ -22,9 +22,13 @@ type Props = {
   onJoin: () => void;
   onMeet: () => void;
   onStep: (act: Step) => void;
+  // Starting a meeting follows meetings.manage (canMakeCalls).
+  hostCalls: boolean;
+  // Actions that answered 403 on this record: they leave the card.
+  refused: readonly string[];
 };
 
-export default function UrgentCard({ r, me, on, busy, index, onSelect, onClaim, onJoin, onMeet, onStep }: Props) {
+export default function UrgentCard({ r, me, on, busy, index, onSelect, onClaim, onJoin, onMeet, onStep, hostCalls, refused }: Props) {
   const t = useTranslations("admin.urgent");
   const x = useTranslations("admin.ccx.urgent");
   const tk = useTranslations("portal.client.urgent");
@@ -35,7 +39,9 @@ export default function UrgentCard({ r, me, on, busy, index, onSelect, onClaim, 
   const open = st === "open_pool";
   const finished = !r.nextStatuses.length && !open;
   const working = !finished && !open;
-  const act = rowAction(r);
+  const canMeet = hostCalls && !refused.includes("meeting");
+  const row = rowAction(r);
+  const act = (row === "claim" && refused.includes("claim")) || (row === "meeting" && !canMeet) ? "detail" : row;
   const name = kindName(tk, r);
   const dirs = r.directions
     .map((d) => directionLabel(te, d, t))
@@ -51,7 +57,7 @@ export default function UrgentCard({ r, me, on, busy, index, onSelect, onClaim, 
   const items: MenuItem[] = [];
   if (act !== "detail") items.push({ key: "detail", group: 0, label: t("openDetail"), icon: <IcDoc size={16} />, onSelect, aiId: aiId(AI_ITEM, r.id, "detail") });
   if (r.secureChatRoomId && act !== "chat") items.push({ key: "chat", group: 0, label: t("openChat"), hint: t("newTab"), icon: <IconChat {...px(16)} aria-hidden="true" />, href: chatHref(r, name), title: t("openChatTitle"), aiId: aiId(AI_ITEM, r.id, "chat") });
-  if (working && r.channel !== "chat" && act !== "meeting" && act !== "join") items.push({ key: "meeting", group: 0, label: t("startMeeting"), icon: <IcMeeting size={16} />, onSelect: onMeet, aiId: aiId(AI_ITEM, r.id, "meeting") });
+  if (working && canMeet && r.channel !== "chat" && act !== "meeting" && act !== "join") items.push({ key: "meeting", group: 0, label: t("startMeeting"), icon: <IcMeeting size={16} />, onSelect: onMeet, aiId: aiId(AI_ITEM, r.id, "meeting") });
   if (working) items.push({ key: "transfer", group: 1, label: `${t("transfer")}…`, icon: <IconUsers {...px(16)} aria-hidden="true" />, onSelect: () => onStep("transfer"), aiId: aiId(AI_ITEM, r.id, "transfer") });
   if (choices.length) items.push({ key: "status", group: 1, label: `${t("moveTo")}…`, icon: <IcClock size={16} />, onSelect: () => onStep("status"), aiId: aiId(AI_ITEM, r.id, "status") });
   if (!finished) items.push({ key: "cancel", group: 2, label: t("cancelAsk"), icon: <IcClose size={16} />, danger: true, onSelect: () => onStep("cancel"), aiId: aiId(AI_ITEM, r.id, "cancel") });

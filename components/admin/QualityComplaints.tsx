@@ -12,7 +12,7 @@ import {
   type QcAction,
 } from "@/lib/services/backend";
 import { subscribeUserEvents } from "@/lib/userSocket";
-import { ApiError, asDict, asNum, asStr, logApiError } from "@/lib/http";
+import { ApiError, asDict, asNum, asStr, isForbidden, logApiError } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { shortDateTime } from "@/lib/date";
 import { humanize, labelOf, statusLabel, statusMap, type StatusMap, type StatusToneRule } from "@/lib/labels";
@@ -75,6 +75,9 @@ export default function QualityComplaints({ onCount }: { onCount?: (n: number) =
   const [refreshing, setRefreshing] = useState(false);
   const refresh = useCallback(() => setReloadKey((k) => k + 1), []);
   const [openId, setOpenId] = useState("");
+  // A 403 on a ruling keeps its message; the ruling form is then not offered
+  // again in this session (the queue itself stays readable).
+  const [resolveDenied, setResolveDenied] = useState(false);
   const listed = useRef(false);
 
   useEffect(() => {
@@ -196,7 +199,7 @@ export default function QualityComplaints({ onCount }: { onCount?: (n: number) =
       )}
 
       {openRow ? (
-        <QcDetail key={openRow.id} row={openRow} label={label} statuses={qcMap} onClose={() => setOpenId("")} onDone={() => { setOpenId(""); refresh(); }} />
+        <QcDetail key={openRow.id} row={openRow} label={label} statuses={qcMap} canResolve={!resolveDenied} onDenied={() => setResolveDenied(true)} onClose={() => setOpenId("")} onDone={() => { setOpenId(""); refresh(); }} />
       ) : null}
     </section>
   );
@@ -209,12 +212,16 @@ function QcDetail({
   row,
   label,
   statuses,
+  canResolve,
+  onDenied,
   onClose,
   onDone,
 }: {
   row: QualityComplaintRow;
   label: (s: string, fallback?: string) => string;
   statuses: StatusMap;
+  canResolve: boolean;
+  onDenied: () => void;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -331,6 +338,7 @@ function QcDetail({
     } catch (e) {
       logApiError("quality complaint resolve", e);
       notify.error(t("resolveFailed"), { id: `qc-resolve-${row.id}`, error: e });
+      if (isForbidden(e)) onDenied();
     } finally {
       setBusy(false);
     }
@@ -344,9 +352,9 @@ function QcDetail({
       size="lg"
       initialFocus="title"
       busy={busy}
-      dirty={!settled && (!!action || !!note.trim())}
+      dirty={!settled && canResolve && (!!action || !!note.trim())}
       footer={
-        settled || mpOrderId ? undefined : (
+        settled || mpOrderId || !canResolve ? undefined : (
           <>
             <button type="button" className="btn btn--line" disabled={busy} onClick={onClose}>
               {tc("cancel")}
@@ -449,7 +457,7 @@ function QcDetail({
           </InlineAlert>
         ) : settled ? (
           <InlineAlert tone="success">{t("alreadySettled", { action: label(row.status, row.statusLabel) })}</InlineAlert>
-        ) : (
+        ) : !canResolve ? null : (
           <section className="qcdet__resolve" aria-labelledby={actLblId}>
             <b id={actLblId}>{t("resolveTitle")}</b>
             {/* Says what the chosen action actually does before it is done —

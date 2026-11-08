@@ -19,14 +19,15 @@ import { REVIEW_ACTION_ICON } from "./ReviewItem";
 import { SellerPicker } from "./SellerPicker";
 import "./cancellations.css";
 
-export type ResolveDialogProps = { review: CancellationReview; onClose: () => void; onResolved: (res: ReviewResolution) => void; onStale: () => void };
+// onForbidden: the backend refused this operator; Resolve leaves the card.
+export type ResolveDialogProps = { review: CancellationReview; onClose: () => void; onResolved: (res: ReviewResolution) => void; onStale: () => void; onForbidden?: () => void };
 
 type Done = { res: ReviewResolution; action: string; amount: number; sellerName: string };
 
 const ORDER: readonly ResolveField[] = ["action", "amount", "lawyer", "clientReason", "note"];
 const PAID = new Set(["paid", "succeeded", "captured", "completed"]);
 
-export function ResolveDialog({ review, onClose, onResolved, onStale }: ResolveDialogProps): ReactElement {
+export function ResolveDialog({ review, onClose, onResolved, onStale, onForbidden }: ResolveDialogProps): ReactElement {
   const t = useTranslations("admin.callCenter.cancellations");
   const te = useTranslations("enums");
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
@@ -106,6 +107,7 @@ export function ResolveDialog({ review, onClose, onResolved, onStale }: ResolveD
         return;
       }
       if (f.kind === "generic") logApiError("resolve cancellation review", e);
+      if (f.kind === "forbidden") onForbidden?.();
       window.setTimeout(() => document.getElementById(ids.error)?.scrollIntoView?.({ block: "nearest" }), 0);
       if (f.refresh) onStale();
     }

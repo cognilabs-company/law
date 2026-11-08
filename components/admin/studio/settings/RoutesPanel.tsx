@@ -12,6 +12,7 @@ import { ConstructorIcon, StudioEmpty, StudioLoading, useStudioLive } from "../b
 import { useStudioHuman } from "../human";
 import RouteChain from "../RouteChain";
 import { useStudioLabels } from "../sx/useStudioLabels";
+import { SxNote } from "../sx/layout/Note";
 import RouteModal, { type RouteMode, type RouteSaved } from "./RouteModal";
 import { LoadProblem, PanelHead, matchesTerms, type Phase } from "./ui";
 import { IconEdit, IconFolder, IconGlobe, IconPlus, IconRefresh, IconSearch, IconShieldCheck, IconSliders } from "@/components/icons";
@@ -35,6 +36,8 @@ export default function RoutesPanel() {
   const [st, setSt] = useState<State>({ phase: "loading", board: EMPTY, error: null });
   const [busy, setBusy] = useState(false);
   const [modal, setModal] = useState<RouteMode | null>(null);
+  // A route save the backend refused (403): no edit/setup/add is offered again.
+  const [denied, setDenied] = useState(false);
   const [q, setQ] = useState("");
   const [statusF, setStatusF] = useState("");
   const seq = useRef(0);
@@ -94,7 +97,7 @@ export default function RoutesPanel() {
   // What a level falls back to when it has no route of its own.
   const fallback = global && live(global) ? t("settings.routes.inheritsGlobal") : t("settings.routes.inheritsDefault");
 
-  const editBtn = (r: StudioRoute | null, mode: RouteMode, id: string) => (
+  const editBtn = (r: StudioRoute | null, mode: RouteMode, id: string) => denied ? null : (
     <button type="button" className={`btn btn--sm ${r ? "btn--soft" : "btn--line"}`} onClick={() => setModal(r ? { kind: "edit", route: r } : mode)} data-ai-id={aiId(`${AI}.edit`, id)} data-ai-type="button" data-ai-label={r ? t("settings.routes.edit") : t("settings.routes.setup")}>
       {r ? <IconEdit aria-hidden /> : <IconPlus aria-hidden />}
       {r ? t("settings.routes.edit") : t("settings.routes.setup")}
@@ -129,6 +132,7 @@ export default function RoutesPanel() {
         ) : (
           <>
             {st.error ? <LoadProblem error={st.error} onRetry={() => void refresh()} busy={busy} /> : null}
+            {denied ? <SxNote tone="info">{t("settings.routes.noPermission")}</SxNote> : null}
             <div className="stu-sroute stu-sroute--lvl">
               <span className="stu-slvl" aria-hidden>
                 <IconGlobe />
@@ -179,10 +183,12 @@ export default function RoutesPanel() {
 
           <section className="stu-card" data-ai-id={`${AI}.list`} data-ai-type="section" data-ai-label={t("settings.routes.ctorsTitle")}>
             <PanelHead icon={IconSliders} title={t("settings.routes.ctorsTitle")} text={t("settings.routes.ctorsText")}>
+              {denied ? null : (
               <button type="button" className="btn btn--pri btn--sm" onClick={() => setModal({ kind: "new", scope: "constructor" })} data-ai-id={`${AI}.create`} data-ai-type="button" data-ai-label={t("settings.routes.addOverride")}>
                 <IconPlus aria-hidden />
                 {t("settings.routes.addOverride")}
               </button>
+              )}
             </PanelHead>
             {own.length ? (
               <FilterBar
@@ -227,7 +233,7 @@ export default function RoutesPanel() {
         </>
       ) : null}
 
-      <RouteModal mode={modal} codes={codeChoices} groups={groups} taken={taken} superadmin={primarySuperadmin} onClose={() => setModal(null)} onSaved={(s) => void onSaved(s)} />
+      <RouteModal mode={modal} codes={codeChoices} groups={groups} taken={taken} superadmin={primarySuperadmin} onClose={() => setModal(null)} onSaved={(s) => void onSaved(s)} onDenied={() => setDenied(true)} />
     </div>
   );
 }

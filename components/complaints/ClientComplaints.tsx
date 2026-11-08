@@ -110,6 +110,8 @@ export default function ClientComplaints() {
   const [focusRef, setFocusRef] = useState(workParam);
   const [missingRef, setMissingRef] = useState(false);
   const [formOpen, setFormOpen] = useState(formParam);
+  // false once POST /complaints was refused (403): no "new complaint" entry is offered again.
+  const [canFile, setCanFile] = useState(true);
   const [draft, setDraft] = useState<ComplaintDraft>(() => emptyDraft(aboutParam));
   const [sentId, setSentId] = useState<string | null>(null);
   const [worksWanted, setWorksWanted] = useState(formParam);
@@ -320,7 +322,9 @@ export default function ClientComplaints() {
   });
   useAiSelection("complaint_status", stageOn);
   useAiSelection("complaint_kind", kindOn === "all" ? "" : kindOn);
-  useAiModal("complaints.new-modal", () => openForm());
+  useAiModal("complaints.new-modal", () => {
+    if (canFile) openForm();
+  });
 
   const fields: FilterField[] = [
     {
@@ -358,6 +362,7 @@ export default function ClientComplaints() {
           </div>
           <div className="ccp-acts ccp-acts--head">
             <CopilotLauncher variant="icon" surface="client_support" title={t("title")} label={tp("draftWithAi")} aiId="complaints.copilot" />
+            {canFile ? (
             <button
               type="button"
               className="btn btn--grad shk__new"
@@ -369,6 +374,7 @@ export default function ClientComplaints() {
               <IconPlus aria-hidden />
               {t("new")}
             </button>
+            ) : null}
           </div>
         </div>
         <ol className="shk__flow" aria-label={t("stepsLabel")}>
@@ -490,10 +496,12 @@ export default function ClientComplaints() {
               <EmptyArt />
               <b>{t("empty")}</b>
               <p>{t("emptyText")}</p>
-              <button type="button" className="btn btn--soft btn--sm" aria-haspopup="dialog" onClick={openForm}>
-                <IconPlus aria-hidden />
-                {t("new")}
-              </button>
+              {canFile ? (
+                <button type="button" className="btn btn--soft btn--sm" aria-haspopup="dialog" onClick={openForm}>
+                  <IconPlus aria-hidden />
+                  {t("new")}
+                </button>
+              ) : null}
             </div>
           ) : !shown.length ? (
             <div className="shk__state shk__state--flt">
@@ -551,7 +559,7 @@ export default function ClientComplaints() {
       >
         {openItem ? <ComplaintDetail key={openItem.key} item={openItem} /> : null}
       </Modal>
-      <Modal open={formOpen} onClose={closeForm} title={t("new")} aiId="complaints.new-modal">
+      <Modal open={formOpen && canFile} onClose={closeForm} title={t("new")} aiId="complaints.new-modal">
         <NewComplaintForm
           draft={draft}
           onDraft={setDraft}
@@ -559,6 +567,10 @@ export default function ClientComplaints() {
           onRetryWorks={retryWorks}
           onCancel={closeForm}
           onCreated={onCreated}
+          onForbidden={() => {
+            setCanFile(false);
+            closeForm();
+          }}
         />
       </Modal>
     </div>

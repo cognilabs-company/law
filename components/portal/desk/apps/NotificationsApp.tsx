@@ -1,5 +1,6 @@
 "use client";
 
+import { can } from "@/lib/permissions";
 import { useCallback, useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { hasAdminAccess, isCallCenterUser, useAuth } from "@/lib/auth";
@@ -87,7 +88,7 @@ export default function NotificationsApp({ openLink }: NativeProps) {
   const shown = rows.filter(({ n, title, body }) => !needle || [title, body, n.event].some((s) => s.toLowerCase().includes(needle)));
   const current = shown.find((r) => r.n.id === sel) ?? null;
   const unreadOf = (c: NotifTab) => (!counts ? 0 : c === "all" ? Object.values(counts).reduce((a, b) => a + b, 0) : (counts[c as keyof NotifCategoryCounts] ?? 0));
-  const linkOf = (n: RichNotification) => notifLink(n.event, n.category, n.data, session?.role ?? "", hasAdminAccess(session), isCallCenterUser(session));
+  const linkOf = (n: RichNotification) => notifLink(n.event, n.category, n.data, session?.role ?? "", hasAdminAccess(session), isCallCenterUser(session), (code) => can(session, code));
 
   async function read(n: RichNotification) {
     if (n.read) return;

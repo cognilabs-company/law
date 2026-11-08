@@ -193,6 +193,10 @@ function ActiveCall({ meta, call, onChange }: { meta: CrmMeta; call: CrmCall; on
   const tc = useTranslations("crm.ai");
   const crmErr = useCrmErr();
   const recordings = crmCan(meta, "crm.calls.recordings.view");
+  // Writing to a call (transcript lines, ending it) is calls work; a viewer
+  // without crm.calls.start only reads it. Live AI assist is crm.ai.use.
+  const canWork = crmCan(meta, "crm.calls.start");
+  const canAssist = crmCan(meta, "crm.ai.use");
   const [segments, setSegments] = useState<CallSegment[]>(call.transcript);
   const [who, setWho] = useState<"customer" | "operator">("customer");
   const [text, setText] = useState("");
@@ -226,7 +230,7 @@ function ActiveCall({ meta, call, onChange }: { meta: CrmMeta; call: CrmCall; on
     const now = Date.now() - t0;
     const seg: CallSegment = { speaker: who, text: line, startMs: Math.max(0, now - 3000), endMs: now };
     try {
-      const r = await appendTranscript(call.id, [seg], assist && !assisting);
+      const r = await appendTranscript(call.id, [seg], canAssist && assist && !assisting);
       setSegments((cur) => [...cur, seg]);
       setText("");
       if (r.aiRunId) {
@@ -279,36 +283,42 @@ function ActiveCall({ meta, call, onChange }: { meta: CrmMeta; call: CrmCall; on
         <div className="opx-cd-live__t">
           <b className="opx-cd-cap">{t("transcript")}</b>
           {segments.length ? <Transcript segments={segments} /> : <p className="opx-cd-sub">{t("noTranscript")}</p>}
-          <Seg
-            label={t("speaker")}
-            value={who}
-            onChange={setWho}
-            size="sm"
-            options={(["customer", "operator"] as const).map((w) => ({ value: w, label: t(`who.${w}`), icon: <IcUser size={14} /> }))}
-          />
-          <div className="opx-cd-live__input">
-            <textarea
-              className="opx-cd-input"
-              rows={2}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void send();
-                }
-              }}
-              placeholder={t("linePh")}
-              aria-label={t("line")}
-              maxLength={4000}
-            />
-            <button type="button" className="opx-pbtn" onClick={() => void send()} disabled={sending || !text.trim()} aria-busy={sending || undefined} aria-label={t("add")} title={t("add")}>
-              <IcSend size={16} />
-            </button>
-          </div>
-          <Check checked={assist} onChange={setAssist} disabled={assisting}>
-            {assisting ? t("assistBusy") : t("assist")}
-          </Check>
+          {canWork ? (
+            <>
+              <Seg
+                label={t("speaker")}
+                value={who}
+                onChange={setWho}
+                size="sm"
+                options={(["customer", "operator"] as const).map((w) => ({ value: w, label: t(`who.${w}`), icon: <IcUser size={14} /> }))}
+              />
+              <div className="opx-cd-live__input">
+                <textarea
+                  className="opx-cd-input"
+                  rows={2}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      void send();
+                    }
+                  }}
+                  placeholder={t("linePh")}
+                  aria-label={t("line")}
+                  maxLength={4000}
+                />
+                <button type="button" className="opx-pbtn" onClick={() => void send()} disabled={sending || !text.trim()} aria-busy={sending || undefined} aria-label={t("add")} title={t("add")}>
+                  <IcSend size={16} />
+                </button>
+              </div>
+              {canAssist ? (
+                <Check checked={assist} onChange={setAssist} disabled={assisting}>
+                  {assisting ? t("assistBusy") : t("assist")}
+                </Check>
+              ) : null}
+            </>
+          ) : null}
         </div>
         <aside className="opx-cd-live__ai" aria-live="polite">
           <b className="opx-cd-cap">
@@ -338,15 +348,17 @@ function ActiveCall({ meta, call, onChange }: { meta: CrmMeta; call: CrmCall; on
         </aside>
       </div>
 
-      <div className="opx-cd-callend">
-        <Seg label={t("endAs")} value={status} onChange={setStatus} options={CALL_END_STATUSES.map((s) => ({ value: s, label: t(`s.${s}`) }))} />
-        <TextArea label={t("summary")} value={summary} onChange={setSummary} rows={3} max={20000} placeholder={t("summaryPh")} required={status === "completed"} error={summaryErr} />
-        {status === "no_answer" ? <Note tone="info">{t("noAnswerSms", { n: meta.noAnswerSmsDelaySec ?? 180 })}</Note> : null}
-        <button type="button" className="opx-pbtn opx-pbtn--main opx-cd-self-start" onClick={() => void close()} disabled={closing} aria-busy={closing || undefined}>
-          <IcCheck size={16} />
-          {t("end")}
-        </button>
-      </div>
+      {canWork ? (
+        <div className="opx-cd-callend">
+          <Seg label={t("endAs")} value={status} onChange={setStatus} options={CALL_END_STATUSES.map((s) => ({ value: s, label: t(`s.${s}`) }))} />
+          <TextArea label={t("summary")} value={summary} onChange={setSummary} rows={3} max={20000} placeholder={t("summaryPh")} required={status === "completed"} error={summaryErr} />
+          {status === "no_answer" ? <Note tone="info">{t("noAnswerSms", { n: meta.noAnswerSmsDelaySec ?? 180 })}</Note> : null}
+          <button type="button" className="opx-pbtn opx-pbtn--main opx-cd-self-start" onClick={() => void close()} disabled={closing} aria-busy={closing || undefined}>
+            <IcCheck size={16} />
+            {t("end")}
+          </button>
+        </div>
+      ) : null}
     </section>
   );
 }

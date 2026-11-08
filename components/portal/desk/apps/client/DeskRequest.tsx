@@ -222,9 +222,11 @@ function Done({ v }: { v: DocRequestView }) {
           </div>
         ) : (
           <SettingRow icon={<IconHeadset />} title={t("reviewOpen")} desc={v.lawyerHeldNote || undefined}>
-            <Btn small disabled={!!v.lawyerHeldNote} onClick={() => r.setOpen(true)}>
-              {t("reviewOpen")}
-            </Btn>
+            {v.lawyerHeldNote ? null : (
+              <Btn small onClick={() => r.setOpen(true)}>
+                {t("reviewOpen")}
+              </Btn>
+            )}
           </SettingRow>
         )}
       </Group>

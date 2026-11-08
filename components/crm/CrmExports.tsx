@@ -50,7 +50,11 @@ export function ExportForm({ meta, onCreated }: { meta: CrmMeta; onCreated?: (j:
   const tsrc = useTranslations("crm.source");
   const label = useStatusLabel();
   const crmErr = useCrmError();
-  const [scope, setScope] = useState<string>("leads");
+  // Only the scopes whose data this viewer may read: leads and their
+  // activities with crm.leads.view, customers with crm.customers.view (the
+  // backend answers crm_export_scope_denied otherwise).
+  const scopes = EXPORT_SCOPES.filter((s) => (s === "customers" ? crmCan(meta, "crm.customers.view") : crmCan(meta, "crm.leads.view")));
+  const [scope, setScope] = useState<string>(scopes[0] ?? "leads");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [status, setStatus] = useState("");
@@ -92,7 +96,7 @@ export function ExportForm({ meta, onCreated }: { meta: CrmMeta; onCreated?: (j:
   return (
     <div className="crm-pop">
       <div className="crm-seg" role="group" aria-label={t("scopeLabel")}>
-        {EXPORT_SCOPES.map((s) => (
+        {scopes.map((s) => (
           <button key={s} type="button" aria-pressed={scope === s} onClick={() => setScope(s)}>
             {t(`scope.${s}`)}
           </button>

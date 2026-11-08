@@ -584,6 +584,7 @@ export default function CcxTasks() {
         <TaskSheet
           mode={form}
           limits={meta?.attachments}
+          canAssign={meta?.canAssign === true}
           onClose={() => setForm(null)}
           onSaved={saved}
           onError={(te, task) => {

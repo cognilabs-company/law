@@ -7,7 +7,7 @@ import { ApiError, errDetail, isForbidden, isOffline, isOtpExpired, isProviderUn
 import { OTP_RESEND_SEC, fmtClock, useOtpTimer } from "@/lib/useOtpTimer";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { dateTimeFull } from "@/lib/date";
-import { IconChat, IconCheck, IconClock, IconExternal, IconPhone, IconShieldCheck } from "@/components/icons";
+import { IconChat, IconCheck, IconClock, IconExternal, IconLock, IconPhone, IconShieldCheck } from "@/components/icons";
 import { Banner, Btn, Field, Group, Input, SettingRow } from "../../kit/kit";
 
 // Signing the finished contract inside LexGo, as a settings group: the code
@@ -25,6 +25,8 @@ export function DeskSign({ contractId }: { contractId: string }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [signed, setSigned] = useState<{ at: string; url: string } | null>(null);
+  // 403 on start/verify: not this contract's signer — the controls leave.
+  const [denied, setDenied] = useState(false);
   useEffect(() => {
     let alive = true;
     getContract(contractId)
@@ -48,6 +50,7 @@ export function DeskSign({ contractId }: { contractId: string }) {
       setStage("code");
     } catch (e) {
       if (isRateLimited(e)) otp.cooldown(retryAfterSec(e, OTP_RESEND_SEC));
+      if (isForbidden(e)) return setDenied(true);
       setErr(startErr(e));
     } finally {
       setBusy(false);
@@ -67,7 +70,11 @@ export function DeskSign({ contractId }: { contractId: string }) {
         otp.block(retryAfterSec(e, 15 * 60));
         setErr(errDetail(e) || tc("rateLimited"));
       } else if (isOtpExpired(e)) otp.expire();
-      else if (e instanceof ApiError && e.status >= 400 && e.status < 500) setErr(isForbidden(e) ? t("forbidden") : to("incorrect"));
+      else if (isForbidden(e)) {
+        setDenied(true);
+        setStage("idle");
+        otp.clear();
+      } else if (e instanceof ApiError && e.status >= 400 && e.status < 500) setErr(to("incorrect"));
       else setErr(isOffline(e) ? tc("offline") : t("verifyError"));
     } finally {
       setBusy(false);
@@ -83,6 +90,8 @@ export function DeskSign({ contractId }: { contractId: string }) {
             </Btn>
           ) : null}
         </SettingRow>
+      ) : denied ? (
+        <SettingRow icon={<IconLock />} title={t("title")} desc={t("forbidden")} />
       ) : stage === "code" ? (
         <div className="dxcz-id">
           <p className="dxcs-lead">{t("codeHint")}</p>

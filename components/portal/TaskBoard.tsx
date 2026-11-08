@@ -15,6 +15,7 @@ import { useAiField } from "@/lib/ai/registry";
 import { Skeleton, EmptyState, ErrorState } from "./DataState";
 import { IconClipboardCheck, IconChevronLeft, IconChevronRight, IconPlus, IconEdit, IconTrash, IconEye, IconAlert } from "@/components/icons";
 import { dateOnly } from "@/lib/date";
+import { isForbidden } from "@/lib/http";
 
 // Backend task statuses: todo · doing · review · done (+ blocked as a flag, deleted).
 const STAGES = ["todo", "doing", "review", "done"] as const;
@@ -58,6 +59,15 @@ export default function TaskBoard() {
   const [q, setQ] = useState("");
   const [hideDone, setHideDone] = useState(false);
   const [editing, setEditing] = useState<WorkTask | null | "new">(null);
+  // A 403 on any change means this account may not change its tasks: the
+  // board stays readable, every edit affordance leaves the screen.
+  const [readOnly, setReadOnly] = useState(false);
+  const deny = (e: unknown) => {
+    if (!isForbidden(e)) return false;
+    setReadOnly(true);
+    setEditing(null);
+    return true;
+  };
 
   const cols = useMemo(() => {
     const by: Record<Stage, WorkTask[]> = { todo: [], doing: [], review: [], done: [] };
@@ -98,7 +108,8 @@ export default function TaskBoard() {
       void res.refresh();
     } catch (e) {
       res.setData(before);
-      notify.error(t("moveFailed"), { id: nid(x), error: e, map: denied, action: { label: tn("retry"), onClick: () => void moveTo(x, stage) } });
+      if (deny(e)) notify.error(t("forbidden"), { id: nid(x) });
+      else notify.error(t("moveFailed"), { id: nid(x), error: e, map: denied, action: { label: tn("retry"), onClick: () => void moveTo(x, stage) } });
     } finally {
       setBusy(null);
     }
@@ -117,7 +128,8 @@ export default function TaskBoard() {
       notify.dismiss(nid(x));
       res.setData((cur) => cur.map((y) => (y.id === x.id ? { ...y, status: next } : y)));
     } catch (e) {
-      notify.error(t("statusFailed"), { id: nid(x), error: e, map: denied, action: { label: tn("retry"), onClick: () => void toggleBlocked(x) } });
+      if (deny(e)) notify.error(t("forbidden"), { id: nid(x) });
+      else notify.error(t("statusFailed"), { id: nid(x), error: e, map: denied, action: { label: tn("retry"), onClick: () => void toggleBlocked(x) } });
     } finally {
       setBusy(null);
     }
@@ -136,7 +148,8 @@ export default function TaskBoard() {
           await deleteTask(x.id);
           return true;
         } catch (e) {
-          notify.error(t("deleteFailed"), { id: nid(x), error: e, map: denied });
+          if (deny(e)) notify.error(t("forbidden"), { id: nid(x) });
+          else notify.error(t("deleteFailed"), { id: nid(x), error: e, map: denied });
           return false;
         } finally {
           setBusy(null);
@@ -154,7 +167,7 @@ export default function TaskBoard() {
         <b>{t("title")}</b>
         <span className="ahdr">
           <span className="advmuted">{t("count", { n: res.data.length, open: res.data.filter((x) => stageOf(x.status) !== "done").length })}</span>
-          <button className="btn btn--pri btn--sm" type="button" onClick={() => setEditing("new")} data-ai-target="button:new-task"><IconPlus />{t("add")}</button>
+          {readOnly ? null : <button className="btn btn--pri btn--sm" type="button" onClick={() => setEditing("new")} data-ai-target="button:new-task"><IconPlus />{t("add")}</button>}
         </span>
       </div>
       <p className="ppanel__note">{t("lead")}</p>
@@ -194,9 +207,9 @@ export default function TaskBoard() {
               <div
                 className={`pipe__col pipe__col--${s === "todo" ? "new" : s === "doing" ? "contacted" : s === "review" ? "proposal" : "won"}${overStage === s ? " pipe__col--over" : ""}`}
                 key={s}
-                onDragOver={(e) => { if (dragId) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropInstant(false); setOverStage(s); } }}
+                onDragOver={(e) => { if (dragId && !readOnly) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropInstant(false); setOverStage(s); } }}
                 onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOverStage((cur) => (cur === s ? null : cur)); }}
-                onDrop={(e) => { e.preventDefault(); const x = res.data.find((z) => z.id === dragId); if (x) void moveTo(x, s); setDragId(null); setDropInstant(true); setOverStage(null); }}
+                onDrop={(e) => { e.preventDefault(); if (readOnly) return; const x = res.data.find((z) => z.id === dragId); if (x) void moveTo(x, s); setDragId(null); setDropInstant(true); setOverStage(null); }}
               >
                 <div className="pipe__head">
                   <span className="pipe__dot" />
@@ -216,7 +229,7 @@ export default function TaskBoard() {
                         <div
                           className={`pipe__card task${dragId === x.id ? " pipe__card--drag" : ""}${overdue ? " task--overdue" : ""}${blocked ? " task--blocked" : ""}`}
                           key={x.id}
-                          draggable
+                          draggable={!readOnly}
                           onDragStart={(e) => { setDragId(x.id); e.dataTransfer.effectAllowed = "move"; }}
                           onDragEnd={() => { setDragId(null); setOverStage(null); }}
                         >
@@ -231,7 +244,7 @@ export default function TaskBoard() {
                             {x.checklist?.length ? <span className="pipe__meta">{t("checklistCount", { done, total: x.checklist.length })}</span> : null}
                             {blocked ? <span className="pipe__meta task__blocked">{t("blocked")}</span> : null}
                           </div>
-                          <div className="pipe__actions">
+                          {readOnly ? null : <div className="pipe__actions">
                             <button className="pipe__mv" disabled={si === 0 || busy === x.id} onClick={() => move(x, -1)} aria-label={t("back")}><IconChevronLeft /></button>
                             <span className="task__tools">
                               <button type="button" className="aitem__act" onClick={() => setEditing(x)} aria-label={t("edit")} title={t("edit")}><IconEdit /></button>
@@ -239,7 +252,7 @@ export default function TaskBoard() {
                               <button type="button" className="aitem__act aitem__act--danger" onClick={() => void askDelete(x)} aria-label={t("delete")} title={t("delete")} disabled={busy === x.id}><IconTrash /></button>
                             </span>
                             <button className="pipe__mv" disabled={si === STAGES.length - 1 || busy === x.id} onClick={() => move(x, 1)} aria-label={t("fwd")}><IconChevronRight /></button>
-                          </div>
+                          </div>}
                         </div>
                       );
                     })
@@ -252,8 +265,9 @@ export default function TaskBoard() {
       )}
 
       <TaskModal
-        target={editing}
+        target={readOnly ? null : editing}
         onClose={() => setEditing(null)}
+        onForbidden={() => (setReadOnly(true), setEditing(null))}
         onSaved={(x, isNew) => {
           res.setData((cur) => (isNew ? [x, ...cur] : cur.map((y) => (y.id === x.id ? x : y))));
           setEditing(null);
@@ -264,7 +278,7 @@ export default function TaskBoard() {
   );
 }
 
-function TaskModal({ target, onClose, onSaved }: { target: WorkTask | "new" | null; onClose: () => void; onSaved: (x: WorkTask, isNew: boolean) => void }) {
+function TaskModal({ target, onClose, onSaved, onForbidden }: { target: WorkTask | "new" | null; onClose: () => void; onSaved: (x: WorkTask, isNew: boolean) => void; onForbidden: () => void }) {
   const t = useTranslations("portal.tasks");
   const isNew = target === "new";
   const [form, setForm] = useState<Form & { key: string }>({ ...EMPTY, key: "" });
@@ -288,7 +302,10 @@ function TaskModal({ target, onClose, onSaved }: { target: WorkTask | "new" | nu
       notify.success(isNew ? t("created") : t("saved"), { id: nid, body: x.title || body.title });
       onSaved(x, isNew);
     } catch (err) {
-      notify.error(isNew ? t("createFailed") : t("saveFailed"), { id: nid, error: err, map: { 403: t("forbidden") } });
+      if (isForbidden(err)) {
+        notify.error(t("forbidden"), { id: nid });
+        onForbidden();
+      } else notify.error(isNew ? t("createFailed") : t("saveFailed"), { id: nid, error: err, map: { 403: t("forbidden") } });
     } finally {
       setSaving(false);
     }

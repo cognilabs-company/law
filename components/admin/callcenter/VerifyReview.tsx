@@ -12,7 +12,9 @@ import { useRouter } from "@/i18n/navigation";
 import { startCall } from "@/lib/services/backend";
 import { dateOnly } from "@/lib/date";
 import { labelIn } from "@/lib/backendLabel";
-import { ApiError, asDict, asStr, errDetail, isAborted, logApiError } from "@/lib/http";
+import { ApiError, asDict, asStr, errDetail, isAborted, isForbidden, logApiError } from "@/lib/http";
+import { useCan } from "@/lib/useCan";
+import { REVIEW_PERMISSION } from "@/lib/permissions";
 import { canApprove, type CheckItem, type CheckRows, type CheckVerdict, type DiffRow, type ExperienceEvidence, type ExperienceReviewEntry, type HistoryRow, type ReviewDecision, type ReviewCallKind, type ReviewRoom, type ReviewSeller } from "@/lib/services/experience";
 import { staffChatHref } from "./cancellations/model";
 import StaffPerson from "@/components/ui/StaffPerson";
@@ -102,6 +104,15 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
   const [spot, setSpot] = useState<ErrSpot>("");
   const [pub, setPub] = useState("");
   const pubGuard = useGuardedField(pub, setPub, "any");
+  // Deciding, the checklist and the review room are marketplace.experience.review
+  // (final contract 2026-10-29 §1); the room's own call_types say which calls
+  // it allows. A 403 takes the controls away for the rest of the visit, its
+  // message stays.
+  const canDo = useCan();
+  const [refused, setRefused] = useState(false);
+  const [callRefused, setCallRefused] = useState(false);
+  const mayReview = canDo(REVIEW_PERMISSION) && !refused;
+  const mayCall = mayReview && !callRefused;
 
   useEffect(() => {
     const ctl = new AbortController();
@@ -149,6 +160,7 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
     } catch (e) {
       sending.current = false;
       logApiError(`${source.kind}.review`, e);
+      if (isForbidden(e)) setRefused(true);
       const code = (e instanceof ApiError ? asStr(asDict(e.data.detail).code) || e.code : "") ?? "";
       const at = reviewErrorSpot(code);
       setSpot(at);
@@ -173,6 +185,7 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
       router.push(`${href}${href.includes("?") ? "&" : "?"}join=${encodeURIComponent(c.id)}`);
     } catch (e) {
       logApiError(`${source.kind}.call`, e);
+      if (isForbidden(e)) setCallRefused(true);
       setErr(errDetail(e) || t("room.callFailed"));
       setCalling("");
     }
@@ -186,6 +199,7 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
       setRoom(close && room && source.closeRoom ? await source.closeRoom(room) : await source.openRoom());
     } catch (e) {
       logApiError(`${source.kind}.room`, e);
+      if (isForbidden(e)) setRefused(true);
       setErr(errDetail(e) || t("roomFailed"));
     } finally {
       setRoomBusy(false);
@@ -205,6 +219,8 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
     );
   if (!detail) return <div className="vrf__sk" aria-busy="true" />;
   const pending = detail.pending;
+  // A decided record, or a reviewer without the right, reads without controls.
+  const decide = pending && mayReview;
   return (
     <div className="vrf sx" data-ai-target={`callcenter:${source.kind}-review`}>
       {detail.seller ? <SellerCard seller={detail.seller} /> : null}
@@ -288,7 +304,7 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
               {room.readOnly ? t("room.history") : t("room.go")}
             </SxLinkButton>
           ) : null}
-          {room && !room.readOnly
+          {room && !room.readOnly && mayCall
             ? room.callTypes.map((k) => (
                 <SxButton key={k} size="sm" variant="secondary" busy={calling === k} disabled={!!calling} onClick={() => void call(k)}>
                   {k === "video" ? <IconVideo aria-hidden="true" /> : <IconPhone aria-hidden="true" />}
@@ -297,10 +313,12 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
               ))
             : null}
           {!room ? (
-            <SxButton size="sm" variant="primary" busy={roomBusy} onClick={() => void roomAction(false)} disabled={!pending}>
-              {t("room.start")}
-            </SxButton>
-          ) : !room.readOnly ? (
+            decide ? (
+              <SxButton size="sm" variant="primary" busy={roomBusy} onClick={() => void roomAction(false)}>
+                {t("room.start")}
+              </SxButton>
+            ) : null
+          ) : !room.readOnly && mayReview ? (
             <SxButton size="sm" variant="secondary" busy={roomBusy} onClick={() => void roomAction(true)}>
               {t("room.close")}
             </SxButton>
@@ -332,21 +350,25 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
                   <b>{name}</b>
                   {c.hint ? <small>{c.hint}</small> : null}
                 </div>
-                <div className="vrf__v" role="radiogroup" aria-label={name}>
-                  {VERDICTS.map((v) => {
-                    const Icon = VERDICT_ICON[v];
-                    return (
-                      <button key={v} type="button" role="radio" aria-checked={row?.verdict === v} data-v={v} disabled={!pending} onClick={() => set(c.key, { verdict: row?.verdict === v ? "" : v })}>
-                        <Icon aria-hidden="true" />
-                        {t(`verdict.${v}`)}
-                      </button>
-                    );
-                  })}
-                </div>
+                {decide ? (
+                  <div className="vrf__v" role="radiogroup" aria-label={name}>
+                    {VERDICTS.map((v) => {
+                      const Icon = VERDICT_ICON[v];
+                      return (
+                        <button key={v} type="button" role="radio" aria-checked={row?.verdict === v} data-v={v} onClick={() => set(c.key, { verdict: row?.verdict === v ? "" : v })}>
+                          <Icon aria-hidden="true" />
+                          {t(`verdict.${v}`)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
                 {/* A comment for every item (TSK-659111); required in spirit
                     after "No", optional otherwise. */}
-                {pending || row?.note ? (
-                  <input className="vrf__note" value={row?.note ?? ""} onChange={(e) => set(c.key, { note: e.target.value })} placeholder={row?.verdict === "rejected" ? t("notePh") : t("notePhOptional")} aria-label={t("noteFor", { item: name })} disabled={!pending} maxLength={500} />
+                {decide ? (
+                  <input className="vrf__note" value={row?.note ?? ""} onChange={(e) => set(c.key, { note: e.target.value })} placeholder={row?.verdict === "rejected" ? t("notePh") : t("notePhOptional")} aria-label={t("noteFor", { item: name })} maxLength={500} />
+                ) : row?.note ? (
+                  <small className="vrf__muted">{row.note}</small>
                 ) : null}
               </li>
             );
@@ -389,10 +411,12 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
         </ol>
       ) : null}
 
+      {!decide && err ? <Notice ok={false} msg={err} /> : null}
+      {decide ? (
       <section className="vrf__decide" aria-label={t("decision.title")}>
         <div className="vrf__dec" role="radiogroup" aria-label={t("decision.title")}>
           {(["approved", "changes_requested", "rejected"] as const).map((d) => (
-            <button key={d} type="button" role="radio" aria-checked={decision === d} data-d={d} disabled={!pending || !!blocked || (d === "approved" && !approvable)} onClick={() => setDecision(d)}>
+            <button key={d} type="button" role="radio" aria-checked={decision === d} data-d={d} disabled={!!blocked || (d === "approved" && !approvable)} onClick={() => setDecision(d)}>
               <b>{t(`decision.${d}`)}</b>
               <small>{d === "approved" && !approvable ? t("approveNeeds") : t(`decisionHint.${d}`)}</small>
             </button>
@@ -427,7 +451,7 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
           <SxButton
             variant={decision === "rejected" ? "danger" : "primary"}
             busy={busy}
-            disabled={!pending || !!blocked || !decision || (decision === "approved" && (!approvable || pubMissing || pubGuard.blocked)) || reasonShort}
+            disabled={!!blocked || !decision || (decision === "approved" && (!approvable || pubMissing || pubGuard.blocked)) || reasonShort}
             onClick={() => void submit()}
           >
             <IconFileText aria-hidden="true" />
@@ -435,6 +459,7 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
           </SxButton>
         </div>
       </section>
+      ) : null}
     </div>
   );
 }

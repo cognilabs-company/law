@@ -339,9 +339,14 @@ export default function LawyersSection({
               <button className="btn btn--ghost btn--sm" type="button" onClick={() => openPrivateChat(l)} disabled={chatBusy === l.userId} title={t("card.privateChatHint")}>
                 {chatBusy === l.userId ? t("card.opening") : t("card.privateChat")}
               </button>
-              <button className="btn btn--pri btn--sm" type="button" onClick={() => choose(l)}>
-                {t("card.choose")}
-              </button>
+              {/* Ordering runs in the client portal (/portal/client/services):
+                  a guest is sent to sign in, a signed-in non-client account
+                  has no such page and is not offered it. */}
+              {!session || session.role === "client" ? (
+                <button className="btn btn--pri btn--sm" type="button" onClick={() => choose(l)}>
+                  {t("card.choose")}
+                </button>
+              ) : null}
             </span>
           </div>
           {hoursNote && hoursNote.id === l.userId ? (

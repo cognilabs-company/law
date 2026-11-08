@@ -6,7 +6,7 @@ import { shortDateTime, timeOnly } from "@/lib/date";
 import { asArr, asDict, asStr, isAborted, logApiError } from "@/lib/http";
 import { humanize } from "@/lib/labels";
 import { toast } from "@/lib/toast";
-import { AI_LANGUAGES, AI_RUN_TYPES, aiCardsOf, aiRunDone, applyAiRun, crmCode, getAiRun, listAiRuns, startAiRun, type AiCard, type CrmAiRun, type CrmLead, type CrmMeta } from "@/lib/services/crm";
+import { AI_LANGUAGES, AI_RUN_TYPES, aiCardsOf, aiRunDone, applyAiRun, crmCan, crmCode, getAiRun, listAiRuns, startAiRun, type AiCard, type CrmAiRun, type CrmLead, type CrmMeta } from "@/lib/services/crm";
 import Sheet from "../../panel/Sheet";
 import { Note, PanelFoot } from "../../panel/bits";
 import { CopyButton } from "../../now/NowFocus";
@@ -311,7 +311,7 @@ export function AiSheet({ meta, lead, write, refreshKey, onSmsDraft, onClose }: 
                                 {c.kind === "draft" ? (
                                   <span className="opx-cd-sug__acts">
                                     <CopyButton value={valueOf(c)} label={pathLabel(c.path)} />
-                                    {c.path === "sms_draft" ? (
+                                    {c.path === "sms_draft" && crmCan(meta, "crm.sms.manage") ? (
                                       <button type="button" className="opx-pbtn opx-cd-btn-sm" onClick={() => onSmsDraft(valueOf(c))}>
                                         <IcSend size={15} />
                                         {t("toSms")}

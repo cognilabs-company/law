@@ -10,6 +10,7 @@ import { initials } from "@/lib/lawyers";
 import { applyTheme, readThemePref } from "@/lib/theme";
 import { useCcxPrefs, setCcxPrefs } from "@/lib/ccx/prefs";
 import { useCcShift } from "@/lib/callcenter/ccOperator";
+import { useCan } from "@/lib/useCan";
 import { VIEW_NAV_KEY } from "@/lib/ccx/routes";
 import { useSearchParams } from "next/navigation";
 import CcxBackground from "./CcxBackground";
@@ -73,6 +74,11 @@ export default function CcxShell({ nav: navIn, activeHref, title, openCount, use
   const [look, setLook] = useState(false);
   const [menu, setMenu] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  // Client lookup (GET /call-center/clients/search): call-center operators
+  // (the call_center role or callcenter.access) or users.manage. The duty
+  // lawyer has neither, so no search box, button or Ctrl+K for them.
+  const canDo = useCan();
+  const canSearch = canDo(["callcenter.access", "users.manage"], { roles: ["call_center"] });
   const calm = useSyncExternalStore(subscribeCalm, readCalm, serverCalm);
   const search = useRef<CcxSearchHandle>(null);
   const menuBox = useRef<HTMLDivElement>(null);
@@ -146,6 +152,7 @@ export default function CcxShell({ nav: navIn, activeHref, title, openCount, use
   }, [intro]);
 
   useEffect(() => {
+    if (!canSearch) return;
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
@@ -155,7 +162,7 @@ export default function CcxShell({ nav: navIn, activeHref, title, openCount, use
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [canSearch]);
 
   useEffect(() => {
     if (!menu) return;
@@ -214,21 +221,23 @@ export default function CcxShell({ nav: navIn, activeHref, title, openCount, use
         </nav>
 
         <div className={`opx-top__search${searchOpen ? " is-open" : ""}`}>
-          <CcxSearch ref={search} enabled />
+          {canSearch ? <CcxSearch ref={search} enabled /> : null}
         </div>
 
         <div className="opx-top__tools">
-          <button
-            type="button"
-            className="opx-ibtn opx-top__find"
-            onClick={() => {
-              setSearchOpen((v) => !v);
-              window.requestAnimationFrame(() => search.current?.focus());
-            }}
-            aria-label={tx("search.placeholder")}
-          >
-            <IcSearch size={19} />
-          </button>
+          {canSearch ? (
+            <button
+              type="button"
+              className="opx-ibtn opx-top__find"
+              onClick={() => {
+                setSearchOpen((v) => !v);
+                window.requestAnimationFrame(() => search.current?.focus());
+              }}
+              aria-label={tx("search.placeholder")}
+            >
+              <IcSearch size={19} />
+            </button>
+          ) : null}
           <CcxStatus />
           <div className="opx-me" ref={menuBox}>
             <button type="button" className="opx-me__btn" aria-expanded={menu} aria-haspopup="menu" onClick={() => setMenu((v) => !v)} aria-label={tx("account")}>

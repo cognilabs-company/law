@@ -10,6 +10,7 @@ import { EntitySelect, HrmEmpty, HrmError, HrmHead, HrmLoading, HrmPanel, HrmSta
 import { useHrmDirectory } from "@/components/internal/useHrmDirectory";
 import { apiMessage } from "@/components/internal/live/bits";
 import { hrmGroups, hrmRoute, useHrmText } from "./text";
+import { useHrmAccess } from "./access";
 
 // Every HRM module of the catalog in one place (spec §11, §15): the whole
 // organisation's numbers, the module cards grouped as HR thinks of them,
@@ -21,6 +22,9 @@ export default function HrmHub() {
   const cat = useHrmCatalog();
   const { t, module } = useHrmText();
   const dir = useHrmDirectory();
+  // A module whose page the account may not open has no card (owner law
+  // 2026-11-08; the same permission the HRM menu puts on it).
+  const { canModule } = useHrmAccess();
   const [range, setRange] = useState({ unitId: "", dateFrom: "", dateTo: "" });
   const [tick, setTick] = useState(0);
   const [ov, setOv] = useState<{ key: string; total: number; pending: number; domains: HrmSummary[]; err: string } | null>(null);
@@ -102,19 +106,17 @@ export default function HrmHub() {
         </div>
       ) : null}
       {data ? (
-        hrmGroups(data.modules.map((m) => m.key)).map((g) => (
-          <section key={g.key} className="hrmc-group">
-            <h3>{t(`groups.${g.key}`)}</h3>
-            <div className="hrmc-cards">
-              {g.domains.map((d) => {
-                const m = moduleOf(data, d);
-                if (!m) return null;
-                const s = of(d);
-                return <ModuleCard key={d} domain={d} types={m.types.length} summary={s} />;
-              })}
-            </div>
-          </section>
-        ))
+        hrmGroups(data.modules.map((m) => m.key).filter(canModule)).map((g) => {
+          const cards = g.domains.filter((d) => canModule(d) && moduleOf(data, d));
+          return cards.length ? (
+            <section key={g.key} className="hrmc-group">
+              <h3>{t(`groups.${g.key}`)}</h3>
+              <div className="hrmc-cards">
+                {cards.map((d) => <ModuleCard key={d} domain={d} types={moduleOf(data, d)?.types.length ?? 0} summary={of(d)} />)}
+              </div>
+            </section>
+          ) : null;
+        })
       ) : (
         <HrmPanel>
           <HrmLoading rows={6} />

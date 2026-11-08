@@ -98,6 +98,7 @@ export default function SellerHome({ role }: { role: "advocate" | "lawyer" }) {
   useLxHeader(t("welcome", { name: first }));
 
   const live = !!cabinet.data && !cabinet.data.limitedAccess;
+  const acceptOrders = cabinet.data ? cabinet.data.actions.acceptOrders : true;
   const orders = useResource(() => (live ? listOpenOrders() : Promise.resolve([] as BackendOrder[])), [live]);
   const ledger = useResource(() => (live ? listMarketplaceOrders("seller") : Promise.resolve([] as MarketOrder[])), [live]);
   const notes = useResource(() => (live ? listNotifications() : Promise.resolve([] as Notification[])), [live]);
@@ -147,25 +148,38 @@ export default function SellerHome({ role }: { role: "advocate" | "lawyer" }) {
 
   const show = (href: string) => !hides(href);
 
+  const newOrdersCard = (
+    <>
+      <span className="lxs-kpi__top">
+        <span className="lxs-kpi__ic"><Inbox /></span>
+        {acceptOrders ? <span className="lxs-kpi__go"><ArrowUpRight /></span> : null}
+      </span>
+      <span className="lxs-kpi__l">{t("kpi.newOrders")}</span>
+      <b className="lxs-kpi__v">{orders.status === "loading" ? "…" : waiting.length}</b>
+      {firstLeft !== null && firstLeft > 0 ? (
+        <span className="lxs-kpi__chip"><Hourglass />{t("kpi.nearest")} <b>{t("kpi.left", { time: fmtDuration(firstLeft / 1000, locale) })}</b></span>
+      ) : (
+        <span className="lxs-kpi__note">{waiting.length ? "" : t("kpi.noneWaiting")}</span>
+      )}
+    </>
+  );
+
   return (
     <div className="lxs">
       {/* Shown only while the advocate's license still needs to be sent. */}
       {role === "advocate" ? <LicenseNudge /> : null}
       {/* KPI row */}
       <div className="lxs-kpis">
-        <Link href={role === "advocate" ? `${base}/opportunities` : `${base}/marketplace`} className="lxs-kpi lxs-kpi--pri">
-          <span className="lxs-kpi__top">
-            <span className="lxs-kpi__ic"><Inbox /></span>
-            <span className="lxs-kpi__go"><ArrowUpRight /></span>
-          </span>
-          <span className="lxs-kpi__l">{t("kpi.newOrders")}</span>
-          <b className="lxs-kpi__v">{orders.status === "loading" ? "…" : waiting.length}</b>
-          {firstLeft !== null && firstLeft > 0 ? (
-            <span className="lxs-kpi__chip"><Hourglass />{t("kpi.nearest")} <b>{t("kpi.left", { time: fmtDuration(firstLeft / 1000, locale) })}</b></span>
-          ) : (
-            <span className="lxs-kpi__note">{waiting.length ? "" : t("kpi.noneWaiting")}</span>
-          )}
-        </Link>
+        {/* No right to answer orders (cabinet available_actions.accept_orders
+            false): the count stays readable, the way into the orders page
+            (hidden from the menu too) does not. */}
+        {acceptOrders ? (
+          <Link href={role === "advocate" ? `${base}/opportunities` : `${base}/marketplace`} className="lxs-kpi lxs-kpi--pri">
+            {newOrdersCard}
+          </Link>
+        ) : (
+          <div className="lxs-kpi lxs-kpi--pri">{newOrdersCard}</div>
+        )}
         <Link href={`${base}/calendar`} className="lxs-kpi">
           <span className="lxs-kpi__top">
             <span className="lxs-kpi__ic"><CalendarClock /></span>

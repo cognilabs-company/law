@@ -59,17 +59,16 @@ test("the primary superadmin grants the status with a reason and a period; the h
   await expect(dlg).toContainText("Hozir Superadvokat");
 });
 
-test("another superadmin sees the lock up front; the history is not asked for", async ({ page }) => {
-  // /auth/me can_set_superadvokat=false (gaps closed §16).
+test("another superadmin gets no Superadvokat action at all; the history is not asked for", async ({ page }) => {
+  // /auth/me can_set_superadvokat=false (gaps closed §16). Owner law
+  // 2026-11-08: an action the account can't do is not shown — no button,
+  // so no locked dialog either.
   const mock = await mockBackend(page, await signIn(page, { ...ADMIN, primary: false }, routesWith(() => ({ status: 403, json: { detail: { code: "primary_superadmin_required" } } }), []) as never));
   await page.goto("/uz/admin/marketplace");
   await page.getByRole("tab", { name: "Sotuvchilar" }).click();
-  await page.getByRole("button", { name: "Superadvokat" }).click();
-  const dlg = page.getByRole("dialog", { name: "Superadvokat maqomi" });
-  await expect(dlg).toContainText("Faqat bosh superadmin o'zgartiradi");
-  await expect(dlg).toContainText("Bu maqomni faqat asosiy superadmin o'zgartira oladi");
-  await expect(dlg.getByRole("button", { name: "Maqom berish" }).last()).toBeDisabled();
-  await expect(dlg.getByRole("textbox", { name: "Sabab" })).toBeDisabled();
+  await expect(page.getByText("Aziz Karimov").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Superadvokat" })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Superadvokat maqomi" })).toHaveCount(0);
   expect(mock.calls.some((c) => c.path.endsWith("/superadvokat/history"))).toBe(false);
   expect(mock.calls.some((c) => c.method === "PUT")).toBe(false);
 });

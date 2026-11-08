@@ -9,6 +9,7 @@ import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import Menu, { type MenuEntry } from "@/components/ui/Menu";
 import { useRouter } from "@/i18n/navigation";
 import { getStudioConstructorDetail, studioDetailSnapshot, useStudioAccess, useStudioRegistry, type StudioConstructor, type StudioCreationJourney, type StudioJourneyType } from "@/lib/services/studio";
+import { isForbidden } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { SxButton, SxLinkButton } from "../Button";
 import { eligibilityProducerOf } from "../ctor/sources";
@@ -263,7 +264,7 @@ export function Wizard({ id }: { id: string }): ReactElement {
   const total = journey ? (journey.totalCount ?? steps.length) : 0;
   const percent = journey?.progress ?? null;
   const progressText = journey ? t("sx.journeyRun.progress", { done: journey.completedCount, total }) : "";
-  const allowed = canAct ? journeyActionsFor(journey?.status ?? "", caps) : [];
+  const allowed = canAct ? journeyActionsFor(journey?.status ?? "", caps).filter((a) => !wj.refused.has(a)) : [];
   const menuActions = allowed.filter((a) => a !== "restore" || !closed);
   const canRestore = allowed.includes("restore");
   const actFailed = wj.actError ? errText(wj.actError) : null;
@@ -418,25 +419,32 @@ export function Wizard({ id }: { id: string }): ReactElement {
   } else {
     const outline = steps.map((s) => ({ id: s.key, label: s.required || s.submit ? s.label : t("sx.journeyRun.optionalLabel", { name: s.label }), state: outlineStateOf(s.state, s.key, errorSteps) }));
     const blockedByPatch = wj.patchError !== null && wj.patchError !== undefined;
+    // A journey save the backend refused (403): its message stays, but the
+    // next step and the retry leave, since neither can succeed.
+    const patchDenied = blockedByPatch && isForbidden(wj.patchError);
     const patchText = blockedByPatch ? errText(wj.patchError) : null;
     const isReview = !!activeStep?.submit;
     const unfinishedNames = unfinished.filter((k) => k !== "?").map((k) => steps.find((s) => s.key === k)?.label ?? k);
     actions = (
       <>
-        <SxButton variant="secondary" className="sx-jr__later" disabled={busy} onClick={() => apiRef.current?.later()} aiId={`${AI}.later`}>
-          {t("sx.journeyRun.later")}
-        </SxButton>
-        <SxButton
-          variant="primary"
-          busy={busy}
-          aria-disabled={blockedByPatch || !flags.ready || undefined}
-          onClick={() => {
-            if (!blockedByPatch && !busy && flags.ready) apiRef.current?.primary();
-          }}
-          aiId={`${AI}.next`}
-        >
-          {t(isReview ? "sx.editor.submit" : "sx.journeyRun.saveNext")}
-        </SxButton>
+        {patchDenied ? null : (
+          <SxButton variant="secondary" className="sx-jr__later" disabled={busy} onClick={() => apiRef.current?.later()} aiId={`${AI}.later`}>
+            {t("sx.journeyRun.later")}
+          </SxButton>
+        )}
+        {patchDenied ? null : (
+          <SxButton
+            variant="primary"
+            busy={busy}
+            aria-disabled={blockedByPatch || !flags.ready || undefined}
+            onClick={() => {
+              if (!blockedByPatch && !busy && flags.ready) apiRef.current?.primary();
+            }}
+            aiId={`${AI}.next`}
+          >
+            {t(isReview ? "sx.editor.submit" : "sx.journeyRun.saveNext")}
+          </SxButton>
+        )}
         {menu(menuActions)}
       </>
     );
@@ -475,9 +483,11 @@ export function Wizard({ id }: { id: string }): ReactElement {
             tone="error"
             title={t("sx.journeyRun.patchFail")}
             action={
-              <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} busy={wj.patching} onClick={() => void retry()} aiId={`${AI}.retry`}>
-                {t("sx.ui.retry")}
-              </SxButton>
+              patchDenied ? undefined : (
+                <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} busy={wj.patching} onClick={() => void retry()} aiId={`${AI}.retry`}>
+                  {t("sx.ui.retry")}
+                </SxButton>
+              )
             }
           >
             {patchText?.text}

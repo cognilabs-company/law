@@ -1,5 +1,6 @@
 import type { GuidePage, GuideRole, RegistryTarget } from "../types";
 import { normPath } from "../routes";
+import { guidePageAllowed, guideStepAllowed } from "../access";
 import { CLIENT_PAGES } from "./client";
 import { SELLER_PAGES } from "./seller";
 import { ADMIN_PAGES } from "./admin";
@@ -20,7 +21,15 @@ const toRegex = (pattern: string) =>
 
 const COMPILED = GUIDE_PAGES.map((page) => ({ page, rules: page.match.map((m) => ({ m, re: toRegex(m) })) }));
 
-const fits = (page: GuidePage, role: GuideRole) => !page.roles || page.roles.includes(role);
+// Role first, then the account's own permissions (lib/guide/access.ts): a
+// page or a step the session may not use is never part of a tour or of the
+// AI instructor's targets.
+const fits = (page: GuidePage, role: GuideRole) => (!page.roles || page.roles.includes(role)) && guidePageAllowed(page.id);
+const allowedTour = (page: GuidePage) => page.tour.filter((s) => guideStepAllowed(s.target));
+const withAllowedTour = (page: GuidePage): GuidePage => {
+  const tour = allowedTour(page);
+  return tour.length === page.tour.length ? page : { ...page, tour };
+};
 
 export function pageFor(path: string, role: GuideRole): GuidePage | null {
   const p = normPath(path);
@@ -31,13 +40,14 @@ export function pageFor(path: string, role: GuideRole): GuidePage | null {
       if (re.test(p) && (!best || m.length > best.len)) best = { page, len: m.length };
     }
   }
-  return best?.page ?? null;
+  return best ? withAllowedTour(best.page) : null;
 }
 
 export function stepTextKey(target: string, role: GuideRole, path = ""): string {
   const here = path ? pageFor(path, role) : null;
   const local = here?.tour.find((s) => s.target === target);
   if (local) return local.text;
+  if (!guideStepAllowed(target)) return "";
   const owners = COMPILED.filter(({ page }) => fits(page, role) && page.tour.some((s) => s.target === target));
   if (owners.length !== 1) return "";
   return owners[0].page.tour.find((s) => s.target === target)?.text ?? "";
@@ -49,7 +59,7 @@ const plainRoute = (rules: { m: string }[], role: GuideRole) =>
   rules.find(({ m }) => !m.includes("[") && (role === "staff" ? m.startsWith("/admin") : m.startsWith(`/portal/${role}`)))?.m ?? "";
 
 export function registryHome(target: string, role: GuideRole): string {
-  if (SHELL.test(target)) return "";
+  if (SHELL.test(target) || !guideStepAllowed(target)) return "";
   for (const { page, rules } of COMPILED) {
     if (!fits(page, role) || !page.tour.some((s) => s.target === target)) continue;
     const plain = plainRoute(rules, role);
@@ -65,7 +75,7 @@ export function registryTargets(role: GuideRole, path = ""): RegistryTarget[] {
     if (!fits(page, role) || page === here) continue;
     const route = plainRoute(rules, role);
     if (!route || (path && normPath(route) === normPath(path))) continue;
-    const steps = page.tour.filter((s) => !SHELL.test(s.target)).map((s) => ({ id: s.target, text: s.text, route, page: page.id }));
+    const steps = allowedTour(page).filter((s) => !SHELL.test(s.target)).map((s) => ({ id: s.target, text: s.text, route, page: page.id }));
     if (steps.length) columns.push(steps);
   }
   const out: RegistryTarget[] = [];

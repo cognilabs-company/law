@@ -5,9 +5,11 @@ import { useTranslations } from "next-intl";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { ApiError, asDict, asStr } from "@/lib/http";
 import { toast } from "@/lib/toast";
+import { useAuth } from "@/lib/auth";
 import Modal from "@/components/admin/Modal";
 import { apiMessage } from "@/components/internal/live/bits";
 import {
+  canInternal,
   createOrgUnit,
   createPosition,
   getOrgBoard,
@@ -39,6 +41,10 @@ type UndoStep = { kind: "move" | "rename" | "close"; id: string; prev: string; l
 export default function InternalOrgPage() {
   const t = useTranslations("internal.people");
   const dir = useHrmDirectory();
+  const { session } = useAuth();
+  // The page itself needs internal_org.manage (nav.ts); adding a person to a
+  // unit is an employee create, which needs internal_hr.manage too.
+  const canHr = canInternal(session, "internal_hr.manage");
   const [board, setBoard] = useState<OrgBoard>(EMPTY_BOARD);
   const [positions, setPositions] = useState<HrmPosition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -186,7 +192,7 @@ export default function InternalOrgPage() {
         }}
         onEditUnit={(id) => setUnitForm({ id, parentId: "" })}
         onAddUnit={(parentId) => setUnitForm({ id: "", parentId })}
-        onAddEmployee={(unitId) => setNewEmployeeUnit(unitId)}
+        onAddEmployee={canHr ? (unitId) => setNewEmployeeUnit(unitId) : undefined}
         onOpenEmployee={setEmployeeId}
       />
       )}
@@ -254,7 +260,7 @@ export default function InternalOrgPage() {
       </Modal>
       <PositionDrawer value={positionForm} onClose={() => setPositionForm(null)} onSaved={() => { setPositionForm(null); reload(); }} />
       <Employee360 employee={employee} onClose={() => setEmployeeId("")} onSaved={reload} />
-      <EmployeeCreate open={newEmployeeUnit !== null} unitId={newEmployeeUnit ?? ""} onClose={() => setNewEmployeeUnit(null)} onCreated={(id) => { setNewEmployeeUnit(null); reload(); setEmployeeId(id); }} />
+      {canHr ? <EmployeeCreate open={newEmployeeUnit !== null} unitId={newEmployeeUnit ?? ""} onClose={() => setNewEmployeeUnit(null)} onCreated={(id) => { setNewEmployeeUnit(null); reload(); setEmployeeId(id); }} /> : null}
     </section>
   );
 }

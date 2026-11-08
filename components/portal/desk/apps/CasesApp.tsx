@@ -10,8 +10,10 @@ import { statusLabel } from "@/lib/labels";
 import { IconAlert, IconBriefcase, IconCheck, IconClock, IconFileText, IconGavel, IconRefresh, IconScale, IconSparkle, IconUser } from "@/components/icons";
 import { App, Btn, Empty, Field, Input, Loading, Search, Seg, Select, Sidebar, Tag, TextArea, Tool, Toolbar, useHost, useOs, useToast, type NavSection, type Tone } from "../kit/kit";
 import type { NativeProps } from "../native";
+import type { MenuItem } from "../ContextMenu";
 import "./cases.css";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
+import { isForbidden } from "@/lib/http";
 
 // Cases as a desktop program, a case manager: the statuses on the side,
 // the cases in a list, the chosen one's sheet on the right — its status,
@@ -38,6 +40,9 @@ export default function CasesApp({ openApp }: NativeProps) {
   const [tick, setTick] = useState(0);
   const [today, setToday] = useState(0);
   const [toast, say] = useToast();
+  const tf = useTranslations("common");
+  // Cases this account got a 403 on: their edit controls leave the window.
+  const [denied, setDenied] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     let alive = true;
@@ -74,21 +79,26 @@ export default function CasesApp({ openApp }: NativeProps) {
     },
     { id: "st", title: d("byStatus"), items: STATUSES.map((s) => ({ id: s, label: label(s), icon: <IconScale />, count: all.filter((c) => c.status === s).length || undefined })) },
   ];
-  const rowMenu = (e: MouseEvent, c: BackendCase) =>
-    menu?.(e, c.caseType || c.title, [
-      { heading: d("setStatus"), id: "h" },
-      ...STATUSES.map((s) => ({ id: s, label: label(s), checked: c.status === s, onSelect: () => void save(c, { status: s }) })),
-      ...(c.orderId ? [{ sep: true as const, id: "s" }, { id: "ord", label: d("openOrder"), icon: <IconFileText />, onSelect: () => openApp("marketplaceOrders") }] : []),
-    ]);
+  const rowMenu = (e: MouseEvent, c: BackendCase) => {
+    const edit = !denied.has(c.id);
+    const items: MenuItem[] = [
+      ...(edit ? [{ heading: d("setStatus"), id: "h" }, ...STATUSES.map((s) => ({ id: s, label: label(s), checked: c.status === s, onSelect: () => void save(c, { status: s }) }))] : []),
+      ...(c.orderId ? [...(edit ? [{ sep: true as const, id: "s" }] : []), { id: "ord", label: d("openOrder"), icon: <IconFileText />, onSelect: () => openApp("marketplaceOrders") }] : []),
+    ];
+    if (items.length) menu?.(e, c.caseType || c.title, items);
+  };
   async function save(c: BackendCase, p: { status?: string; stage?: string; next_action?: string }) {
     const before = c;
     setCases((l) => (l ?? []).map((x) => (x.id === c.id ? { ...x, ...(p.status ? { status: p.status } : {}), ...(p.stage !== undefined ? { stage: p.stage } : {}), ...(p.next_action !== undefined ? { nextAction: p.next_action } : {}) } : x)));
     try {
       await updateCase(c.id, p);
       say(d("saved"));
-    } catch {
+    } catch (e) {
       setCases((l) => (l ?? []).map((x) => (x.id === c.id ? before : x)));
-      say(d("saveFailed"), "err");
+      if (isForbidden(e)) {
+        setDenied((s) => new Set(s).add(c.id));
+        say(tf("forbidden"), "err");
+      } else say(d("saveFailed"), "err");
     }
   }
 
@@ -135,14 +145,14 @@ export default function CasesApp({ openApp }: NativeProps) {
             </div>
           )}
         </section>
-        {current ? <Sheet key={current.id} c={current} client={client(current)} label={label} onSave={(p) => void save(current, p)} onChanged={() => setTick((n) => n + 1)} /> : <div className="dxs-none"><Empty icon={<IconGavel />} title={d("pick")} /></div>}
+        {current ? <Sheet key={current.id} c={current} client={client(current)} label={label} readOnly={denied.has(current.id)} onSave={(p) => void save(current, p)} onChanged={() => setTick((n) => n + 1)} /> : <div className="dxs-none"><Empty icon={<IconGavel />} title={d("pick")} /></div>}
       </div>
       {toast}
     </App>
   );
 }
 
-function Sheet({ c, client, label, onSave, onChanged }: { c: BackendCase; client: string; label: (s: string) => string; onSave: (p: { status?: string; stage?: string; next_action?: string }) => void; onChanged: () => void }) {
+function Sheet({ c, client, label, readOnly, onSave, onChanged }: { c: BackendCase; client: string; label: (s: string) => string; readOnly?: boolean; onSave: (p: { status?: string; stage?: string; next_action?: string }) => void; onChanged: () => void }) {
   const tm = useTranslations("portal.caseManage");
   const d = useTranslations("portal.desk.cases");
   const locale = useLocale();
@@ -177,6 +187,23 @@ function Sheet({ c, client, label, onSave, onChanged }: { c: BackendCase; client
       {c.description ? <p className="dxs-desc">{c.description}</p> : null}
       <section className="dxs-box">
         <h3>{tm("title")}</h3>
+        {readOnly ? (
+          <div className="dxs-form">
+            <Field label={tm("status")}>
+              <span>{label(c.status)}</span>
+            </Field>
+            {c.stage ? (
+              <Field label={tm("stage")}>
+                <span>{c.stage}</span>
+              </Field>
+            ) : null}
+            {c.nextAction ? (
+              <Field label={tm("nextAction")}>
+                <span>{c.nextAction}</span>
+              </Field>
+            ) : null}
+          </div>
+        ) : (
         <div className="dxs-form">
           <Field label={tm("status")}>
             <Select ariaLabel={tm("status")} value={c.status} onChange={(s) => onSave({ status: s })} options={STATUSES.map((s) => ({ value: s, label: label(s) }))} />
@@ -188,7 +215,8 @@ function Sheet({ c, client, label, onSave, onChanged }: { c: BackendCase; client
             <Input value={next} onChange={setNext} placeholder={tm("nextActionPh")} maxLength={300} />
           </Field>
         </div>
-        {dirty ? (
+        )}
+        {dirty && !readOnly ? (
           <div className="dxs-save">
             <Btn kind="primary" small onClick={() => onSave({ stage: stage.trim(), next_action: next.trim() })}>
               {tm("save")}
@@ -225,7 +253,9 @@ function OrderFlow({ orderId, onChanged }: { orderId: string; onChanged: () => v
     };
   }, [orderId, tick]);
   const current = (rows?.[0]?.status ?? "").toLowerCase();
-  const next = nextStatusesFor("seller", current);
+  // A 403 on a move: this account may not move this order — the steps leave.
+  const [denied, setDenied] = useState(false);
+  const next = denied ? [] : nextStatusesFor("seller", current);
   async function move(to: string) {
     if (busy || !once()) return;
     setBusy(to);
@@ -235,8 +265,9 @@ function OrderFlow({ orderId, onChanged }: { orderId: string; onChanged: () => v
       setNote("");
       setTick((n) => n + 1);
       onChanged();
-    } catch {
-      setErr(t("error"));
+    } catch (e) {
+      if (isForbidden(e)) setDenied(true);
+      setErr(t(isForbidden(e) ? "forbidden" : "error"));
     } finally {
       setBusy("");
     }
@@ -280,6 +311,7 @@ function OrderFlow({ orderId, onChanged }: { orderId: string; onChanged: () => v
           {err ? <p className="dxs-err">{err}</p> : null}
         </div>
       ) : null}
+      {denied && err ? <p className="dxs-err">{err}</p> : null}
     </section>
   );
 }

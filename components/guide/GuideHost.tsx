@@ -8,6 +8,7 @@ import { getGuide, getIdleGuide, nextStep, patchGuide, prevStep, stopTour, subsc
 import { findTarget, focusInput, focusTarget, revealTarget, settle, targetLabel, targetMatch, waitForTarget } from "@/lib/guide/targets";
 import { guideHref, remapTarget, samePath, targetHome } from "@/lib/guide/routes";
 import { registryHome } from "@/lib/guide/pages";
+import { setGuideSubject } from "@/lib/guide/access";
 import { emitGuideEvent, type TourEndReason } from "@/lib/guide/events";
 import { forgetResolved, resolveExact, waitForExact } from "@/lib/ai/resolve";
 import { isSelfTarget } from "@/lib/ai/self";
@@ -35,6 +36,10 @@ export default function GuideHost() {
   const t = useTranslations("guide.ui");
   const tg = useTranslations("guide.caption");
   const { session } = useAuth();
+  // Tours and AI-instructor targets only offer pages/steps this session may
+  // use (lib/guide/access.ts). Kept in step on every render — a plain module
+  // value, read when a tour or target list is built.
+  setGuideSubject(session);
   const pathname = usePathname();
   const router = useRouter();
   const g = useSyncExternalStore(subscribeGuide, getGuide, getIdleGuide);

@@ -56,7 +56,10 @@ export default function RemoteAssistAdmin() {
     void loadRaMeta().then(setMeta);
   }, []);
   const canSupervise = meta.capabilities.supervise === true;
-  const canRevoke = meta.capabilities.emergency_revoke === true;
+  // A 403 on a revoke (capability withdrawn mid-session) takes every
+  // revoke button away; the dialog keeps its message.
+  const [revokeDenied, setRevokeDenied] = useState(false);
+  const canRevoke = meta.capabilities.emergency_revoke === true && !revokeDenied;
   const allowed = !meta.loaded || canSupervise || canRevoke;
 
   useEffect(() => {
@@ -245,6 +248,7 @@ export default function RemoteAssistAdmin() {
         <RevokeDialog
           s={revoking}
           onClose={() => setRevoking(null)}
+          onDenied={() => setRevokeDenied(true)}
           onDone={() => {
             setRevoking(null);
             setReload((n) => n + 1);
@@ -367,12 +371,13 @@ function Row({
   );
 }
 
-function RevokeDialog({ s, onClose, onDone }: { s: RaSession; onClose: () => void; onDone: () => void }) {
+function RevokeDialog({ s, onClose, onDone, onDenied }: { s: RaSession; onClose: () => void; onDone: () => void; onDenied: () => void }) {
   const t = useTranslations("remoteAssist");
   const tc = useTranslations("common");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [denied, setDenied] = useState(false);
   const ok = reason.trim().length >= 3;
 
   const submit = async () => {
@@ -385,6 +390,10 @@ function RevokeDialog({ s, onClose, onDone }: { s: RaSession; onClose: () => voi
       onDone();
     } catch (e) {
       const code = raErrorCode(e);
+      if (isForbidden(e)) {
+        setDenied(true);
+        onDenied();
+      }
       setErr(code && t.has(`errors.${code}`) ? t(`errors.${code}`) : errorText(e, tc) || t("admin.revokeFailed"));
     } finally {
       setBusy(false);
@@ -405,17 +414,21 @@ function RevokeDialog({ s, onClose, onDone }: { s: RaSession; onClose: () => voi
           <button className="btn btn--line" type="button" disabled={busy} onClick={onClose}>
             {t("admin.cancel")}
           </button>
-          <button className="btn raa-revoke__btn" type="button" disabled={!ok || busy} aria-busy={busy || undefined} onClick={() => void submit()}>
-            <IconShield aria-hidden="true" />
-            {t("admin.revoke")}
-          </button>
+          {denied ? null : (
+            <button className="btn raa-revoke__btn" type="button" disabled={!ok || busy} aria-busy={busy || undefined} onClick={() => void submit()}>
+              <IconShield aria-hidden="true" />
+              {t("admin.revoke")}
+            </button>
+          )}
         </>
       }
     >
-      <label className="ra-field">
-        <span>{t("admin.revokeReason")}</span>
-        <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} maxLength={255} placeholder={t("admin.revokeReasonPh")} required aria-invalid={reason && !ok ? true : undefined} />
-      </label>
+      {denied ? null : (
+        <label className="ra-field">
+          <span>{t("admin.revokeReason")}</span>
+          <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} maxLength={255} placeholder={t("admin.revokeReasonPh")} required aria-invalid={reason && !ok ? true : undefined} />
+        </label>
+      )}
       {err ? (
         <p className="ra-err" role="alert">
           {err}

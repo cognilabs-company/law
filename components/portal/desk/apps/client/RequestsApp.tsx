@@ -263,8 +263,8 @@ function Info({ it, name, onChanged, onError }: { it: Item; name: string; onChan
           <Btn onClick={() => setAsk(true)}>{t("requestCta")}</Btn>
         </div>
       ) : null}
-      {orderId ? <Milestones orderId={orderId} onError={onError} onDone={onChanged} /> : null}
-      {orderId ? <History orderId={orderId} status={status} onChanged={onChanged} onError={onError} /> : null}
+      {orderId ? <Milestones key={orderId} orderId={orderId} onError={onError} onDone={onChanged} /> : null}
+      {orderId ? <History key={orderId} orderId={orderId} status={status} onChanged={onChanged} onError={onError} /> : null}
       {c && ask ? <AskDialog c={c} onClose={() => setAsk(false)} onSent={(m) => (setAsk(false), onChanged(m))} onError={onError} /> : null}
       {c && docs ? <DocsDialog c={c} onClose={() => setDocs(false)} onError={onError} /> : null}
     </aside>
@@ -309,6 +309,8 @@ function History({ orderId, status, onChanged, onError }: { orderId: string; sta
   const [key, setKey] = useState(0);
   const [busy, setBusy] = useState("");
   const [note, setNote] = useState("");
+  // 403 on a move: the step buttons leave; the history stays.
+  const [denied, setDenied] = useState(false);
   const load = useCallback(() => getOrderStatusHistory(orderId), [orderId]);
   useEffect(() => {
     let alive = true;
@@ -329,6 +331,7 @@ function History({ orderId, status, onChanged, onError }: { orderId: string; sta
       setKey((k) => k + 1);
       onChanged(t("moved", { status: label(to) }));
     } catch (e) {
+      if (isForbidden(e)) setDenied(true);
       onError(isConflict(e) ? t("conflict") : isForbidden(e) ? t("forbidden") : t("error"));
     } finally {
       setBusy("");
@@ -354,7 +357,7 @@ function History({ orderId, status, onChanged, onError }: { orderId: string; sta
           ))}
         </ol>
       )}
-      {next.length ? (
+      {next.length && !denied ? (
         <>
           <Field label={t("nextStep")}>
             <Input value={note} onChange={setNote} placeholder={t("notePh")} maxLength={300} />

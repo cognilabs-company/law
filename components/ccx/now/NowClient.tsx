@@ -52,7 +52,7 @@ export default function NowClient({ who, client, notes = "", seller = false }: {
     <aside className="opx-c360" aria-labelledby="opx-c360-h" data-ai-target="callcenter:now:client">
       <header className="opx-c360__head">
         <h2 id="opx-c360-h">{t("title")}</h2>
-        {query ? (
+        {query && !client?.denied ? (
           <Link className="opx-c360__full" href={`/admin/call-center?view=clients&q=${encodeURIComponent(query)}`}>
             {t("full")}
             <IcArrowRight size={15} />

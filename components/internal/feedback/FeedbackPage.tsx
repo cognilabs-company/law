@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { usePathname } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
-import { ApiError } from "@/lib/http";
+import { ApiError, isForbidden } from "@/lib/http";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { canInternal } from "@/lib/services/internalHrm";
 import { FEEDBACK_STATUSES, FEEDBACK_TYPES, getFeedback, updateFeedback, type Feedback } from "@/lib/services/internalLive";
@@ -33,6 +33,9 @@ export default function FeedbackPage() {
   const [tick, setTick] = useState(0);
   const [state, setState] = useState<{ key: string; rows: Feedback[]; err: string } | null>(null);
   const [noAll, setNoAll] = useState(false);
+  // PATCH /internal/product-feedback/{id} answered 403: triage is not this
+  // account's, so the triage form is not offered again.
+  const [noTriage, setNoTriage] = useState(false);
   const [creating, setCreating] = useState(false);
   const [openId, setOpenId] = useState("");
   const shownView: View = noAll ? "mine" : view;
@@ -130,7 +133,7 @@ export default function FeedbackPage() {
         )}
       </HrmPanel>
       {creating ? <FeedbackDialog open onClose={() => setCreating(false)} context={{ path: pathname, search: "" }} onSent={reload} /> : null}
-      {open ? <FeedbackDrawer item={open} admin={admin && shownView === "all"} onClose={() => setOpenId("")} onSaved={reload} /> : null}
+      {open ? <FeedbackDrawer item={open} admin={admin && shownView === "all" && !noTriage} onForbidden={() => setNoTriage(true)} onClose={() => setOpenId("")} onSaved={reload} /> : null}
     </section>
   );
 }
@@ -141,7 +144,7 @@ function FeedbackStatus({ value }: { value: string }) {
   return <span className={`hrm-st hrm-st--${tone}`}>{t.has(`statuses.${value}`) ? t(`statuses.${value}`) : value}</span>;
 }
 
-function FeedbackDrawer({ item, admin, onClose, onSaved }: { item: Feedback; admin: boolean; onClose: () => void; onSaved: () => void }) {
+function FeedbackDrawer({ item, admin, onForbidden, onClose, onSaved }: { item: Feedback; admin: boolean; onForbidden: () => void; onClose: () => void; onSaved: () => void }) {
   const t = useTranslations("internal.feedback");
   const f = useHrmFormat();
   const dir = useHrmDirectory();
@@ -161,6 +164,7 @@ function FeedbackDrawer({ item, admin, onClose, onSaved }: { item: Feedback; adm
       onSaved();
     } catch (cause) {
       setErr(apiMessage(cause, t("error")));
+      if (isForbidden(cause)) onForbidden();
     } finally {
       setBusy(false);
     }
@@ -195,12 +199,13 @@ function FeedbackDrawer({ item, admin, onClose, onSaved }: { item: Feedback; adm
         <HrmKv
           rows={[
             { label: t("page"), value: item.pageUrl ? <ObjectLink href={item.pageUrl}>{item.pageUrl}</ObjectLink> : "—" },
-            { label: t("object"), value: item.entityId ? `${item.entityType} · ${item.entityId.slice(0, 8)}` : "—" },
+            { label: t("object"), value: item.entityType || "—" },
             { label: t("author"), value: item.author || "—" },
             { label: t("created"), value: f.dateTime(item.createdAt) },
           ]}
         />
       </HrmSection>
+      {!admin && err ? <HrmError text={err} /> : null}
       {!admin && item.resolution ? (
         <HrmSection label={t("resolution")}>
           <p className="fb-text">{item.resolution}</p>

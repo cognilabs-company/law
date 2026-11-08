@@ -227,6 +227,11 @@ function ActiveCall({ meta, call, onChange }: { meta: CrmMeta; call: CrmCall; on
   const tc = useTranslations("crm.ai");
   const crmErr = useCrmError();
   const recordings = crmCan(meta, "crm.calls.recordings.view");
+  // Writing the transcript and ending the call are call work
+  // (crm.calls.start); live AI assist is AI use (crm.ai.use). Without them
+  // the call is watched read-only — no input, no end form.
+  const canWork = crmCan(meta, "crm.calls.start");
+  const canAssist = canWork && crmCan(meta, "crm.ai.use");
   const [segments, setSegments] = useState<CallSegment[]>(call.transcript);
   const [who, setWho] = useState<"customer" | "operator">("customer");
   const [text, setText] = useState("");
@@ -262,7 +267,7 @@ function ActiveCall({ meta, call, onChange }: { meta: CrmMeta; call: CrmCall; on
     const seg: CallSegment = { speaker: who, text: line, startMs: Math.max(0, now - 3000), endMs: now };
     try {
       // No overlapping live-assist runs: ask only when none is waiting.
-      const r = await appendTranscript(call.id, [seg], assist && !assisting);
+      const r = await appendTranscript(call.id, [seg], canAssist && assist && !assisting);
       setSegments((cur) => [...cur, seg]);
       setText("");
       if (r.aiRunId) {
@@ -316,37 +321,43 @@ function ActiveCall({ meta, call, onChange }: { meta: CrmMeta; call: CrmCall; on
         <div className="crm-livegrid__t">
           <b className="crm-sub">{t("transcript")}</b>
           {segments.length ? <Transcript segments={segments} /> : <p className="crm-sub">{t("noTranscript")}</p>}
-          <div className="crm-seg" role="group" aria-label={t("speaker")}>
-            {(["customer", "operator"] as const).map((w) => (
-              <button key={w} type="button" aria-pressed={who === w} onClick={() => setWho(w)}>
-                <IconUser aria-hidden="true" style={{ width: 13, height: 13, verticalAlign: "-2px", marginRight: 4 }} />
-                {t(`who.${w}`)}
-              </button>
-            ))}
-          </div>
-          <div className="crm-liveinput">
-            <textarea
-              className="crm-textarea"
-              rows={2}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void send();
-                }
-              }}
-              placeholder={t("linePh")}
-              aria-label={t("line")}
-              maxLength={4000}
-            />
-            <button type="button" className="crm-btn crm-btn--pri" onClick={() => void send()} disabled={sending || !text.trim()} aria-busy={sending || undefined} aria-label={t("add")}>
-              <IconSend aria-hidden="true" />
-            </button>
-          </div>
-          <CheckBox checked={assist} onChange={setAssist} disabled={assisting}>
-            {assisting ? t("assistBusy") : t("assist")}
-          </CheckBox>
+          {canWork ? (
+            <>
+              <div className="crm-seg" role="group" aria-label={t("speaker")}>
+                {(["customer", "operator"] as const).map((w) => (
+                  <button key={w} type="button" aria-pressed={who === w} onClick={() => setWho(w)}>
+                    <IconUser aria-hidden="true" style={{ width: 13, height: 13, verticalAlign: "-2px", marginRight: 4 }} />
+                    {t(`who.${w}`)}
+                  </button>
+                ))}
+              </div>
+              <div className="crm-liveinput">
+                <textarea
+                  className="crm-textarea"
+                  rows={2}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      void send();
+                    }
+                  }}
+                  placeholder={t("linePh")}
+                  aria-label={t("line")}
+                  maxLength={4000}
+                />
+                <button type="button" className="crm-btn crm-btn--pri" onClick={() => void send()} disabled={sending || !text.trim()} aria-busy={sending || undefined} aria-label={t("add")}>
+                  <IconSend aria-hidden="true" />
+                </button>
+              </div>
+              {canAssist ? (
+                <CheckBox checked={assist} onChange={setAssist} disabled={assisting}>
+                  {assisting ? t("assistBusy") : t("assist")}
+                </CheckBox>
+              ) : null}
+            </>
+          ) : null}
         </div>
         <aside className="crm-livegrid__ai" aria-live="polite">
           <b className="crm-sub">
@@ -379,25 +390,27 @@ function ActiveCall({ meta, call, onChange }: { meta: CrmMeta; call: CrmCall; on
         </aside>
       </div>
 
-      <div className="crm-callend">
-        <div className="crm-seg" role="group" aria-label={t("endAs")}>
-          {CALL_END_STATUSES.map((s) => (
-            <button key={s} type="button" aria-pressed={status === s} onClick={() => setStatus(s)}>
-              {t(`s.${s}`)}
-            </button>
-          ))}
+      {canWork ? (
+        <div className="crm-callend">
+          <div className="crm-seg" role="group" aria-label={t("endAs")}>
+            {CALL_END_STATUSES.map((s) => (
+              <button key={s} type="button" aria-pressed={status === s} onClick={() => setStatus(s)}>
+                {t(`s.${s}`)}
+              </button>
+            ))}
+          </div>
+          <label className="crm-field" data-err={tried && status === "completed" && !summary.trim() ? "" : undefined}>
+            <span>{t("summary")}</span>
+            <textarea className="crm-textarea" rows={3} value={summary} onChange={(e) => setSummary(e.target.value)} maxLength={20000} placeholder={t("summaryPh")} />
+            {tried && status === "completed" && !summary.trim() ? <em>{t("summaryNeed")}</em> : null}
+          </label>
+          {status === "no_answer" ? <p className="crm-note">{t("noAnswerSms", { n: meta.noAnswerSmsDelaySec ?? 180 })}</p> : null}
+          <button type="button" className="crm-btn crm-btn--pri" onClick={() => void close()} disabled={closing} aria-busy={closing || undefined} style={{ justifySelf: "start" }}>
+            <IconCheck aria-hidden="true" />
+            {t("end")}
+          </button>
         </div>
-        <label className="crm-field" data-err={tried && status === "completed" && !summary.trim() ? "" : undefined}>
-          <span>{t("summary")}</span>
-          <textarea className="crm-textarea" rows={3} value={summary} onChange={(e) => setSummary(e.target.value)} maxLength={20000} placeholder={t("summaryPh")} />
-          {tried && status === "completed" && !summary.trim() ? <em>{t("summaryNeed")}</em> : null}
-        </label>
-        {status === "no_answer" ? <p className="crm-note">{t("noAnswerSms", { n: meta.noAnswerSmsDelaySec ?? 180 })}</p> : null}
-        <button type="button" className="crm-btn crm-btn--pri" onClick={() => void close()} disabled={closing} aria-busy={closing || undefined} style={{ justifySelf: "start" }}>
-          <IconCheck aria-hidden="true" />
-          {t("end")}
-        </button>
-      </div>
+      ) : null}
     </section>
   );
   function tAi(path: string): string {

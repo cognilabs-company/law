@@ -56,6 +56,7 @@ import { payloadKey, useRowPayloads } from "./rowPayloads";
 import type { CtorRecordsState } from "./useCtorRecords";
 import { PLACEMENT_VALUES, RUNTIME_STATUS_VALUES, sortOf, STUDIO_STATUS_VALUES, viewOf, type CtorSort, type CtorView } from "./urlState";
 import { joinPromoRows, promoPlacementOf, recTest, rowTitle, type CtorVariant, type RecordRow, type VariantCtx } from "./variants";
+import { studioDenied } from "../denied";
 
 export type { RecordRow } from "./variants";
 
@@ -155,6 +156,11 @@ export function useRecordActions({ code, canEdit, canArchive, refetch }: { code:
   const t = useTranslations("studio");
   const errText = useEditorErrorText();
   const [cloneOf, setCloneOf] = useState<StudioRecord | null>(null);
+  // Row actions the backend refused (403) for a record: not offered again.
+  const [denied, setDenied] = useState<ReadonlySet<string>>(() => new Set());
+  const recKey = (rec: StudioRecord) => `${rec.source}-${rec.id}`;
+  const deny = (kind: "archive" | "clone", rec: StudioRecord) => setDenied((d) => new Set(d).add(`${kind}:${recKey(rec)}`));
+  const isDenied = (kind: "archive" | "clone", rec: StudioRecord) => denied.has(`${kind}:${recKey(rec)}`);
 
   const archive = async (rec: StudioRecord) => {
     const ok = await confirmDialog({
@@ -172,6 +178,7 @@ export function useRecordActions({ code, canEdit, canArchive, refetch }: { code:
     } catch (e) {
       logApiError("studio.archive", e);
       notify.error(errText(e).title, { error: e });
+      if (studioDenied(e)) deny("archive", rec);
     }
   };
 
@@ -186,12 +193,12 @@ export function useRecordActions({ code, canEdit, canArchive, refetch }: { code:
     if (canOpenEdit) out.push({ key: "edit", label: edit === view ? t("sx.ui.open") : t("sx.ui.edit"), icon: PencilIcon, href: () => edit });
     out.push(...extra);
     if (canEdit && clone.href) out.push({ key: "clone", label: t("sx.ui.clone"), icon: CopyIcon, href: () => clone.href });
-    else if (canEdit && clone.studio) out.push({ key: "clone", label: t("sx.ui.clone"), icon: CopyIcon, onSelect: () => setCloneOf(rec) });
-    if (canArchive && rec.actions.archive && rec.status !== "archived") out.push({ key: "archive", label: t("sx.ui.archive"), icon: ArchiveIcon, danger: true, onSelect: () => void archive(rec) });
+    else if (canEdit && clone.studio && !isDenied("clone", rec)) out.push({ key: "clone", label: t("sx.ui.clone"), icon: CopyIcon, onSelect: () => setCloneOf(rec) });
+    if (canArchive && rec.actions.archive && rec.status !== "archived" && !isDenied("archive", rec)) out.push({ key: "archive", label: t("sx.ui.archive"), icon: ArchiveIcon, danger: true, onSelect: () => void archive(rec) });
     return out;
   };
 
-  const dialog = <CloneDialog key={cloneOf ? `${cloneOf.source}-${cloneOf.id}` : "none"} rec={cloneOf} onClose={() => setCloneOf(null)} onCloned={refetch} />;
+  const dialog = <CloneDialog key={cloneOf ? `${cloneOf.source}-${cloneOf.id}` : "none"} rec={cloneOf} onClose={() => setCloneOf(null)} onCloned={refetch} onDenied={(rec) => deny("clone", rec)} />;
   return { actionsFor, dialog };
 }
 
@@ -253,6 +260,7 @@ export function RecordTable({ code, ctor, st, variant, canEdit, canArchive, crea
   const promo = usePromoInfo(k12);
   const acts = useRecordActions({ code, canEdit, canArchive, refetch: st.refetch });
   const [reordering, setReordering] = useState(false);
+  const [reorderDenied, setReorderDenied] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const refocus = useRef(false);
   useEffect(() => {
@@ -320,7 +328,7 @@ export function RecordTable({ code, ctor, st, variant, canEdit, canArchive, crea
     { value: "runtime", label: t("sx.cp2.tabs.runtime"), icon: GlobeIcon, count: st.counts.runtime, aiId: "admin.studio.list.filters.source.runtime" },
     { value: "studio", label: t("sx.cp2.tabs.studio"), icon: LayersIcon, count: st.counts.studio, aiId: "admin.studio.list.filters.source.studio" },
   ];
-  const reorderable = canEdit && st.rows.some(canReorderRecord);
+  const reorderable = canEdit && !reorderDenied && st.rows.some(canReorderRecord);
   const closeReorder = (changed: boolean) => {
     refocus.current = true;
     setReordering(false);
@@ -394,7 +402,15 @@ export function RecordTable({ code, ctor, st, variant, canEdit, canArchive, crea
   if (reordering)
     return (
       <div className="sx-cp" data-variant={variant.kind} data-view="reorder" data-hue={hue}>
-        <ReorderPanel code={code} name={name} onClose={closeReorder} />
+        <ReorderPanel
+          code={code}
+          name={name}
+          onClose={closeReorder}
+          onDenied={() => {
+            setReorderDenied(true);
+            closeReorder(false);
+          }}
+        />
       </div>
     );
 

@@ -16,11 +16,21 @@ import Select from "@/components/Select";
 import { IconShield, IconPlus, IconCheck } from "@/components/icons";
 import { notify } from "@/lib/toast";
 import { useStudioText } from "@/components/admin/studio/bits";
+import { useCan } from "@/lib/useCan";
+import { isForbidden } from "@/lib/http";
 
 export default function AdminRoles() {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
   const uid = useId();
+  const canDo = useCan();
+  // The page itself is roles.manage. Assigning picks the person from
+  // GET /admin/users, which needs users.manage — without it the form is
+  // not offered. A 403 on either write (permission revoked mid-session)
+  // keeps its message and takes that action off the page.
+  const [denied, setDenied] = useState<{ create?: boolean; assign?: boolean }>({});
+  const canCreate = !denied.create;
+  const canAssign = canDo("users.manage") && !denied.assign;
   const [key, reload] = useReload();
   const [mxKey, reloadMatrix] = useReload();
   const roles = useResource(getRoles, [key]);
@@ -83,6 +93,10 @@ export default function AdminRoles() {
       setOpen(false);
     } catch (err) {
       notify.error(t("roles.createFailed"), { id: "role-create", error: err });
+      if (isForbidden(err)) {
+        setDenied((d) => ({ ...d, create: true }));
+        setOpen(false);
+      }
     } finally {
       setCBusy(false);
     }
@@ -104,6 +118,7 @@ export default function AdminRoles() {
       setRoleId("");
     } catch (err) {
       notify.error(t("roles.assignFailed"), { id: "role-assign", error: err });
+      if (isForbidden(err)) setDenied((d) => ({ ...d, assign: true }));
     } finally {
       setABusy(false);
     }
@@ -119,16 +134,18 @@ export default function AdminRoles() {
 
   return (
     <div className="agrid">
-      {/* Roles list */}
-      <div className="ppanel">
+      {/* Roles list (full width when the assign panel isn't offered) */}
+      <div className="ppanel" style={canAssign ? undefined : { gridColumn: "1 / -1" }}>
         <div className="ppanel__h">
           <b>{t("roles.listTitle")}</b>
           <span className="ahdr">
             <span className="advmuted">{roles.data.length}</span>
-            <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)} data-ai-target="button:new-role">
-              <IconPlus />
-              {t("form.add")}
-            </button>
+            {canCreate ? (
+              <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)} data-ai-target="button:new-role">
+                <IconPlus />
+                {t("form.add")}
+              </button>
+            ) : null}
           </span>
         </div>
         {roles.status === "loading" ? (
@@ -153,6 +170,7 @@ export default function AdminRoles() {
       </div>
 
       {/* Assign role */}
+      {canAssign ? (
       <div className="ppanel" data-ai-target="roles:assign">
         <div className="ppanel__h"><b>{t("roles.assignTitle")}</b></div>
         <p className="advmuted" style={{ marginBottom: 16 }}>{t("roles.assignLead")}</p>
@@ -193,6 +211,7 @@ export default function AdminRoles() {
           </button>
         </form>
       </div>
+      ) : null}
 
       {/* Permission matrix (read-only): roles × permissions */}
       <div className="ppanel" style={{ gridColumn: "1 / -1" }} data-ai-target="roles:matrix">
@@ -238,7 +257,7 @@ export default function AdminRoles() {
         )}
       </div>
 
-      <Modal open={open} onClose={() => setOpen(false)} title={t("roles.create")}>
+      <Modal open={open && canCreate} onClose={() => setOpen(false)} title={t("roles.create")}>
         <form className="cform" style={{ maxWidth: "none" }} onSubmit={submitRole}>
           <div>
             <label htmlFor={fid("name")}>{t("roles.name")}</label>

@@ -38,7 +38,8 @@ export default function DeskFill({ v, refs }: { v: DocFillView; refs: DocFillRef
           </Btn>
         }
       >
-        {v.ask.available ? <Tool icon={v.ask.sent ? <IconCheck /> : <IconHeadset />} label={v.ask.sent ? t("askLawyerSent") : t("askLawyer")} onClick={v.ask.run} disabled={v.ask.busy || v.ask.sent || !!v.ask.heldNote} /> : null}
+        {/* Already sent, or a lawyer already holds it: not offered again. */}
+        {v.ask.available && !v.ask.sent && !v.ask.heldNote ? <Tool icon={<IconHeadset />} label={t("askLawyer")} onClick={v.ask.run} disabled={v.ask.busy} /> : null}
         <Tool icon={<IconList />} label={t("wsTogglePanel")} active={!!side} onClick={() => setSide((s) => (s ? "" : "sections"))} />
         {chrome ? <Tool icon={<IconClose />} label={t("exit")} onClick={chrome.onExit} /> : null}
       </Toolbar>
@@ -125,11 +126,17 @@ export default function DeskFill({ v, refs }: { v: DocFillView; refs: DocFillRef
                   <dt>{t("wsHelpTitle")}</dt>
                   <dd>{t("wsHelpLead")}</dd>
                 </div>
-                {v.ask.available ? (
-                  <Btn icon={<IconHeadset />} busy={v.ask.busy} disabled={v.ask.sent || !!v.ask.heldNote} onClick={v.ask.run}>
-                    {v.ask.sent ? t("askLawyerSent") : t("askLawyer")}
+                {!v.ask.available ? null : v.ask.sent ? (
+                  <p className="dxcs-lead">
+                    <IconCheck aria-hidden /> {t("askLawyerSent")}
+                  </p>
+                ) : v.ask.heldNote ? (
+                  <p className="dxcs-lead">{v.ask.heldNote}</p>
+                ) : (
+                  <Btn icon={<IconHeadset />} busy={v.ask.busy} onClick={v.ask.run}>
+                    {t("askLawyer")}
                   </Btn>
-                ) : null}
+                )}
               </dl>
             )}
           </aside>

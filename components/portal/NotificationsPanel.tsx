@@ -1,5 +1,6 @@
 "use client";
 
+import { can } from "@/lib/permissions";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -396,7 +397,7 @@ export default function NotificationsPanel({ internal = false }: { internal?: bo
       ) : (
         <div className="ntlist" data-ai-target="notifications:list">
           {shown.map(({ n, title, body }) => {
-            const link = notifLink(n.event, n.category, n.data, role, staff, callCenter);
+            const link = notifLink(n.event, n.category, n.data, role, staff, callCenter, (code) => can(session, code));
             const via = n.channels.filter((c) => VIA_CHANNELS.includes(c)).map(chLabel);
             return (
               <div key={n.id} className="ntrow">

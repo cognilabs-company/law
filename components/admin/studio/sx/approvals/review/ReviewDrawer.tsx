@@ -6,7 +6,7 @@ import "../../editor/sx-editor-panels.css";
 import "./sx-review.css";
 import { useId, useMemo, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { logApiError } from "@/lib/http";
+import { isForbidden, logApiError } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { downloadStudioVersionFile, exportStudioVersionsXlsx, isApprovalFree, studioErrorOf, useStudioRegistry, type StudioDetail } from "@/lib/services/studio";
 import { SxButton, SxLinkButton } from "../../Button";
@@ -31,6 +31,7 @@ import { MissingFields } from "./MissingFields";
 import { StepList } from "./StepList";
 import { Timeline } from "./Timeline";
 import { useReview, type ReviewState } from "./useReview";
+import { studioDenied } from "../../denied";
 
 export type ReviewTarget = { id: string; row: ApprRow | null };
 export type ReviewDrawerProps = { target: ReviewTarget | null; viewer: ApprViewer; onClose: () => void; onChanged: (id: string) => void };
@@ -186,7 +187,8 @@ function ReviewPanel({ target, viewer, onClose, onChanged }: { target: ReviewTar
       notify.success(t("sx.appr.dw.exportOk"));
     } catch (e) {
       logApiError("studio.sx.approvals.versions-xlsx", e);
-      notify.error(t("sx.editor.versions.exportFail"));
+      notify.error(isForbidden(e) ? t("sx.editor.err.forbidden") : t("sx.editor.versions.exportFail"));
+      if (studioDenied(e)) st.deny(["exportVersions"]);
     } finally {
       setXlsxBusy(false);
     }

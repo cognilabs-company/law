@@ -24,12 +24,12 @@ export default function CrmLiveOffice(): ReactElement {
   const t = useTranslations("crm");
   return (
     <CrmFrame section="live" title={t("liveOffice.title")}>
-      {(api) => <Office recordings={crmCan(api.meta, "crm.calls.recordings.view")} />}
+      {(api) => <Office recordings={crmCan(api.meta, "crm.calls.recordings.view")} canLeads={crmCan(api.meta, "crm.leads.view")} />}
     </CrmFrame>
   );
 }
 
-function Office({ recordings }: { recordings: boolean }): ReactElement {
+function Office({ recordings, canLeads }: { recordings: boolean; canLeads: boolean }): ReactElement {
   const t = useTranslations("crm.liveOffice");
   const crmErr = useCrmError();
   const now = useNow(1000);
@@ -157,7 +157,7 @@ function Office({ recordings }: { recordings: boolean }): ReactElement {
             ) : !call || call.id !== open ? (
               <span className="crm-sk crm-sk--block" style={{ height: 200 }} />
             ) : (
-              <LiveDetail call={call} recordings={recordings} />
+              <LiveDetail call={call} recordings={recordings} canLeads={canLeads} />
             )}
           </section>
         </div>
@@ -166,7 +166,8 @@ function Office({ recordings }: { recordings: boolean }): ReactElement {
   );
 }
 
-function LiveDetail({ call, recordings }: { call: LiveCall; recordings: boolean }): ReactElement {
+// `canLeads`: "open lead" only for whoever may open the lead workspace.
+function LiveDetail({ call, recordings, canLeads }: { call: LiveCall; recordings: boolean; canLeads: boolean }): ReactElement {
   const t = useTranslations("crm.liveOffice");
   const ta = useTranslations("crm.ai");
   const tr = useTranslations("rop.live");
@@ -201,9 +202,11 @@ function LiveDetail({ call, recordings }: { call: LiveCall; recordings: boolean 
               <StatusPill status={l.status} />
             </span>
             <small>{[call.customerName || l.customer?.name, l.region].filter(Boolean).join(" · ")}</small>
-            <Link className="crm-btn crm-btn--sm" href={`/admin/crm/leads/${encodeURIComponent(l.id)}`}>
-              {t("openLead")}
-            </Link>
+            {canLeads ? (
+              <Link className="crm-btn crm-btn--sm" href={`/admin/crm/leads/${encodeURIComponent(l.id)}`}>
+                {t("openLead")}
+              </Link>
+            ) : null}
           </div>
         ) : null}
         <div className="crm-lo__ai">

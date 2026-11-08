@@ -32,7 +32,7 @@ type View = "payouts" | "recoveries";
 const PAGE = 20;
 const REF_MAX = 120;
 
-function PaidDialog({ kind, target, onClose, onDone }: { kind: View; target: Payout | Recovery; onClose: () => void; onDone: () => void }): ReactElement {
+function PaidDialog({ kind, target, onClose, onDone, onForbidden }: { kind: View; target: Payout | Recovery; onClose: () => void; onDone: () => void; onForbidden: () => void }): ReactElement {
   const t = useTranslations("callCenter.payouts");
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const [ref, setRef] = useState("");
@@ -55,6 +55,8 @@ function PaidDialog({ kind, target, onClose, onDone }: { kind: View; target: Pay
       onDone();
     } catch (e) {
       logApiError("payouts.close", e);
+      // Refused: the message stays here and the button leaves the row.
+      if (isForbidden(e)) onForbidden();
       const code = e instanceof ApiError ? e.code : "";
       setError({ title: t("err.failed"), text: code && t.has(`code.${code}`) ? t(`code.${code}`) : errDetail(e) || t("err.generic") });
     } finally {
@@ -118,7 +120,7 @@ function StageChip({ p }: { p: Payout }): ReactElement {
 // `settled`: closed from this screen a moment ago — shown as done at once,
 // so its button cannot send the same payout twice while the list reloads
 // (backend answers 2026-10-31 §1.7: no Idempotency-Key here yet).
-function Row({ kind, item, settled, onClose }: { kind: View; item: Payout | Recovery; settled: boolean; onClose: () => void }): ReactElement {
+function Row({ kind, item, settled, refused, onClose }: { kind: View; item: Payout | Recovery; settled: boolean; refused: boolean; onClose: () => void }): ReactElement {
   const t = useTranslations("callCenter.payouts");
   const locale = useLocale();
   const payout = kind === "payouts" ? (item as Payout) : null;
@@ -147,7 +149,7 @@ function Row({ kind, item, settled, onClose }: { kind: View; item: Payout | Reco
         ) : !payoutActionable(item.status) ? (
           // The provider is sending it, or it waits for a recovery: nothing to press here.
           <span className="pyq__held">{t(`status.${item.status}`)}</span>
-        ) : (
+        ) : refused ? null : (
           <SxButton size="sm" variant="primary" onClick={onClose} aiId={`call_center.payouts.${kind}.open`}>
             {kind === "payouts" ? t("markPaid") : t("markRecovered")}
           </SxButton>
@@ -167,6 +169,7 @@ export default function PayoutQueue({ onCount }: { onCount?: (n: number) => void
   const [denied, setDenied] = useState(false);
   const [acting, setActing] = useState<Payout | Recovery | null>(null);
   const [settledIds, setSettledIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [refusedIds, setRefusedIds] = useState<ReadonlySet<string>>(() => new Set());
   const [done, setDone] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const onCountRef = useRef(onCount);
@@ -259,7 +262,7 @@ export default function PayoutQueue({ onCount }: { onCount?: (n: number) => void
       ) : (
         <ul className="pyq__list">
           {page.items.map((x) => (
-            <Row key={x.id} kind={view} item={x} settled={settledIds.has(x.id)} onClose={() => setActing(x)} />
+            <Row key={x.id} kind={view} item={x} settled={settledIds.has(x.id)} refused={refusedIds.has(x.id)} onClose={() => setActing(x)} />
           ))}
         </ul>
       )}
@@ -279,6 +282,7 @@ export default function PayoutQueue({ onCount }: { onCount?: (n: number) => void
           kind={view}
           target={acting}
           onClose={() => setActing(null)}
+          onForbidden={() => setRefusedIds((cur) => new Set(cur).add(acting.id))}
           onDone={() => {
             setDone(view === "payouts" ? t("donePaid") : t("doneRecovered"));
             setSettledIds((cur) => new Set(cur).add(acting.id));

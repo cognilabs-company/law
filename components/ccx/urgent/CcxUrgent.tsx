@@ -20,9 +20,9 @@ import {
   type UrgentRequest,
 } from "@/lib/services/backend";
 import { onUserSocketResync, subscribeUserEvents, subscribeUserSocketState } from "@/lib/userSocket";
-import { ApiError, errDetail, isRoleDenied, logApiError } from "@/lib/http";
+import { ApiError, errDetail, isForbidden, isRoleDenied, logApiError } from "@/lib/http";
 import { notify } from "@/lib/toast";
-import { useAuth } from "@/lib/auth";
+import { canMakeCalls, useAuth } from "@/lib/auth";
 import CallRoom from "@/components/chat/CallRoom";
 import { Loading, Note } from "../panel/bits";
 import UrgentAssignedPanel from "@/components/portal/UrgentAssignedPanel";
@@ -33,6 +33,8 @@ import UrgentCard from "./UrgentCard";
 import UrgentDetail from "./UrgentDetail";
 import Select from "@/components/Select";
 import { useAiField } from "@/lib/ai/registry";
+
+const NO_KEYS: readonly string[] = [];
 
 type State = { status: "loading" | "ready" | "error" | "forbidden" | "missing"; items: UrgentRequest[]; error?: unknown };
 type Meeting = { roomId: string; callId: string; title: string; lk: LiveKitJoin | null; caller: boolean };
@@ -334,6 +336,11 @@ export default function CcxUrgent({ duty = false }: { duty?: boolean } = {}) {
     [tk],
   );
 
+  // Actions that answered 403, per record: they leave that card.
+  const [refused, setRefused] = useState<Record<string, string[]>>({});
+  const refuse = (id: string, key: string) => setRefused((m) => ((m[id] ?? []).includes(key) ? m : { ...m, [id]: [...(m[id] ?? []), key] }));
+  const hostCalls = canMakeCalls(session);
+
   async function claim(r: UrgentRequest) {
     if (busyId) return;
     setBusyId(r.id);
@@ -343,6 +350,7 @@ export default function CcxUrgent({ duty = false }: { duty?: boolean } = {}) {
       report({ id: r.id, title: t("notify.claimed"), body: out.secureChatRoomId ? t("notify.chatOpened") : undefined, status: out.status });
     } catch (e) {
       logApiError("urgent claim", e);
+      if (isForbidden(e)) refuse(r.id, "claim");
       notify.error(t("notify.claimFailed"), { id: ntfId(r.id), error: e, map: errDetail(e) ? undefined : { 409: t("alreadyTaken") } });
     } finally {
       setBusyId("");
@@ -357,6 +365,7 @@ export default function CcxUrgent({ duty = false }: { duty?: boolean } = {}) {
       report({ id: r.id, title: t("meetingStarted"), status: (await getCcUrgentRequest(r.id).catch(() => null))?.status || "" });
     } catch (e) {
       logApiError("urgent meeting", e);
+      if (isForbidden(e)) refuse(r.id, "meeting");
       notify.error(t("notify.meetingFailed"), { id: ntfId(r.id), error: e });
     } finally {
       setBusyId("");
@@ -533,6 +542,8 @@ export default function CcxUrgent({ duty = false }: { duty?: boolean } = {}) {
                   onJoin={() => void join(r)}
                   onMeet={() => void meet(r)}
                   onStep={(act) => select(r.id, act)}
+                  hostCalls={hostCalls}
+                  refused={refused[r.id] ?? NO_KEYS}
                 />
               ))}
               {rest > 0 ? (

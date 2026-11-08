@@ -24,6 +24,7 @@ import type { SxOption } from "../types";
 import { useStudioLabels } from "../useStudioLabels";
 import { SET_AI, TAB_HUE, TAB_ICON, byCtorRank, groupKeyOf, matchesTerms } from "./model";
 import { SectionHead, Squircle } from "./parts";
+import { studioDenied } from "../denied";
 
 const AI = `${SET_AI}.registry`;
 const SHOW_REQ = 3;
@@ -37,6 +38,8 @@ export function RegistrySection(): ReactElement {
   const reg = useStudioRegistry();
   const [ask, setAsk] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  // A sync the backend refused (403) is not offered again.
+  const [syncDenied, setSyncDenied] = useState(false);
   const [q, setQ] = useState("");
   const [groupF, setGroupF] = useState("");
   const [apprF, setApprF] = useState("");
@@ -51,6 +54,7 @@ export function RegistrySection(): ReactElement {
       logApiError("studio.registry.sync", e);
       setAsk(false);
       toast(errText(e).text || t("settings.registry.syncFail"), { tone: "err" });
+      if (studioDenied(e)) setSyncDenied(true);
     } finally {
       setSyncing(false);
     }
@@ -187,7 +191,7 @@ export function RegistrySection(): ReactElement {
     },
   ];
 
-  const syncBtn = (
+  const syncBtn = syncDenied ? null : (
     <SxButton icon={RefreshCwIcon} busy={syncing} onClick={() => setAsk(true)} aiId={`${AI}.sync`}>
       {t("settings.registry.sync")}
     </SxButton>

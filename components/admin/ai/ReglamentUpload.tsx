@@ -30,6 +30,8 @@ export default function ReglamentUpload({
   onClose,
   onDone,
   onUseEditor,
+  canUseEditor = true,
+  onForbidden,
 }: {
   open: boolean;
   missing: boolean;
@@ -37,11 +39,15 @@ export default function ReglamentUpload({
   onClose: () => void;
   onDone: (info: UploadedInfo) => void;
   onUseEditor: (seed: UploadSeed) => void;
+  // False once the backend refused creating a reglament: no way into the editor.
+  canUseEditor?: boolean;
+  // 403 on upload: the page drops the upload action from view.
+  onForbidden?: () => void;
 }) {
   const { t } = useRgl();
   return (
     <Modal open={open} onClose={onClose} title={t("upload.title")} aiId="admin.ai-reglaments.upload-modal">
-      {open ? <UploadForm missing={missing} reglaments={reglaments} onDone={onDone} onUseEditor={onUseEditor} /> : null}
+      {open ? <UploadForm missing={missing} reglaments={reglaments} onDone={onDone} onUseEditor={canUseEditor ? onUseEditor : undefined} onForbidden={onForbidden} /> : null}
     </Modal>
   );
 }
@@ -51,11 +57,13 @@ function UploadForm({
   reglaments,
   onDone,
   onUseEditor,
+  onForbidden,
 }: {
   missing: boolean;
   reglaments: Reglament[];
   onDone: (info: UploadedInfo) => void;
-  onUseEditor: (seed: UploadSeed) => void;
+  onUseEditor?: (seed: UploadSeed) => void;
+  onForbidden?: () => void;
 }) {
   const { t, num, dec } = useRgl();
   const uid = useId();
@@ -172,6 +180,7 @@ function UploadForm({
     } catch (x) {
       if (isAborted(x)) return;
       const status = x instanceof ApiError ? x.status : 0;
+      if (isForbidden(x)) onForbidden?.();
       setNote(
         status === 413
           ? t("upload.tooBig")
@@ -191,14 +200,16 @@ function UploadForm({
     return (
       <div className="rgl-up">
         <MissingState text={t("missing.uploadText")} />
-        <button
-          type="button"
-          className="btn btn--soft btn--full"
-          onClick={() => onUseEditor({ title: title.trim(), category: catValue(choice, custom), version: version.trim() || "1.0" })}
-        >
-          <IconEdit aria-hidden />
-          {t("missing.useEditor")}
-        </button>
+        {onUseEditor ? (
+          <button
+            type="button"
+            className="btn btn--soft btn--full"
+            onClick={() => onUseEditor({ title: title.trim(), category: catValue(choice, custom), version: version.trim() || "1.0" })}
+          >
+            <IconEdit aria-hidden />
+            {t("missing.useEditor")}
+          </button>
+        ) : null}
       </div>
     );
   }

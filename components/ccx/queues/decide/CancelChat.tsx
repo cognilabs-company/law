@@ -7,7 +7,7 @@ import { Link } from "@/i18n/navigation";
 import PersonName from "@/components/ui/PersonName";
 import { useAuth } from "@/lib/auth";
 import { shortDateTime } from "@/lib/date";
-import { errDetail, logApiError } from "@/lib/http";
+import { errDetail, isForbidden, logApiError } from "@/lib/http";
 import { closeCancellationChat, openCancellationChat, reviewOrderOf, type CancellationChat, type CancellationReview } from "@/lib/services/marketRuntime";
 import { staffChatHref } from "@/components/admin/callcenter/cancellations/model";
 import { Field } from "../../panel/bits";
@@ -32,6 +32,8 @@ export default function CancelChat({ review, open }: { review: CancellationRevie
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // A 403 on open/close: this account may not run the chat — its buttons leave.
+  const [denied, setDenied] = useState(false);
   const sending = useRef(false);
 
   const incoming = review.discussion;
@@ -59,6 +61,10 @@ export default function CancelChat({ review, open }: { review: CancellationRevie
       setMode("idle");
     } catch (e) {
       logApiError("cancellation chat open", e);
+      if (isForbidden(e)) {
+        setDenied(true);
+        setMode("idle");
+      }
       setError(errDetail(e) || t("openError"));
     } finally {
       sending.current = false;
@@ -78,6 +84,10 @@ export default function CancelChat({ review, open }: { review: CancellationRevie
       setNote("");
     } catch (e) {
       logApiError("cancellation chat close", e);
+      if (isForbidden(e)) {
+        setDenied(true);
+        setMode("idle");
+      }
       setError(errDetail(e) || t("closeError"));
     } finally {
       sending.current = false;
@@ -146,7 +156,7 @@ export default function CancelChat({ review, open }: { review: CancellationRevie
                 </button>
               </div>
             </div>
-          ) : (
+          ) : href || (!chat.readOnly && !denied) ? (
             <div className="opx-cx-acts">
               {href ? (
                 <Link className={`opx-pbtn opx-cx-sm${chat.readOnly ? "" : " opx-pbtn--blue"}`} href={href} target="_blank" rel="noopener">
@@ -155,14 +165,14 @@ export default function CancelChat({ review, open }: { review: CancellationRevie
                   <span className="sr-only"> ({t("newTab")})</span>
                 </Link>
               ) : null}
-              {!chat.readOnly ? (
+              {!chat.readOnly && !denied ? (
                 <button type="button" className="opx-pbtn opx-pbtn--rose opx-cx-sm" onClick={() => setMode("closing")}>
                   <IcClose size={15} />
                   {t("close")}
                 </button>
               ) : null}
             </div>
-          )}
+          ) : null}
         </>
       ) : mode === "form" ? (
         <div className="opx-cx-form">
@@ -182,7 +192,7 @@ export default function CancelChat({ review, open }: { review: CancellationRevie
             </button>
           </div>
         </div>
-      ) : (
+      ) : denied ? null : (
         <div className="opx-cx-acts">
           <button type="button" className="opx-pbtn opx-cx-sm" onClick={() => setMode("form")}>
             <IcFeedback size={15} />

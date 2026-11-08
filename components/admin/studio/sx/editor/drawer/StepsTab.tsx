@@ -25,6 +25,7 @@ import {
 import type { EditorState } from "../useEditorState";
 import { initials, normRole, roleName, stepName, stepPending, stepTone } from "../model";
 import { ReassignDialog } from "./ReassignDialog";
+import { can } from "@/lib/permissions";
 
 export type StepTone = "ok" | "warn" | "err" | "wait";
 
@@ -68,8 +69,9 @@ export function StepMeta({ step, code, onChanged }: { step: StudioStep; code: st
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const { session } = useAuth();
-  const canReassign = (session?.permissions ?? []).includes(STUDIO_PERM_REASSIGN);
+  const canReassign = can(session, STUDIO_PERM_REASSIGN);
   const [open, setOpen] = useState(false);
+  const [denied, setDenied] = useState(false);
   const pending = stepPending(step);
   const byRole = pending && !step.approvers.length ? normRole(step.role) : "";
   const people = useRoleHolders(code, byRole);
@@ -144,7 +146,7 @@ export function StepMeta({ step, code, onChanged }: { step: StudioStep; code: st
             {t("sx.editor.steps.escalated", { date: labels.dateTime(step.escalatedAt) })}
           </span>
         ) : null}
-        {pending && canReassign && waiting.length ? (
+        {pending && canReassign && !denied && waiting.length ? (
           <SxButton variant="ghost" size="sm" icon={ArrowRightLeftIcon} onClick={() => setOpen(true)} aria-haspopup="dialog" aiId="admin.studio.approvals.step.reassign">
             {t("sx.editor.steps.reassign")}
           </SxButton>
@@ -170,6 +172,7 @@ export function StepMeta({ step, code, onChanged }: { step: StudioStep; code: st
           code={code}
           from={waiting}
           onClose={() => setOpen(false)}
+          onDenied={() => setDenied(true)}
           onDone={() => {
             setOpen(false);
             onChanged();

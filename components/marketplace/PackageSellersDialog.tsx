@@ -214,17 +214,19 @@ export default function PackageSellersDialog({
                       </div>
                       {blocked && s.eligibility.reasons.length ? <small className="pks__why">{s.eligibility.reasons.map(reasonText).join(" · ")}</small> : null}
                     </div>
-                    <button
-                      type="button"
-                      className="btn btn--grad btn--sm pks__pick"
-                      disabled={blocked}
-                      onClick={() => onPick(s)}
-                      data-ai-id={`marketplace.package-sellers.pick.${s.userId}`}
-                      data-ai-label={s.name}
-                    >
-                      {t("pick")}
-                      <IconArrowRight aria-hidden />
-                    </button>
+                    {/* Not eligible for this package: the reasons say why; no pick button. */}
+                    {blocked ? null : (
+                      <button
+                        type="button"
+                        className="btn btn--grad btn--sm pks__pick"
+                        onClick={() => onPick(s)}
+                        data-ai-id={`marketplace.package-sellers.pick.${s.userId}`}
+                        data-ai-label={s.name}
+                      >
+                        {t("pick")}
+                        <IconArrowRight aria-hidden />
+                      </button>
+                    )}
                   </li>
                 );
               })}

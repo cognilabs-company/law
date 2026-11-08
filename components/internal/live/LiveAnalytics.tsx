@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import DatePicker from "@/components/DatePicker";
+import { isForbidden } from "@/lib/http";
 import { getLiveAnalytics, type LiveAnalytics as Data } from "@/lib/services/internalLive";
 import { IconCheck, IconChartBar, IconClock, IconHourglass, IconPause, IconTrendingUp, IconUsers } from "@/components/icons";
 import { EntitySelect, HrmBar, HrmEmpty, HrmError, HrmLoading, HrmPanel, HrmPerson, HrmStat, useHrmFormat } from "@/components/internal/HrmUi";
@@ -14,7 +15,9 @@ const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.p
 
 // Monitoring analytics (§11): the period, a unit or one person go to the
 // backend as filters; every duration reads h:mm:ss.
-export default function LiveAnalytics({ employeeId, onEmployee, unitOptions, employeeOptions }: { employeeId: string; onEmployee: (id: string) => void; unitOptions: SearchOption[]; employeeOptions: SearchOption[] }) {
+// A 403 keeps its message here and tells the page, which then stops
+// offering analytics (the tab and the drawer's button).
+export default function LiveAnalytics({ employeeId, onEmployee, unitOptions, employeeOptions, onForbidden }: { employeeId: string; onEmployee: (id: string) => void; unitOptions: SearchOption[]; employeeOptions: SearchOption[]; onForbidden?: () => void }) {
   const { t, module } = useLiveText();
   const f = useHrmFormat();
   const [range, setRange] = useState({ from: dayIso(6), to: dayIso(0) });
@@ -36,10 +39,12 @@ export default function LiveAnalytics({ employeeId, onEmployee, unitOptions, emp
         }
       })
       .catch((e) => {
-        if (!c.signal.aborted) setErr(apiMessage(e, t("errors.load")));
+        if (c.signal.aborted) return;
+        setErr(apiMessage(e, t("errors.load")));
+        if (isForbidden(e)) onForbidden?.();
       });
     return () => c.abort();
-  }, [key, range.from, range.to, unitId, employeeId, tooLong, t]);
+  }, [key, range.from, range.to, unitId, employeeId, tooLong, t, onForbidden]);
 
   const d = data?.key === key ? data.d : null;
   const modules = useMemo(() => Object.entries(d?.totals.modules ?? {}).sort((a, b) => b[1] - a[1]), [d]);

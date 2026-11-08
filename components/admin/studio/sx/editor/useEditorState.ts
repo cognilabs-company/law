@@ -88,6 +88,7 @@ import {
   seedPatch,
   takePatch,
 } from "./model";
+import { studioDenied } from "../denied";
 
 export type EditorMode = "create" | "clone" | "runtime-view" | "runtime-edit" | "object";
 export type EditorPhase = "loading" | "ready" | "not-found" | "unknown-ctor" | "load-error";
@@ -248,6 +249,22 @@ const NO_CAN: EditorState["can"] = {
   restore: false,
 };
 const TITLE_MAX = 200;
+type CanKey = keyof EditorState["can"];
+const NO_DENIED: { id: string; keys: readonly CanKey[] } = { id: "", keys: [] };
+// Which actions a refused request takes off the screen, by its log scope.
+const DENIES: Readonly<Record<string, readonly CanKey[]>> = {
+  "studio.sx.object.save": ["save"],
+  "studio.sx.object.validate": ["submit"],
+  "studio.sx.object.submit": ["submit"],
+  "studio.sx.object.publish": ["publish"],
+  "studio.sx.object.rollback": ["rollback"],
+  "studio.sx.object.archive": ["archive"],
+  "studio.sx.object.withdraw": ["withdraw"],
+  "studio.sx.object.restore": ["restore"],
+  "studio.sx.object.clone": ["clone", "newVersion"],
+  "studio.sx.object.file": ["upload"],
+  "studio.sx.comment.add": ["comment"],
+};
 type RefreshMode = boolean | "own";
 
 const sameServerVersion = (a: StudioDetail, b: StudioDetail | null): boolean => {
@@ -332,10 +349,23 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   const [serverErrors, setServerErrors] = useState<SxErrors>(EMPTY_ERRORS);
   const [draftErrors, setDraftErrors] = useState<SxErrors>(EMPTY_ERRORS);
   const [actionError, setActionError] = useState<{ error: unknown } | null>(null);
+  // Actions the backend refused with 403 for this object: hidden from then on.
+  const [denied, setDenied] = useState<{ id: string; keys: readonly CanKey[] }>(NO_DENIED);
   const [publishFail, setPublishFail] = useState<string | null>(null);
   const [remote, setRemote] = useState<{ conflict: boolean } | null>(null);
   const [busy, setBusy] = useState<EditorBusy>("");
   const [comments, setComments] = useState<{ items: SxComment[] | null; error: unknown }>({ items: null, error: null });
+  // Comments whose edit/delete the backend refused (403): those buttons stay gone.
+  const [refusedCmt, setRefusedCmt] = useState<Readonly<Record<string, { edit?: boolean; delete?: boolean }>>>({});
+  const shownComments = useMemo(() => {
+    const ids = Object.keys(refusedCmt);
+    if (!ids.length || !comments.items) return comments;
+    const items = comments.items.map((c) => {
+      const r = refusedCmt[c.id];
+      return r ? { ...c, canEdit: r.edit ? false : c.canEdit, canDelete: r.delete ? false : c.canDelete } : c;
+    });
+    return { items, error: comments.error };
+  }, [comments, refusedCmt]);
   const [locked, setLocked] = useState<{ code: string; withdrawUrl: string; review: boolean } | null>(null);
   const [conflictOpen, setConflictOpen] = useState(false);
   const [dialogError, setDialogError] = useState<EditorDialogError | null>(null);
@@ -368,9 +398,10 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   const liveLocked = !!opts.lockLive && mode === "object" && LIVE.has(statusNorm) && unlockedFor !== "*" && unlockedFor !== liveKey;
   const lifecycle = useMemo(() => lifecycleOf(detail), [detail]);
   const reviewOpt = opts.reviewEdit === true;
+  const deniedKeys = denied.id === (id ?? "") ? denied.keys : NO_DENIED.keys;
   const reviewing = mode === "object" && REVIEWING_STATUSES.has(statusNorm);
   const editInReview = reviewOpt && reviewing && editInReviewOf(detail?.raw);
-  const editable = editInReview || editableOf(access, lifecycle);
+  const editable = (editInReview || editableOf(access, lifecycle)) && !deniedKeys.includes("save");
   const readOnlyReason: EditorState["readOnlyReason"] =
     statusNorm === "archived" ? "archived" : LOCKED_STATUSES.has(statusNorm) && !editInReview ? "locked" : !editable ? "access" : mode === "runtime-view" ? "view" : liveLocked ? "live" : "";
   const readOnly = readOnlyReason !== "";
@@ -735,6 +766,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     lifecycle,
     reviewEdit: editInReview,
     reviewNeedsPermission: reviewOpt && reviewing && !editInReview && access.canReview,
+    denied: deniedKeys,
   };
   const acts = actionsOf(actionsInput);
   let can = acts.can;
@@ -757,7 +789,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   const alert: EditorAlert = actionError
     ? { kind: "action", error: actionError.error }
     : locked
-      ? { kind: "locked", code: locked.code, withdraw: !locked.review && (Boolean(locked.withdrawUrl) || can.withdraw), ...(locked.review ? { review: true } : {}) }
+      ? { kind: "locked", code: locked.code, withdraw: !locked.review && !deniedKeys.includes("withdraw") && (Boolean(locked.withdrawUrl) || can.withdraw), ...(locked.review ? { review: true } : {}) }
       : publishFail !== null
         ? { kind: "publishFail", text: publishFail }
         : remote
@@ -788,8 +820,21 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     focusFirst(keys);
   };
 
+  // A 403 keeps its message and also takes the refused action off the
+  // screen, so it is not offered again (owner law 2026-11-08).
+  const deny = (scope: string, e: unknown) => {
+    const keys = DENIES[scope];
+    if (!keys || !studioDenied(e)) return;
+    const key = id ?? "";
+    setDenied((d) => {
+      const had = d.id === key ? d.keys : [];
+      return keys.every((k) => had.includes(k)) ? d : { id: key, keys: [...new Set([...had, ...keys])] };
+    });
+  };
+
   const fail = (scope: string, e: unknown) => {
     logApiError(scope, e);
+    deny(scope, e);
     const lock = lockErrorOf(e);
     if (lock?.code === "studio_version_locked") {
       setActionError(null);
@@ -950,6 +995,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       return true;
     } catch (e) {
       logApiError("studio.sx.object.file", e);
+      deny("studio.sx.object.file", e);
       setFileError(errText(e).text || t("sx.editor.files.uploadFail"));
       notify.error(t(objectId === id ? "sx.editor.files.uploadFail" : "sx.k06.toast.uploadAfterCreate"));
       return false;
@@ -1065,6 +1111,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       } catch (e) {
         if (!id) {
           logApiError("studio.sx.object.submit", e);
+          deny("studio.sx.object.submit", e);
           if (r.created) optsRef.current.onCreated?.(r.created);
           notify.error(errText(e).text);
         } else {
@@ -1091,6 +1138,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       return true;
     } catch (e) {
       logApiError("studio.sx.object.publish", e);
+      deny("studio.sx.object.publish", e);
       const se = studioErrorOf(e);
       if (se.kind === "publish_failed") {
         // A runtime sync failure (HTTP 409 studio_publish_failed, backend
@@ -1129,6 +1177,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       return true;
     } catch (e) {
       logApiError("studio.sx.object.rollback", e);
+      deny("studio.sx.object.rollback", e);
       setDialogError(errText(e));
       setActionError({ error: e });
       return false;
@@ -1147,6 +1196,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       return true;
     } catch (e) {
       logApiError("studio.sx.object.archive", e);
+      deny("studio.sx.object.archive", e);
       notify.error(errText(e).text);
       setActionError({ error: e });
       return false;
@@ -1168,6 +1218,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       return true;
     } catch (e) {
       logApiError(`studio.sx.object.${action}`, e);
+      deny(`studio.sx.object.${action}`, e);
       notify.error(errText(e).text);
       setActionError({ error: e });
       void refresh(false);
@@ -1207,6 +1258,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       return copy.id;
     } catch (e) {
       logApiError("studio.sx.object.clone", e);
+      deny("studio.sx.object.clone", e);
       setDialogError(errText(e));
       setActionError({ error: e });
       return null;
@@ -1232,6 +1284,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       return true;
     } catch (e) {
       logApiError("studio.sx.object.file", e);
+      deny("studio.sx.object.file", e);
       setFileError(errText(e).text || t("sx.editor.files.uploadFail"));
       setActionError({ error: e });
       return false;
@@ -1250,6 +1303,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       return true;
     } catch (e) {
       logApiError("studio.sx.comment.add", e);
+      deny("studio.sx.comment.add", e);
       notify.error(errText(e).text);
       return false;
     } finally {
@@ -1267,6 +1321,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       return true;
     } catch (e) {
       logApiError("studio.sx.comment.edit", e);
+      if (studioDenied(e)) setRefusedCmt((r) => ({ ...r, [commentId]: { ...r[commentId], edit: true } }));
       notify.error(errText(e).text);
       return false;
     } finally {
@@ -1286,6 +1341,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       return true;
     } catch (e) {
       logApiError("studio.sx.comment.delete", e);
+      if (studioDenied(e)) setRefusedCmt((r) => ({ ...r, [commentId]: { ...r[commentId], delete: true } }));
       notify.error(errText(e).text);
       return false;
     } finally {
@@ -1409,7 +1465,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     changedPaths,
     alert,
     busy,
-    comments,
+    comments: shownComments,
     me,
     lifecycle,
     conflict,

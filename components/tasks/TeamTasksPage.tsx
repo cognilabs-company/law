@@ -43,6 +43,11 @@ const ZERO: TaskCounts = { new: 0, in_progress: 0, testing: 0, ready: 0 };
 
 type ListState = { items: Task[]; total: number; counts: TaskCounts; hasMore: boolean; loading: boolean; error: string; ready: boolean };
 type Reason = { kind: "return"; task: Task } | { kind: "delete"; task: Task } | { kind: "approve"; task: Task };
+// What the backend refused with a 403 on one task, while the task kept the
+// status it had then: that action leaves the screen instead of being offered
+// again (a status change re-opens the question).
+type TaskAct = "status" | "edit" | "assign" | "delete";
+type Blocked = Record<string, { status: TaskStatus; acts: TaskAct[] }>;
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -77,7 +82,26 @@ function writeTaskParam(id: string) {
 export default function TeamTasksPage() {
   const { t, status: statusLabel, when } = useTaskText();
   const simple = usesSimpleTaskFlow(useAuth().session?.id);
-  const shown = (task: Task) => (simple ? simpleFlowView(task) : task);
+  const [blocked, setBlocked] = useState<Blocked>({});
+  const [createBlocked, setCreateBlocked] = useState(false);
+  const shown = (task: Task): Task => {
+    const view = simple ? simpleFlowView(task) : task;
+    const b = blocked[task.id];
+    if (!b || b.status !== task.status) return view;
+    const off = (a: TaskAct) => b.acts.includes(a);
+    const a = view.actions;
+    return {
+      ...view,
+      actions: {
+        ...a,
+        canChangeStatus: a.canChangeStatus && !off("status"),
+        nextStatuses: off("status") ? [] : a.nextStatuses,
+        canEdit: a.canEdit && !off("edit"),
+        canAssign: a.canAssign && !off("assign"),
+        canDelete: a.canDelete && !off("delete"),
+      },
+    };
+  };
   const [meta, setMeta] = useState<TaskMeta | null>(null);
   const [denied, setDenied] = useState("");
   const [status, setStatus] = useState<TaskStatus | "">("");
@@ -269,7 +293,7 @@ export default function TeamTasksPage() {
   }, [refresh]);
 
   const handleError = useCallback(
-    (te: TaskError, task: Task | null): boolean => {
+    (te: TaskError, task: Task | null, act?: TaskAct | "create"): boolean => {
       if (te.kind === "conflict") {
         notify.warning(t("err.conflict"));
         if (task) {
@@ -282,6 +306,13 @@ export default function TeamTasksPage() {
       }
       if (te.kind === "forbidden") {
         notify.error(te.message || t("err.forbidden"));
+        if (act === "create") setCreateBlocked(true);
+        else if (act && task) {
+          setBlocked((m) => {
+            const prev = m[task.id]?.status === task.status ? m[task.id].acts : [];
+            return { ...m, [task.id]: { status: task.status, acts: [...new Set([...prev, act])] } };
+          });
+        }
         refresh(task?.id);
         return true;
       }
@@ -316,7 +347,7 @@ export default function TeamTasksPage() {
       applied(next);
     } catch (e) {
       const te = taskErrorOf(e);
-      if (!handleError(te, task)) notify.error(te.kind === "unavailable" ? t("err.unavailable") : te.kind === "network" ? t("err.network") : te.message || t("err.save"));
+      if (!handleError(te, task, "status")) notify.error(te.kind === "unavailable" ? t("err.unavailable") : te.kind === "network" ? t("err.network") : te.message || t("err.save"));
     } finally {
       setBusyId("");
     }
@@ -340,7 +371,7 @@ export default function TeamTasksPage() {
       return null;
     } catch (e) {
       const te = taskErrorOf(e);
-      if (handleError(te, task)) {
+      if (handleError(te, task, reason.kind === "return" ? "status" : "delete")) {
         setReason(null);
         return null;
       }
@@ -403,7 +434,7 @@ export default function TeamTasksPage() {
     );
   }
 
-  const createBtn = meta?.canCreate ? (
+  const createBtn = meta?.canCreate && !createBlocked ? (
     <button type="button" className="ttk-btn ttk-btn--pri ttk-btn--lg" onClick={() => setForm({ kind: "create" })}>
       <Plus aria-hidden strokeWidth={2} />
       {t("create")}
@@ -546,6 +577,10 @@ export default function TeamTasksPage() {
                 {list.items.map((task, i) => {
                   const late = task.isOverdue && task.status !== "ready";
                   const I = STATUS_ICON[task.status];
+                  const view = shown(task);
+                  // Only the actions this account may take; no empty action cell.
+                  const rowStatus = !simple && view.actions.canChangeStatus && view.actions.nextStatuses.length > 0;
+                  const rowApprove = simple && view.actions.canDelete && !task.deletedAt;
                   return (
                     <li key={task.id} className={`ttk-row ttk-row--${task.status}${openId === task.id ? " is-open" : ""}${late ? " is-late" : ""}`} style={{ animationDelay: `${Math.min(i, 12) * 30}ms` }}>
                       <button type="button" className="ttk-row__open" onClick={() => open(task.id, task)} aria-label={t("openTask", { code: task.code, title: task.title })} />
@@ -564,27 +599,29 @@ export default function TeamTasksPage() {
                           <span className="ttk-row__upd">{t("updated", { when: when(task.updatedAt) })}</span>
                         </p>
                       </div>
-                      <div className="ttk-row__act">
-                        <span className="ttk-acts">
-                          {/* Ulugbek's list carries only the final action; the
-                              status buttons stay in the task's detail. */}
-                          {simple ? null : <StatusActions task={shown(task)} busy={busyId === task.id} onPick={(to) => void move(task, to)} />}
-                          {simple && task.actions.canDelete && !task.deletedAt ? (
-                            <button
-                              type="button"
-                              className="ttk-btn ttk-btn--ok ttk-btn--sm"
-                              disabled={busyId === task.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setReason({ kind: "approve", task });
-                              }}
-                            >
-                              <Archive aria-hidden strokeWidth={STROKE} />
-                              {t("approveArchive")}
-                            </button>
-                          ) : null}
-                        </span>
-                      </div>
+                      {rowStatus || rowApprove ? (
+                        <div className="ttk-row__act">
+                          <span className="ttk-acts">
+                            {/* Ulugbek's list carries only the final action; the
+                                status buttons stay in the task's detail. */}
+                            {rowStatus ? <StatusActions task={view} busy={busyId === task.id} onPick={(to) => void move(task, to)} /> : null}
+                            {rowApprove ? (
+                              <button
+                                type="button"
+                                className="ttk-btn ttk-btn--ok ttk-btn--sm"
+                                disabled={busyId === task.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setReason({ kind: "approve", task });
+                                }}
+                              >
+                                <Archive aria-hidden strokeWidth={STROKE} />
+                                {t("approveArchive")}
+                              </button>
+                            ) : null}
+                          </span>
+                        </div>
+                      ) : null}
                     </li>
                   );
                 })}
@@ -613,7 +650,7 @@ export default function TeamTasksPage() {
         />
       ) : null}
 
-      {form ? <TaskForm mode={form} limits={meta?.attachments} onClose={() => setForm(null)} onSaved={saved} onError={(te, task) => (handleError(te, task) ? (setForm(null), true) : false)} /> : null}
+      {form ? <TaskForm mode={form} limits={meta?.attachments} canAssign={meta?.canAssign === true} onClose={() => setForm(null)} onSaved={saved} onError={(te, task) => (handleError(te, task, form.kind) ? (setForm(null), true) : false)} /> : null}
 
       {reason ? (
         <ReasonDialog

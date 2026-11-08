@@ -33,7 +33,7 @@ import Modal from "@/components/admin/Modal";
 import FieldError from "@/components/ui/FieldError";
 import { EmptyState, ErrorState } from "@/components/portal/DataState";
 import PersonName from "@/components/ui/PersonName";
-import { IconChat, IconChevronLeft, IconClock, IconHeadset, IconInbox, IconLock, IconRefresh, IconSearch } from "@/components/icons";
+import { IconChat, IconChevronLeft, IconClock, IconHeadset, IconInbox, IconRefresh, IconSearch } from "@/components/icons";
 import SupportChat from "./SupportChat";
 import AssistPanel from "./assist/AssistPanel";
 import { SupportStatus, TicketCard, useMinuteNow, useSupportCall, useSupportLabels, waitText } from "./bits";
@@ -596,42 +596,40 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
                     </div>
                   ) : null}
                 </dl>
-                <div className="supop__acts">
-                  {claimable ? (
-                    <button type="button" className="btn btn--pri btn--sm" disabled={busy} onClick={() => void claim(current)} data-ai-id={aiId("call_center.support.ticket", current.id, "claim")}>
-                      {t("claim")}
-                    </button>
-                  ) : null}
-                  {mine && isOpen ? (
-                    <>
-                      <button
-                        type="button"
-                        className="btn btn--line btn--sm"
-                        disabled={busy || transferOff}
-                        title={transferOff ? t("queue.transferOff") : undefined}
-                        aria-describedby={transferOff ? `${uid}-noxfer` : undefined}
-                        onClick={() => setTransfer({ q: "", results: [], loading: true, pick: null, reason: "", err: "" })}
-                        data-ai-id={aiId("call_center.support.ticket", current.id, "transfer")}
-                      >
-                        {t("transfer")}
+                {claimable || (mine && isOpen) ? (
+                  <div className="supop__acts">
+                    {claimable ? (
+                      <button type="button" className="btn btn--pri btn--sm" disabled={busy} onClick={() => void claim(current)} data-ai-id={aiId("call_center.support.ticket", current.id, "claim")}>
+                        {t("claim")}
                       </button>
-                      <button
-                        type="button"
-                        className="btn btn--line btn--sm supop__close"
-                        disabled={busy}
-                        onClick={() => setClosing({ resolution: "", err: "" })}
-                        data-ai-id={aiId("call_center.support.ticket", current.id, "close")}
-                      >
-                        {t("close")}
-                      </button>
-                    </>
-                  ) : null}
-                </div>
-                {mine && isOpen && transferOff ? (
-                  <p className="supop__note supop__off" id={`${uid}-noxfer`}>
-                    <IconLock aria-hidden="true" />
-                    {t("queue.transferOff")}
-                  </p>
+                    ) : null}
+                    {mine && isOpen ? (
+                      <>
+                        {/* Transfer follows the ticket's operator_transfer
+                            capability: not offered when the backend says no. */}
+                        {transferOff ? null : (
+                          <button
+                            type="button"
+                            className="btn btn--line btn--sm"
+                            disabled={busy}
+                            onClick={() => setTransfer({ q: "", results: [], loading: true, pick: null, reason: "", err: "" })}
+                            data-ai-id={aiId("call_center.support.ticket", current.id, "transfer")}
+                          >
+                            {t("transfer")}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="btn btn--line btn--sm supop__close"
+                          disabled={busy}
+                          onClick={() => setClosing({ resolution: "", err: "" })}
+                          data-ai-id={aiId("call_center.support.ticket", current.id, "close")}
+                        >
+                          {t("close")}
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
                 ) : null}
                 {reasonNote ? (
                   <p className="supop__note">

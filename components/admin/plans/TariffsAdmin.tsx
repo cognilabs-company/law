@@ -12,6 +12,7 @@ import { fmtUzs } from "@/lib/money";
 import { useResourceOne } from "@/lib/useResource";
 import { listSubscriptionPlansAdmin, planAudience, type BackendPlan } from "@/lib/services/backend";
 import { useStudioCatalog } from "@/lib/studio/catalogLink";
+import { useStudioAccess } from "@/lib/services/studio";
 import FeatureRegistry from "./FeatureRegistry";
 import PlanVersions from "./PlanVersions";
 
@@ -35,8 +36,11 @@ export default function TariffsAdmin(): ReactElement {
   const plans = useMemo(() => [...(res.data?.plans ?? [])].sort((a, b) => a.sortOrder - b.sortOrder || a.monthlyPrice - b.monthlyPrice), [res.data]);
   const [picked, setPicked] = useState("");
   const current: BackendPlan | null = plans.find((p) => p.id === picked) ?? plans[0] ?? null;
-  const k17 = studio.listHref(K17);
-  const k17New = studio.newHref(K17);
+  // Studio K17 holds the benefit lines: its list for anyone Studio admits,
+  // a new tariff only for a Studio editor.
+  const studioAccess = useStudioAccess();
+  const k17 = studioAccess.any ? studio.listHref(K17) : "";
+  const k17New = studioAccess.canEdit ? studio.newHref(K17) : "";
   const audiences = (p: BackendPlan) => planAudience(p).map((a) => (tp.has(`audiences.${a}`) ? tp(`audiences.${a}`) : t("audienceOther")));
   const price = (p: BackendPlan) => (p.monthlyPrice > 0 ? t("perMonth", { amount: fmtUzs(p.monthlyPrice) }) : t("free"));
 

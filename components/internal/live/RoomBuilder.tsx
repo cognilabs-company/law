@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ComponentType, type CSSProperties, type SVGProps } from "react";
-import { asDict } from "@/lib/http";
+import { asDict, isForbidden } from "@/lib/http";
 import { ROOM_TYPES, createRoom, updateRoom, type LiveRoom } from "@/lib/services/internalLive";
 import type { SearchOption } from "@/components/SearchSelect";
 import Modal from "@/components/admin/Modal";
@@ -22,7 +22,7 @@ const MAX_CAP = 200;
 // name, the department, how many seats and a colour, with the room itself
 // standing beside the form (above it on a phone), growing desks as the
 // seats are counted.
-export default function RoomBuilder({ room, unitOptions, unitName, defaultUnit = "", onClose, onSaved }: { room: LiveRoom | null; unitOptions: SearchOption[]; unitName: (id: string) => string; defaultUnit?: string; onClose: () => void; onSaved: () => void }) {
+export default function RoomBuilder({ room, unitOptions, unitName, defaultUnit = "", onClose, onSaved, onForbidden }: { room: LiveRoom | null; unitOptions: SearchOption[]; unitName: (id: string) => string; defaultUnit?: string; onClose: () => void; onSaved: () => void; onForbidden?: () => void }) {
   const { t, roomType } = useLiveText();
   const meta = asDict(room?.raw.meta);
   const [type, setType] = useState(room?.type ?? "physical");
@@ -36,11 +36,13 @@ export default function RoomBuilder({ room, unitOptions, unitName, defaultUnit =
   const [status, setStatus] = useState(room?.status ?? "active");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  // Refused by the backend (403): the message stays, the save button goes.
+  const [denied, setDenied] = useState(false);
   const shownCode = ownCode ? code : codeFrom(name);
   const ok = Boolean(unit && name.trim() && shownCode.trim());
 
   async function save() {
-    if (busy || !ok) return;
+    if (busy || !ok || denied) return;
     setBusy(true);
     setErr("");
     const nextMeta: Dict = { ...meta };
@@ -55,6 +57,10 @@ export default function RoomBuilder({ room, unitOptions, unitName, defaultUnit =
       onSaved();
     } catch (cause) {
       setErr(apiMessage(cause, t("errors.save")));
+      if (isForbidden(cause)) {
+        setDenied(true);
+        onForbidden?.();
+      }
     } finally {
       setBusy(false);
     }
@@ -77,10 +83,12 @@ export default function RoomBuilder({ room, unitOptions, unitName, defaultUnit =
       footer={
         <>
           <button type="button" className="btn btn--line btn--sm" onClick={onClose} disabled={busy}>{t("cancel")}</button>
-          <button type="button" className="btn btn--pri btn--sm" onClick={() => void save()} disabled={busy || !ok}>
-            {room ? <IconCheck /> : <IconSparkle />}
-            {busy ? t("saving") : room ? t("save") : t("builder.create")}
-          </button>
+          {denied ? null : (
+            <button type="button" className="btn btn--pri btn--sm" onClick={() => void save()} disabled={busy || !ok}>
+              {room ? <IconCheck /> : <IconSparkle />}
+              {busy ? t("saving") : room ? t("save") : t("builder.create")}
+            </button>
+          )}
         </>
       }
     >

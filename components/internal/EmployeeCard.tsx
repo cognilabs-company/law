@@ -5,6 +5,9 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { listHrm, useHrmCatalog, type HrmPage } from "@/lib/services/hrm";
+import { useAuth } from "@/lib/auth";
+import { isForbidden } from "@/lib/http";
+import { canInternal } from "@/lib/services/internalHrm";
 import { useHrmDirectory, refreshHrmDirectory } from "@/components/internal/useHrmDirectory";
 import { EmployeeEdit, EmployeeOverview, useEmployee360 } from "@/components/internal/EmployeeDrawers";
 import { HrmAvatar, HrmEmpty, HrmError, HrmLoading, HrmPanel, HrmStatus, useHrmFormat, useStatusLabel } from "@/components/internal/HrmUi";
@@ -53,11 +56,19 @@ function Card({ id, onChanged }: { id: string; onChanged: () => void }) {
   const dir = useHrmDirectory();
   const router = useRouter();
   const sp = useSearchParams();
-  const tab = sp.get("tab") || "overview";
+  const { session } = useAuth();
+  // Editing the person: PATCH /internal/employees/{id} and the assignment
+  // both need internal_hr.manage.
+  const canEdit = canInternal(session, "internal_hr.manage");
+  // A record tab whose module the account may not read (403) leaves the
+  // card instead of offering an error again.
+  const [denied, setDenied] = useState<string[]>([]);
+  const wanted = sp.get("tab") || "overview";
+  const tab = denied.includes(wanted) || (wanted === "edit" && !canEdit) ? "overview" : wanted;
   const { detail, loading, error, employee: fromApi } = useEmployee360(id);
   const e = fromApi ?? dir.employee(id) ?? null;
   const go = (k: string) => router.replace(`/internal/employees/${encodeURIComponent(id)}${k === "overview" ? "" : `?tab=${k}`}`, { scroll: false });
-  const tabs = ["overview", ...RECORD_TABS.map((x) => x.key), "edit"];
+  const tabs = ["overview", ...RECORD_TABS.map((x) => x.key).filter((k) => !denied.includes(k)), ...(canEdit ? ["edit"] : [])];
 
   if (!e) {
     if (error) return <HrmError text={tp("error")} />;
@@ -82,7 +93,7 @@ function Card({ id, onChanged }: { id: string; onChanged: () => void }) {
         <div className="hrm-card__acts">
           <Link className="btn btn--line btn--sm" href={`/internal/live-office?employee=${encodeURIComponent(e.id)}`}><IconMonitor />{tp("liveOfficeLink")}</Link>
           <LifecycleButtons id={e.id} name={e.name || e.code} status={e.status} onDone={onChanged} />
-          <button type="button" className="btn btn--pri btn--sm" onClick={() => go("edit")}>{tp("tabEdit")}</button>
+          {canEdit ? <button type="button" className="btn btn--pri btn--sm" onClick={() => go("edit")}>{tp("tabEdit")}</button> : null}
         </div>
       </header>
       <div className="hrm-tabs hrm-card__tabs" role="tablist" aria-label={t("tabs")}>
@@ -101,16 +112,24 @@ function Card({ id, onChanged }: { id: string; onChanged: () => void }) {
             <ModuleCounts id={e.id} />
           </div>
         </div>
-      ) : tab === "edit" ? (
+      ) : tab === "edit" && canEdit ? (
         <HrmPanel><EmployeeEdit employee={e} onSaved={refreshHrmDirectory} /></HrmPanel>
       ) : (
-        <Records key={tab} employeeId={e.id} spec={RECORD_TABS.find((x) => x.key === tab) ?? RECORD_TABS[0]} />
+        <Records
+          key={tab}
+          employeeId={e.id}
+          spec={RECORD_TABS.find((x) => x.key === tab) ?? RECORD_TABS[0]}
+          onForbidden={() => {
+            setDenied((cur) => (cur.includes(tab) ? cur : [...cur, tab]));
+            go("overview");
+          }}
+        />
       )}
     </section>
   );
 }
 
-function Records({ employeeId, spec }: { employeeId: string; spec: RecordTab }) {
+function Records({ employeeId, spec, onForbidden }: { employeeId: string; spec: RecordTab; onForbidden: () => void }) {
   const t = useTranslations("internal.card");
   const { type: typeName, module } = useHrmText();
   const cat = useHrmCatalog();
@@ -122,8 +141,14 @@ function Records({ employeeId, spec }: { employeeId: string; spec: RecordTab }) 
     const types = spec.types ?? [undefined];
     void Promise.all(types.map((type) => listHrm(spec.domain, { employeeId, type, limit: 100, offset: 0 }, c.signal)))
       .then((pages) => !c.signal.aborted && setRes({ pages, err: false }))
-      .catch(() => !c.signal.aborted && setRes({ pages: [], err: true }));
+      .catch((cause) => {
+        if (c.signal.aborted) return;
+        if (isForbidden(cause)) onForbidden();
+        else setRes({ pages: [], err: true });
+      });
     return () => c.abort();
+    // onForbidden is a fresh closure each render; the read depends on the tab only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employeeId, spec]);
   const mod = cat.data?.modules.find((m) => m.key === spec.domain) ?? null;
   const rows = res?.pages.flatMap((p) => p.items) ?? [];

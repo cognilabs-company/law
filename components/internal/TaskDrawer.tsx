@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { subscribeInternalEvents } from "@/lib/internalSocket";
+import { isForbidden } from "@/lib/http";
 import { commentExecutionTask, updateExecutionTask, type HrmTask } from "@/lib/services/internalHrm";
 import { HrmDrawer, HrmError, HrmKv, HrmPerson, HrmPriority, HrmSection, HrmStatus, isOverdue, useHrmFormat, useNow, useStatusLabel } from "@/components/internal/HrmUi";
 import Select from "@/components/Select";
@@ -28,6 +29,7 @@ export default function TaskDrawer({
   onClose,
   onChanged,
   manage,
+  canMove = true,
   unitName,
 }: {
   task: HrmTask | null;
@@ -35,6 +37,9 @@ export default function TaskDrawer({
   onChanged: () => void;
   // Ijro: any status, including done/returned/cancelled.
   manage?: boolean;
+  // false: the account may not move this task at all (owner law
+  // 2026-11-08) — no status control is shown, only the comment box.
+  canMove?: boolean;
   unitName?: string;
 }) {
   const t = useTranslations("internal.task");
@@ -47,6 +52,8 @@ export default function TaskDrawer({
   const [saved, setSaved] = useState<"" | "status" | "comment">("");
   const [comment, setComment] = useState("");
   const [prevId, setPrevId] = useState("");
+  // The backend refused a move (403): the controls leave the drawer.
+  const [refused, setRefused] = useState(false);
   const id = task?.id ?? "";
 
   // A different task resets the drawer during render, before it paints.
@@ -56,6 +63,7 @@ export default function TaskDrawer({
     setError(false);
     setSaved("");
     setComment("");
+    setRefused(false);
   }
 
   // Comments and status changes on this task arrive on its own channel
@@ -79,7 +87,8 @@ export default function TaskDrawer({
       setStatus(next);
       setSaved("status");
       onChanged();
-    } catch {
+    } catch (cause) {
+      if (isForbidden(cause)) setRefused(true);
       setError(true);
     } finally {
       setBusy(false);
@@ -106,7 +115,8 @@ export default function TaskDrawer({
 
   const overdue = isOverdue(task.deadline, status, now);
   const done = task.checklist.filter((c) => c.done).length;
-  const next = NEXT[status] ?? [];
+  const next = canMove && !refused ? (NEXT[status] ?? []) : [];
+  const managing = Boolean(manage && canMove && !refused);
 
   return (
     <HrmDrawer
@@ -115,7 +125,7 @@ export default function TaskDrawer({
       title={task.title || t("untitled")}
       sub={[task.code, task.project].filter(Boolean).join(" · ")}
       footer={
-        manage ? (
+        managing ? (
           <div className="hrm-drawer__status">
             <span className="ldrw__lbl">{t("changeStatus")}</span>
             <Select value={status} onChange={(v) => void move(v)} options={TASK_STATUSES.map((s) => ({ value: s, label: label(s) }))} ariaLabel={t("changeStatus")} />

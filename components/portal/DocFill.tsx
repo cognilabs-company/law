@@ -842,13 +842,15 @@ export default function DocFill({
   // same #E5484D the two-pane layout's .docpaper__ask uses): the way out for a
   // client stuck on a form, so it has to be seen next to "Hujjatni yaratish".
   // Its own --help modifier keeps it off the advocate editor's .deditor__act.
-  const askButton = sourceFile?.lawyerFlow ? (
+  // The backend holds the request (can_send_lawyer_request=false): no
+  // button at all, the held note below says why.
+  const askButton = lawyerHeldNote ? null : sourceFile?.lawyerFlow ? (
     <button
       type="button"
       className={chrome ? `deditor__act deditor__act--help${askSent ? " deditor__act--helpSent" : ""}` : `docfill__ask${askSent ? " docfill__ask--sent" : ""}`}
       onClick={askLawyer}
-      disabled={askBusy || askSent || !!lawyerHeldNote}
-      title={lawyerHeldNote || (askSent ? t("askLawyerSent") : t("askLawyer"))}
+      disabled={askBusy || askSent}
+      title={askSent ? t("askLawyerSent") : t("askLawyer")}
       data-ai-id="documents.constructor.ask-lawyer"
     >
       {askSent ? <IconCheck /> : <IconHeadset />}

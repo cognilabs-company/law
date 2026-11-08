@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { asDict, asNum, asStr, errDetail, logApiError, type Dict } from "@/lib/http";
+import { asDict, asNum, asStr, errDetail, isForbidden, logApiError, type Dict } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { shortDateTime } from "@/lib/date";
 import { labelOf, statusLabel } from "@/lib/labels";
@@ -44,10 +44,13 @@ export default function QualityDecide({ job, item, onDone, onClose, onDirty }: D
   const tx = useTranslations("admin.ccx.panel");
   const tc = useTranslations("admin.ccx.cases");
   const tn = useTranslations("common.notify");
-  const none = useTranslations("common")("none");
+  const tcom = useTranslations("common");
+  const none = tcom("none");
   const locale = useLocale();
   const once = useSameTickGuard();
   const box = useRef<HTMLDivElement>(null);
+  // A 403 on the ruling: this account may not rule here — the form leaves.
+  const [denied, setDenied] = useState("");
   const [attempt, setAttempt] = useState(0);
   const [got, setGot] = useState<{ key: string; blocks: Dict | null } | null>(null);
   const [mpOrder, setMpOrder] = useState<{ id: string; order: MkmOrder } | null>(null);
@@ -126,7 +129,7 @@ export default function QualityDecide({ job, item, onDone, onClose, onDirty }: D
   const urgWorkRaw = urgPick("work_id") || (UUID_LIKE.test(item.urgentRequestId) ? "" : item.urgentRequestId);
   const urgWorkId = urgWorkRaw === job.code ? "" : urgWorkRaw;
   const settled = SETTLED.has(item.status);
-  const formOpen = state === "ready" && !mpOrderId && !settled;
+  const formOpen = state === "ready" && !mpOrderId && !settled && !denied;
   const showReview = state === "ready" && Boolean(reviewText) && reviewText !== comment;
   const showDoc = state === "ready" && Boolean(docTitle || fileUrl);
   const showUrgent = state === "ready" && Boolean(urgTitle || urgNeed);
@@ -164,6 +167,11 @@ export default function QualityDecide({ job, item, onDone, onClose, onDirty }: D
       onDone(t("resolved"));
     } catch (e) {
       logApiError("quality complaint resolve", e);
+      if (isForbidden(e)) {
+        setDenied(errDetail(e) || tcom("forbidden"));
+        onDirty(false);
+        return;
+      }
       setErr(errDetail(e));
     } finally {
       setBusy(false);
@@ -206,6 +214,8 @@ export default function QualityDecide({ job, item, onDone, onClose, onDirty }: D
         <IcArrowRight size={16} />
       </Link>
     </Section>
+  ) : denied ? (
+    <Note tone="bad">{denied}</Note>
   ) : settled ? (
     <Note tone="ok">{t("alreadySettled", { action: label(item.status, item.statusLabel) })}</Note>
   ) : (

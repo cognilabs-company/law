@@ -141,6 +141,11 @@ const LOADERS: Record<Exclude<QKey, "queue" | "urgent">, Loader> = {
   },
 };
 
+// Verification lanes need the review permission (docs/LEXGO_ACHIEVEMENTS_
+// PRACTICE_FRONTEND_FINAL_2026_10_29.md): without it they are not asked for
+// at all, so no lane, tab or card for them shows up.
+const REVIEW_LANES = new Set<QKey>(["experience", "achievements", "licenses"]);
+
 const quiet = (e: unknown) => isForbidden(e) || isAborted(e);
 
 function laneOf(queue: QKey, r: PromiseSettledResult<Got>): QLane {
@@ -149,7 +154,7 @@ function laneOf(queue: QKey, r: PromiseSettledResult<Got>): QLane {
   return { queue, status: isForbidden(r.reason) ? "denied" : "failed", total: 0, jobs: [] };
 }
 
-export function useQueues(me: string): { state: QState; now: number; reload: () => void } {
+export function useQueues(me: string, review: boolean): { state: QState; now: number; reload: () => void } {
   const [state, setState] = useState<QState>({ status: "loading" });
   const [now, setNow] = useState(0);
   const seq = useRef(0);
@@ -160,7 +165,7 @@ export function useQueues(me: string): { state: QState; now: number; reload: () 
     ctl.current?.abort();
     const c = new AbortController();
     ctl.current = c;
-    const keys = Object.keys(LOADERS) as (keyof typeof LOADERS)[];
+    const keys = (Object.keys(LOADERS) as (keyof typeof LOADERS)[]).filter((k) => review || !REVIEW_LANES.has(k));
     const restP = Promise.allSettled(keys.map((k) => LOADERS[k](c.signal)));
     const [queue, calls] = await Promise.allSettled([getCallCenterQueue(), listCcCalls()]);
     const rest = await restP;
@@ -180,7 +185,7 @@ export function useQueues(me: string): { state: QState; now: number; reload: () 
     const at = Date.now();
     setNow(at);
     setState({ status: "ready", lanes, calls: calls.status === "fulfilled" ? calls.value : null, at });
-  }, [me]);
+  }, [me, review]);
 
   const reload = useCallback(() => void load(), [load]);
   useLiveRefresh(reload, REFRESH_MS);

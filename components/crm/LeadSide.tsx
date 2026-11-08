@@ -174,14 +174,14 @@ export function LeadSide({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; 
             </div>
           ) : null}
         </dl>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {leadCan(lead, "prepare_conversion") ? (
+        {leadCan(lead, "prepare_conversion") ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             <button type="button" className="crm-btn crm-btn--sm" onClick={() => setSheet("conv")}>
               <IconFileText aria-hidden="true" />
               {t("convert")}
             </button>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </section>
       {lead.sections.some((sec) => sec.key === "additional") ? (
         <section className="crm-card" aria-labelledby="crm-more-t">
@@ -204,18 +204,20 @@ export function LeadSide({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; 
             <small className="crm-muted">{mine ? t("you") : t("owner")}</small>
           </span>
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {leadCan(lead, "assign") ? (
-            <button type="button" className="crm-btn crm-btn--sm" onClick={() => setSheet("assign")}>
-              {t("assign")}
-            </button>
-          ) : null}
-          {leadCan(lead, "transfer") && lead.operatorId ? (
-            <button type="button" className="crm-btn crm-btn--sm" onClick={() => setSheet("transfer")}>
-              {t("transfer")}
-            </button>
-          ) : null}
-        </div>
+        {leadCan(lead, "assign") || (leadCan(lead, "transfer") && lead.operatorId) ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {leadCan(lead, "assign") ? (
+              <button type="button" className="crm-btn crm-btn--sm" onClick={() => setSheet("assign")}>
+                {t("assign")}
+              </button>
+            ) : null}
+            {leadCan(lead, "transfer") && lead.operatorId ? (
+              <button type="button" className="crm-btn crm-btn--sm" onClick={() => setSheet("transfer")}>
+                {t("transfer")}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         <div>
           <p className="crm-sub" style={{ marginBottom: 6 }}>
             {t("watchers")}

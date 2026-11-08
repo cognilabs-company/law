@@ -28,6 +28,8 @@ export type JourneyTableProps = {
   showStatus?: boolean;
   actingId?: string;
   onAction?: (j: StudioCreationJourney, action: JourneyAction) => void;
+  // Row actions the backend refused (403) for that journey: not offered again.
+  denied?: (j: StudioCreationJourney, action: JourneyAction) => boolean;
   aiId: string;
 };
 
@@ -54,7 +56,7 @@ export function useJourneyOwnerLabel(): (j: StudioCreationJourney) => { text: st
   };
 }
 
-export function JourneyTable({ rows, caption, loading, busy, error, empty, footer, showStatus = false, actingId = "", onAction, aiId }: JourneyTableProps): ReactElement {
+export function JourneyTable({ rows, caption, loading, busy, error, empty, footer, showStatus = false, actingId = "", onAction, denied, aiId }: JourneyTableProps): ReactElement {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const now = useNow();
@@ -134,7 +136,7 @@ export function JourneyTable({ rows, caption, loading, busy, error, empty, foote
         : { key: "view", label: t("sx.ui.view"), icon: EyeIcon, href: journeyRowHref };
     if (!onAction) return [open];
     const busyNow = actingId === j.id;
-    const extra = journeyActionsFor(j.status, caps).map(
+    const extra = journeyActionsFor(j.status, caps).filter((a) => !denied?.(j, a)).map(
       (a): SxRowAction<StudioCreationJourney> => ({
         key: a,
         label: t(`sx.journeyRun.act.${a}`),

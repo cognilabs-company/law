@@ -11,6 +11,8 @@ import { completeMarketplaceOrder, type MarketCompletion, type MarketOrder, type
 import { checklistBlockOf, getOrderChecklist, type BlockingItem, type OrderChecklist as OrderChecklistData } from "@/lib/services/marketRuntime";
 import { checklistBlockers } from "./order/checklistRules";
 import { noteOrderLock } from "./order/lock";
+import { markRefused, useRefused } from "./order/refused";
+import { isForbidden } from "@/lib/http";
 import { ORDER_FILE_MB, ORDER_FILES_MAX, uploadOrderFile } from "./order/upload";
 import { useMarketError } from "./useMarketError";
 import "./completeOrder.css";
@@ -42,6 +44,7 @@ export default function CompleteOrderDialog({
   const td = useTranslations("marketplace.orderDetail.complete");
   const tc = useTranslations("copilot");
   const marketErr = useMarketError();
+  const refusedFor = useRefused();
   const [text, setText] = useState("");
   const textGuard = useGuardedField(text, (v) => setText(v.slice(0, TEXT_MAX)), "client");
   const [files, setFiles] = useState<Attachment[]>([]);
@@ -153,6 +156,9 @@ export default function CompleteOrderDialog({
       const items = checklistBlockOf(e);
       if (items) setBlocked(items);
       else setErr(marketErr(e, t("error")));
+      // Refused (403): the message stays, the confirm button and every
+      // "Complete" entry point for this order leave the screen.
+      if (isForbidden(e)) markRefused(target.id, "complete");
       setRefocus((n) => n + 1);
     } finally {
       setBusy(false);
@@ -284,9 +290,9 @@ export default function CompleteOrderDialog({
           </div>
         ) : null}
         <div className="mk-buy__acts">
-          <button ref={submitBtn} type="button" className="btn btn--grad" disabled={busy || !ready || gated} aria-describedby={[gated ? pendId : "", blocked ? blockId : "", err ? errId : ""].filter(Boolean).join(" ") || undefined} onClick={() => void go()} data-ai-id="advocate.marketplace-orders.complete.submit">
+          {refusedFor(target.id, "complete") ? null : <button ref={submitBtn} type="button" className="btn btn--grad" disabled={busy || !ready || gated} aria-describedby={[gated ? pendId : "", blocked ? blockId : "", err ? errId : ""].filter(Boolean).join(" ") || undefined} onClick={() => void go()} data-ai-id="advocate.marketplace-orders.complete.submit">
             {busy ? t("sending") : t("confirm")}
-          </button>
+          </button>}
           <button type="button" className="btn btn--line" disabled={busy} onClick={onClose}>
             {t("keep")}
           </button>

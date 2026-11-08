@@ -198,45 +198,47 @@ export function LeadGlance({ meta, lead, write, onCallResult, onAi }: { meta: Cr
         })}
       </ol>
 
-      <div className="crm-glance__acts">
-        {primary}
-        {moves.length ? (
-          <div className="crm-glance__menu" ref={menuRef}>
-            <button type="button" className="crm-btn" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((v) => !v)}>
-              {t("otherStatus")}
-              <IconChevronDown aria-hidden="true" />
+      {primary || moves.length || onAi ? (
+        <div className="crm-glance__acts">
+          {primary}
+          {moves.length ? (
+            <div className="crm-glance__menu" ref={menuRef}>
+              <button type="button" className="crm-btn" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((v) => !v)}>
+                {t("otherStatus")}
+                <IconChevronDown aria-hidden="true" />
+              </button>
+              {menu ? (
+                <ul role="menu" aria-label={t("otherStatus")}>
+                  {moves.map((s) => (
+                    <li key={s} role="none">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        style={statusVar(s)}
+                        onClick={() => {
+                          setMenu(false);
+                          setTo(s);
+                        }}
+                      >
+                        <i aria-hidden="true">
+                          <StatusIcon status={s} />
+                        </i>
+                        {ts(s)}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
+          {onAi ? (
+            <button type="button" className="crm-btn crm-glance__ai" onClick={onAi}>
+              <IconSparkle aria-hidden="true" />
+              {t("ai")}
             </button>
-            {menu ? (
-              <ul role="menu" aria-label={t("otherStatus")}>
-                {moves.map((s) => (
-                  <li key={s} role="none">
-                    <button
-                      type="button"
-                      role="menuitem"
-                      style={statusVar(s)}
-                      onClick={() => {
-                        setMenu(false);
-                        setTo(s);
-                      }}
-                    >
-                      <i aria-hidden="true">
-                        <StatusIcon status={s} />
-                      </i>
-                      {ts(s)}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        ) : null}
-        {onAi ? (
-          <button type="button" className="crm-btn crm-glance__ai" onClick={onAi}>
-            <IconSparkle aria-hidden="true" />
-            {t("ai")}
-          </button>
-        ) : null}
-      </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {more ? (
         <dl className="crm-glance__facts" id="crm-glance-facts">

@@ -23,6 +23,7 @@ import { AGENT_FORM_START, AgentForm, PROMPT_MIN, type AgentFormValues } from ".
 import { AgentJobView } from "./AgentJobView";
 import { AgentDock } from "./AgentDock";
 import { useAgentJob } from "./useAgentJob";
+import { studioDenied } from "../denied";
 
 // Studio's AI agent (FRONTEND_STUDIO_AI_AGENT_V21_AUTONOMOUS_TOOLS_2026_10_22.md):
 // the latest tasks one click away at the top, the request form on the left,
@@ -68,6 +69,8 @@ export default function AgentPage(): ReactElement {
   const [tried, setTried] = useState(false);
   const [serverErr, setServerErr] = useState<AgentFieldError | null>(null);
   const [confirm, setConfirm] = useState<AgentFormValues | null>(null);
+  // Starting a job was refused (403): the form and every "start again" leave.
+  const [startDenied, setStartDenied] = useState(false);
 
   const ctorOptions: SxOption[] = useMemo(
     () =>
@@ -95,6 +98,10 @@ export default function AgentPage(): ReactElement {
     }
     // §13: no automatic retry for 401/403 or anything else; the values stay.
     notify.error(isOffline(r.error) ? t("sx.agent.err.offline") : errDetail(r.error) || t("sx.agent.err.create"), { error: r.error });
+    if (studioDenied(r.error)) {
+      setConfirm(null);
+      setStartDenied(true);
+    }
   }
 
   const job = agent.job;
@@ -113,8 +120,8 @@ export default function AgentPage(): ReactElement {
       polling={agent.polling}
       onRefresh={agent.refresh}
       onNew={agent.close}
-      onRetry={() => setConfirm(valuesOf(job, form))}
-      onAnother={() => setConfirm(valuesOf(job, form))}
+      onRetry={startDenied ? undefined : () => setConfirm(valuesOf(job, form))}
+      onAnother={startDenied ? undefined : () => setConfirm(valuesOf(job, form))}
     />
   ) : agent.phase === "missing" ? (
     <SxEmpty icon={SearchIcon} title={t("sx.agent.missing.title")} text={t("sx.agent.missing.text")} />
@@ -157,6 +164,9 @@ export default function AgentPage(): ReactElement {
       <div className="sx-ag" data-busy={agent.submitting ? "" : undefined}>
         <aside className="sx-ag-side">
           <div className="sx-ag-card">
+            {startDenied ? (
+              <SxNote tone="info" role="alert" title={t("sx.editor.err.forbidden")} />
+            ) : (
             <AgentForm
               value={form}
               onChange={(v) => {
@@ -170,6 +180,7 @@ export default function AgentPage(): ReactElement {
               serverError={serverErr}
               onSubmit={() => (job && (status === "queued" || status === "running") ? setConfirm(form) : void submit(form))}
             />
+            )}
           </div>
         </aside>
         <div className="sx-ag-main" aria-live="polite">

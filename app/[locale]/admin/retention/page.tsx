@@ -10,7 +10,7 @@ import { fmtDate } from "@/lib/date";
 import { fmtUzs } from "@/lib/money";
 import { humanizeSlug } from "@/lib/lawyers";
 import { Skeleton } from "@/components/portal/DataState";
-import { ApiError } from "@/lib/http";
+import { ApiError, isForbidden } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import StatTile from "@/components/admin/StatTile";
 import StatDrillModal, { type Drill } from "@/components/admin/StatDrillModal";
@@ -33,6 +33,8 @@ export default function AdminRetention() {
   const d = useMemo(() => (demo ? demoRetention(todayIso()) : res.data ?? EMPTY), [demo, res.data]);
   const [drill, setDrill] = useState<Drill | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  // A 403 on win-back keeps its message and removes the button for good.
+  const [winBackDenied, setWinBackDenied] = useState(false);
   const reason = (k: string) => (t.has(`reason.${k}`) ? t(`reason.${k}`) : humanizeSlug(k));
   const lastPaid = (c: AtRiskClient) => (c.lastPaidAt ? t("lastPaid", { date: fmtDate(c.lastPaidAt, locale) }) : t("neverPaid"));
   const regionHint = filter.region ? td("hint.regionNa") : undefined;
@@ -47,6 +49,7 @@ export default function AdminRetention() {
       await addRetentionQueue({ client_user_id: c.id || undefined, phone: c.phone || undefined, note: c.reasons.join(", "), offer: "win_back" });
       notify.success(t("winBackDone", { name }), { id: nid });
     } catch (e) {
+      if (isForbidden(e)) setWinBackDenied(true);
       notify.error(t("winBackFailed", { name }), {
         id: nid,
         error: e,
@@ -94,7 +97,9 @@ export default function AdminRetention() {
                 <div className="creq" key={c.id || i} data-ai-target="retention:at-risk-client" data-ai-label={t("atRiskTitle")}>
                   <span className="creq__st" />
                   <div className="creq__m"><b>{c.name || c.phone}</b><span>{[c.reasons.map(reason).join(", "), lastPaid(c)].filter(Boolean).join(" · ")}</span></div>
-                  <button className="btn btn--soft btn--sm" type="button" disabled={busy === (c.id || c.phone)} onClick={() => winBack(c)} data-ai-target="button:win-back">{busy === (c.id || c.phone) ? t("adding") : t("winBack")}</button>
+                  {winBackDenied ? null : (
+                    <button className="btn btn--soft btn--sm" type="button" disabled={busy === (c.id || c.phone)} onClick={() => winBack(c)} data-ai-target="button:win-back">{busy === (c.id || c.phone) ? t("adding") : t("winBack")}</button>
+                  )}
                 </div>
               ))}
             </div>

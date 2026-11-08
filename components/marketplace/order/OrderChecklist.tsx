@@ -27,6 +27,9 @@ import { SECTION_ID, type LoadState, type OrderView } from "./types";
 import { ORDER_FILE_MB, ORDER_FILES_MAX, uploadOrderFile, type UploadedFile } from "./upload";
 import "./checklist.css";
 import { useGuardedField } from "@/components/ui/ContactGuardNote";
+import { isForbidden } from "@/lib/http";
+import { notify } from "@/lib/toast";
+import { markRefused, useRefused } from "./refused";
 
 const COMMENT_MAX = 1000;
 
@@ -176,6 +179,7 @@ export default function OrderChecklist({
   // one plain list with no money in it.
   const groups = view === "seller" && seen ? stageGroups(seen, payouts, phase === "completed" || phase === "rated") : [];
   const celebrate = useFirstStageCheer(groups);
+  const refusedFor = useRefused();
 
   if (state === "none" || state === "idle") return null;
   const items = seen ? sortedItems(seen) : [];
@@ -183,7 +187,8 @@ export default function OrderChecklist({
   const failed = state === "error" && !checklist;
   if (!loading && !failed && !items.length && (view === "client" || phase !== "in_progress")) return null;
 
-  const editable = canEditChecklist(view, phase);
+  // A 403 on saving an item takes the edit affordances away (read-only list).
+  const editable = canEditChecklist(view, phase) && !refusedFor(o.id, "checklist");
   const progress = checklist?.progress;
 
   function saved(next: OrderChecklistData, item: ChecklistItem) {
@@ -425,7 +430,7 @@ function ChecklistRow({
         </ul>
       ) : null}
       {item.updatedAt ? <p className="mck-item__meta">{t("updatedAt", { date: shortDateTime(item.updatedAt, locale) })}</p> : null}
-      {open && checklist ? <ItemEditor id={editorId} o={o} item={item} itemAi={itemAi} checklist={checklist} onSaved={onSaved} onCancel={onCancel} /> : null}
+      {open && editable && checklist ? <ItemEditor id={editorId} o={o} item={item} itemAi={itemAi} checklist={checklist} onSaved={onSaved} onCancel={onCancel} /> : null}
     </li>
   );
 }
@@ -674,6 +679,13 @@ function ItemEditor({
     } catch (e) {
       const info = marketErrorInfo(e);
       const msg = marketErr(e, t("saveError"));
+      // Refused (403): editing this checklist is not this account's to do —
+      // the editor and every edit button leave; the reason is told once.
+      if (isForbidden(e)) {
+        notify.error(t("saveError"), { id: `checklist-refused-${o.id}`, body: msg === t("saveError") ? undefined : msg });
+        markRefused(o.id, "checklist");
+        return;
+      }
       const code = (info?.code ?? "").toLowerCase();
       const found: Errs = {};
       if (/comment|reason/.test(code)) found.comment = skip ? t("needReason") : t("needComment");

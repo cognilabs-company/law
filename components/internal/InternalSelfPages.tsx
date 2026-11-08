@@ -485,11 +485,13 @@ function MessagesPage() {
           <InternalPagination page={page} onChange={setOffset} />
         </HrmPanel>
         <HrmPanel title={t("newMessage")} icon={IconSend}>
+          {/* Recipients are logins, which only the employee list (internal_hr.manage)
+              carries: with none to write to, the form is not offered at all. */}
+          {dir.ready && !dir.userOptions.length ? <p className="hrm-form__note">{t("noRecipients")}</p> : (
           <form className="hrm-form" onSubmit={submit}>
             <InternalField label={t("recipientUserId")}>
               <EntitySelect value={form.to} onChange={(v) => setForm((c) => ({ ...c, to: v }))} options={dir.userOptions} placeholder={tu("choose.recipient")} ariaLabel={t("recipientUserId")} />
             </InternalField>
-            {dir.ready && !dir.userOptions.length ? <p className="hrm-form__note">{t("noRecipients")}</p> : null}
             <InternalField label={t("subject")}>
               <input value={form.subject} onChange={(e) => setForm((c) => ({ ...c, subject: e.target.value }))} placeholder={t("subject")} maxLength={160} />
             </InternalField>
@@ -501,6 +503,7 @@ function MessagesPage() {
               <button className="btn btn--pri btn--sm" type="submit" disabled={saving || !form.to || !form.body.trim()}><IconSend />{saving ? t("sending") : t("send")}</button>
             </div>
           </form>
+          )}
         </HrmPanel>
       </div>
     </section>

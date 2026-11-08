@@ -22,7 +22,11 @@ export default function LeavePanel() {
   const { session } = useAuth();
   const manage = canInternal(session, "internal_time.manage") || canInternal(session, "internal_hr.manage");
   const [tab, setTab] = useState<Tab>("mine");
-  const tabs: Tab[] = manage ? ["mine", "team", "calendar"] : ["mine", "calendar"];
+  // The backend refused the team's balances (403): the tab leaves.
+  const [refused, setRefused] = useState(false);
+  const team = manage && !refused;
+  const tabs: Tab[] = team ? ["mine", "team", "calendar"] : ["mine", "calendar"];
+  const shown: Tab = tab === "team" && !team ? "mine" : tab;
   const Icon = { mine: IconSun, team: IconUsers, calendar: IconCalendar } as const;
   return (
     <HrmPanel title={t("title")} icon={IconSun} className="ops-panel">
@@ -30,14 +34,15 @@ export default function LeavePanel() {
         {tabs.map((k) => {
           const I = Icon[k];
           return (
-            <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>
+            <button key={k} type="button" role="tab" aria-selected={shown === k} className={shown === k ? "on" : ""} onClick={() => setTab(k)}>
               <I />
               {t(`tab.${k}`)}
             </button>
           );
         })}
       </div>
-      {tab === "mine" ? <MyBalances /> : tab === "team" ? <TeamBalances /> : <LeaveCalendar />}
+      {refused ? <p className="hrm-muted">{t("noAccess")}</p> : null}
+      {shown === "mine" ? <MyBalances /> : shown === "team" ? <TeamBalances onRefused={() => setRefused(true)} /> : <LeaveCalendar />}
     </HrmPanel>
   );
 }
@@ -65,13 +70,17 @@ function MyBalances() {
   return <ul className="ops-bals">{data.map((b, i) => <BalanceCard key={b.id || `${b.typeId}-${i}`} b={b} />)}</ul>;
 }
 
-function TeamBalances() {
+function TeamBalances({ onRefused }: { onRefused: () => void }) {
   const t = useTranslations("internal.ops.leave");
   const f = useHrmFormat();
   const dir = useHrmDirectory();
   const [unit, setUnit] = useState("");
   const year = new Date().getFullYear();
   const { data, error, reload } = useOps((s) => getLeaveBalances({ unitId: unit || undefined, year }, s), [unit, year], ["leave"]);
+  const forbidden = error instanceof ApiError && error.status === 403;
+  useEffect(() => {
+    if (forbidden) onRefused();
+  }, [forbidden, onRefused]);
   return (
     <>
       {dir.unitOptions.length ? (

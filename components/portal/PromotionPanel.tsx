@@ -58,6 +58,9 @@ export default function PromotionPanel() {
   const rangeBad = rangeProblem(filter.dateFrom, filter.dateTo);
   const analytics = useResourceOne<PromotionAnalytics>(() => (rangeBad ? Promise.resolve(EMPTY_ANALYTICS) : getPromotionAnalytics(filter)), [reloadKey, filterKey]);
   const [open, setOpen] = useState<PromotionPlacement | null>(null);
+  // A promotion request refused with 403: the start / new-checkout actions
+  // leave; status and analytics stay readable.
+  const [denied, setDenied] = useState("");
   const { session } = useAuth();
   const uid = session?.id ?? "";
   const role = session?.role === "lawyer" ? "lawyer" : "advocate";
@@ -215,7 +218,16 @@ export default function PromotionPanel() {
             approves it in Telegram — so this is the only thing standing
             between the seller and silence. telegramSent false is worth saying
             out loud: it means they are waiting on a message nobody received. */}
-        {lapse && !pending ? (
+        {denied ? (
+          <div className="promo__lapse" role="alert">
+            <b>
+              <IconAlert aria-hidden="true" />
+              {denied}
+            </b>
+          </div>
+        ) : null}
+
+        {lapse && !pending && !denied ? (
           <div className="promo__lapse" role="alert" data-ai-id="promotion.checkout-lapsed">
             <b>
               <IconAlert aria-hidden="true" />
@@ -256,23 +268,36 @@ export default function PromotionPanel() {
         ) : null}
 
         <div className="promo__places">
-          {PLACES.map((p) => (
-            <button key={p.value} type="button" className={`promo__place${placeState(p.value)}`} onClick={() => { lastPlace.current = p.value; setOpen(p.value); }} data-ai-id={`promotion.place.${p.value}`} data-ai-type="button" data-ai-label={ts(`promote.${p.title}`)}>
-              <PlacementSketch placement={p.value} />
-              <b>{ts(`promote.${p.title}`)}</b>
-              <span>{ts(`promote.${p.hint}`)}</span>
-              {st ? <small className="promo__placest">{placeLine(p.value)}</small> : null}
-              <span className="promo__placego">
-                {t("placeStart")}
-                <IconArrowRight aria-hidden="true" />
-              </span>
-            </button>
-          ))}
+          {PLACES.map((p) => {
+            const body = (
+              <>
+                <PlacementSketch placement={p.value} />
+                <b>{ts(`promote.${p.title}`)}</b>
+                <span>{ts(`promote.${p.hint}`)}</span>
+                {st ? <small className="promo__placest">{placeLine(p.value)}</small> : null}
+                {denied ? null : (
+                  <span className="promo__placego">
+                    {t("placeStart")}
+                    <IconArrowRight aria-hidden="true" />
+                  </span>
+                )}
+              </>
+            );
+            return denied ? (
+              <div key={p.value} className={`promo__place${placeState(p.value)}`} style={{ cursor: "default", transform: "none" }}>
+                {body}
+              </div>
+            ) : (
+              <button key={p.value} type="button" className={`promo__place${placeState(p.value)}`} onClick={() => { lastPlace.current = p.value; setOpen(p.value); }} data-ai-id={`promotion.place.${p.value}`} data-ai-type="button" data-ai-label={ts(`promote.${p.title}`)}>
+                {body}
+              </button>
+            );
+          })}
         </div>
         <p className="promo__note">{t("boostNote")}</p>
       </div>
 
-      {open ? (
+      {open && !denied ? (
         <PromoteModal
           aiId="advocate.promotion.place-modal"
           startPlacement={open}
@@ -283,6 +308,11 @@ export default function PromotionPanel() {
           owner={false}
           onClose={() => setOpen(null)}
           onStale={() => setReloadKey((n) => n + 1)}
+          onDenied={(msg) => {
+            setOpen(null);
+            setLapse(null);
+            setDenied(msg);
+          }}
           onSent={(req) => {
             if (req.telegramSent) toast(ts("toast.promoSent"), { tone: "ok" });
             setLapse(null);

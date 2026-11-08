@@ -43,9 +43,9 @@ import {
   IconMenu,
   IconClose,
   IconClipboardCheck,
-  IconLock,
   IconClock,
 } from "../icons";
+import { can } from "@/lib/permissions";
 
 
 // While a seller (lawyer/advocate) is `pending` admin approval they can only
@@ -218,7 +218,7 @@ export default function PortalShell({
 
   const baseNav = role === "advocate" ? ADVOCATE_NAV : role === "lawyer" ? LAWYER_NAV : CLIENT_NAV;
   const teamTasks: NavItem = { href: `/portal/${role}/team-tasks`, key: "teamTasks", Icon: IconClipboardCheck };
-  const canTeam = (session.permissions ?? []).includes("tasks.view");
+  const canTeam = can(session, "tasks.view");
   const nav = (canTeam ? [...baseNav, teamTasks] : baseNav).filter((n) => !hides(n.href));
   const titleOnly = TITLE_ONLY[role].filter((n) => !hides(n.href));
   const navLabel = (key: string) => tx(`nav.${role}.${key}`);
@@ -265,7 +265,7 @@ export default function PortalShell({
           key={deskOs}
           os={deskOs}
           role={role}
-          apps={nav.concat(titleOnly).map((n) => ({ ...n, label: navLabel(n.key), locked: isLocked(role, n.key, limited, actions) }))}
+          apps={nav.concat(titleOnly).filter((n) => !isLocked(role, n.key, limited, actions)).map((n) => ({ ...n, label: navLabel(n.key), locked: false }))}
           name={session.name}
           isAdmin={hasAdminAccess(session)}
           onLogout={logout}
@@ -275,7 +275,9 @@ export default function PortalShell({
   }
 
   const groups = groupsFor(role)
-    .map((g) => ({ ...g, items: [...g.items, ...(canTeam && g.key === (role === "client" ? "myWork" : "workspace") ? [teamTasks] : [])].filter((n) => nav.includes(n)) }))
+    // A page the account may not open yet (pending approval, or a cabinet
+    // action it lacks) has no row at all — owner law: no locked entries.
+    .map((g) => ({ ...g, items: [...g.items, ...(canTeam && g.key === (role === "client" ? "myWork" : "workspace") ? [teamTasks] : [])].filter((n) => nav.includes(n) && !isLocked(role, n.key, limited, actions)) }))
     .filter((g) => g.items.length);
   const roleName = tx(`role.${role}`);
   const dashHref = `/portal/${role}`;
@@ -357,19 +359,9 @@ export default function PortalShell({
                   ? null
                   : g.items.map(({ href, key, Icon, tone, badge }) => {
                       const on = active?.href === href;
-                      const locked = isLocked(role, key, limited, actions);
                       const label = navLabel(key);
                       const n = badge ? badges[badge] : 0;
                       const cls = `psb__link lx-sb__link${tone === "danger" ? " is-danger" : ""}`;
-                      if (locked) {
-                        return (
-                          <span key={href} data-ai-target={`nav:${key}`} className={`${cls} psb__link--locked`} aria-disabled="true" title={t("pending.locked")}>
-                            <Icon />
-                            <span className="psb__label">{label}</span>
-                            <IconLock />
-                          </span>
-                        );
-                      }
                       return (
                         <Link key={href} href={href} className={`${cls}${on ? " on" : ""}`} aria-current={on ? "page" : undefined} title={collapsed ? label : undefined} data-ai-target={`nav:${key}`}>
                           <Icon />
@@ -442,7 +434,7 @@ export default function PortalShell({
                 ) : null}
               </div>
               <div className="ptop__sp lx-top__tools">
-                <HeaderSearch role={role} pages={nav.concat(titleOnly)} label={navLabel} />
+                <HeaderSearch role={role} pages={nav.concat(titleOnly).filter((n) => !isLocked(role, n.key, limited, actions))} label={navLabel} />
                 <SupportMenu role={role} text={tx("help")} />
                 <NotificationBell role={role} />
                 <LangSelect />

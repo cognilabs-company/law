@@ -10,7 +10,7 @@ import { useAuth, canMakeCalls, sessionRoles, type Session } from "@/lib/auth";
 import { emitRoomCallEvent, isCallEvent, subscribeRoomCallEvents } from "@/lib/callEvents";
 import { CALL_LINK_RE, chatContacts, isMachineFileName, maskContacts } from "@/lib/chatFilter";
 import { getToken } from "@/lib/client";
-import { ApiError, backoffMs, contactBlockedOf, errDetail, isConflict, logApiError, refreshAccessToken } from "@/lib/http";
+import { ApiError, backoffMs, contactBlockedOf, errDetail, isConflict, isForbidden, logApiError, refreshAccessToken } from "@/lib/http";
 import { secureUploadProblem, secureUploadRefusal } from "@/lib/secureUpload";
 import { useSecureUploadText } from "./useSecureUploadText";
 import { playRingtone, primeCallAudio } from "@/lib/callSounds";
@@ -575,6 +575,12 @@ function ClientRatingBox({
         setClosed(true);
         return;
       }
+      // Not this account's rating to give: the card leaves, one notice says why.
+      if (isForbidden(e)) {
+        setClosed(true);
+        notify.error(tu("rateError"), { id: `urgent-rate-${recordId}`, error: e });
+        return;
+      }
       logApiError("urgent chat rating", e);
       setErr(contactBlockedOf(e) ? tcb("contactBlocked") : errDetail(e) || tu("rateError"));
     } finally {
@@ -725,6 +731,10 @@ export default function SecureChat({
   const [incoming, setIncoming] = useState<{ callId: string; callType: "audio" | "video" } | null>(null);
   const [callBusy, setCallBusy] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Room actions the backend refused (403) for this account: they leave the
+  // screen instead of being offered again (owner law 2026-11-08).
+  const [refused, setRefused] = useState<ReadonlySet<"call" | "complete" | "ttl" | "delete">>(() => new Set());
+  const refuse = (k: "call" | "complete" | "ttl" | "delete") => setRefused((r) => new Set(r).add(k));
   const [ttl, setTtl] = useState(0); // auto-delete window in hours (0 = off)
   // The message being answered. The whole bubble is kept, not just its id, so
   // the preview strip can show the same name and excerpt the quote will.
@@ -919,7 +929,13 @@ export default function SecureChat({
       if (isConflict(e)) {
         setAskSummary(false);
         setFinished(true);
-      } else notify.error(t("completeFailed"), { id: `schat-complete-${roomId}`, error: e });
+      } else {
+        notify.error(t("completeFailed"), { id: `schat-complete-${roomId}`, error: e });
+        if (isForbidden(e)) {
+          refuse("complete");
+          setAskSummary(false);
+        }
+      }
     } finally {
       setCompleting(false);
     }
@@ -948,7 +964,10 @@ export default function SecureChat({
       }
       setIncoming(null);
     } catch (e) {
-      notify.error(t("callFailed"), { id: `schat-call-${roomId}`, error: e, action: { label: tn("retry"), onClick: () => again.current.call(kind) } });
+      if (isForbidden(e)) {
+        refuse("call");
+        notify.error(t("callFailed"), { id: `schat-call-${roomId}`, error: e });
+      } else notify.error(t("callFailed"), { id: `schat-call-${roomId}`, error: e, action: { label: tn("retry"), onClick: () => again.current.call(kind) } });
     } finally {
       setCallBusy(false);
     }
@@ -969,7 +988,10 @@ export default function SecureChat({
       await setChatAutoDelete(roomId, hours);
     } catch (e) {
       setTtl(prev); // revert — the change did not persist
-      notify.error(t("settingsFailed"), { id: `schat-ttl-${roomId}`, error: e, action: { label: tn("retry"), onClick: () => again.current.ttl(hours) } });
+      if (isForbidden(e)) {
+        refuse("ttl");
+        notify.error(t("settingsFailed"), { id: `schat-ttl-${roomId}`, error: e });
+      } else notify.error(t("settingsFailed"), { id: `schat-ttl-${roomId}`, error: e, action: { label: tn("retry"), onClick: () => again.current.ttl(hours) } });
     }
   }
   async function removeChat() {
@@ -987,6 +1009,7 @@ export default function SecureChat({
           return true;
         } catch (e) {
           notify.error(t("deleteFailed"), { id, error: e });
+          if (isForbidden(e)) refuse("delete");
           return false;
         }
       },
@@ -1765,7 +1788,7 @@ export default function SecureChat({
           ) : null}
         </div>
         <div className="mxr__acts">
-          {!compact && canMakeCalls(session) && !callsOff && !roomClosed ? (
+          {!compact && canMakeCalls(session) && !callsOff && !roomClosed && !refused.has("call") ? (
             <span className="mxr__calls" data-ai-target="chat-room:calls">
               <button className="mxr__ib" type="button" onClick={() => beginCall("audio")} disabled={callBusy || !!activeCall} aria-label={t("audioCall")} title={t("audioCall")}>
                 <IconPhone />
@@ -1777,7 +1800,7 @@ export default function SecureChat({
           ) : null}
           {/* Only an advocate or the operator may complete the consultation; a
               client is answered 403, so the action is not offered to one. */}
-          {urgentRecordId && isStaffSession(session) && !finished ? (
+          {urgentRecordId && isStaffSession(session) && !finished && !refused.has("complete") ? (
             <button className="mxr__done" type="button" onClick={() => setAskSummary(true)} disabled={completing} title={t("completeChat")} data-ai-target="button:chat-complete">
               {completing ? <IconClock /> : <IconClipboardCheck />}
               <span>{t("completeChat")}</span>
@@ -1796,7 +1819,7 @@ export default function SecureChat({
             </button>
           ) : null}
           {compact ? null : <InstructorButton className="mxr__ib mxr__ai" iconOnly size={26} />}
-          <div className="mxr__menu" hidden={compact}>
+          <div className="mxr__menu" hidden={compact || (refused.has("ttl") && refused.has("delete"))}>
             <button className="mxr__ib" type="button" aria-label={t("chatSettings")} title={t("chatSettings")} aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}>
               <EllipsisVertical aria-hidden />
             </button>
@@ -1804,22 +1827,30 @@ export default function SecureChat({
               <>
                 <span className="mxr__scrim" onClick={() => setMenuOpen(false)} aria-hidden />
                 <div className="mxr__drop" role="menu">
-                  <p className="mxr__droplabel">
-                    <IconClock />
-                    {t("ttlTitle")}
-                  </p>
-                  {TTL_OPTS.map((o) => (
-                    <button key={o.key} type="button" role="menuitemradio" aria-checked={ttl === o.h} className={`mxr__dropi${ttl === o.h ? " on" : ""}`} onClick={() => applyTtl(o.h)}>
-                      {ttl === o.h ? <IconCheck /> : <span className="mxr__dropdot" />}
-                      {t(o.key)}
-                    </button>
-                  ))}
-                  <div className="mxr__dropsep" />
-                  <button type="button" role="menuitem" className="mxr__dropi mxr__dropi--danger" onClick={removeChat}>
-                    <Trash2 aria-hidden />
-                    {t("deleteChat")}
-                  </button>
-                  <p className="mxr__dropnote">{t("archiveNote")}</p>
+                  {refused.has("ttl") ? null : (
+                    <>
+                      <p className="mxr__droplabel">
+                        <IconClock />
+                        {t("ttlTitle")}
+                      </p>
+                      {TTL_OPTS.map((o) => (
+                        <button key={o.key} type="button" role="menuitemradio" aria-checked={ttl === o.h} className={`mxr__dropi${ttl === o.h ? " on" : ""}`} onClick={() => applyTtl(o.h)}>
+                          {ttl === o.h ? <IconCheck /> : <span className="mxr__dropdot" />}
+                          {t(o.key)}
+                        </button>
+                      ))}
+                    </>
+                  )}
+                  {refused.has("delete") ? null : (
+                    <>
+                      {refused.has("ttl") ? null : <div className="mxr__dropsep" />}
+                      <button type="button" role="menuitem" className="mxr__dropi mxr__dropi--danger" onClick={removeChat}>
+                        <Trash2 aria-hidden />
+                        {t("deleteChat")}
+                      </button>
+                      <p className="mxr__dropnote">{t("archiveNote")}</p>
+                    </>
+                  )}
                 </div>
               </>
             ) : null}

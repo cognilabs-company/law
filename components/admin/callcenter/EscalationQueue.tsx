@@ -33,7 +33,7 @@ import { escalationClosed, idemKeyFor, idemLost, idemSettle, isResolutionEvent, 
 const MESSAGE_MAX = 1000;
 const NEEDS_REASON = new Set<EscalationAction>(["cancel", "full_refund"]);
 
-function ActionDialog({ esc, action, onClose, onDone, onClosed }: { esc: AssignmentEscalation; action: EscalationAction; onClose: () => void; onDone: () => void; onClosed: () => void }): ReactElement {
+function ActionDialog({ esc, action, onClose, onDone, onClosed, onForbidden }: { esc: AssignmentEscalation; action: EscalationAction; onClose: () => void; onDone: () => void; onClosed: () => void; onForbidden: () => void }): ReactElement {
   const t = useTranslations("callCenter.escalations");
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const [message, setMessage] = useState(action === "offer_resolution" ? t("offerDefault") : "");
@@ -76,6 +76,8 @@ function ActionDialog({ esc, action, onClose, onDone, onClosed }: { esc: Assignm
       idemSettle(box, e);
       slot.current = box.current;
       if (escalationClosed(e)) return onClosed();
+      // Refused: the message stays here and the action leaves the row.
+      if (isForbidden(e)) onForbidden();
       logApiError("escalation.resolve", e);
       setLost(idemLost(e));
       setError({ title: t("err.failed"), text: idemLost(e) ? t("err.lost") : e instanceof ApiError && e.code === "no_eligible_marketplace_candidate" ? t("err.noCandidate") : errDetail(e) });
@@ -183,7 +185,7 @@ const Fact: FactRow = ({ label, children }) => (
   </div>
 );
 
-function Row({ esc, onAct }: { esc: AssignmentEscalation; onAct: (a: EscalationAction) => void }): ReactElement {
+function Row({ esc, denied, onAct }: { esc: AssignmentEscalation; denied: ReadonlySet<string>; onAct: (a: EscalationAction) => void }): ReactElement {
   const t = useTranslations("callCenter.escalations");
   const none = useTranslations("common")("none");
   const locale = useLocale();
@@ -192,6 +194,8 @@ function Row({ esc, onAct }: { esc: AssignmentEscalation; onAct: (a: EscalationA
   const offer = esc.resolution?.offer ?? null;
   const refund = esc.resolution?.refund ?? null;
   const flow = offerFlow(esc, t);
+  // The backend's allowed actions, minus any it refused this visit.
+  const actions = esc.actions.filter((a) => !denied.has(`${esc.id}:${a}`));
   const when = (iso: string) => (iso ? shortDateTime(iso, locale) : "");
   // An unknown code reads as "another status", never as the code itself.
   const label = (group: string, v: string) => (v && t.has(`${group}.${v}`) ? t(`${group}.${v}`) : v ? t("other") : none);
@@ -305,9 +309,9 @@ function Row({ esc, onAct }: { esc: AssignmentEscalation; onAct: (a: EscalationA
               </ol>
             </section>
           ) : null}
-          {esc.actions.length ? (
+          {actions.length ? (
             <div className="esc__acts sx">
-              {esc.actions.map((a) => (
+              {actions.map((a) => (
                 <SxButton key={a} size="sm" variant={a === "offer_resolution" ? "primary" : a === "cancel" || a === "full_refund" ? "danger" : "secondary"} onClick={() => onAct(a)} aiId={`call_center.escalations.${a}`}>
                   {t(`action.${a}`)}
                 </SxButton>
@@ -330,6 +334,7 @@ export default function EscalationQueue({ onCount }: { onCount?: (n: number) => 
   const [refreshing, setRefreshing] = useState(false);
   const [acting, setActing] = useState<{ esc: AssignmentEscalation; action: EscalationAction } | null>(null);
   const [done, setDone] = useState("");
+  const [refused, setRefused] = useState<ReadonlySet<string>>(() => new Set());
   const onCountRef = useRef(onCount);
   useEffect(() => {
     onCountRef.current = onCount;
@@ -394,7 +399,7 @@ export default function EscalationQueue({ onCount }: { onCount?: (n: number) => 
       {items?.length ? (
         <ul className="esc__list">
           {items.map((e) => (
-            <Row key={e.id} esc={e} onAct={(action) => setActing({ esc: e, action })} />
+            <Row key={e.id} esc={e} denied={refused} onAct={(action) => setActing({ esc: e, action })} />
           ))}
         </ul>
       ) : null}
@@ -412,6 +417,7 @@ export default function EscalationQueue({ onCount }: { onCount?: (n: number) => 
             setActing(null);
             void load();
           }}
+          onForbidden={() => setRefused((cur) => new Set(cur).add(`${acting.esc.id}:${acting.action}`))}
           onClosed={() => {
             setDone(t("alreadyClosed"));
             setActing(null);

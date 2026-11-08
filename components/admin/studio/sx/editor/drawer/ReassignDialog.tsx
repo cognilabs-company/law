@@ -18,6 +18,7 @@ import { ArrowRightLeftIcon } from "../../icons";
 import { SxDialog, SxDialogError } from "../SxDialog";
 import { useEditorErrorText } from "../useEditorErrorText";
 import { normRole } from "../model";
+import { studioDenied } from "../../denied";
 
 export const REASSIGN_MESSAGE_MAX = 500;
 
@@ -28,7 +29,7 @@ export function reassignTargets(users: readonly StudioApprover[], approvers: rea
     .map((u) => ({ value: u.id, label: u.name || "—", description: [u.employeeCode, u.roles.map((r) => { const c = normRole(r); const n = roleName(c); return n && n !== c ? n : ""; }).filter(Boolean).join(", ")].filter(Boolean).join(" · ") || undefined }));
 }
 
-export function ReassignDialog({ step, code, from, onClose, onDone }: { step: StudioStep; code: string; from: readonly StudioPerson[]; onClose: () => void; onDone: () => void }): ReactElement {
+export function ReassignDialog({ step, code, from, onClose, onDone, onDenied }: { step: StudioStep; code: string; from: readonly StudioPerson[]; onClose: () => void; onDone: () => void; onDenied?: () => void }): ReactElement {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const errText = useEditorErrorText();
@@ -81,6 +82,9 @@ export function ReassignDialog({ step, code, from, onClose, onDone }: { step: St
     } catch (err) {
       logApiError("studio.sx.reassign", err);
       setError(err);
+      // Refused (403): the message stays here, and the reassign button is
+      // gone once this dialog closes.
+      if (studioDenied(err)) onDenied?.();
     } finally {
       setBusy(false);
     }

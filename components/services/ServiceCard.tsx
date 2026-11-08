@@ -37,8 +37,15 @@ export default function ServiceCard({
   enableLock,
   statusError,
   showNegotiation,
+  readOnly,
+  noPromote,
 }: {
   aiId?: string;
+  // The account may not change this service (a 403 on a change): status,
+  // edit, promote and remove are not rendered — the card only reads.
+  readOnly?: boolean;
+  // Promotion was refused (403): the promote button is not rendered.
+  noPromote?: boolean;
   enableLock?: { reason: string; onOpen: () => void } | null;
   statusError?: string;
   showNegotiation?: boolean;
@@ -106,20 +113,13 @@ export default function ServiceCard({
                 ? t("card.bandLoading")
                 : t("card.bandUnknown");
   const negotiation = Boolean(showNegotiation) && item.negotiationAllowed === true;
-  const describedBy = [enableLock ? lockId : "", statusError ? errId : ""].filter(Boolean).join(" ");
+  const describedBy = [enableLock && !readOnly ? lockId : "", statusError ? errId : ""].filter(Boolean).join(" ");
   const own = item.ownPromotion;
   const editable = item.service.isActive;
   const reasons = hiddenReasons(item, profile)
     .map((r) => t(`reasons.${r}`))
     .join(", ");
   const canPromote = item.status === "active" && item.service.isActive && !own && !pending;
-  const promoteTitle = own
-    ? t("card.promotedHint", { days: own.daysLeft })
-    : pending
-      ? t("card.pendingHint")
-      : item.status !== "active" || !item.service.isActive
-        ? t("card.promoteInactive")
-        : undefined;
   const category = item.service.categoryTitle || item.service.subcategory || t("card.service");
   const sub = (s: string) => (aiId ? `${aiId}.${s}` : undefined);
 
@@ -173,7 +173,7 @@ export default function ServiceCard({
 
       {item.experienceNote ? (
         <p className="msv__note">{item.experienceNote}</p>
-      ) : editable ? (
+      ) : editable && !readOnly ? (
         <button type="button" className="msv__addnote" onClick={onEdit}>
           <IconEdit aria-hidden="true" />
           {t("card.noteEmpty")}
@@ -185,7 +185,7 @@ export default function ServiceCard({
         <span>{item.visible ? t("card.visible") : t("card.hidden", { reasons })}</span>
       </p>
 
-      {enableLock ? (
+      {enableLock && !readOnly ? (
         <p id={lockId} className="svcfg-lock">
           <IconLock aria-hidden="true" />
           <span>{enableLock.reason}</span>
@@ -201,46 +201,47 @@ export default function ServiceCard({
         </p>
       ) : null}
 
-      <div className="msv__foot">
-        <StatusSwitch
-          value={item.status}
-          busy={busy}
-          onChange={onStatus}
-          label={t("statusLabel")}
-          aiTarget={first ? "services:status" : undefined}
-          aiId={sub("status")}
-          lockActive={enableLock ? enableLock.reason : undefined}
-          describedBy={describedBy || undefined}
-        />
-        <div className="msv__acts">
-          <button
-            type="button"
-            className="btn btn--line btn--sm msv__edit"
-            onClick={onEdit}
-            disabled={!editable}
-            title={editable ? undefined : t("card.editLocked")}
-            data-ai-id={sub("edit")}
-          >
-            <IconEdit aria-hidden="true" />
-            {t("card.edit")}
-          </button>
-          <button
-            type="button"
-            className={`btn btn--sm msv__promo${own ? " is-live" : ""}`}
-            onClick={onPromote}
-            disabled={!canPromote}
-            title={promoteTitle}
-            data-ai-target={first ? "button:promote-service" : undefined}
-            data-ai-id={sub("promote")}
-          >
-            {pending && !own ? <IconClock aria-hidden="true" /> : <IconMegaphone aria-hidden="true" />}
-            {own ? t("card.promotedShort") : pending ? t("card.pending") : t("card.promote")}
-          </button>
-          <button type="button" className="msv__del" onClick={onRemove} aria-label={t("card.remove")} title={t("card.remove")}>
-            <IconTrash aria-hidden="true" />
-          </button>
+      {readOnly ? null : (
+        <div className="msv__foot">
+          <StatusSwitch
+            value={item.status}
+            busy={busy}
+            onChange={onStatus}
+            label={t("statusLabel")}
+            aiTarget={first ? "services:status" : undefined}
+            aiId={sub("status")}
+            lockActive={enableLock ? enableLock.reason : undefined}
+            describedBy={describedBy || undefined}
+          />
+          <div className="msv__acts">
+            {/* A catalog service the admins switched off cannot be edited,
+                and only an active, not-yet-promoted service can be promoted
+                (the ribbon above already tells a live or waiting promotion):
+                a locked action is not rendered at all. */}
+            {editable ? (
+              <button type="button" className="btn btn--line btn--sm msv__edit" onClick={onEdit} data-ai-id={sub("edit")}>
+                <IconEdit aria-hidden="true" />
+                {t("card.edit")}
+              </button>
+            ) : null}
+            {canPromote && !noPromote ? (
+              <button
+                type="button"
+                className="btn btn--sm msv__promo"
+                onClick={onPromote}
+                data-ai-target={first ? "button:promote-service" : undefined}
+                data-ai-id={sub("promote")}
+              >
+                <IconMegaphone aria-hidden="true" />
+                {t("card.promote")}
+              </button>
+            ) : null}
+            <button type="button" className="msv__del" onClick={onRemove} aria-label={t("card.remove")} title={t("card.remove")}>
+              <IconTrash aria-hidden="true" />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </article>
   );
 }

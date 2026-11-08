@@ -5,15 +5,19 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { setToken } from "./client";
 import { endLiveOfficeSession } from "./liveOfficeSession";
-import { ApiError, setRefreshHandler } from "./http";
+import { ApiError, setForbiddenHandler, setRefreshHandler } from "./http";
+import { notify } from "./toast";
 import { normUzPhone } from "./phone";
+import { can, hasRole, permissionsOf, rolesOf, samePermissions } from "./permissions";
 import type { PlanTier, ProfessionalProfile, RegistrationDraft } from "./types";
 import { scoreCompleteness } from "./services/registration";
 import { readReferral } from "./referral";
@@ -165,6 +169,9 @@ type AuthCtx = {
   logout: () => void;
   authNotice: AuthNotice;
   clearAuthNotice: () => void;
+  // Re-read roles/permissions from /auth/me into the stored session. Resolves
+  // true when they changed.
+  refreshPermissions: () => Promise<boolean>;
 };
 
 const Ctx = createContext<AuthCtx | null>(null);
@@ -191,6 +198,9 @@ function withRefreshLock<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 const noSubscribe = () => () => {};
+
+const FORBIDDEN_REFRESH_MS = 10_000;
+const ACCESS_CHANGED_TOAST_ID = "lexgo-access-changed";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [storedSession, setSession] = useState<Session | null>(readStoredSession);
@@ -319,42 +329,73 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
+  // Merge /auth/me into the LATEST stored session: a refresh during apiMe()
+  // has already persisted new tokens that must not be overwritten. Skipped
+  // when the account changed (logout/login) while /auth/me was in flight.
+  // Resolves true when the roles/permissions changed.
+  const refreshPermissions = useCallback(async (): Promise<boolean> => {
+    const stored = readStoredSession();
+    if (!stored?.token) return false;
+    let u: Awaited<ReturnType<typeof apiMe>>;
+    try {
+      u = await apiMe();
+    } catch {
+      return false;
+    }
+    const cur = readStoredSession();
+    if (!cur || !sameOwner(cur, stored)) return false;
+    if (u.id && cur.id && u.id !== cur.id) return false;
+    const next: Session = {
+      ...cur,
+      name: u.name || cur.name,
+      phone: u.phone || cur.phone,
+      lexgoId: u.lexgoId || cur.lexgoId,
+      accountStatus: u.accountStatus || cur.accountStatus,
+      roles: u.roles,
+      permissions: u.permissions,
+      backendRole: u.primaryRole || cur.backendRole,
+      twoFactorEnabled: u.twoFactorEnabled,
+      twoFactorMethod: u.twoFactorMethod,
+      twoFactorRequired: u.twoFactorRequired,
+      canSetSuperadvokat: u.canSetSuperadvokat,
+      isPrimarySuperadmin: u.isPrimarySuperadmin,
+      telegramLinked: u.telegramLinked ?? cur.telegramLinked,
+      acceptedConsents: u.acceptedConsents?.length ? u.acceptedConsents : cur.acceptedConsents,
+    };
+    persist(next);
+    return !samePermissions(cur, next);
+  }, [persist]);
+
+  // Refresh roles/permissions in the background for real (tokened) sessions.
+  // An expired access token is refreshed inside http().
   useEffect(() => {
     const stored = readStoredSession();
-    if (stored) {
+    if (stored?.token) {
+      setToken(stored.token);
+      // After this commit: refreshPermissions persists (setState) once /auth/me answers.
+      void Promise.resolve().then(refreshPermissions);
+    } else if (stored) {
       setToken(stored.token ?? null);
-      // Refresh roles/permissions in the background for real (tokened) sessions.
-      // An expired access token is refreshed inside http().
-      if (stored.token) {
-        // Merge into the LATEST stored session: a refresh during apiMe() has
-        // already persisted new tokens that must not be overwritten. Skip it
-        // when the account changed (logout/login) while /auth/me was in flight.
-        const applyMe = (u: Awaited<ReturnType<typeof apiMe>>) => {
-          const cur = readStoredSession();
-          if (!cur || !sameOwner(cur, stored)) return;
-          if (u.id && cur.id && u.id !== cur.id) return;
-          persist({
-            ...cur,
-            name: u.name || cur.name,
-            phone: u.phone || cur.phone,
-            lexgoId: u.lexgoId || cur.lexgoId,
-            accountStatus: u.accountStatus || cur.accountStatus,
-            roles: u.roles,
-            permissions: u.permissions,
-            backendRole: u.primaryRole || cur.backendRole,
-            twoFactorEnabled: u.twoFactorEnabled,
-            twoFactorMethod: u.twoFactorMethod,
-            twoFactorRequired: u.twoFactorRequired,
-            canSetSuperadvokat: u.canSetSuperadvokat,
-            isPrimarySuperadmin: u.isPrimarySuperadmin,
-            telegramLinked: u.telegramLinked ?? cur.telegramLinked,
-            acceptedConsents: u.acceptedConsents?.length ? u.acceptedConsents : cur.acceptedConsents,
-          });
-        };
-        apiMe().then(applyMe).catch(() => {});
-      }
     }
-  }, [persist]);
+  }, [refreshPermissions]);
+
+  // 403 safety net (owner law 2026-11-08): an action the account may no
+  // longer do (permission revoked mid-session) re-reads the permissions —
+  // every can()-gated action then leaves the screen — and one short notice
+  // says so. Bursts of 403s (a page firing several requests) share one
+  // refresh.
+  const forbiddenAt = useRef(0);
+  const tc = useTranslations("common");
+  useEffect(() => {
+    setForbiddenHandler(() => {
+      if (Date.now() - forbiddenAt.current < FORBIDDEN_REFRESH_MS) return;
+      forbiddenAt.current = Date.now();
+      void refreshPermissions().then((changed) => {
+        if (changed) notify.info(tc("accessChanged"), { id: ACCESS_CHANGED_TOAST_ID, duration: 5000 });
+      });
+    });
+    return () => setForbiddenHandler(null);
+  }, [refreshPermissions, tc]);
 
   // Build + persist a session from a successful auth result.
   const sessionFromAuth = useCallback(
@@ -512,7 +553,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <Ctx.Provider
-      value={{ session, ready, login, completeLogin2fa, startRegistration, register, update, logout, authNotice, clearAuthNotice }}
+      value={{ session, ready, login, completeLogin2fa, startRegistration, register, update, logout, authNotice, clearAuthNotice, refreshPermissions }}
     >
       <NavigationActivity />
       {children}
@@ -537,9 +578,7 @@ export function useAuth(): AuthCtx {
 // Primary roles now carry their own permission matrix, so RBAC must not
 // depend on an explicit assigned-role row.
 export function sessionRoles(s: Session | null): string[] {
-  if (!s) return [];
-  const all = [...(s.roles ?? []), s.backendRole ?? ""].map((r) => r.trim().toLowerCase()).filter(Boolean);
-  return [...new Set(all)];
+  return rolesOf(s);
 }
 
 // Call-center rights as the backend checks them (is_call_center_user): the
@@ -547,7 +586,9 @@ export function sessionRoles(s: Session | null): string[] {
 // callcenter.access permission. Queue, call log and logging a call need it.
 export function isCallCenterUser(s: Session | null): boolean {
   if (!s) return false;
-  return (s.permissions ?? []).includes("callcenter.access") || sessionRoles(s).some((r) => r === "call_center" || r === "call_center_lawyer");
+  // An identity check (which workspace to open), not an action gate: no
+  // superadmin bypass here.
+  return permissionsOf(s).includes("callcenter.access") || hasRole(s, ["call_center", "call_center_lawyer"]);
 }
 
 // Permission codes that unlock an /admin page — mirrors the `perm`s in
@@ -581,7 +622,7 @@ export type AdminPermission = (typeof ADMIN_PERMISSIONS)[number];
 // even on sessions stored before permissions were saved. Everyone else can
 // still receive/join.
 export function canMakeCalls(s: Session | null): boolean {
-  return (s?.permissions ?? []).includes("meetings.manage") || sessionRoles(s).some((r) => r.includes("call_center"));
+  return can(s, "meetings.manage") || sessionRoles(s).some((r) => r.includes("call_center"));
 }
 
 // Admin access = an admin/superadmin role, or a permission that unlocks at

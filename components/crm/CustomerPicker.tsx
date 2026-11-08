@@ -13,8 +13,9 @@ import { LookupPicker } from "./LookupPicker";
 // Contract 2026-10-27 (CRM customer/lead) §5–6: the lead form's one
 // customer source — GET /crm/customers/select through the shared lookup;
 // "new customer" opens a form above the lead form and the created customer
-// comes back selected.
-export function CustomerPicker({ value, onChange, onNew, invalid, labelId }: { value: CustomerOption | null; onChange: (c: CustomerOption | null) => void; onNew: () => void; invalid?: boolean; labelId?: string }): ReactElement {
+// comes back selected. Without `onNew` (no crm.customers.manage) the
+// "new customer" row is not offered at all.
+export function CustomerPicker({ value, onChange, onNew, invalid, labelId }: { value: CustomerOption | null; onChange: (c: CustomerOption | null) => void; onNew?: () => void; invalid?: boolean; labelId?: string }): ReactElement {
   const t = useTranslations("crm.picker");
   return (
     <LookupPicker<CustomerOption>
@@ -26,7 +27,7 @@ export function CustomerPicker({ value, onChange, onNew, invalid, labelId }: { v
       badge={(c) => (c.isLexgoUser ? c.lexgoLabel || t("lexgoUser") : "")}
       icon={<IconUser aria-hidden="true" />}
       text={{ placeholder: t("placeholder"), search: t("search"), searchPh: t("searchPh"), empty: t("empty") }}
-      action={{ label: t("newCustomer"), run: onNew }}
+      action={onNew ? { label: t("newCustomer"), run: onNew } : undefined}
       invalid={invalid}
       labelId={labelId}
     />

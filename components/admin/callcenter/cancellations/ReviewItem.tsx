@@ -47,7 +47,8 @@ export function isReviewAction(v: string): v is ReviewAction {
   return v in REVIEW_ACTION_ICON;
 }
 
-export type ReviewItemProps = { review: CancellationReview; onResolve: (r: CancellationReview) => void; onFresh?: (r: CancellationReview) => void };
+// refused: the backend refused this operator a ruling here — no Resolve.
+export type ReviewItemProps = { review: CancellationReview; onResolve: (r: CancellationReview) => void; onFresh?: (r: CancellationReview) => void; refused?: boolean };
 
 function useRemaining(): (seconds: number) => string {
   const tdu = useTranslations("marketplace.orderDetail.duration");
@@ -180,7 +181,7 @@ function useReviewDetail(row: CancellationReview, active: boolean): Detail | nul
   return detail && detail.key === key ? detail : { key, state: "loading", review: null };
 }
 
-export function ReviewItem({ review: row, onResolve, onFresh }: ReviewItemProps): ReactElement {
+export function ReviewItem({ review: row, onResolve, onFresh, refused = false }: ReviewItemProps): ReactElement {
   const t = useTranslations("admin.callCenter.cancellations");
   const tp = useTranslations("marketplace.orderDetail.phase");
   const troles = useTranslations("marketplace.roles");
@@ -369,16 +370,16 @@ export function ReviewItem({ review: row, onResolve, onFresh }: ReviewItemProps)
           ) : null}
         </dl>
         ) : null}
-        <div className="ccx-acts">
-          {open ? (
+        {open && !refused ? (
+          <div className="ccx-acts">
             <SxButton variant="primary" icon={ArrowRightIcon} aria-label={t("item.resolveAria", { work })} aiId={`${ai}.resolve`} aiLabel={t("item.resolve")} onClick={() => {
                 setWanted(true);
                 onResolve(review);
               }}>
               {t("item.resolve")}
             </SxButton>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="ccx-more">

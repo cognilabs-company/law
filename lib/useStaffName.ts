@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { hasAdminAccess, isCallCenterUser, sessionRoles, useAuth, type Session } from "@/lib/auth";
+import { hasAdminAccess, isCallCenterUser, useAuth, type Session } from "@/lib/auth";
 import { loadOperators } from "@/lib/services/leads";
 import { lookupPerson } from "@/lib/usePerson";
+import { can } from "@/lib/permissions";
 
 // The staff member behind a bare user id (reviewed_by_user_id,
 // published_by_user_id — backend answers 2026-10-31 §3.1, §4.5 give no
@@ -12,7 +13,7 @@ import { lookupPerson } from "@/lib/usePerson";
 // or the call-centre user card. undefined while asking, "" when this viewer
 // can't learn the name — the caller then shows a neutral word, never the id.
 
-const canReadUsers = (s: Session | null) => !!s && ((s.permissions ?? []).some((p) => p === "users.manage" || p === "*") || sessionRoles(s).some((r) => r === "superadmin" || r === "admin"));
+const canReadUsers = (s: Session | null) => can(s, "users.manage", { roles: ["admin"] });
 
 function resolve(id: string, s: Session | null): Promise<string> {
   if (canReadUsers(s)) return loadOperators().then((dir) => dir.people.get(id)?.name.trim() ?? "", () => "");

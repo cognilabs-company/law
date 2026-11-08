@@ -8,7 +8,7 @@ import { CALLROOM_EVENT, CALLROOM_FLOAT_EVENT, isCallRoomMounted } from "@/lib/c
 import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
 import { subscribeAiRegistry } from "@/lib/ai/registry";
 import { modalAiId, openModalRoot } from "@/lib/ai/dom";
-import { asDict, asStr, parseServerTime, type Dict } from "@/lib/http";
+import { asDict, asStr, isForbidden, parseServerTime, type Dict } from "@/lib/http";
 import { toast } from "@/lib/toast";
 import { errorText } from "@/lib/errorText";
 import {
@@ -621,6 +621,8 @@ export default function RaClient({ selfId }: { selfId: string }) {
     };
   }, [activeId, live, pollCommands]);
 
+  // Controls the backend refused with a 403 in this session (hidden from then on).
+  const [refused, setRefused] = useState<ReadonlySet<string>>(() => new Set());
   const control = async (what: "pause" | "resume" | "revoke" | "end") => {
     const s = activeRef.current;
     if (!s || busy) return;
@@ -643,6 +645,9 @@ export default function RaClient({ selfId }: { selfId: string }) {
       if (code === "remote_assist_session_expired") finish(s, "expired");
       else if (code === "remote_assist_device_session_mismatch") finish(s, "revoked");
       else {
+        // Refused: this control is not this account's for this session — it
+        // leaves the bar instead of being offered again.
+        if (isForbidden(e)) setRefused((r) => new Set(r).add(what));
         toast(errorText(e, tc) || t("client.actionFailed"), { tone: "err" });
         refreshSession();
       }
@@ -680,9 +685,11 @@ export default function RaClient({ selfId }: { selfId: string }) {
 
   const actionLabel = (a: string) => (t.has(`actions.${raKey(a)}`) ? t(`actions.${raKey(a)}`) : a);
   const caps = active?.caps;
-  const canPause = caps ? caps.canPause : true;
-  const canResume = caps ? caps.canResume : true;
-  const canEnd = caps ? caps.canEnd : true;
+  // The session's own capabilities (can_pause/can_resume/can_end): a control
+  // the backend does not grant is not shown at all.
+  const canPause = (caps ? caps.canPause : true) && !refused.has("pause");
+  const canResume = (caps ? caps.canResume : true) && !refused.has("resume");
+  const canEnd = (caps ? caps.canEnd : true) && !refused.has("end");
 
   return (
     <>
@@ -787,16 +794,18 @@ export default function RaClient({ selfId }: { selfId: string }) {
                 </button>
               ) : null}
               {live ? (
-                <button type="button" onClick={() => void control("pause")} disabled={Boolean(busy) || !canPause} aria-label={t("client.pause")}>
-                  <IconPause aria-hidden="true" />
-                  <span>{t("client.pause")}</span>
-                </button>
-              ) : (
-                <button type="button" onClick={() => void control("resume")} disabled={Boolean(busy) || !canResume} aria-label={t("client.resume")}>
+                canPause ? (
+                  <button type="button" onClick={() => void control("pause")} disabled={Boolean(busy)} aria-label={t("client.pause")}>
+                    <IconPause aria-hidden="true" />
+                    <span>{t("client.pause")}</span>
+                  </button>
+                ) : null
+              ) : canResume ? (
+                <button type="button" onClick={() => void control("resume")} disabled={Boolean(busy)} aria-label={t("client.resume")}>
                   <IconPlay aria-hidden="true" />
                   <span>{t("client.resume")}</span>
                 </button>
-              )}
+              ) : null}
               <button type="button" className="ra-bar__stop" onClick={() => void control("revoke")} disabled={Boolean(busy)} aria-label={t("client.stop")}>
                 <IconClose aria-hidden="true" />
                 <span>{t("client.stop")}</span>

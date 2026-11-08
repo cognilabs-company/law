@@ -266,7 +266,8 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
                       sellerUserId={seller.userId}
                       on={selected?.id === svc.id}
                       top={svc.isSponsored || topServiceIds.has(svc.id)}
-                      buyDisabled={!!blocked || svc.price <= 0}
+                      buyDisabled={svc.price <= 0}
+                      canBuy={!blocked}
                       onPick={() => setPicked(svc.id)}
                       ph={preview?.ph && svc.id === PH_SERVICE_ID ? preview.ph : undefined}
                       onBuy={() => startBuy(svc)}
@@ -365,11 +366,11 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
                   <IconArrowRight />
                 </Link>
               </>
-            ) : (
+            ) : blocked ? null : (
             <button
               type="button"
               className="btn btn--grad btn--full btn--lg"
-              disabled={!selected || !!blocked || !ready || selected.price <= 0}
+              disabled={!selected || !ready || selected.price <= 0}
               onClick={() => selected && startBuy(selected)}
               data-ai-id={`${sellerAiId}.buy`}
               data-ai-entity-type={selected ? "marketplace_service" : undefined}

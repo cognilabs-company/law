@@ -30,6 +30,8 @@ import { isFiltered, rowMatches, sectionRows, showDone, showWork, workRows } fro
 import { ReviewDrawer, type ReviewTarget } from "./review/ReviewDrawer";
 import { apprQueryString, EMPTY_APPR_QUERY, type ApprQuery } from "./urlState";
 import { useApprovals } from "./useApprovals";
+import { can } from "@/lib/permissions";
+import { studioDenied } from "../denied";
 
 export type ApprovalsPageProps = { initial: ApprQuery };
 
@@ -73,6 +75,10 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
   const [target, setTarget] = useState<ReviewTarget | null>(initial.open ? { id: initial.open, row: null } : null);
   const [overdueBusy, setOverdueBusy] = useState(false);
   const [picked, setPicked] = useState<ReadonlySet<string>>(NO_PICK);
+  // Refused with 403 (owner law 2026-11-08): rows the backend would not let
+  // this account publish, and the overdue run, are not offered again.
+  const [pubDenied, setPubDenied] = useState<ReadonlySet<string>>(NO_PICK);
+  const [overdueDenied, setOverdueDenied] = useState(false);
   const [bulk, setBulk] = useState<readonly BulkItem[] | null>(null);
   const [fails, setFails] = useState<ReadonlyMap<string, string>>(NO_FAILS);
   const [seenInitial, setSeenInitial] = useState(initial);
@@ -111,7 +117,7 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
   const filteredEmpty = !data.loading && !data.error && filtered && workEmpty && doneEmpty;
 
   const bulkOn = data.viewer.access.canPublish;
-  const canPick = (r: ApprRow): boolean => bulkOn && r.kind === "publish" && r.section === "mine";
+  const canPick = (r: ApprRow): boolean => bulkOn && r.kind === "publish" && r.section === "mine" && !pubDenied.has(r.id);
   const chosen = bulkOn ? queue.filter((r) => canPick(r) && picked.has(r.id)) : [];
   const pick: ApprPick | null = bulkOn
     ? {
@@ -194,12 +200,13 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
     } catch (e) {
       logApiError("studio.sx.approvals.overdue", e);
       notify.error(errorText(e).text);
+      if (studioDenied(e)) setOverdueDenied(true);
     } finally {
       setOverdueBusy(false);
     }
   };
 
-  const canOverdue = (session?.permissions ?? []).includes(STUDIO_PERM_REASSIGN);
+  const canOverdue = can(session, STUDIO_PERM_REASSIGN) && !overdueDenied;
   const overflow = canOverdue ? (
     <Menu
       items={[{ key: "overdue", label: t("sx.appr.overdue.run"), icon: glyph(TimerIcon, { size: 16 }), onSelect: () => void runOverdue(), aiId: "admin.studio.approvals.process-overdue" }]}
@@ -324,7 +331,7 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
         ) : null}
       </div>
       <ReviewDrawer target={target ? { id: target.id, row: found ?? target.row } : null} viewer={data.viewer} onClose={close} onChanged={() => data.reload()} />
-      {bulk ? <BulkDialog items={bulk} onClose={closeBulk} onFinished={data.reload} /> : null}
+      {bulk ? <BulkDialog items={bulk} onClose={closeBulk} onFinished={data.reload} onDenied={(ids) => setPubDenied((cur) => new Set([...cur, ...ids]))} /> : null}
     </SxPage>
   );
 }

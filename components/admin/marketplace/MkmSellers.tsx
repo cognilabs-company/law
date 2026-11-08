@@ -63,10 +63,12 @@ export default function MkmSellers({
   const money = useMoney();
   const count = useCount();
   const typeLabel = useTypeLabel();
-  // TSK-460646: superadmins see the override; the backend still lets only
-  // the primary one save it.
+  // TSK-460646: the override belongs to the primary superadmin only
+  // (/auth/me can_set_superadvokat; others get 403 primary_superadmin_required),
+  // so nobody else is offered the button. A 403 mid-session removes it too.
   const session = useAuth().session;
-  const superadmin = session?.backendRole === "superadmin";
+  const [superDenied, setSuperDenied] = useState(false);
+  const canSuper = session?.canSetSuperadvokat === true && !superDenied;
   const [superFor, setSuperFor] = useState<MkmSeller | null>(null);
   const page = live.data;
   const rows = page?.items ?? [];
@@ -158,7 +160,7 @@ export default function MkmSellers({
                           {s.lexgoId ? <small>{s.lexgoId}</small> : null}
                           {s.phone ? <small>{s.phone}</small> : null}
                           {s.accountStatus && s.accountStatus !== "active" ? <em className="mkm-acc">{account(s.accountStatus)}</em> : null}
-                          {superadmin ? (
+                          {canSuper ? (
                             <button
                               type="button"
                               className="mkm-superbtn"
@@ -218,7 +220,7 @@ export default function MkmSellers({
         </>
       )}
 
-      {superFor ? <SuperadvokatDialog sellerUserId={superFor.userId} sellerName={superFor.name || superFor.phone} canEdit={session?.canSetSuperadvokat === true} onClose={() => setSuperFor(null)} /> : null}
+      {superFor ? <SuperadvokatDialog sellerUserId={superFor.userId} sellerName={superFor.name || superFor.phone} canEdit={session?.canSetSuperadvokat === true} onDenied={() => setSuperDenied(true)} onClose={() => setSuperFor(null)} /> : null}
       {shown && page ? <Pager total={page.total} offset={offset} limit={page.limit || MKM_PAGE} busy={live.changing || live.loading} onOffset={onOffset} /> : null}
     </section>
   );

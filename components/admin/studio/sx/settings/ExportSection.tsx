@@ -8,6 +8,7 @@ import { logApiError } from "@/lib/http";
 import { exportStudioVersionsXlsx, exportStudioXlsx, listStudioObjects, useStudioRegistry, type StudioObject } from "@/lib/services/studio";
 import { toast } from "@/lib/toast";
 import { SxButton } from "../Button";
+import { SxNote } from "../layout/Note";
 import { SxDialogError } from "../editor/SxDialog";
 import { useEditorErrorText } from "../editor/useEditorErrorText";
 import { Field } from "../form/Field";
@@ -19,6 +20,7 @@ import { useStudioLabels } from "../useStudioLabels";
 import { SET_AI, TAB_HUE, TAB_ICON, byCtorRank, groupKeyOf } from "./model";
 import { SectionHead, Squircle } from "./parts";
 import { FileSpreadsheetIcon } from "lucide-react";
+import { studioDenied } from "../denied";
 
 const AI = `${SET_AI}.export`;
 const LIMIT = 200;
@@ -51,6 +53,8 @@ export function ExportSection(): ReactElement {
   const reg = useStudioRegistry();
   const [allBusy, setAllBusy] = useState(false);
   const [verBusy, setVerBusy] = useState(false);
+  // An export the backend refused (403) leaves the page with its card.
+  const [denied, setDenied] = useState<{ all: boolean; versions: boolean }>({ all: false, versions: false });
   const [code, setCode] = useState("");
   const [objs, setObjs] = useState<Objs | null>(null);
   const [objId, setObjId] = useState("");
@@ -109,6 +113,7 @@ export function ExportSection(): ReactElement {
     } catch (e) {
       logApiError("studio.export.all", e);
       toast(errText(e).text || t("shell.exportFail"), { tone: "err" });
+      if (studioDenied(e)) setDenied((d) => ({ ...d, all: true }));
     } finally {
       setAllBusy(false);
     }
@@ -124,6 +129,7 @@ export function ExportSection(): ReactElement {
     } catch (e) {
       logApiError("studio.export.versions", e);
       toast(errText(e).text || t("shell.exportFail"), { tone: "err" });
+      if (studioDenied(e)) setDenied((d) => ({ ...d, versions: true }));
     } finally {
       setVerBusy(false);
     }
@@ -148,7 +154,10 @@ export function ExportSection(): ReactElement {
     <div className="sx-st-stack">
       <SectionHead icon={TAB_ICON.export} hue={TAB_HUE.export} title={t("sx.set.nav.export.title")} lead={t("sx.set.exp.lead")} titleId="sx-set-export-title" />
 
+      {denied.all && denied.versions ? <SxNote tone="info">{t("sx.editor.err.forbidden")}</SxNote> : null}
+      {denied.all && denied.versions ? null : (
       <div className="sx-st-exgrid">
+        {denied.all ? null : (
         <section className="sx-st-ex sx-lift sx-enter" data-hue="jade" style={{ ["--i" as string]: 0 }} aria-labelledby="sx-set-ex-all" data-ai-id={`${AI}.all`} data-ai-type="section" data-ai-label={t("settings.export.allTitle")}>
           <div className="sx-st-ex__top">
             <Squircle icon={FileSpreadsheetIcon} hue="jade" size="lg" />
@@ -176,7 +185,9 @@ export function ExportSection(): ReactElement {
             </SxButton>
           </div>
         </section>
+        )}
 
+        {denied.versions ? null : (
         <section className="sx-st-ex sx-lift sx-enter" data-hue="violet" style={{ ["--i" as string]: 1 }} aria-labelledby="sx-set-ex-ver" data-ai-id={`${AI}.versions`} data-ai-type="section" data-ai-label={t("settings.export.verTitle")}>
           <div className="sx-st-ex__top">
             <Squircle icon={HistoryIcon} hue="violet" size="lg" />
@@ -234,7 +245,9 @@ export function ExportSection(): ReactElement {
             </SxButton>
           </div>
         </section>
+        )}
       </div>
+      )}
     </div>
   );
 }

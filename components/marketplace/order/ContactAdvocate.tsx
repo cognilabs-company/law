@@ -5,7 +5,7 @@ import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, ty
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
-import { errDetail } from "@/lib/http";
+import { errDetail, isForbidden } from "@/lib/http";
 import { startCall } from "@/lib/services/backend";
 import { CALL_KINDS, loadMarketplaceOrder, marketPaymentSignalOf, marketPhaseOf, type CallKind, type MarketOrder } from "@/lib/services/marketplace";
 import { subscribeUserEvents } from "@/lib/userSocket";
@@ -53,11 +53,16 @@ export default function ContactAdvocate({ tone, size = "md", chatHref, roomId, c
   const fetched = useRef(false);
   const [calling, setCalling] = useState<"" | "audio" | "video">("");
   const [err, setErr] = useState("");
+  // The backend refused this account a call here (403): the call options go.
+  const [refused, setRefused] = useState(false);
   const lazy = calls === undefined && !!orderId;
-  const state: CallState = calls ?? (lazy ? (loaded?.state ?? "checking") : "unavailable");
+  const state: CallState = refused ? "unavailable" : (calls ?? (lazy ? (loaded?.state ?? "checking") : "unavailable"));
   const callsOk = state === "ok" && !!roomId;
   const allowed = callTypes ?? loaded?.types ?? CALL_KINDS;
-  const kinds = callsOk ? CALL_KINDS.filter((k) => allowed.includes(k)) : CALL_KINDS;
+  // Calls this order will never allow (refused, closed, switched off by the
+  // backend) are not offered at all; while payment is pending or the state
+  // is still loading they show locked, with the note saying why.
+  const kinds = callsOk ? CALL_KINDS.filter((k) => allowed.includes(k)) : state === "afterPayment" || state === "checking" ? CALL_KINDS : [];
 
   const fetchCalls = useCallback(() => {
     fetched.current = true;
@@ -104,6 +109,7 @@ export default function ContactAdvocate({ tone, size = "md", chatHref, roomId, c
     } catch (e) {
       setErr(errDetail(e) || t("callError"));
       setCalling("");
+      if (isForbidden(e)) setRefused(true);
     }
   }
 

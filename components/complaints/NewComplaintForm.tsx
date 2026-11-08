@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
-import { contactBlockedOf } from "@/lib/http";
+import { contactBlockedOf, isForbidden } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { humanize } from "@/lib/labels";
 import {
@@ -52,6 +52,7 @@ export default function NewComplaintForm({
   onRetryWorks,
   onCancel,
   onCreated,
+  onForbidden,
 }: {
   draft: ComplaintDraft;
   onDraft: (next: (cur: ComplaintDraft) => ComplaintDraft) => void;
@@ -59,6 +60,9 @@ export default function NewComplaintForm({
   onRetryWorks: () => void;
   onCancel: () => void;
   onCreated: (item: ComplaintItem) => void;
+  // POST /complaints answered 403: this account may not file one — the
+  // parent takes every "new complaint" entry off the screen.
+  onForbidden?: () => void;
 }) {
   const t = useTranslations("portal.client.complaints");
   const tw = useTranslations("portal.client.works");
@@ -127,6 +131,7 @@ export default function NewComplaintForm({
         setErr(failure);
       } else {
         notify.error(t("sendFailed"), { id: "complaint-new", error: failure });
+        if (isForbidden(failure)) onForbidden?.();
       }
       setBusy(false);
     }

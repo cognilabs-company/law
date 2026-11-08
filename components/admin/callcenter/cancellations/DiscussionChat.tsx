@@ -9,7 +9,7 @@ import { TextArea } from "@/components/admin/studio/sx/form/TextArea";
 import { TextInput } from "@/components/admin/studio/sx/form/TextInput";
 import { useAuth } from "@/lib/auth";
 import { shortDateTime } from "@/lib/date";
-import { errDetail, logApiError } from "@/lib/http";
+import { errDetail, isForbidden, logApiError } from "@/lib/http";
 import { closeCancellationChat, openCancellationChat, reviewOrderOf, type CancellationChat, type CancellationReview } from "@/lib/services/marketRuntime";
 import { glyph, LockIcon, MessagesSquareIcon, PlusIcon, ShieldCheckIcon, UserCheckIcon, XIcon } from "./icons";
 import { staffChatHref } from "./model";
@@ -41,6 +41,8 @@ export function DiscussionChat({ review, open, onChanged }: { review: Cancellati
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // A 403 on open/close: its message stays, the start/close controls leave.
+  const [refused, setRefused] = useState(false);
   const sending = useRef(false);
 
   // A fresher read of the review (realtime refetch) wins over our copy,
@@ -72,6 +74,10 @@ export function DiscussionChat({ review, open, onChanged }: { review: Cancellati
       onChanged?.(c);
     } catch (e) {
       logApiError("cancellation chat open", e);
+      if (isForbidden(e)) {
+        setRefused(true);
+        setMode("idle");
+      }
       setError(errDetail(e) || t("openError"));
     } finally {
       sending.current = false;
@@ -92,6 +98,10 @@ export function DiscussionChat({ review, open, onChanged }: { review: Cancellati
       onChanged?.(c);
     } catch (e) {
       logApiError("cancellation chat close", e);
+      if (isForbidden(e)) {
+        setRefused(true);
+        setMode("idle");
+      }
       setError(errDetail(e) || t("closeError"));
     } finally {
       sending.current = false;
@@ -146,7 +156,7 @@ export function DiscussionChat({ review, open, onChanged }: { review: Cancellati
               {chat.closeNote.trim() ? ` · ${chat.closeNote}` : ""}
             </p>
           ) : null}
-          {mode === "closing" ? (
+          {mode === "closing" && !refused ? (
             <div className="ccx-disc__form">
               <label className="ccx-label" htmlFor={`${uid}-note`}>
                 {t("closeNote")}
@@ -170,7 +180,7 @@ export function DiscussionChat({ review, open, onChanged }: { review: Cancellati
                   <span className="sx-vh"> ({t("newTab")})</span>
                 </SxLinkButton>
               ) : null}
-              {!chat.readOnly ? (
+              {!chat.readOnly && !refused ? (
                 <SxButton variant="ghost" size="sm" icon={XIcon} onClick={() => setMode("closing")} aiId="call_center.cancellations.chat.close" aiLabel={t("close")}>
                   {t("close")}
                 </SxButton>
@@ -178,7 +188,7 @@ export function DiscussionChat({ review, open, onChanged }: { review: Cancellati
             </div>
           )}
         </>
-      ) : mode === "form" ? (
+      ) : refused ? null : mode === "form" ? (
         <div className="ccx-disc__form">
           <fieldset className="ccx-disc__who">
             <legend className="ccx-label">{t("whoLegend")}</legend>

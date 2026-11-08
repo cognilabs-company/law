@@ -4,7 +4,8 @@ import { useState, type KeyboardEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { shortDateTime } from "@/lib/date";
 import { notify } from "@/lib/toast";
-import { addLeadActivity } from "@/lib/services/crm";
+import { addLeadActivity, leadCan } from "@/lib/services/crm";
+import { isForbidden } from "@/lib/http";
 import { IcDoc, IcFeedback, IcTimeline, IcWave } from "../icons";
 import type { NowJob } from "./feed";
 import type { JobDetail } from "./useNow";
@@ -21,8 +22,12 @@ export default function NowTabs({ job, detail, steps, waiting, onNote }: { job: 
   const [tab, setTab] = useState<TabKey>("history");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  // A 403 on adding a note: the note form leaves.
+  const [refused, setRefused] = useState(false);
 
   const lead = detail?.lead;
+  // Notes need the lead's own add_activity action (CRM allowed_actions).
+  const canNote = !!lead && leadCan(lead, "add_activity") && !refused;
   const urgent = detail?.urgent;
   const line = detail?.timeline ?? [];
   const notes = line.filter((a) => NOTE_TYPES.has(a.type)).slice().reverse();
@@ -50,7 +55,7 @@ export default function NowTabs({ job, detail, steps, waiting, onNote }: { job: 
 
   const addNote = async () => {
     const body = text.trim();
-    if (!lead || !body || busy) return;
+    if (!lead || !canNote || !body || busy) return;
     setBusy(true);
     try {
       await addLeadActivity(lead.id, { type: "note", body });
@@ -59,6 +64,7 @@ export default function NowTabs({ job, detail, steps, waiting, onNote }: { job: 
       onNote();
     } catch (e) {
       notify.error(t("noteFailed"), { id: `ccx-note-${lead.id}`, error: e });
+      if (isForbidden(e)) setRefused(true);
     } finally {
       setBusy(false);
     }
@@ -112,7 +118,7 @@ export default function NowTabs({ job, detail, steps, waiting, onNote }: { job: 
           )
         ) : current === "notes" ? (
           <div className="opx-nnotes">
-            {lead ? (
+            {canNote ? (
               <div className="opx-nform">
                 <label className="opx-sr" htmlFor="opx-nform-text">
                   {t("notePh")}

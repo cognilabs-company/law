@@ -10,14 +10,15 @@ import IconButton from "@/components/ui/IconButton";
 import { IconArrowRight, IconCalendar, IconCrown, IconHistory, IconInfo, IconMegaphone, IconPause, IconPlay, IconPlus, IconRefresh, IconTag } from "@/components/icons";
 import { fmtUzs } from "@/lib/money";
 import { dateOnly } from "@/lib/date";
-import { toast } from "@/lib/toast";
+import { notify, toast } from "@/lib/toast";
 import { ApiError, asArr, asDict, asStr, errDetail, http, isAborted, isForbidden, logApiError, type Dict } from "@/lib/http";
-import { previewStudioDraft } from "@/lib/services/studio";
+import { previewStudioDraft, useStudioAccess } from "@/lib/services/studio";
 import { normCtorRecord, type CtorRecord } from "@/components/admin/studio/sx/ctorpage/recordsApi";
 import { loadRowPayload, type RowPayload } from "@/components/admin/studio/sx/ctorpage/rowPayloads";
 import { sxStatus } from "@/components/admin/studio/sx/status";
 import { promoPreviewOf, promoTermsOf, type PromoBackendPreview, type PromoTerms } from "@/components/admin/studio/sx/ctor/mp09";
 import { useStudioCatalog } from "@/lib/studio/catalogLink";
+import { useCan } from "@/lib/useCan";
 
 // Every promotion ("aksiya", TSK-537634) in one place: what it discounts,
 // the backend's price per target, the period, how much of its limit is
@@ -78,8 +79,12 @@ export default function PromotionsAdmin(): ReactElement {
   const [filter, setFilter] = useState<Filter>("all");
   const [reload, setReload] = useState(0);
   const studio = useStudioCatalog();
-  const newHref = studio.newHref(CODE);
+  // A new promotion is a Studio MP09 draft: offered only to Studio editors.
+  const studioAccess = useStudioAccess();
+  const newHref = studioAccess.canEdit ? studio.newHref(CODE) : "";
   const [acting, setActing] = useState<{ row: Row; kind: "pause" | "resume" } | null>(null);
+  // Pause/resume the backend refused (403): that button leaves the card.
+  const [refused, setRefused] = useState<ReadonlySet<string>>(() => new Set());
 
   useEffect(() => {
     const ctl = new AbortController();
@@ -201,7 +206,7 @@ export default function PromotionsAdmin(): ReactElement {
         ) : (
           <ul className="prm-grid">
             {shown.map((row) => (
-              <PromoCard key={`${row.rec.source}:${row.rec.id}`} row={row} onAct={(kind) => setActing({ row, kind })} />
+              <PromoCard key={`${row.rec.source}:${row.rec.id}`} row={row} refused={refused} onAct={(kind) => setActing({ row, kind })} />
             ))}
           </ul>
         )}
@@ -226,6 +231,10 @@ export default function PromotionsAdmin(): ReactElement {
           row={acting.row}
           kind={acting.kind}
           onClose={() => setActing(null)}
+          onForbidden={(url) => {
+            setActing(null);
+            setRefused((cur) => new Set(cur).add(url));
+          }}
           onDone={() => {
             setActing(null);
             setReload((n) => n + 1);
@@ -256,7 +265,7 @@ function queued<T>(job: () => Promise<T>): Promise<T> {
   });
 }
 
-function PromoCard({ row, onAct }: { row: Row; onAct: (kind: "pause" | "resume") => void }): ReactElement {
+function PromoCard({ row, refused, onAct }: { row: Row; refused: ReadonlySet<string>; onAct: (kind: "pause" | "resume") => void }): ReactElement {
   const t = useTranslations("admin.promos");
   const ts = useTranslations("studio");
   const locale = useLocale();
@@ -286,10 +295,20 @@ function PromoCard({ row, onAct }: { row: Row; onAct: (kind: "pause" | "resume")
   const limit = rt.limit ?? terms?.usageLimit ?? null;
   const used = rt.used;
   const pct = limit && used !== null ? Math.min(100, Math.round((used / limit) * 100)) : null;
-  const canPause = !!rt.pause && (st === "running" || st === "scheduled" || st === "open" || st === "live");
-  const canResume = !!rt.resume && st === "paused";
-  // MP09 is opened in Studio only while the constructor catalog lists it (§4.7).
-  const canOpen = useStudioCatalog().has(CODE);
+  // The backend lists pause/resume in `actions` only where they apply; one it
+  // refused this visit is not offered again.
+  // The page opens on ads.manage or subscriptions.manage (AdminShell): a
+  // discount on ads is run by ads.manage, one on tariffs by
+  // subscriptions.manage; an old one without a target by either.
+  const canDo = useCan();
+  const mayRun = canDo(terms?.targetType === "subscription" ? "subscriptions.manage" : terms?.targetType === "advertising" ? "ads.manage" : ["ads.manage", "subscriptions.manage"]);
+  const canPause = mayRun && !!rt.pause && !refused.has(rt.pause) && (st === "running" || st === "scheduled" || st === "open" || st === "live");
+  const canResume = mayRun && !!rt.resume && !refused.has(rt.resume) && st === "paused";
+  // MP09 is opened in Studio only while the constructor catalog lists it
+  // (§4.7), and only for an account Studio admits.
+  const inCatalog = useStudioCatalog().has(CODE);
+  const studioOk = useStudioAccess().any;
+  const canOpen = inCatalog && studioOk;
 
   return (
     <li className="prm-card" data-state={st}>
@@ -359,30 +378,32 @@ function PromoCard({ row, onAct }: { row: Row; onAct: (kind: "pause" | "resume")
           </dd>
         </div>
       </dl>
-      <div className="prm-card__acts">
-        {canOpen ? (
-          <Link href={editHref(rec)} className="prm-open">
-            {t("open")}
-            <IconArrowRight aria-hidden="true" />
-          </Link>
-        ) : null}
-        {canPause ? (
-          <button type="button" className="btn btn--line btn--sm" onClick={() => onAct("pause")}>
-            <IconPause aria-hidden="true" />
-            {t("pause")}
-          </button>
-        ) : canResume ? (
-          <button type="button" className="btn btn--pri btn--sm" onClick={() => onAct("resume")}>
-            <IconPlay aria-hidden="true" />
-            {t("resume")}
-          </button>
-        ) : null}
-      </div>
+      {canOpen || canPause || canResume ? (
+        <div className="prm-card__acts">
+          {canOpen ? (
+            <Link href={editHref(rec)} className="prm-open">
+              {t("open")}
+              <IconArrowRight aria-hidden="true" />
+            </Link>
+          ) : null}
+          {canPause ? (
+            <button type="button" className="btn btn--line btn--sm" onClick={() => onAct("pause")}>
+              <IconPause aria-hidden="true" />
+              {t("pause")}
+            </button>
+          ) : canResume ? (
+            <button type="button" className="btn btn--pri btn--sm" onClick={() => onAct("resume")}>
+              <IconPlay aria-hidden="true" />
+              {t("resume")}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </li>
   );
 }
 
-function PauseDialog({ row, kind, onClose, onDone }: { row: Row; kind: "pause" | "resume"; onClose: () => void; onDone: () => void }): ReactElement {
+function PauseDialog({ row, kind, onClose, onDone, onForbidden }: { row: Row; kind: "pause" | "resume"; onClose: () => void; onDone: () => void; onForbidden: (url: string) => void }): ReactElement {
   const t = useTranslations("admin.promos");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -400,6 +421,12 @@ function PauseDialog({ row, kind, onClose, onDone }: { row: Row; kind: "pause" |
       onDone();
     } catch (e) {
       logApiError(`promos.${kind}`, e);
+      if (isForbidden(e)) {
+        // Said once as a toast; the dialog closes and its button goes.
+        notify.error(t("actionFailed"), { id: `promo-${kind}-${row.rec.id}`, error: e });
+        onForbidden(url);
+        return;
+      }
       const code = e instanceof ApiError ? (e.code ?? "") : "";
       setErr(code && t.has(`err.${code}`) ? t(`err.${code}`) : errDetail(e) || t("actionFailed"));
     } finally {

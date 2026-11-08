@@ -18,6 +18,7 @@ import { useStudioLive } from "../live";
 import { useStudioLabels, type SxTranslate } from "../useStudioLabels";
 import { canReorderRecord, fetchCtorRecords, isNotReorderable, reorderCtorRecords, reorderItemsOf, rowKeyOf, type CtorRecord } from "./recordsApi";
 import { isTestRow, rowTitle, StatusTile, TestBadge } from "./variants";
+import { studioDenied } from "../denied";
 
 export const REORDER_LIMIT = 200;
 const BASE = "admin.studio.list.reorder";
@@ -28,7 +29,7 @@ const SK = [0, 1, 2, 3];
 type Loaded = { rows: CtorRecord[]; total: number; hasMore: boolean };
 type Drag = { key: string; from: number; over: number };
 
-export type ReorderPanelProps = { code: string; name: string; onClose: (changed: boolean) => void };
+export type ReorderPanelProps = { code: string; name: string; onClose: (changed: boolean) => void; onDenied?: () => void };
 
 export function moveKey(order: readonly string[], from: number, to: number): string[] {
   const next = [...order];
@@ -42,7 +43,7 @@ export function splitReorderable(rows: readonly CtorRecord[]): { movable: CtorRe
   return { movable: rows.filter(canReorderRecord), locked: rows.filter((r) => !canReorderRecord(r)) };
 }
 
-export function ReorderPanel({ code, name, onClose }: ReorderPanelProps): ReactElement {
+export function ReorderPanel({ code, name, onClose, onDenied }: ReorderPanelProps): ReactElement {
   const t = useTranslations("studio") as SxTranslate;
   const labels = useStudioLabels();
   const errText = useEditorErrorText();
@@ -125,6 +126,8 @@ export function ReorderPanel({ code, name, onClose }: ReorderPanelProps): ReactE
       setSay(t("sx.cp2.reorder.failed"));
       notify.error(stale ? t("sx.cp2.reorder.notReorderable") : errText(e).text || t("sx.cp2.reorder.failed"), { error: e });
       if (stale) setTick((n) => n + 1);
+      // Refused (403): the toast says so and reordering leaves the page.
+      if (studioDenied(e)) onDenied?.();
     } finally {
       busy.current = false;
       setSaving(false);

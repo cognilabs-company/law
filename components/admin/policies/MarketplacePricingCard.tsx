@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode, type SVGProps } from "react";
+import { createContext, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode, type SVGProps } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { notify } from "@/lib/toast";
 import { Skeleton } from "@/components/portal/DataState";
@@ -142,6 +142,9 @@ const minKey = (r: ExpRow) => {
   return Number.isFinite(n) ? n : Infinity;
 };
 
+// The whole card is read-only (no users.manage): every field shows its value only.
+const ReadOnlyCtx = createContext(false);
+
 function Field({
   id,
   value,
@@ -165,8 +168,9 @@ function Field({
   text?: boolean;
   readOnly?: boolean;
 }) {
+  const ro = useContext(ReadOnlyCtx) || readOnly;
   return (
-    <span className={`mpp__f${bad ? " is-bad" : ""}${readOnly ? " is-ro" : ""}`}>
+    <span className={`mpp__f${bad ? " is-bad" : ""}${ro ? " is-ro" : ""}`}>
       <input
         id={id}
         value={value}
@@ -174,7 +178,7 @@ function Field({
         autoComplete="off"
         spellCheck={false}
         maxLength={text ? 40 : 9}
-        readOnly={readOnly}
+        readOnly={ro}
         placeholder={placeholder}
         aria-label={label}
         aria-invalid={bad || undefined}
@@ -227,7 +231,10 @@ function Issues({ items, text }: { items: PricingIssue[]; text: (i: PricingIssue
   );
 }
 
-export default function MarketplacePricingCard() {
+// canEdit: the policies page's users.manage (PUT /admin/platform/policies/
+// marketplace_pricing). Without it the card is read-only: every value stays
+// readable, no add/remove/reset/save control is rendered.
+export default function MarketplacePricingCard({ canEdit = true, onDenied }: { canEdit?: boolean; onDenied?: () => void }) {
   const t = useTranslations("admin.policies.pricing");
   const tm = useTranslations("marketPricing");
   const te = useTranslations("enums");
@@ -273,6 +280,15 @@ export default function MarketplacePricingCard() {
     return () => clearTimeout(h);
   }, [load]);
 
+  // Edits lost their permission: show the saved values again.
+  const [wasRo, setWasRo] = useState(!canEdit);
+  if (wasRo !== !canEdit) {
+    setWasRo(!canEdit);
+    if (!canEdit && load.data) {
+      setDraft(toDraft(load.data.policy));
+      setKept([]);
+    }
+  }
   if (load.data && load.data !== synced) {
     setSynced(load.data);
     setDraft(toDraft(load.data.policy));
@@ -294,7 +310,9 @@ export default function MarketplacePricingCard() {
   const last = hist.status === "ready" ? hist.items[0] : undefined;
   const lastWhen = last ? versionWhen(last.at, locale) : "";
 
+  const ro = !canEdit;
   const patch = (fn: (d: Draft) => Draft) => {
+    if (ro) return;
     setDraft((d) => (d ? fn(d) : d));
   };
 
@@ -360,6 +378,7 @@ export default function MarketplacePricingCard() {
       setTick((x) => x + 1);
     } catch (e) {
       const f = pricingSaveFailure(e);
+      if (f.kind === "forbidden") onDenied?.();
       if (f.kind !== "missing") {
         notify.error(t("notify.saveFailed"), {
           id: "mpp-save",
@@ -446,6 +465,7 @@ export default function MarketplacePricingCard() {
   const orderIssue = issues.some((i) => i.code === "order");
 
   return (
+    <ReadOnlyCtx.Provider value={ro}>
     <div className="ppanel mpp" data-ai-target="policies:marketplace-pricing" data-ai-id="admin.policies.marketplace-pricing" data-ai-type="section" data-ai-label={t("title")}>
       {head}
       <p className="ppanel__note">
@@ -459,7 +479,7 @@ export default function MarketplacePricingCard() {
           <span>{t("missingSection")}</span>
         </p>
       ) : null}
-      {saveMissing ? (
+      {saveMissing && !ro ? (
         <p className="mpp__info is-soon" role="status">
           <IconHourglass aria-hidden="true" />
           <span>{t("saveSoon")}</span>
@@ -497,7 +517,7 @@ export default function MarketplacePricingCard() {
             title={t("exp.title")}
             hint={t("exp.hint")}
             aside={
-              orderIssue ? (
+              orderIssue && !ro ? (
                 <button type="button" className="btn btn--line btn--sm" onClick={() => patch((d) => ({ ...d, exp: [...d.exp].sort((a, b) => minKey(a) - minKey(b)) }))}>
                   <IconSortUp aria-hidden="true" />
                   {t("exp.sort")}
@@ -536,22 +556,24 @@ export default function MarketplacePricingCard() {
                       bad={bad.has(`exp.${i}.percent`)}
                       onChange={(v) => patch((d) => ({ ...d, exp: d.exp.map((x) => (x.id === r.id ? { ...x, pct: clean(v) } : x)) }))}
                     />
-                    <button
-                      type="button"
-                      className="mpp__del"
-                      onClick={() => patch((d) => ({ ...d, exp: d.exp.filter((x) => x.id !== r.id) }))}
-                      aria-label={t("removeRow", { row: i + 1 })}
-                      title={t("remove")}
-                    >
-                      <IconTrash aria-hidden="true" />
-                    </button>
+                    {ro ? <span /> : (
+                      <button
+                        type="button"
+                        className="mpp__del"
+                        onClick={() => patch((d) => ({ ...d, exp: d.exp.filter((x) => x.id !== r.id) }))}
+                        aria-label={t("removeRow", { row: i + 1 })}
+                        title={t("remove")}
+                      >
+                        <IconTrash aria-hidden="true" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
             ) : (
               <p className="mpp__empty">{t("exp.empty")}</p>
             )}
-            <button
+            {ro ? null : <button
               type="button"
               className="btn btn--soft btn--sm mpp__add"
               onClick={() =>
@@ -564,7 +586,7 @@ export default function MarketplacePricingCard() {
             >
               <IconPlus />
               {t("exp.add")}
-            </button>
+            </button>}
             <Issues items={of("exp")} text={issueText} />
           </Section>
 
@@ -617,28 +639,32 @@ export default function MarketplacePricingCard() {
                       bad={bad.has(`regions.${i}.coef`)}
                       onChange={(v) => patch((d) => ({ ...d, regions: d.regions.map((x) => (x.id === r.id ? { ...x, coef: clean(v) } : x)) }))}
                     />
-                    <button
-                      type="button"
-                      className="mpp__del"
-                      onClick={() => patch((d) => ({ ...d, regions: d.regions.filter((x) => x.id !== r.id) }))}
-                      disabled={isDefault}
-                      aria-label={t("removeRow", { row: i + 1 })}
-                      title={isDefault ? t("region.defaultLocked") : t("remove")}
-                    >
-                      <IconTrash aria-hidden="true" />
-                    </button>
+                    {ro ? <span /> : (
+                      <button
+                        type="button"
+                        className="mpp__del"
+                        onClick={() => patch((d) => ({ ...d, regions: d.regions.filter((x) => x.id !== r.id) }))}
+                        disabled={isDefault}
+                        aria-label={t("removeRow", { row: i + 1 })}
+                        title={isDefault ? t("region.defaultLocked") : t("remove")}
+                      >
+                        <IconTrash aria-hidden="true" />
+                      </button>
+                    )}
                   </div>
                 );
               })}
             </div>
-            <button
-              type="button"
-              className="btn btn--soft btn--sm mpp__add"
-              onClick={() => patch((d) => ({ ...d, seq: d.seq + 1, regions: [...d.regions, { id: `n${d.seq}`, key: "", coef: "1.00" }] }))}
-            >
-              <IconPlus />
-              {t("region.add")}
-            </button>
+            {ro ? null : (
+              <button
+                type="button"
+                className="btn btn--soft btn--sm mpp__add"
+                onClick={() => patch((d) => ({ ...d, seq: d.seq + 1, regions: [...d.regions, { id: `n${d.seq}`, key: "", coef: "1.00" }] }))}
+              >
+                <IconPlus />
+                {t("region.add")}
+              </button>
+            )}
             <Issues items={of("regions")} text={issueText} />
           </Section>
 
@@ -660,11 +686,17 @@ export default function MarketplacePricingCard() {
           </Section>
 
           <Section icon={<IconShieldCheck />} title={t("sector.title")} hint={t("sector.hint")}>
-            <label className="mpp__sw">
-              <input type="checkbox" checked={draft.sectorVerified} onChange={(e) => patch((d) => ({ ...d, sectorVerified: e.target.checked }))} />
-              <i aria-hidden="true" />
-              <span>{t("sector.verifiedOnly")}</span>
-            </label>
+            {ro ? (
+              <p className="mpp__ex">
+                {t("sector.verifiedOnly")}: <b>{draft.sectorVerified ? t("yes") : t("no")}</b>
+              </p>
+            ) : (
+              <label className="mpp__sw">
+                <input type="checkbox" checked={draft.sectorVerified} onChange={(e) => patch((d) => ({ ...d, sectorVerified: e.target.checked }))} />
+                <i aria-hidden="true" />
+                <span>{t("sector.verifiedOnly")}</span>
+              </label>
+            )}
             <div className="mpp__kvs">
               <Labeled id={`${uid}-x-years`} label={t("sector.minYears")}>
                 <Field id={`${uid}-x-years`} value={draft.sectorYears} unit={unit("years")} bad={bad.has("sector.minYears")} onChange={(v) => patch((d) => ({ ...d, sectorYears: clean(v) }))} />
@@ -678,7 +710,7 @@ export default function MarketplacePricingCard() {
         </div>
       </div>
 
-      <div className="mpp__foot">
+      {ro ? null : <div className="mpp__foot">
         <button type="button" className="btn btn--line btn--sm" onClick={() => patch(() => toDraft(defaultPricingPolicy()))} disabled={busy || atDefaults}>
           <IconRefresh />
           {t("defaultsBtn")}
@@ -698,7 +730,7 @@ export default function MarketplacePricingCard() {
             {saveMissing ? t("soon") : busy ? t("saving") : t("save")}
           </button>
         </span>
-      </div>
+      </div>}
       {kept.length ? (
         <p className="mpp__info is-kept">
           <IconInfo aria-hidden="true" />
@@ -706,7 +738,8 @@ export default function MarketplacePricingCard() {
         </p>
       ) : null}
 
-      <PricingHistoryModal open={historyOpen} hist={hist} onClose={() => setHistoryOpen(false)} onLoad={loadVersion} />
+      <PricingHistoryModal open={historyOpen} hist={hist} onClose={() => setHistoryOpen(false)} onLoad={ro ? undefined : loadVersion} />
     </div>
+    </ReadOnlyCtx.Provider>
   );
 }

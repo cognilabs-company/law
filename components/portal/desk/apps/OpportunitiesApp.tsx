@@ -97,7 +97,10 @@ export default function OpportunitiesApp({ openApp, base }: NativeProps) {
         setDone((x) => ({ ...x, [o.id]: "taken" }));
         setSel("");
         say(tc("orderTaken"), "err");
-      } else if (isForbidden(e)) setBlocked(errDetail(e) || tc("orderForbidden"));
+      } else if (isForbidden(e)) {
+        setAsking(false);
+        setBlocked(errDetail(e) || tc("orderForbidden"));
+      }
       else say(marketErr(e, tc("orderActionFailed")), "err");
     } finally {
       setBusy("");
@@ -196,12 +199,14 @@ export default function OpportunitiesApp({ openApp, base }: NativeProps) {
                 </Banner>
               ) : done[current.id] === "decline" ? (
                 <Banner tone="neutral" title={tc("declined")} />
-              ) : (
+              ) : blocked ? null : (
+                // A 403 (blocked) means this account may not answer orders:
+                // the reason shows above and the buttons are not offered.
                 <footer>
-                  <Btn kind="primary" icon={<IconCheck />} busy={busy === "accept"} disabled={!!busy || !!blocked} onClick={() => void act(current, "accept")}>
+                  <Btn kind="primary" icon={<IconCheck />} busy={busy === "accept"} disabled={!!busy} onClick={() => void act(current, "accept")}>
                     {tc("accept")}
                   </Btn>
-                  <Btn icon={<IconClose />} disabled={!!busy || !!blocked} onClick={() => setAsking(true)}>
+                  <Btn icon={<IconClose />} disabled={!!busy} onClick={() => setAsking(true)}>
                     {tc("decline")}
                   </Btn>
                 </footer>
@@ -213,7 +218,7 @@ export default function OpportunitiesApp({ openApp, base }: NativeProps) {
         </article>
       </div>
       <Dialog
-        open={asking && !!current}
+        open={asking && !!current && !blocked}
         title={tr("title")}
         onClose={() => setAsking(false)}
         onSubmit={() => current && void act(current, "decline")}

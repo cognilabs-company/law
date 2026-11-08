@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import AiLabel from "@/components/ui/AiLabel";
 import type { LucideIcon } from "lucide-react";
@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { aiSeg } from "@/lib/ai/ids";
 import type { Role } from "@/lib/auth";
+import { getRoleNavState, isPathHidden, subscribeRoleNav } from "@/lib/roleNav";
 import { copilotRoute, type CopilotActionPreview, type CopilotEntityRef, type CopilotHighlight } from "@/lib/services/copilotPanel";
 import type { CopilotActionOutcome, CopilotFeedback, CopilotTurn } from "./store";
 
@@ -400,6 +401,8 @@ export type CopilotTurnProps = {
   index: number;
   role: Role;
   busy: boolean;
+  // The copilot was refused for this account: nothing is offered to retry.
+  denied?: boolean;
   onRetry: (turn: CopilotTurn) => void;
   onGo: (route: string, highlight: CopilotHighlight | null) => void;
   onFlash: (highlight: CopilotHighlight) => void;
@@ -408,12 +411,16 @@ export type CopilotTurnProps = {
   onDrafts: () => void;
 };
 
-export default function CopilotTurnView({ turn, index, role, busy, onRetry, onGo, onFlash, onSave, onRate, onDrafts }: CopilotTurnProps) {
+export default function CopilotTurnView({ turn, index, role, busy, denied = false, onRetry, onGo, onFlash, onSave, onRate, onDrafts }: CopilotTurnProps) {
   const t = useTranslations("copilot");
   const reply = turn.reply;
   const base = `copilot.answer.${index}`;
   const typeLabel = (type: string) => (t.has(`ctx.type.${type}`) ? t(`ctx.type.${type}`) : humanize(type));
-  const nav = reply?.navigation ? copilotRoute({ route: reply.navigation.route, pageId: reply.navigation.pageId, params: reply.navigation.params }, role) : "";
+  // A page this role profile lost (GET /me/navigation) is never offered as a
+  // link — not even when the answer suggests it (owner law 2026-11-08).
+  useSyncExternalStore(subscribeRoleNav, getRoleNavState, getRoleNavState);
+  const reachable = (r: string) => (r && !isPathHidden(r.split(/[?#]/)[0]) ? r : "");
+  const nav = reachable(reply?.navigation ? copilotRoute({ route: reply.navigation.route, pageId: reply.navigation.pageId, params: reply.navigation.params }, role) : "");
   const showActions = !!reply && reply.provider !== "openai_text_fallback" && reply.provider !== "fallback";
   const sources = reply ? reply.sources.slice(0, 6) : [];
   const toolLabel = (name: string) => (t.has(`tool.name.${name}`) ? t(`tool.name.${name}`) : humanize(name));
@@ -433,7 +440,7 @@ export default function CopilotTurnView({ turn, index, role, busy, onRetry, onGo
         <div className={`cpl-err${turn.status === "canceled" ? " cpl-err--soft" : ""}`} role={turn.status === "failed" ? "alert" : undefined}>
           {turn.status === "failed" ? <CircleAlertIcon {...ICON} /> : <InfoIcon {...ICON} />}
           <span>{t(`err.${turn.error ?? "other"}`)}</span>
-          {turn.error !== "role" ? (
+          {turn.error !== "role" && !denied ? (
             <button type="button" onClick={() => onRetry(turn)} disabled={busy} data-ai-id={`copilot.turn.${index}.retry`}>
               <RotateCcwIcon {...ICON} size={14} />
               {t("retry")}
@@ -481,7 +488,7 @@ export default function CopilotTurnView({ turn, index, role, busy, onRetry, onGo
                       action={a}
                       outcome={turn.actions[a.id]}
                       related={related}
-                      route={a.route ? copilotRoute({ route: a.route }, role) : ""}
+                      route={reachable(a.route ? copilotRoute({ route: a.route }, role) : "")}
                       base={`${base}.action.${j}`}
                       onSave={() => onSave(turn, a)}
                       onGo={(r) => onGo(r, null)}
@@ -494,7 +501,7 @@ export default function CopilotTurnView({ turn, index, role, busy, onRetry, onGo
               <div className="cpl-src">
                 <span className="cpl-src__t">{t("basedOn")}</span>
                 {sources.map((s, j) => {
-                  const r = copilotRoute({ route: s.route, pageId: s.type === "system_page" ? s.id : "" }, role);
+                  const r = reachable(copilotRoute({ route: s.route, pageId: s.type === "system_page" ? s.id : "" }, role));
                   return r ? (
                     <button key={j} type="button" className="cpl-chip cpl-chip--go" onClick={() => onGo(r, null)} data-ai-id={`${base}.source.${j}`}>
                       {s.title}

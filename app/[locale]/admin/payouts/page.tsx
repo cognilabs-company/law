@@ -7,7 +7,7 @@ import { useResource, useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { useReload } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
-import { ApiError } from "@/lib/http";
+import { ApiError, isForbidden } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { IconCard, IconCheck } from "@/components/icons";
 import { aiId } from "@/lib/ai/ids";
@@ -23,6 +23,9 @@ export default function AdminPayouts() {
   const rec = useResourceOne(getReconciliation, [key]);
   const list = useResource(() => listAdminPayouts(), [key]);
   const [busy, setBusy] = useState<string | null>(null);
+  // The page needs payments.manage (AdminShell). A 403 on "mark paid" all
+  // the same: the button leaves every row instead of failing again.
+  const [denied, setDenied] = useState(false);
   const r = rec.data ?? REC0;
 
   async function mark(id: string, status: string, label: string) {
@@ -32,6 +35,7 @@ export default function AdminPayouts() {
       notify.success(t("markedPaid"), { id: `payout-${id}`, body: label });
       reload();
     } catch (e) {
+      if (isForbidden(e)) setDenied(true);
       notify.error(t("markFailed"), {
         id: `payout-${id}`,
         error: e,
@@ -87,7 +91,7 @@ export default function AdminPayouts() {
                 </div>
                 <div className="aitem__r" style={{ display: "flex", gap: 8, alignItems: "center" }} data-ai-target="payouts:item-actions">
                   <span className={`creq__badge payout__st payout__st--${p.status}`}>{t.has(`status.${p.status}`) ? t(`status.${p.status}`) : p.status}</span>
-                  {p.status !== "paid" ? (
+                  {p.status !== "paid" && !denied ? (
                     <button className="btn btn--pri btn--sm" type="button" disabled={busy === p.id} onClick={() => mark(p.id, "paid", `${som(p.sellerShare)} ${p.currency}`)} data-ai-target="button:mark-paid" data-ai-id={p.id ? aiId("admin.payouts.item", p.id, "mark-paid") : undefined}>{t("markPaid")}</button>
                   ) : null}
                 </div>

@@ -226,32 +226,34 @@ function Profile({ meta, customerId }: { meta: CrmMeta; customerId: string }) {
               </ul>
             ) : null}
           </div>
-          <div className="opx-cd-chead__acts">
-            {tel ? (
-              <a className={`opx-pbtn${bright === "call" ? " opx-pbtn--call" : ""}`} href={tel} aria-label={`${tp("call")}: ${phone}`}>
-                <IcPhone size={15} />
-                {tp("call")}
-              </a>
-            ) : null}
-            {crmCan(meta, "crm.leads.manage") ? (
-              <button type="button" className={`opx-pbtn${bright === "lead" ? " opx-pbtn--main" : ""}`} onClick={() => setSheet("lead")}>
-                <IcPlus size={16} />
-                {t("newLead")}
-              </button>
-            ) : null}
-            {canManage ? (
-              <button type="button" className="opx-pbtn" onClick={() => setSheet("edit")}>
-                <IcEdit size={16} />
-                {t("edit")}
-              </button>
-            ) : null}
-            {crmCan(meta, "crm.customers.merge") ? (
-              <button type="button" className="opx-pbtn" onClick={() => setSheet("merge")}>
-                <IcUsers size={16} />
-                {t("merge")}
-              </button>
-            ) : null}
-          </div>
+          {tel || crmCan(meta, "crm.leads.manage") || canManage || crmCan(meta, "crm.customers.merge") ? (
+            <div className="opx-cd-chead__acts">
+              {tel ? (
+                <a className={`opx-pbtn${bright === "call" ? " opx-pbtn--call" : ""}`} href={tel} aria-label={`${tp("call")}: ${phone}`}>
+                  <IcPhone size={15} />
+                  {tp("call")}
+                </a>
+              ) : null}
+              {crmCan(meta, "crm.leads.manage") ? (
+                <button type="button" className={`opx-pbtn${bright === "lead" ? " opx-pbtn--main" : ""}`} onClick={() => setSheet("lead")}>
+                  <IcPlus size={16} />
+                  {t("newLead")}
+                </button>
+              ) : null}
+              {canManage ? (
+                <button type="button" className="opx-pbtn" onClick={() => setSheet("edit")}>
+                  <IcEdit size={16} />
+                  {t("edit")}
+                </button>
+              ) : null}
+              {crmCan(meta, "crm.customers.merge") ? (
+                <button type="button" className="opx-pbtn" onClick={() => setSheet("merge")}>
+                  <IcUsers size={16} />
+                  {t("merge")}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </header>
 

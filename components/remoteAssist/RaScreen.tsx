@@ -61,6 +61,7 @@ export function RaScreen({
   clientId,
   share,
   canDraw,
+  tools = true,
   pageTitle,
   route,
   onHit,
@@ -69,6 +70,9 @@ export function RaScreen({
   clientId: string;
   share: RaShareState | null;
   canDraw: boolean;
+  // false: this operator may not mark or point at all (no can_command) — the
+  // drawing toolbar is not rendered; the picture stays viewable.
+  tools?: boolean;
   pageTitle: string;
   route: string;
   // The client's answer to a click: a route to open or a component to point at.
@@ -279,6 +283,7 @@ export function RaScreen({
 
       {notTab ? <p className="ra-scr__warn">{t("notTab")}</p> : null}
 
+      {tools ? (
       <div className="ra-tools" role="toolbar" aria-label={t("tools")}>
         <span className="ra-tools__set" role="radiogroup" aria-label={t("toolsShape")}>
           {TOOLS.map((x) => (
@@ -306,6 +311,7 @@ export function RaScreen({
         </button>
         <small className="ra-tools__hint" role="status">{!canDraw ? t("paused") : tool === "click" ? (probe === "wait" ? t("probeWait") : probe === "none" ? t("probeNone") : t("clickHint")) : t("fade")}</small>
       </div>
+      ) : null}
     </div>
   );
 }

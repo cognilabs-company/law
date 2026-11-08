@@ -15,7 +15,9 @@ import ListPager from "@/components/ui/ListPager";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState";
 import { dateOnly, fmtNum } from "@/lib/date";
-import { errDetail, logApiError } from "@/lib/http";
+import { errDetail, isForbidden, logApiError } from "@/lib/http";
+import { useCan } from "@/lib/useCan";
+import { REVIEW_PERMISSION } from "@/lib/permissions";
 import type { AiRisk } from "@/lib/services/achievements";
 import type { ExperienceEvidence } from "@/lib/services/experience";
 import {
@@ -102,6 +104,11 @@ function Suspensions({ sellerUserId, practice, onPractice }: { sellerUserId: str
   const [form, setForm] = useState<SuspForm | null>(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  // Writing suspension periods is the reviewer's right (marketplace.experience.review);
+  // a 403 takes add / edit / archive away, its message stays.
+  const canDo = useCan();
+  const [refused, setRefused] = useState(false);
+  const mayEdit = canDo(REVIEW_PERMISSION) && !refused;
   const bad = form ? (!form.id && !form.startedOn) || form.reason.trim().length < 2 || (!!form.endedOn && !!form.startedOn && form.endedOn < form.startedOn) || form.uploading !== null : true;
 
   async function save() {
@@ -115,6 +122,10 @@ function Suspensions({ sellerUserId, practice, onPractice }: { sellerUserId: str
       setNote({ ok: true, msg: t("saved") });
     } catch (e) {
       logApiError("practice.suspension", e);
+      if (isForbidden(e)) {
+        setRefused(true);
+        setForm(null);
+      }
       setNote({ ok: false, msg: errDetail(e) || t("failed") });
     } finally {
       setBusy(false);
@@ -131,6 +142,10 @@ function Suspensions({ sellerUserId, practice, onPractice }: { sellerUserId: str
       setForm((f) => (f ? { ...f, uploading: null, files: [...f.files, ev] } : f));
     } catch (e) {
       logApiError("practice.suspension.evidence", e);
+      if (isForbidden(e)) {
+        setRefused(true);
+        setForm(null);
+      }
       setForm((f) => (f ? { ...f, uploading: null } : f));
       setNote({ ok: false, msg: errDetail(e) || t("fileFailed") });
     }
@@ -150,6 +165,7 @@ function Suspensions({ sellerUserId, practice, onPractice }: { sellerUserId: str
       setNote({ ok: true, msg: t("archived") });
     } catch (e) {
       logApiError("practice.suspension.archive", e);
+      if (isForbidden(e)) setRefused(true);
       setNote({ ok: false, msg: errDetail(e) || t("failed") });
     } finally {
       setBusy(false);
@@ -167,7 +183,7 @@ function Suspensions({ sellerUserId, practice, onPractice }: { sellerUserId: str
           <b id={`alr-s-${sellerUserId}`}>{t("title")}</b>
           <small>{t("lead")}</small>
         </span>
-        {!form ? (
+        {!form && mayEdit ? (
           <SxButton size="sm" variant="add" onClick={() => setForm({ id: "", startedOn: "", endedOn: "", reason: "", files: [], uploading: null })}>
             {t("add")}
           </SxButton>
@@ -211,7 +227,7 @@ function Suspensions({ sellerUserId, practice, onPractice }: { sellerUserId: str
                   </span>
                 ) : null}
               </span>
-              {s.id && !form ? (
+              {s.id && !form && mayEdit ? (
                 <span className="alr__sacts2">
                   <button type="button" className="alr__sedit" onClick={() => edit(s)} aria-label={t("edit")} disabled={busy}>
                     <IconEdit aria-hidden="true" />
@@ -227,7 +243,7 @@ function Suspensions({ sellerUserId, practice, onPractice }: { sellerUserId: str
       ) : (
         <p className="vrf__muted">{t("none")}</p>
       )}
-      {form ? (
+      {form && mayEdit ? (
         <div className="alr__sform">
           <div className="alr__two">
             <div className="alr__f">

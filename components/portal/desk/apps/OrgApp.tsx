@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth";
+import { isForbidden } from "@/lib/http";
 import { addOrgMember, createOrganization, listLawyers, listOrgMembers, listOrganizations, type BackendLawyer, type OrgMember, type Organization } from "@/lib/services/backend";
 import { IconAlert, IconBriefcase, IconBuilding, IconChartBar, IconPlus, IconRefresh, IconUserPlus, IconUsers } from "@/components/icons";
 import { App, Avatar, Banner, Btn, Dialog, Empty, Field, Input, Loading, Search, Sidebar, Tag, TextArea, Tool, Toolbar, useOs, useToast, type NavSection } from "../kit/kit";
@@ -37,6 +38,11 @@ function Orgs({ base, openApp }: NativeProps) {
   const [adding, setAdding] = useState(false);
   const [tick, setTick] = useState(0);
   const [toast, say] = useToast();
+  const tc = useTranslations("common");
+  // A 403 answer means this account may not do that here: the action leaves
+  // the window (organization ids it may not add members to; creating).
+  const [addDenied, setAddDenied] = useState<Set<string>>(() => new Set());
+  const [createDenied, setCreateDenied] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -73,16 +79,17 @@ function Orgs({ base, openApp }: NativeProps) {
 
   const org = (orgs ?? []).find((o) => o.id === sel) ?? null;
   const owner = !!org && org.ownerUserId === me;
+  const canAdd = !!org && !addDenied.has(org.id);
   const nameOf = useMemo(() => new Map(lawyers.map((l) => [l.userId, l.name])), [lawyers]);
   const sections: NavSection[] = [{ id: "o", title: os === "mac" ? t("title") : undefined, items: (orgs ?? []).map((o) => ({ id: o.id, label: o.name, icon: <IconBuilding /> })) }];
   const status = (s: string) => (s && ts.has(s) ? ts(s) : s || t("pending"));
 
   return (
-    <App name="org" sidebar={<Sidebar label={t("title")} sections={sections} value={sel} onChange={setSel} footer={<Btn kind="plain" small icon={<IconPlus />} onClick={() => setCreating(true)}>{t("create")}</Btn>} />}>
+    <App name="org" sidebar={<Sidebar label={t("title")} sections={sections} value={sel} onChange={setSel} footer={createDenied ? undefined : <Btn kind="plain" small icon={<IconPlus />} onClick={() => setCreating(true)}>{t("create")}</Btn>} />}>
       <Toolbar title={org?.name || t("title")} subtitle={org ? [org.region, org.inn].filter(Boolean).join(" · ") : t("lead")}>
         {org && owner ? <Tool icon={<IconChartBar />} label={t("manage")} onClick={() => openApp("organization", `${base}/organization/${encodeURIComponent(org.id)}`)} /> : null}
-        {org ? <Tool icon={<IconUserPlus />} label={t("addMember")} primary onClick={() => setAdding(true)} /> : null}
-        <Tool icon={<IconPlus />} label={t("create")} onClick={() => setCreating(true)} />
+        {org && canAdd ? <Tool icon={<IconUserPlus />} label={t("addMember")} primary onClick={() => setAdding(true)} /> : null}
+        {createDenied ? null : <Tool icon={<IconPlus />} label={t("create")} onClick={() => setCreating(true)} />}
         <Tool icon={<IconRefresh />} label={d("refresh")} onClick={() => setTick((n) => n + 1)} />
       </Toolbar>
       {orgs === null ? (
@@ -92,7 +99,7 @@ function Orgs({ base, openApp }: NativeProps) {
           <Loading label={d("loading")} />
         )
       ) : !orgs.length ? (
-        <Empty icon={<IconBuilding />} title={t("empty")} text={t("emptyText")} action={<Btn kind="primary" icon={<IconPlus />} onClick={() => setCreating(true)}>{t("create")}</Btn>} />
+        <Empty icon={<IconBuilding />} title={t("empty")} text={t("emptyText")} action={createDenied ? undefined : <Btn kind="primary" icon={<IconPlus />} onClick={() => setCreating(true)}>{t("create")}</Btn>} />
       ) : org ? (
         <div className="dxg dx-scroll">
           <section className="dxg-card">
@@ -138,14 +145,14 @@ function Orgs({ base, openApp }: NativeProps) {
       ) : (
         <Empty icon={<IconBuilding />} title={d("pick")} />
       )}
-      <CreateOrg open={creating} onClose={() => setCreating(false)} onDone={() => (setCreating(false), setTick((n) => n + 1), say(t("created")))} />
-      {org ? <AddMember open={adding} org={org} lawyers={lawyers} onClose={() => setAdding(false)} onDone={() => (setAdding(false), setTick((n) => n + 1), say(t("memberAdded")))} /> : null}
+      <CreateOrg open={creating && !createDenied} onClose={() => setCreating(false)} onForbidden={() => (setCreateDenied(true), setCreating(false), say(tc("forbidden"), "err"))} onDone={() => (setCreating(false), setTick((n) => n + 1), say(t("created")))} />
+      {org && canAdd ? <AddMember open={adding} org={org} lawyers={lawyers} onClose={() => setAdding(false)} onForbidden={() => (setAddDenied((x) => new Set(x).add(org.id)), setAdding(false), say(tc("forbidden"), "err"))} onDone={() => (setAdding(false), setTick((n) => n + 1), say(t("memberAdded")))} /> : null}
       {toast}
     </App>
   );
 }
 
-function CreateOrg({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: () => void }) {
+function CreateOrg({ open, onClose, onDone, onForbidden }: { open: boolean; onClose: () => void; onDone: () => void; onForbidden: () => void }) {
   const t = useTranslations("portal.org");
   const d = useTranslations("portal.desk.org");
   const [f, setF] = useState({ name: "", phone: "", inn: "", region: "", address: "" });
@@ -160,8 +167,9 @@ function CreateOrg({ open, onClose, onDone }: { open: boolean; onClose: () => vo
       await createOrganization({ name: f.name.trim(), organization_type: "advokat_tashkiloti", phone: f.phone, inn: f.inn, region: f.region, address: f.address });
       setF({ name: "", phone: "", inn: "", region: "", address: "" });
       onDone();
-    } catch {
-      setErr(t("createFailed"));
+    } catch (e) {
+      if (isForbidden(e)) onForbidden();
+      else setErr(t("createFailed"));
     } finally {
       setBusy(false);
     }
@@ -205,7 +213,7 @@ function CreateOrg({ open, onClose, onDone }: { open: boolean; onClose: () => vo
   );
 }
 
-function AddMember({ open, org, lawyers, onClose, onDone }: { open: boolean; org: Organization; lawyers: BackendLawyer[]; onClose: () => void; onDone: () => void }) {
+function AddMember({ open, org, lawyers, onClose, onDone, onForbidden }: { open: boolean; org: Organization; lawyers: BackendLawyer[]; onClose: () => void; onDone: () => void; onForbidden: () => void }) {
   const t = useTranslations("portal.org");
   const d = useTranslations("portal.desk.org");
   const [q, setQ] = useState("");
@@ -223,8 +231,9 @@ function AddMember({ open, org, lawyers, onClose, onDone }: { open: boolean; org
       setPick(null);
       setTitle("");
       onDone();
-    } catch {
-      setErr(t("memberAddFailed"));
+    } catch (e) {
+      if (isForbidden(e)) onForbidden();
+      else setErr(t("memberAddFailed"));
     } finally {
       setBusy(false);
     }

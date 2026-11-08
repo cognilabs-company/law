@@ -22,6 +22,7 @@ import CallCenterConsole, { CcTabPanel, REVIEW_PERMISSION, useCcConsole } from "
 import MarketWatcher from "@/components/marketplace/MarketWatcher";
 import { lazyView } from "@/components/ccx/lazyView";
 import { useRoleNav } from "@/components/RoleNavHost";
+import { can } from "@/lib/permissions";
 
 const NOW = lazyView(() => import("@/components/ccx/now/CcxNow"));
 const QUEUES = lazyView(() => import("@/components/ccx/queues/CcxQueues"));
@@ -73,8 +74,13 @@ function AdminCallCenterConsole() {
   const [logged, setLogged] = useState({ key: 0, phone: "" });
   const onLogged = (phone = "") => setLogged((s) => ({ key: s.key + 1, phone }));
   // Verification queues follow the review permission, not the role (2026-10-29 §1).
-  const canReview = (session?.permissions ?? []).includes(REVIEW_PERMISSION);
-  const con = useCcConsole(cc, canReview);
+  const canReview = can(session, REVIEW_PERMISSION);
+  // The embedded CRM board is the CRM's own (GET /crm/kanban, crm.leads.view);
+  // client lookup is call-center staff or users.manage. Without either the
+  // panel stays empty and its tab goes away.
+  const canCrm = can(session, "crm.leads.view");
+  const canLookup = cc || can(session, "users.manage");
+  const con = useCcConsole(cc, canReview, { leads: canCrm, clients: canLookup });
 
   return (
     <CallCenterConsole con={con}>
@@ -131,13 +137,15 @@ function AdminCallCenterConsole() {
         {cc ? <PayoutQueue onCount={con.count.payouts} /> : null}
       </CcTabPanel>
       <CcTabPanel con={con} tab="leads">
-        <CrmBoardEmbed />
+        {canCrm ? <CrmBoardEmbed /> : null}
       </CcTabPanel>
       <CcTabPanel con={con} tab="clients">
-        <div className="pgrid2">
-          <CcClientSearch canLog={cc} onLogged={onLogged} request={con.search} />
-          {cc ? <CcCallLog reloadKey={logged.key} loggedPhone={logged.phone} /> : null}
-        </div>
+        {canLookup ? (
+          <div className="pgrid2">
+            <CcClientSearch canLog={cc} onLogged={onLogged} request={con.search} />
+            {cc ? <CcCallLog reloadKey={logged.key} loggedPhone={logged.phone} /> : null}
+          </div>
+        ) : null}
       </CcTabPanel>
     </CallCenterConsole>
   );

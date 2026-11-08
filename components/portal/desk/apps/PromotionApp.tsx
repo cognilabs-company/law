@@ -43,6 +43,9 @@ export default function PromotionApp(_props: NativeProps) {
   const [filter, setFilter] = useState<PromotionAnalyticsFilter>({});
   const [open, setOpen] = useState<PromotionPlacement | null>(null);
   const [tick, setTick] = useState(0);
+  // A promotion request refused with 403: the start actions leave; the
+  // status and the analytics stay readable.
+  const [denied, setDenied] = useState("");
   const raw = useSyncExternalStore(subscribePendingPromos, () => pendingPromosRaw(uid), () => "");
   const pending = useMemo(() => parsePendingPromos(raw)[PROFILE_KEY] ?? null, [raw]);
   const rangeBad = filter.dateFrom && filter.dateTo ? (Date.parse(filter.dateFrom) > Date.parse(filter.dateTo) ? "order" : (Date.parse(filter.dateTo) - Date.parse(filter.dateFrom)) / DAY > 90 ? "long" : "") : "";
@@ -86,10 +89,11 @@ export default function PromotionApp(_props: NativeProps) {
   return (
     <App name="promo">
       <Toolbar title={t("title")} subtitle={t("intro")}>
-        <Tool icon={<IconRocket />} label={ts("titleAny")} primary onClick={() => setOpen("profile_boost")} />
+        {denied ? null : <Tool icon={<IconRocket />} label={ts("titleAny")} primary onClick={() => setOpen("profile_boost")} />}
         <Tool icon={<IconRefresh />} label={d("refresh")} onClick={() => setTick((n) => n + 1)} />
       </Toolbar>
       <div className="dxr dx-scroll">
+        {denied ? <Banner tone="err" title={denied} /> : null}
         {profileDays !== null ? (
           <Banner tone="ok" title={t("activeShort")}>
             {t("activeMsg", { days: profileDays })}
@@ -107,8 +111,8 @@ export default function PromotionApp(_props: NativeProps) {
             {PLACES.map((p) => {
               const st = status?.byPlacement[p.key];
               const state = st?.active ? "on" : st?.pending ? "wait" : "off";
-              return (
-                <button key={p.value} type="button" className={`dxr-place is-${state}`} onClick={() => setOpen(p.value)}>
+              const body = (
+                <>
                   <i aria-hidden>{p.icon}</i>
                   <b>{ts(p.title)}</b>
                   <span>{ts(p.hint)}</span>
@@ -116,11 +120,22 @@ export default function PromotionApp(_props: NativeProps) {
                     <Tag tone={state === "on" ? "ok" : state === "wait" ? "warn" : "neutral"}>
                       {state === "on" ? t("placeActive", { days: st?.daysLeft ?? 0, n: st?.active ?? 0 }) : state === "wait" ? t("placePending") : t("placeOff")}
                     </Tag>
-                    <em>
-                      {t("placeStart")}
-                      <IconArrowRight aria-hidden />
-                    </em>
+                    {denied ? null : (
+                      <em>
+                        {t("placeStart")}
+                        <IconArrowRight aria-hidden />
+                      </em>
+                    )}
                   </footer>
+                </>
+              );
+              return denied ? (
+                <div key={p.value} className={`dxr-place is-${state}`}>
+                  {body}
+                </div>
+              ) : (
+                <button key={p.value} type="button" className={`dxr-place is-${state}`} onClick={() => setOpen(p.value)}>
+                  {body}
                 </button>
               );
             })}
@@ -178,7 +193,19 @@ export default function PromotionApp(_props: NativeProps) {
         </section>
         {os === "win" ? null : <p className="dxr-note"><IconClock aria-hidden /> {ts("note")}</p>}
       </div>
-      <PromoteDialog open={!!open} start={open ?? "profile_boost"} services={services.filter((x) => x.status === "active")} onClose={() => setOpen(null)} onSent={() => setTick((n) => n + 1)} />
+      {denied ? null : (
+        <PromoteDialog
+          open={!!open}
+          start={open ?? "profile_boost"}
+          services={services.filter((x) => x.status === "active")}
+          onClose={() => setOpen(null)}
+          onSent={() => setTick((n) => n + 1)}
+          onDenied={(msg) => {
+            setOpen(null);
+            setDenied(msg);
+          }}
+        />
+      )}
     </App>
   );
 }

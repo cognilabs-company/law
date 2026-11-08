@@ -8,7 +8,7 @@ import { makeInviteSearch, type InviteSearch } from "@/lib/inviteSearch";
 import { regionLabel } from "@/lib/labels";
 import { notify } from "@/lib/toast";
 import type { SearchOption } from "@/components/SearchSelect";
-import { Choice, Note } from "../panel/bits";
+import { Choice } from "../panel/bits";
 import { IcMeeting } from "../icons";
 import { IcCalendar } from "./glyphs";
 import { DEFAULT_MINUTES, DURATIONS, START_ID, isTransient, type Active } from "./model";
@@ -107,6 +107,10 @@ export default function NewMeeting({ onOpen }: { onOpen: (a: Active) => void }) 
     startRef.current = () => void start();
   });
 
+  // Starting a meeting needs meetings.manage (canMakeCalls): without it the
+  // form is not offered at all.
+  if (!canHost) return null;
+
   return (
     <section className="opx-mtg-box opx-mtg-new" data-ai-target="meetings:create" aria-labelledby={`${uid}-h`}>
       <header className="opx-mtg-box__head">
@@ -115,45 +119,41 @@ export default function NewMeeting({ onOpen }: { onOpen: (a: Active) => void }) 
         </span>
         <h3 id={`${uid}-h`}>{t("newMeeting")}</h3>
       </header>
-      {canHost ? (
-        <form
-          ref={form}
-          className="opx-mtg-form"
-          noValidate
-          onSubmit={(e) => {
-            e.preventDefault();
-            void start();
-          }}
-        >
-          <div className="opx-field">
-            <label htmlFor={`${uid}-title`}>{t("titleLabel")}</label>
-            <input
-              id={`${uid}-title`}
-              data-mtg-title=""
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={picks.length ? autoTitle : t("titlePh")}
-              autoComplete="off"
-              enterKeyHint="go"
-            />
-          </div>
-          <PeoplePick label={t("participants")} value={picks} onChange={changePicks} search={searchOptions} error={pickErr} />
-          <Choice label={t("col.duration")} options={DURATIONS.map((n) => ({ value: String(n), label: t("durationMin", { n }) }))} value={minutes} onChange={setMinutes} />
-          <footer className="opx-mtg-form__foot">
-            {title || picks.length ? (
-              <button type="button" className="opx-pbtn" onClick={reset}>
-                {t("clear")}
-              </button>
-            ) : null}
-            <button type="submit" className="opx-pbtn opx-pbtn--main" disabled={busy} aria-busy={busy || undefined}>
-              <IcMeeting size={18} />
-              {busy ? t("starting") : t("start")}
+      <form
+        ref={form}
+        className="opx-mtg-form"
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          void start();
+        }}
+      >
+        <div className="opx-field">
+          <label htmlFor={`${uid}-title`}>{t("titleLabel")}</label>
+          <input
+            id={`${uid}-title`}
+            data-mtg-title=""
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={picks.length ? autoTitle : t("titlePh")}
+            autoComplete="off"
+            enterKeyHint="go"
+          />
+        </div>
+        <PeoplePick label={t("participants")} value={picks} onChange={changePicks} search={searchOptions} error={pickErr} />
+        <Choice label={t("col.duration")} options={DURATIONS.map((n) => ({ value: String(n), label: t("durationMin", { n }) }))} value={minutes} onChange={setMinutes} />
+        <footer className="opx-mtg-form__foot">
+          {title || picks.length ? (
+            <button type="button" className="opx-pbtn" onClick={reset}>
+              {t("clear")}
             </button>
-          </footer>
-        </form>
-      ) : (
-        <Note tone="warn">{t("noPermission")}</Note>
-      )}
+          ) : null}
+          <button type="submit" className="opx-pbtn opx-pbtn--main" disabled={busy} aria-busy={busy || undefined}>
+            <IcMeeting size={18} />
+            {busy ? t("starting") : t("start")}
+          </button>
+        </footer>
+      </form>
     </section>
   );
 }

@@ -626,6 +626,10 @@ export default function Menu({
       />
     );
 
+  // Every entry hidden (e.g. none of its actions is permitted for this
+  // session): no empty kebab menu is left behind (owner law 2026-11-08).
+  if (!items.some(isMenuItem)) return null;
+
   return (
     <>
       {trigger}

@@ -10,7 +10,9 @@ import { TextArea } from "@/components/admin/studio/sx/form/TextArea";
 import { IconAlert, IconArrowRight, IconChat, IconCheck, IconCircleCheck, IconCircleX, IconClock, IconCoins, IconHistory, IconHourglass, IconLock, IconPhone, IconRefresh, IconSend, IconUsers } from "@/components/icons";
 import { useMarketError } from "@/components/marketplace/useMarketError";
 import { shortDateTime } from "@/lib/date";
-import { isAborted, logApiError } from "@/lib/http";
+import { isAborted, isForbidden, logApiError } from "@/lib/http";
+import { notify } from "@/lib/toast";
+import { markRefused, useRefused } from "./refused";
 import { fmtUzs } from "@/lib/money";
 import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
 import { awaitingSeller } from "@/lib/services/marketplace";
@@ -160,6 +162,7 @@ export default function ResolutionPanel({ o, view, aiBase, onRefresh }: OrderSec
   const [refund, setRefund] = useState<OrderRefund | null>(null);
   const [timeline, setTimeline] = useState<TimelineItem[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
+  const refusedFor = useRefused();
   const r = o.resolution;
   const offer = r?.offer ?? null;
   const rf = refund ?? r?.refund ?? null;
@@ -167,7 +170,7 @@ export default function ResolutionPanel({ o, view, aiBase, onRefresh }: OrderSec
   const refunding = REFUND_STATUSES.has(o.status) || !!rf || chosen === "refund";
   const involved = !!r || o.status === "resolution_required" || refunding;
   const step: RefundStep = o.status === "refunded" ? "refunded" : rf ? refundStepOf(rf.status) : "requested";
-  const canChoose = !!r?.canChoose && !!offer && !chosen;
+  const canChoose = !!r?.canChoose && !!offer && !chosen && !refusedFor(o.id, "resolution");
   const preview = refundPreviewOf(o);
   const refreshRef = useRef(onRefresh);
   useEffect(() => {
@@ -239,9 +242,16 @@ export default function ResolutionPanel({ o, view, aiBase, onRefresh }: OrderSec
         onRefresh();
         return;
       }
-      setLost(idemLost(e));
       const fallback = t("error");
       const msg = marketError(e, fallback);
+      // Refused (403): the choice buttons leave; the reason is told once.
+      if (isForbidden(e)) {
+        setChoice("");
+        notify.error(fallback, { id: `resolution-refused-${o.id}`, body: msg === fallback ? undefined : msg });
+        markRefused(o.id, "resolution");
+        return;
+      }
+      setLost(idemLost(e));
       setError({ title: fallback, text: idemLost(e) ? t("lost") : msg === fallback ? "" : msg });
     } finally {
       setBusy(false);

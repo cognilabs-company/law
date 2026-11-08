@@ -39,7 +39,8 @@ export default function InternalOrgBoard({
   failed?: boolean;
   onEditUnit: (unitId: string) => void;
   onAddUnit: (parentId: string) => void;
-  onAddEmployee: (unitId: string) => void;
+  // Absent without internal_hr.manage: no "add employee" anywhere.
+  onAddEmployee?: (unitId: string) => void;
   onOpenEmployee: (employeeId: string) => void;
 }) {
   const t = useTranslations("internal.people");
@@ -149,7 +150,7 @@ function FragmentRows({ children }: { children: ReactNode }) {
 
 // ── Detail panel ───────────────────────────────────────────────────────────
 
-function NodeDetail({ node, board, onSelect, onEditUnit, onAddUnit, onAddEmployee, onOpenEmployee }: { node: OrgBoardNode; board: OrgBoard; onSelect: (id: string) => void; onEditUnit: (id: string) => void; onAddUnit: (parentId: string) => void; onAddEmployee: (unitId: string) => void; onOpenEmployee: (id: string) => void }) {
+function NodeDetail({ node, board, onSelect, onEditUnit, onAddUnit, onAddEmployee, onOpenEmployee }: { node: OrgBoardNode; board: OrgBoard; onSelect: (id: string) => void; onEditUnit: (id: string) => void; onAddUnit: (parentId: string) => void; onAddEmployee?: (unitId: string) => void; onOpenEmployee: (id: string) => void }) {
   const t = useTranslations("internal.people");
   const tb = useTranslations("internal.people.board");
   const tu = useTranslations("internal.ui");
@@ -270,7 +271,7 @@ function NodeDetail({ node, board, onSelect, onEditUnit, onAddUnit, onAddEmploye
         </HrmSection>
       ) : null}
       <div className="hrm-form__foot">
-        <button className="btn btn--pri btn--sm" type="button" onClick={() => onAddEmployee(unitId)}><IconPlus />{tb("addEmployee")}</button>
+        {onAddEmployee ? <button className="btn btn--pri btn--sm" type="button" onClick={() => onAddEmployee(unitId)}><IconPlus />{tb("addEmployee")}</button> : null}
         <button className="btn btn--line btn--sm" type="button" onClick={() => onAddUnit(unitId)}><IconPlus />{tb("addSubUnit")}</button>
       </div>
     </div>

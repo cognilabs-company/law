@@ -93,18 +93,21 @@ export default function ReglamentEditor({
   resolve,
   onClose,
   onSaved,
+  onForbidden,
 }: {
   mode: EditorMode | null;
   reglaments: Reglament[];
   resolve: (r: Reglament) => Promise<Reglament>;
   onClose: () => void;
   onSaved: (info: SavedInfo) => void;
+  // 403 on save: the page drops that action (create or update) from view.
+  onForbidden?: (kind: "create" | "update") => void;
 }) {
   const { t } = useRgl();
   const title = !mode ? "" : mode.kind === "edit" ? t("editor.editTitle") : mode.kind === "gap" ? t("editor.gapTitle") : t("editor.createTitle");
   return (
     <Modal open={mode !== null} onClose={onClose} title={title} wide aiId="admin.ai-reglaments.editor">
-      {mode ? <EditorForm key={modeKey(mode)} mode={mode} reglaments={reglaments} resolve={resolve} onClose={onClose} onSaved={onSaved} /> : null}
+      {mode ? <EditorForm key={modeKey(mode)} mode={mode} reglaments={reglaments} resolve={resolve} onClose={onClose} onSaved={onSaved} onForbidden={onForbidden} /> : null}
     </Modal>
   );
 }
@@ -115,12 +118,14 @@ function EditorForm({
   resolve,
   onClose,
   onSaved,
+  onForbidden,
 }: {
   mode: EditorMode;
   reglaments: Reglament[];
   resolve: (r: Reglament) => Promise<Reglament>;
   onClose: () => void;
   onSaved: (info: SavedInfo) => void;
+  onForbidden?: (kind: "create" | "update") => void;
 }) {
   const { t, num, when } = useRgl();
   const uid = useId();
@@ -235,6 +240,7 @@ function EditorForm({
       const hasField = Object.keys(mapped).length > 0;
       if (hasField) setServerErr(mapped);
       const status = x instanceof ApiError ? x.status : 0;
+      if (isForbidden(x)) onForbidden?.(editId ? "update" : "create");
       setNote(
         isForbidden(x)
           ? t("error.forbiddenAction")

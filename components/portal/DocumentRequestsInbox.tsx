@@ -13,7 +13,7 @@ import {
   type DocumentRequestPoolItem,
   type ClaimDocumentRequestResult,
 } from "@/lib/services/backend";
-import { isConflict, logApiError } from "@/lib/http";
+import { isConflict, isForbidden, logApiError } from "@/lib/http";
 import { fetchAndDeliver } from "@/lib/download";
 import { useResource } from "@/lib/useResource";
 import { humanizeSlug } from "@/lib/lawyers";
@@ -324,21 +324,18 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
         <div className="pcards" data-ai-target="list:document-requests" data-ai-label={t("title")} data-ai-id={`${AI}.list`} data-ai-type="list">
           {activeRows.map((r) => {
             const locked = POOL_FLOW_STATUSES.has(r.status) && !r.canOpenEditor && r.status !== "completed";
-            return (
-              <button
-                className={`pcase pcase--btn${locked ? " pcase--locked" : ""}`}
-                key={r.id}
-                type="button"
-                onClick={() => openRecord(r)}
-                disabled={locked}
-                aria-disabled={locked}
-                data-ai-id={itemAiId(r.id)}
-                data-ai-type="card"
-                data-ai-entity-type="document_request"
-                data-ai-entity-id={r.id || undefined}
-                data-ai-label={[r.serviceName, statusLabel(tcm, r.status || r.request.status, "docStatus")].filter(Boolean).join(" · ") || t("title")}
-                data-ai-private
-              >
+            // can_open_editor=false: the card is shown for reading only — a
+            // plain block, not a dead button (owner law: no disabled actions).
+            const attrs = {
+              "data-ai-id": itemAiId(r.id),
+              "data-ai-type": "card",
+              "data-ai-entity-type": "document_request",
+              "data-ai-entity-id": r.id || undefined,
+              "data-ai-label": [r.serviceName, statusLabel(tcm, r.status || r.request.status, "docStatus")].filter(Boolean).join(" · ") || t("title"),
+              "data-ai-private": true,
+            };
+            const body = (
+              <>
                 <div className="pcase__h">
                   <b className="pcase__ttl">{r.title || r.clientName || t("title")}</b>
                   <span className="advmuted">{statusLabel(tcm, r.status || r.request.status, "docStatus")}</span>
@@ -378,6 +375,15 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
                     {r.canClaim ? t("needClaimLead") : t("editorBlockedCard")}
                   </span>
                 ) : null}
+              </>
+            );
+            return locked ? (
+              <div key={r.id} className="pcase pcase--locked" {...attrs}>
+                {body}
+              </div>
+            ) : (
+              <button key={r.id} className="pcase pcase--btn" type="button" onClick={() => openRecord(r)} {...attrs}>
+                {body}
               </button>
             );
           })}
@@ -413,6 +419,8 @@ function PoolCard({
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<"" | "claimed" | "taken">("");
   const [expanded, setExpanded] = useState(false);
+  // 403 on claim: this account may not take the case — the button leaves.
+  const [denied, setDenied] = useState(false);
   const ago = useAgo();
   const tfw = useTranslations("portal.workFilters");
   const [now] = useState(() => Date.now());
@@ -431,6 +439,9 @@ function PoolCard({
         notify.dismiss(`docreq-claim:${item.id}`);
         setDone("taken");
         onTaken();
+      } else if (isForbidden(e)) {
+        setDenied(true);
+        notify.error(t("claimError"), { id: `docreq-claim:${item.id}`, error: e });
       } else {
         logApiError("document-request claim", e);
         notify.error(t("claimError"), { id: `docreq-claim:${item.id}`, error: e, action: { label: tn("retry"), onClick: () => void claim() } });
@@ -491,17 +502,19 @@ function PoolCard({
           <IconAlert />
           {t("claimedByOther")}
         </span>
-      ) : (
+      ) : !item.need && (!item.canClaim || denied) ? null : (
         <div className="pcase__act">
           {item.need ? (
             <button type="button" className="btn btn--line btn--sm" onClick={() => setExpanded((v) => !v)}>
               {tcm("details")}
             </button>
           ) : null}
-          {/* "can_claim=true bo'lsa Ishni olish button active bo'lsin" */}
-          <button className="btn btn--grad btn--sm" type="button" onClick={claim} disabled={busy || !item.canClaim} data-ai-id={item.id ? aiId(`${AI}.item`, item.id, "claim") : undefined} data-ai-label={t("claim")}>
-            {busy ? t("claiming") : t("claim")}
-          </button>
+          {/* can_claim=false (or a 403): the claim is not offered at all. */}
+          {item.canClaim && !denied ? (
+            <button className="btn btn--grad btn--sm" type="button" onClick={claim} disabled={busy} data-ai-id={item.id ? aiId(`${AI}.item`, item.id, "claim") : undefined} data-ai-label={t("claim")}>
+              {busy ? t("claiming") : t("claim")}
+            </button>
+          ) : null}
         </div>
       )}
     </div>

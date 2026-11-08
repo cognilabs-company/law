@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/portal/DataState";
 import { getServicePassport, type BackendCategory, type ServicePassport } from "@/lib/services/backend";
 import { updateService, uploadServiceDocumentTemplate, type AdminService, type ServiceMetadataInput, type ServiceUpdateInput } from "@/lib/services/admin";
 import { notify } from "@/lib/toast";
+import { isForbidden } from "@/lib/http";
 import FieldError from "@/components/ui/FieldError";
 import { firstFieldError } from "@/lib/formErrors";
 import { IconUpload, IconCheck } from "@/components/icons";
@@ -114,7 +115,7 @@ function diff(init: FormVals, v: FormVals, hasMetadata: boolean): ServiceUpdateI
 // upload a DOCX with {{field}} placeholders and it auto-attaches to this
 // service — the client's "Xizmatlar" card then gets a document builder
 // (form left, live preview right) for free, no separate linking step.
-function DocTemplateSection({ service }: { service: AdminService }) {
+function DocTemplateSection({ service, onForbidden }: { service: AdminService; onForbidden: () => void }) {
   const t = useTranslations("admin.services.docTemplate");
   const [file, setFile] = useState<File | null>(null);
   const [slug, setSlug] = useState(service.slug);
@@ -147,6 +148,8 @@ function DocTemplateSection({ service }: { service: AdminService }) {
       notify.success(t("done", { n: r.fieldCount }), { id: `svc-tpl-${service.id}` });
     } catch (err) {
       notify.error(t("error"), { id: `svc-tpl-${service.id}`, error: err, map: { 415: t("onlyDocx"), 413: t("tooBig"), 403: t("forbidden") } });
+      // Refused: the upload section leaves the form instead of being offered again.
+      if (isForbidden(err)) onForbidden();
     } finally {
       setBusy(false);
     }
@@ -207,6 +210,9 @@ function PassportContext({ p }: { p: ServicePassport }) {
   );
 }
 
+// How a refusal (403) takes an action off the form.
+type DenyProps = { onForbidden?: () => void; docTplDenied: boolean; onDocTplForbidden: () => void };
+
 function EditForm({
   service,
   initial,
@@ -216,6 +222,9 @@ function EditForm({
   professional,
   onClose,
   onSaved,
+  onForbidden,
+  docTplDenied,
+  onDocTplForbidden,
 }: {
   service: AdminService;
   initial: FormVals;
@@ -227,7 +236,7 @@ function EditForm({
   professional?: boolean;
   onClose: () => void;
   onSaved: (updated: AdminService) => void;
-}) {
+} & DenyProps) {
   const t = useTranslations("admin.services");
   const tf = useTranslations("admin.form");
   const locale = useLocale();
@@ -268,6 +277,7 @@ function EditForm({
         error: err,
         map: { 404: t("edit.errNotFound"), 403: t("edit.errForbidden"), 422: `${t("edit.errValidation")}${f ? ` ${f}` : ""}` },
       });
+      if (isForbidden(err)) onForbidden?.();
     } finally {
       setBusy(false);
     }
@@ -355,7 +365,7 @@ function EditForm({
         </CheckBox>
       </fieldset>
 
-      {professional ? null : <DocTemplateSection service={service} />}
+      {professional || docTplDenied ? null : <DocTemplateSection service={service} onForbidden={onDocTplForbidden} />}
 
       <div className="svced__acts">
         <button className="btn btn--ghost" type="button" onClick={onClose} disabled={busy}>
@@ -378,7 +388,7 @@ function EditLoader(props: {
   professional?: boolean;
   onClose: () => void;
   onSaved: (updated: AdminService) => void;
-}) {
+} & DenyProps) {
   const locale = useLocale();
   const { service } = props;
   const [seed, setSeed] = useState<{ initial: FormVals; passport: ServicePassport | null; passportOff: boolean } | null>(null);
@@ -406,6 +416,7 @@ export default function ServiceEditModal({
   professional,
   onClose,
   onSaved,
+  onForbidden,
 }: {
   service: AdminService | null;
   categories: BackendCategory[];
@@ -414,11 +425,25 @@ export default function ServiceEditModal({
   professional?: boolean;
   onClose: () => void;
   onSaved: (updated: AdminService) => void;
+  // A 403 on save: the page takes its edit actions away.
+  onForbidden?: () => void;
 }) {
   const t = useTranslations("admin.services");
+  // A 403 on the DOCX upload hides that section for the rest of the visit.
+  const [docTplDenied, setDocTplDenied] = useState(false);
   return (
     <Modal open={service !== null} onClose={onClose} title={t("edit.title")}>
-      {service ? <EditLoader key={service.id} service={service} categories={categories} professional={professional} onClose={onClose} onSaved={onSaved} /> : null}
+      {service ? <EditLoader
+          key={service.id}
+          service={service}
+          categories={categories}
+          professional={professional}
+          onClose={onClose}
+          onSaved={onSaved}
+          onForbidden={onForbidden}
+          docTplDenied={docTplDenied}
+          onDocTplForbidden={() => setDocTplDenied(true)}
+        /> : null}
     </Modal>
   );
 }

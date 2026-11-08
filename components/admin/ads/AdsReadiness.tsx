@@ -6,8 +6,8 @@ import { useLocale, useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
 import { IconPause, IconPlay, IconShieldCheck, IconStar, IconTarget, IconUsers } from "@/components/icons";
 import { shortDateTime } from "@/lib/date";
-import { toast } from "@/lib/toast";
-import { ApiError, asDict, asStr, errDetail, http, isAborted, logApiError } from "@/lib/http";
+import { notify, toast } from "@/lib/toast";
+import { ApiError, asDict, asStr, errDetail, http, isAborted, isForbidden, logApiError } from "@/lib/http";
 
 // Whether advertising may be sold (TZ market conditions, contract
 // 2026-10-26 §3): enough registered clients and really rated, verified
@@ -61,6 +61,9 @@ export default function AdsReadiness(): ReactElement | null {
   const [r, setR] = useState<Readiness | null>(null);
   const [reload, setReload] = useState(0);
   const [acting, setActing] = useState<"activate" | "pause" | null>(null);
+  // A 403 on activate/pause: this account may watch readiness but not switch
+  // selling, so the switch leaves the card (the toast says why).
+  const [locked, setLocked] = useState(false);
 
   useEffect(() => {
     const ctl = new AbortController();
@@ -106,19 +109,21 @@ export default function AdsReadiness(): ReactElement | null {
         </span>
         <b>{t("title")}</b>
         <span className="adsr__state">{t(`mode.${r.mode}`)}</span>
-        <span className="adsr__acts">
-          {live ? (
-            <button type="button" className="btn btn--line btn--sm" onClick={() => setActing("pause")} data-ai-id="admin.ads.pause-selling">
-              <IconPause aria-hidden="true" />
-              {t("pause")}
-            </button>
-          ) : (
-            <button type="button" className="btn btn--pri btn--sm" onClick={() => setActing("activate")} disabled={!r.ready} title={r.ready ? undefined : t("activateLocked")} data-ai-id="admin.ads.activate-selling">
-              <IconPlay aria-hidden="true" />
-              {r.mode === "paused" ? t("reactivate") : t("activate")}
-            </button>
-          )}
-        </span>
+        {locked ? null : (
+          <span className="adsr__acts">
+            {live ? (
+              <button type="button" className="btn btn--line btn--sm" onClick={() => setActing("pause")} data-ai-id="admin.ads.pause-selling">
+                <IconPause aria-hidden="true" />
+                {t("pause")}
+              </button>
+            ) : (
+              <button type="button" className="btn btn--pri btn--sm" onClick={() => setActing("activate")} disabled={!r.ready} title={r.ready ? undefined : t("activateLocked")} data-ai-id="admin.ads.activate-selling">
+                <IconPlay aria-hidden="true" />
+                {r.mode === "paused" ? t("reactivate") : t("activate")}
+              </button>
+            )}
+          </span>
+        )}
       </header>
       <p className="adsr__lead">{live ? t("activeText") : r.mode === "paused" ? t("pausedText") : r.ready ? t("readyText") : t("testOnlyText")}</p>
       {r.activatedAt || r.pausedAt ? (
@@ -138,10 +143,14 @@ export default function AdsReadiness(): ReactElement | null {
           {t("premium", { n: r.premiumMin.toFixed(1) })}
         </p>
       ) : null}
-      {acting ? (
+      {acting && !locked ? (
         <ModeDialog
           kind={acting}
           onClose={() => setActing(null)}
+          onForbidden={() => {
+            setActing(null);
+            setLocked(true);
+          }}
           onDone={(next) => {
             setActing(null);
             if (next) setR(next);
@@ -153,7 +162,7 @@ export default function AdsReadiness(): ReactElement | null {
   );
 }
 
-function ModeDialog({ kind, onClose, onDone }: { kind: "activate" | "pause"; onClose: () => void; onDone: (next: Readiness | null) => void }): ReactElement {
+function ModeDialog({ kind, onClose, onDone, onForbidden }: { kind: "activate" | "pause"; onClose: () => void; onDone: (next: Readiness | null) => void; onForbidden: () => void }): ReactElement {
   const t = useTranslations("admin.adsReadiness");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -171,6 +180,11 @@ function ModeDialog({ kind, onClose, onDone }: { kind: "activate" | "pause"; onC
       onDone("mode" in d || "ready" in d ? readinessOf(d) : null);
     } catch (e) {
       logApiError(`ads.${kind}`, e);
+      if (isForbidden(e)) {
+        notify.error(t("failed"), { id: `ads-${kind}`, error: e });
+        onForbidden();
+        return;
+      }
       const code = e instanceof ApiError ? (e.code ?? "") : "";
       setErr(code && t.has(`err.${code}`) ? t(`err.${code}`) : errDetail(e) || t("failed"));
     } finally {

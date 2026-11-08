@@ -27,7 +27,7 @@ import {
   type LiveKitJoin,
 } from "@/lib/services/backend";
 import { subscribeUserEvents, subscribeUserSocketState, onUserSocketResync } from "@/lib/userSocket";
-import { ApiError, errDetail, logApiError } from "@/lib/http";
+import { ApiError, errDetail, isForbidden, logApiError } from "@/lib/http";
 import { notify, notifyStore } from "@/lib/toast";
 import { useAuth, sessionRoles } from "@/lib/auth";
 import { dateTimeFull, shortDateTime } from "@/lib/date";
@@ -429,6 +429,13 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
     notify.success(c.title, { id: ntfId(c.id), body: [c.body, moved].filter(Boolean).join(" ") || undefined });
   }
 
+  // Actions the backend refused with 403 this session, as "<record id>:<action>"
+  // (the record carries no per-user allowed_actions yet). The message stays
+  // and the action leaves both the row and the drawer of that record.
+  const [refused, setRefused] = useState<readonly string[]>([]);
+  const refuse = (id: string, key: string) => setRefused((d) => (d.includes(`${id}:${key}`) ? d : [...d, `${id}:${key}`]));
+  const refusedOf = (id: string) => refused.filter((k) => k.startsWith(`${id}:`)).map((k) => k.slice(id.length + 1));
+
   async function claim(r: UrgentRequest) {
     if (busyId) return;
     setBusyId(r.id);
@@ -443,6 +450,7 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
     } catch (e) {
       logApiError("urgent claim", e);
       notify.error(t("notify.claimFailed"), { id: ntfId(r.id), error: e, map: errDetail(e) ? undefined : { 409: t("alreadyTaken") } });
+      if (isForbidden(e)) refuse(r.id, "claim");
     } finally {
       setBusyId("");
     }
@@ -508,6 +516,7 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
     } catch (e) {
       logApiError("urgent meeting", e);
       notify.error(t("notify.meetingFailed"), { id: ntfId(r.id), error: e });
+      if (isForbidden(e)) refuse(r.id, "meeting");
     } finally {
       setBusyId("");
     }
@@ -670,7 +679,11 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
             const open = st === "open_pool";
             const finished = !r.nextStatuses.length && !open;
             const working = !finished && !open;
-            const act = rowAction(r);
+            // A claim or meeting the backend refused (403) this session is not
+            // offered again: the row falls back to opening the detail.
+            const no = refusedOf(r.id);
+            const act0 = rowAction(r);
+            const act: RowAct = (act0 === "claim" || act0 === "meeting") && no.includes(act0) ? "detail" : act0;
             const busy = busyId === r.id;
             const kindName = tk.has(`kinds.${r.serviceKind}`) ? tk(`kinds.${r.serviceKind}`) : r.serviceTitle || humanize(r.serviceKind);
             const dirs = r.directions.map((d) => directionLabel(te, d, t)).filter((d, i, all) => d && all.indexOf(d) === i).join(", ");
@@ -697,12 +710,12 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
             const entries: MenuEntry[] = [];
             if (act !== "detail") entries.push({ key: "detail", label: t("openDetail"), icon: <IconInfo />, onSelect: () => setOpenId(r.id), aiId: aiId(AI_ITEM, r.id, "detail") });
             if (r.secureChatRoomId && act !== "chat") entries.push({ key: "chat", label: t("openChat"), description: t("newTab"), icon: <IconChat />, href: chatHref(r, kindName), newTab: true, aiId: aiId(AI_ITEM, r.id, "chat") });
-            if (working && r.channel !== "chat" && act !== "meeting" && act !== "join") entries.push({ key: "meeting", label: t("startMeeting"), icon: <IconVideo />, onSelect: () => void meet(r), aiId: aiId(AI_ITEM, r.id, "meeting") });
+            if (working && r.channel !== "chat" && act !== "meeting" && act !== "join" && !no.includes("meeting")) entries.push({ key: "meeting", label: t("startMeeting"), icon: <IconVideo />, onSelect: () => void meet(r), aiId: aiId(AI_ITEM, r.id, "meeting") });
             entries.push(menuSeparator("work"));
-            if (working) entries.push({ key: "transfer", label: `${t("transfer")}…`, icon: <IconUsers />, onSelect: () => openStep(r.id, "transfer"), aiId: aiId(AI_ITEM, r.id, "transfer") });
-            if (choices.length) entries.push({ key: "status", label: `${t("moveTo")}…`, icon: <IconClock />, onSelect: () => openStep(r.id, "status"), aiId: aiId(AI_ITEM, r.id, "status") });
+            if (working && !no.includes("transfer")) entries.push({ key: "transfer", label: `${t("transfer")}…`, icon: <IconUsers />, onSelect: () => openStep(r.id, "transfer"), aiId: aiId(AI_ITEM, r.id, "transfer") });
+            if (choices.length && !no.includes("status")) entries.push({ key: "status", label: `${t("moveTo")}…`, icon: <IconClock />, onSelect: () => openStep(r.id, "status"), aiId: aiId(AI_ITEM, r.id, "status") });
             entries.push(menuSeparator("end"));
-            if (!finished) entries.push({ key: "cancel", label: t("cancelAsk"), icon: <IconClose />, danger: true, onSelect: () => openStep(r.id, "cancel"), aiId: aiId(AI_ITEM, r.id, "cancel") });
+            if (!finished && !no.includes("cancel")) entries.push({ key: "cancel", label: t("cancelAsk"), icon: <IconClose />, danger: true, onSelect: () => openStep(r.id, "cancel"), aiId: aiId(AI_ITEM, r.id, "cancel") });
             const main =
               act === "claim" ? (
                 <button type="button" className="btn btn--line btn--sm uaq__go" disabled={busy} onClick={() => void claim(r)} data-ai-target="button:urgent-claim" data-ai-id={aiId(AI_ITEM, r.id, "claim")}>
@@ -807,6 +820,8 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
         onClose={() => setOpenId("")}
         onChanged={report}
         onMeeting={openMeeting}
+        denied={refusedOf(openId)}
+        onDenied={(key) => refuse(openId, key)}
       />
 
       {meeting
@@ -837,9 +852,14 @@ function UrgentDetailDrawer({
   onClose,
   onChanged,
   onMeeting,
+  denied,
+  onDenied,
 }: {
   id: string;
   ask: Ask;
+  // Actions on this record the backend refused with 403 (kept by the board).
+  denied: readonly string[];
+  onDenied: (key: string) => void;
   onClose: () => void;
   // The status the record landed on, so the board can follow it to that tab
   // rather than losing the row behind this drawer.
@@ -869,6 +889,7 @@ function UrgentDetailDrawer({
   const [wanted, setWanted] = useState("");
   const [allSources, setAllSources] = useState(false);
   const [histOpen, setHistOpen] = useState(false);
+  const refuse = onDenied;
   const [slot, setSlot] = useState<HTMLDivElement | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const { session } = useAuth();
@@ -963,6 +984,7 @@ function UrgentDetailDrawer({
     } catch (e) {
       logApiError("urgent " + key, e);
       notify.error(msgs.fail, { id: ntfId(id), error: e, map: errDetail(e) ? undefined : msgs.map });
+      if (isForbidden(e)) refuse(key);
       return false;
     } finally {
       setBusy("");
@@ -980,6 +1002,7 @@ function UrgentDetailDrawer({
     } catch (e) {
       logApiError("urgent meeting", e);
       notify.error(t("notify.meetingFailed"), { id: ntfId(req.id), error: e });
+      if (isForbidden(e)) refuse("meeting");
     } finally {
       setBusy("");
     }
@@ -1009,7 +1032,7 @@ function UrgentDetailDrawer({
   const finished = !!req && req.nextStatuses.length === 0;
   const claimOpen = !!req && (req.status === "open_pool" || req.nextStatuses.includes("claimed"));
   const takeOver = claimOpen && !!req?.claimedByUserId && req.claimedByUserId !== me && isAdmin;
-  const canClaim = (claimOpen && !req?.claimedByUserId) || takeOver;
+  const canClaim = ((claimOpen && !req?.claimedByUserId) || takeOver) && !denied.includes("claim");
   const claimMsgs: Msgs = {
     ok: (r) => ({ title: t("notify.claimed"), body: r.secureChatRoomId ? t("notify.chatOpened") : undefined }),
     fail: t("notify.claimFailed"),
@@ -1021,13 +1044,13 @@ function UrgentDetailDrawer({
     : [];
   const working = !!req && !finished && req.status !== "open_pool";
   const can = {
-    meeting: working && req?.channel !== "chat",
+    meeting: working && req?.channel !== "chat" && !denied.includes("meeting"),
     chat: !!req?.secureChatRoomId,
-    complete: working,
-    transfer: working,
-    status: statusChoices.length > 0,
-    cancel: !!req && !finished,
-    group: !!req && isGroup && !finished,
+    complete: working && !denied.includes("complete"),
+    transfer: working && !denied.includes("transfer"),
+    status: statusChoices.length > 0 && !denied.includes("status"),
+    cancel: !!req && !finished && !denied.includes("cancel"),
+    group: !!req && isGroup && !finished && !denied.includes("group"),
   };
   const primary = !req
     ? ""
@@ -1233,6 +1256,7 @@ function UrgentDetailDrawer({
               onBack={() => go("")}
               onDirty={setStepDirty}
               onBusy={setStepBusy}
+              onDenied={() => refuse("group")}
               onDone={(r, msg) => { setReq(r); finishStep(); onChanged({ id, title: msg, status: r.status }); }}
             />
           ) : shownStep === "status" ? (
@@ -1950,6 +1974,7 @@ function CandidatePanel({
   onBack,
   onDirty,
   onBusy,
+  onDenied,
   onDone,
 }: {
   req: UrgentRequest;
@@ -1957,6 +1982,7 @@ function CandidatePanel({
   onBack: () => void;
   onDirty: (dirty: boolean) => void;
   onBusy: (busy: boolean) => void;
+  onDenied: () => void;
   onDone: (r: UrgentRequest, msg: string) => void;
 }) {
   const t = useTranslations("admin.urgent");
@@ -2098,6 +2124,7 @@ function CandidatePanel({
       } else {
         logApiError("urgent assign-group", e);
         notify.error(t("notify.groupFailed"), { id: ntfId(req.id), error: e });
+        if (isForbidden(e)) onDenied();
       }
     } finally {
       setBusy(false);

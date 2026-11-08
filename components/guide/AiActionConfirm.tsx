@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
 import { hasAdminAccess, useAuth } from "@/lib/auth";
 import { errorText } from "@/lib/errorText";
+import { isForbidden } from "@/lib/http";
 import { answerFill, cancelPrompt, confirmPrompt, promptServerSnapshot, promptSnapshot, subscribePrompts, type ActionView } from "@/lib/ai/prompts";
 import { IconAlert, IconBolt, IconCheck, IconCircleCheck, IconExternal, IconFileText, IconGem, IconHeadset, IconHistory, IconShieldCheck, IconSparkle, IconStore } from "@/components/icons";
 
@@ -59,7 +60,10 @@ function ActionBody({ view }: { view: ActionView }) {
   const myRole = session ? (hasAdminAccess(session) ? "staff" : session.role) : "client";
   const me = `${session?.name || maskPhone(session?.phone || "")}${session ? ` · ${t(`roles.${myRole}`)}` : ""}`;
   const who = other && actor ? `${actor.name || actor.userId}${actor.role ? ` · ${actor.role}` : ""}` : me;
-  const blocked = Boolean(p && !p.canExecute);
+  // The backend preview says this account may not run it, or the confirm was
+  // refused (403): the note explains why and only "Close" is offered — no
+  // dead confirm button (owner law 2026-11-08).
+  const blocked = Boolean(p && !p.canExecute) || isForbidden(view.error);
   const error = view.error ? errorText(view.error, tc) : "";
   const detailRows = p && Array.isArray(p.detailRows) ? p.detailRows : [];
   const rows = detailRows.filter((r) => r.label);
@@ -156,7 +160,7 @@ function ActionBody({ view }: { view: ActionView }) {
         </p>
       ))}
       {view.note === "expired" ? <p className="aiconfirm__note">{t("confirm.expired")}</p> : null}
-      {blocked ? <p className="aiconfirm__note">{p?.message || t("confirm.blocked")}</p> : null}
+      {blocked && !error ? <p className="aiconfirm__note">{p?.message || t("confirm.blocked")}</p> : null}
       {error ? (
         <p className="aiconfirm__err" role="alert">
           <IconAlert aria-hidden="true" />
@@ -176,13 +180,15 @@ function ActionBody({ view }: { view: ActionView }) {
         </p>
       ) : null}
       <div className="aiconfirm__acts">
-        <button type="button" className="btn btn--line" onClick={cancelPrompt} disabled={view.busy}>
-          {t("confirm.no")}
+        <button type="button" className={blocked ? "btn btn--pri" : "btn btn--line"} onClick={cancelPrompt} disabled={view.busy}>
+          {blocked ? t("confirm.close") : t("confirm.no")}
         </button>
-        <button type="button" className="btn btn--pri" onClick={(e) => void confirmPrompt(e.nativeEvent.isTrusted)} disabled={view.busy || blocked} aria-busy={view.busy || undefined}>
-          {view.busy ? <span className="aiconfirm__spin" aria-hidden="true" /> : <IconCheck aria-hidden="true" />}
-          {view.busy ? t("confirm.busy") : error ? t("confirm.retry") : t("confirm.yes")}
-        </button>
+        {blocked ? null : (
+          <button type="button" className="btn btn--pri" onClick={(e) => void confirmPrompt(e.nativeEvent.isTrusted)} disabled={view.busy} aria-busy={view.busy || undefined}>
+            {view.busy ? <span className="aiconfirm__spin" aria-hidden="true" /> : <IconCheck aria-hidden="true" />}
+            {view.busy ? t("confirm.busy") : error ? t("confirm.retry") : t("confirm.yes")}
+          </button>
+        )}
       </div>
     </div>
   );

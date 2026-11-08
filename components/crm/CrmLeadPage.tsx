@@ -122,6 +122,9 @@ function Workspace({ meta, leadId }: { meta: CrmMeta; leadId: string }): ReactEl
           return false;
         }
         toast(crmErr(e), { tone: "err" });
+        // Refused: the lead is read again so its allowed_actions take the
+        // refused action off the screen (crmErr re-reads the meta on a 403).
+        if (isCrmDenied(e)) await reload();
         return false;
       }
     },
@@ -185,12 +188,16 @@ function Workspace({ meta, leadId }: { meta: CrmMeta; leadId: string }): ReactEl
               lead={lead}
               write={write}
               refreshKey={aiKey}
-              onSmsDraft={(text) => {
-                setSmsPreset(text);
-                setPane("sms");
-                setTab("timeline");
-                setAiOpen(false);
-              }}
+              onSmsDraft={
+                crmCan(meta, "crm.sms.manage")
+                  ? (text) => {
+                      setSmsPreset(text);
+                      setPane("sms");
+                      setTab("timeline");
+                      setAiOpen(false);
+                    }
+                  : undefined
+              }
             />
           </div>
         </Modal>

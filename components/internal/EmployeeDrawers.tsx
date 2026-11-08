@@ -4,8 +4,10 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { ApiError, asArr, asDict, asStr } from "@/lib/http";
 import { getStudioReference } from "@/lib/services/studio";
+import { useAuth } from "@/lib/auth";
 import {
   assignEmployee,
+  canInternal,
   createEmployee,
   getEmployee360,
   getSchedules,
@@ -182,6 +184,10 @@ export function EmployeeOverview({ employee: e, detail, loading }: { employee: H
 export function Employee360({ employee, onClose, onSaved }: { employee: HrmEmployee | null; onClose: () => void; onSaved: () => void }) {
   const t = useTranslations("internal.people");
   const dir = useHrmDirectory();
+  const { session } = useAuth();
+  // Editing the person and their card page both need internal_hr.manage;
+  // without it the drawer is the read-only overview, with no tab row.
+  const canHr = canInternal(session, "internal_hr.manage");
   const [tab, setTab] = useState<"overview" | "edit">("overview");
   const [prevId, setPrevId] = useState("");
   const id = employee?.id ?? "";
@@ -202,13 +208,15 @@ export function Employee360({ employee, onClose, onSaved }: { employee: HrmEmplo
       sub={[e.code, dir.positionTitle(e.positionId)].filter(Boolean).join(" · ")}
       head={<HrmAvatar name={e.name || e.code} size="lg" />}
     >
-      <div className="hrm-tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={tab === "overview"} className={tab === "overview" ? "on" : ""} onClick={() => setTab("overview")}><IconChartBar />{t("tabOverview")}</button>
-        <button type="button" role="tab" aria-selected={tab === "edit"} className={tab === "edit" ? "on" : ""} onClick={() => setTab("edit")}><IconEdit />{t("tabEdit")}</button>
-        <Link role="tab" aria-selected={false} href={`/internal/employees/${encodeURIComponent(e.id)}`}><IconExternal />{t("openCard")}</Link>
-      </div>
+      {canHr ? (
+        <div className="hrm-tabs" role="tablist">
+          <button type="button" role="tab" aria-selected={tab === "overview"} className={tab === "overview" ? "on" : ""} onClick={() => setTab("overview")}><IconChartBar />{t("tabOverview")}</button>
+          <button type="button" role="tab" aria-selected={tab === "edit"} className={tab === "edit" ? "on" : ""} onClick={() => setTab("edit")}><IconEdit />{t("tabEdit")}</button>
+          <Link role="tab" aria-selected={false} href={`/internal/employees/${encodeURIComponent(e.id)}`}><IconExternal />{t("openCard")}</Link>
+        </div>
+      ) : null}
       {error ? <HrmError text={t("error")} /> : null}
-      {tab === "overview" ? <EmployeeOverview employee={e} detail={detail} loading={loading} /> : <EmployeeEdit employee={e} onSaved={onSaved} />}
+      {tab === "edit" && canHr ? <EmployeeEdit employee={e} onSaved={onSaved} /> : <EmployeeOverview employee={e} detail={detail} loading={loading} />}
     </HrmDrawer>
   );
 }

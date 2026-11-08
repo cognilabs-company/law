@@ -15,6 +15,9 @@ import { durationParts } from "./deadline";
 import { useDurationText } from "./OrderFacts";
 import { BellRingIcon, CalendarCheckIcon, ListChecksIcon, MessageSquareTextIcon, RocketIcon, TimerIcon, glyph } from "./icons";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
+import { isForbidden } from "@/lib/http";
+import { notify } from "@/lib/toast";
+import { markRefused, useRefused } from "./refused";
 
 const UNIT_MS = { minute: 60_000, hour: 3_600_000, day: 86_400_000, week: 604_800_000 } as const;
 const WHAT = [
@@ -49,7 +52,8 @@ export default function StartWork({ o, aiBase, runtime, onStarted, onRefresh }: 
   const once = useSameTickGuard();
   const [err, setErr] = useState<SxDialogErrorText>(null);
   const [done, setDone] = useState<OrderStart | null>(null);
-  const showing = !done && o.canStart && marketPhaseOf(o) === "paid";
+  const refusedFor = useRefused();
+  const showing = !done && o.canStart && marketPhaseOf(o) === "paid" && !refusedFor(o.id, "start");
   const now = useTick(showing, 30_000);
 
   if (done) {
@@ -73,7 +77,7 @@ export default function StartWork({ o, aiBase, runtime, onStarted, onRefresh }: 
     );
   }
 
-  if (!o.canStart || marketPhaseOf(o) !== "paid") return null;
+  if (!showing) return null;
 
   const duration = o.duration ?? (runtime && runtime.duration.value > 0 ? runtime.duration : null);
   const durationLine = durationText(duration);
@@ -97,6 +101,13 @@ export default function StartWork({ o, aiBase, runtime, onStarted, onRefresh }: 
     } catch (e) {
       const fallback = t("error");
       const msg = marketErr(e, fallback);
+      // Refused (403): the start panel leaves the page; the reason is told once.
+      if (isForbidden(e)) {
+        setOpen(false);
+        notify.error(fallback, { id: `order-start-${o.id}`, body: msg === fallback ? undefined : msg });
+        markRefused(o.id, "start");
+        return;
+      }
       setErr({ title: fallback, text: msg === fallback ? "" : msg });
       if (marketErrorInfo(e)?.status === 409) onRefresh?.();
     } finally {

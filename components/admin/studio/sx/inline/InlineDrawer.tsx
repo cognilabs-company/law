@@ -275,21 +275,27 @@ function InlineEditor({ target, keys, foot, onFlags, onSwap, onSettled, onClose 
       <SxButton variant="secondary" onClick={onClose} disabled={busy} aiId={`${AI}.cancel`}>
         {t(ready && !st.readOnly ? "sx.ui.cancel" : "sx.ui.close")}
       </SxButton>
+      {/* Save / submit render only when this account may do them; disabled
+          only while busy or with nothing to save (owner law 2026-11-08). */}
       {ready && !st.readOnly ? (
         <>
-          <SxButton variant="secondary" icon={SaveIcon} busy={st.busy === "save"} disabled={!canSave || (busy && st.busy !== "save")} onClick={() => void save()} aiId={`${AI}.save`}>
-            {t("sx.ui.save")}
-          </SxButton>
-          <SxButton
-            variant="primary"
-            icon={SendIcon}
-            busy={st.busy === "submit" || st.busy === "check"}
-            disabled={!canSubmit || (busy && st.busy !== "submit" && st.busy !== "check")}
-            onClick={() => void submit()}
-            aiId={`${AI}.submit`}
-          >
-            {t("sx.editor.submit")}
-          </SxButton>
+          {st.can.save ? (
+            <SxButton variant="secondary" icon={SaveIcon} busy={st.busy === "save"} disabled={!canSave || (busy && st.busy !== "save")} onClick={() => void save()} aiId={`${AI}.save`}>
+              {t("sx.ui.save")}
+            </SxButton>
+          ) : null}
+          {canSubmit ? (
+            <SxButton
+              variant="primary"
+              icon={SendIcon}
+              busy={st.busy === "submit" || st.busy === "check"}
+              disabled={busy && st.busy !== "submit" && st.busy !== "check"}
+              onClick={() => void submit()}
+              aiId={`${AI}.submit`}
+            >
+              {t("sx.editor.submit")}
+            </SxButton>
+          ) : null}
         </>
       ) : null}
     </>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { uploadWorkspaceFile } from "@/lib/services/backend";
+import { isForbidden } from "@/lib/http";
 import { MAX_PURCHASE_FILES, MAX_PURCHASE_VOICES, type PurchaseAttachment, type PurchaseVoice } from "@/lib/services/marketplace";
 import { IconClose, IconMic, IconPaperclip, IconRecord } from "@/components/icons";
 
@@ -19,6 +20,8 @@ export type IntakeModel = {
   uploading: number;
   err: string;
   rec: { started: number; secs: number } | null;
+  // The backend refused an upload (403): the add controls leave the screen.
+  refused: boolean;
   addFiles: (list: FileList | null) => Promise<void>;
   startVoice: () => Promise<void>;
   stopVoice: () => void;
@@ -43,6 +46,8 @@ export function useIntakeAttachments({
   const [uploading, setUploading] = useState(0);
   const [err, setErr] = useState("");
   const [rec, setRec] = useState<{ started: number; secs: number } | null>(null);
+  // The backend refused this account uploads (403): the add/record controls go.
+  const [refused, setRefused] = useState(false);
   const recorder = useRef<{ mr: MediaRecorder; chunks: Blob[]; stream: MediaStream; started: number } | null>(null);
 
   useEffect(() => onBusy(uploading > 0 || !!rec), [uploading, rec, onBusy]);
@@ -79,8 +84,12 @@ export function useIntakeAttachments({
       try {
         const up = await uploadWorkspaceFile(f);
         if (up.id) added.push({ fileId: up.id, title: f.name.replace(/\.[^.]+$/, "") || f.name });
-      } catch {
+      } catch (e) {
         setErr(t("uploadError", { name: f.name }));
+        if (isForbidden(e)) {
+          setRefused(true);
+          break;
+        }
       } finally {
         setUploading((n) => n - 1);
       }
@@ -115,8 +124,9 @@ export function useIntakeAttachments({
       try {
         const up = await uploadWorkspaceFile(new File([blob], `voice-${new Date(started).toISOString().replace(/[:.]/g, "-")}.${ext}`, { type }));
         if (up.id) onVoices([...voices, { fileId: up.id, seconds, url: URL.createObjectURL(blob) }]);
-      } catch {
+      } catch (e) {
         setErr(t("voiceError"));
+        if (isForbidden(e)) setRefused(true);
       } finally {
         setUploading((n) => n - 1);
       }
@@ -125,7 +135,7 @@ export function useIntakeAttachments({
     setRec({ started, secs: 0 });
   }
 
-  return { uploading, err, rec, addFiles, startVoice, stopVoice: () => recorder.current?.mr.stop() };
+  return { uploading, err, rec, refused, addFiles, startVoice, stopVoice: () => recorder.current?.mr.stop() };
 }
 
 export const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -141,12 +151,13 @@ export default function IntakeAttachments(props: {
   const { files, voices, onFiles, onVoices, compact = false } = props;
   const t = useTranslations("marketplace.purchase.intake");
   const pick = useRef<HTMLInputElement>(null);
-  const { uploading, err, rec, addFiles, startVoice, stopVoice } = useIntakeAttachments(props);
+  const { uploading, err, rec, refused, addFiles, startVoice, stopVoice } = useIntakeAttachments(props);
 
   return (
     <fieldset className={`mk-att${compact ? " mk-att--compact" : ""}`}>
       <legend className={compact ? "sr-only" : undefined}>{t("title")}</legend>
       <p className="mk-att__hint">{t("hint")}</p>
+      {refused ? null : (
       <div className="mk-att__bar">
         <button type="button" className="mk-chip mk-chip--sm" onClick={() => pick.current?.click()} disabled={files.length >= MAX_PURCHASE_FILES || !!rec}>
           <IconPaperclip aria-hidden />
@@ -171,6 +182,7 @@ export default function IntakeAttachments(props: {
         )}
         <input ref={pick} type="file" multiple hidden onChange={(e) => (void addFiles(e.target.files), (e.target.value = ""))} />
       </div>
+      )}
       {uploading ? <p className="mk-att__up">{t("uploading", { n: uploading })}</p> : null}
       {err ? <p className="mk-att__err" role="alert">{err}</p> : null}
       {files.length || voices.length ? (

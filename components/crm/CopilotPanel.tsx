@@ -8,7 +8,7 @@ import { IconAlert, IconArrowRight, IconCopy, IconSend, IconShieldCheck, IconSpa
 import { shortDateTime, timeOnly } from "@/lib/date";
 import { asArr, asDict, asStr, isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
-import { AI_LANGUAGES, AI_RUN_TYPES, aiCardsOf, aiRunDone, applyAiRun, crmCode, getAiRun, listAiRuns, startAiRun, type AiCard, type CrmAiRun, type CrmLead, type CrmMeta } from "@/lib/services/crm";
+import { AI_LANGUAGES, AI_RUN_TYPES, aiCardsOf, aiRunDone, applyAiRun, crmCode, getAiRun, leadCan, listAiRuns, startAiRun, type AiCard, type CrmAiRun, type CrmLead, type CrmMeta } from "@/lib/services/crm";
 import { useCrmError } from "./bits";
 import { CrmDateTime, CrmSelect } from "./fields";
 import { copyText } from "./LeadSide";
@@ -49,6 +49,9 @@ export function CopilotPanel({ meta, lead, write, refreshKey, onSmsDraft }: { me
   const [current, setCurrent] = useState<CrmAiRun | null>(null);
   const [starting, setStarting] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
+  // Applying writes the lead (expected_lock_version): offered only when the
+  // lead's allowed_actions carry "edit"; otherwise the cards are read/copy only.
+  const canApply = leadCan(lead, "edit");
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -262,10 +265,14 @@ export function CopilotPanel({ meta, lead, write, refreshKey, onSmsDraft }: { me
                 return (
                   <div key={c.path} className="crm-sugg" data-on={on || undefined}>
                     <div className="crm-sugg__h">
-                      <CheckBox id={id} checked={on} onChange={() => toggle(c.path)} disabled={!c.applicable}>
-                        {t.has(pathKey(c.path)) ? t(pathKey(c.path)) : t("path.other")}
-                      </CheckBox>
-                      {!c.applicable ? <small>{t("copyOnly")}</small> : null}
+                      {canApply ? (
+                        <CheckBox id={id} checked={on} onChange={() => toggle(c.path)} disabled={!c.applicable}>
+                          {t.has(pathKey(c.path)) ? t(pathKey(c.path)) : t("path.other")}
+                        </CheckBox>
+                      ) : (
+                        <b>{t.has(pathKey(c.path)) ? t(pathKey(c.path)) : t("path.other")}</b>
+                      )}
+                      {canApply && !c.applicable ? <small>{t("copyOnly")}</small> : null}
                     </div>
                     {c.kind === "chips" ? (
                       <div>
@@ -330,7 +337,7 @@ export function CopilotPanel({ meta, lead, write, refreshKey, onSmsDraft }: { me
         )}
       </div>
 
-      {selected.length ? (
+      {canApply && selected.length ? (
         <div className="crm-applybar">
           <span className="crm-muted" style={{ fontSize: ".78rem" }}>
             {t("selectedN", { n: selected.length })}
@@ -369,7 +376,7 @@ export function CopilotPanel({ meta, lead, write, refreshKey, onSmsDraft }: { me
         </>
       ) : null}
 
-      {preview && current ? (
+      {canApply && preview && current ? (
         <Modal
           open
           onClose={() => !applying && setPreview(false)}

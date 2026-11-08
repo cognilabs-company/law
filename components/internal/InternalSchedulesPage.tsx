@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { ApiError } from "@/lib/http";
-import { createSchedule, getSchedules, normSchedule, type HrmSchedule, type InternalPage } from "@/lib/services/internalHrm";
+import { useAuth } from "@/lib/auth";
+import { canInternal, createSchedule, getSchedules, normSchedule, type HrmSchedule, type InternalPage } from "@/lib/services/internalHrm";
 import { IconBuilding, IconCalendar, IconPlus, IconRefresh, IconUser, IconUsers } from "@/components/icons";
 import FilterBar from "@/components/filters/FilterBar";
 import Select from "@/components/Select";
@@ -32,6 +33,9 @@ export default function InternalSchedulesPage() {
   const [error, setError] = useState(false);
   const [offset, setOffset] = useState(0);
   const [creating, setCreating] = useState(false);
+  // POST /internal/time/schedules: internal_time.manage (10-08 guide).
+  const { session } = useAuth();
+  const manage = canInternal(session, "internal_time.manage");
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -70,7 +74,7 @@ export default function InternalSchedulesPage() {
         actions={
           <>
             <button className="btn btn--line btn--sm" type="button" onClick={() => void load()} disabled={loading}><IconRefresh />{t("refresh")}</button>
-            <button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("new")}</button>
+            {manage ? <button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("new")}</button> : null}
           </>
         }
       />
@@ -112,10 +116,10 @@ export default function InternalSchedulesPage() {
               </tbody>
             </table>
           </div>
-        ) : <HrmEmpty icon={IconCalendar} title={t("empty")} action={<button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("new")}</button>} />}
+        ) : <HrmEmpty icon={IconCalendar} title={t("empty")} action={manage ? <button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("new")}</button> : undefined} />}
         <InternalPagination page={page} onChange={setOffset} />
       </HrmPanel>
-      <ScheduleCreate open={creating} onClose={() => setCreating(false)} onCreated={() => { setCreating(false); void load(); }} />
+      {manage ? <ScheduleCreate open={creating} onClose={() => setCreating(false)} onCreated={() => { setCreating(false); void load(); }} /> : null}
     </section>
   );
 }

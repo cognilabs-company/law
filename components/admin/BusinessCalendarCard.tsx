@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getBusinessHours, simulateBusinessHours, addBusinessHoliday, removeBusinessHoliday, type BusinessSim } from "@/lib/services/backend";
 import { useResourceOne } from "@/lib/useResource";
-import { ApiError } from "@/lib/http";
+import { ApiError, isForbidden } from "@/lib/http";
+import { useCan } from "@/lib/useCan";
 import { notify } from "@/lib/toast";
 import { fmtDate } from "@/lib/date";
 import DatePicker from "@/components/DatePicker";
@@ -45,6 +46,12 @@ export default function BusinessCalendarCard() {
   const [simTime, setSimTime] = useState("20:00");
   const [sim, setSim] = useState<BusinessSim | null>(null);
   const [simBusy, setSimBusy] = useState(false);
+  // Adding/removing holidays: POST/DELETE /admin/calendar/holidays need
+  // cases.manage. Without it (or after a 403) the schedule, holiday list and
+  // simulator stay; the add row and remove crosses aren't offered.
+  const canDo = useCan();
+  const [denied, setDenied] = useState(false);
+  const canEditHolidays = canDo("cases.manage") && !denied;
   const fail = (head: string, id: string, e: unknown, again: () => void) =>
     notify.error(head, { id, error: e, map: { 403: t("forbidden") }, action: transient(e) ? { label: tn("retry"), onClick: again } : undefined });
 
@@ -59,6 +66,7 @@ export default function BusinessCalendarCard() {
       setTitle("");
       setKey((k) => k + 1);
     } catch (e) {
+      if (isForbidden(e)) setDenied(true);
       fail(t("addFailed"), "bcal-holiday", e, () => void add());
     } finally {
       setBusy(false);
@@ -72,6 +80,7 @@ export default function BusinessCalendarCard() {
       notify.success(t("removed"), { id: "bcal-holiday", body: fmtDate(d, locale) });
       setKey((k) => k + 1);
     } catch (e) {
+      if (isForbidden(e)) setDenied(true);
       fail(t("removeFailed"), "bcal-holiday", e, () => void remove(d));
     } finally {
       setBusy(false);
@@ -110,18 +119,20 @@ export default function BusinessCalendarCard() {
             {h.holidays.length ? (
               <div className="bcal__chips">
                 {h.holidays.map((d) => (
-                  <span className="bcal__chip" key={d}>
+                  <span className="bcal__chip" key={d} style={canEditHolidays ? undefined : { paddingRight: 11 }}>
                     {fmtDate(d, locale)}
-                    <button type="button" aria-label={t("remove")} title={t("remove")} disabled={busy} onClick={() => void remove(d)}><IconClose /></button>
+                    {canEditHolidays ? <button type="button" aria-label={t("remove")} title={t("remove")} disabled={busy} onClick={() => void remove(d)}><IconClose /></button> : null}
                   </span>
                 ))}
               </div>
             ) : <p className="advmuted">{t("noHolidays")}</p>}
-            <div className="bcal__add">
-              <DatePicker value={day} onChange={setDay} placeholder={t("dayPh")} ariaLabel={t("dayPh")} />
-              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("titlePh")} aria-label={t("titlePh")} maxLength={80} />
-              <button type="button" className="btn btn--pri btn--sm" disabled={busy || !day} onClick={() => void add()}><IconPlus />{busy ? t("saving") : t("add")}</button>
-            </div>
+            {canEditHolidays ? (
+              <div className="bcal__add">
+                <DatePicker value={day} onChange={setDay} placeholder={t("dayPh")} ariaLabel={t("dayPh")} />
+                <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("titlePh")} aria-label={t("titlePh")} maxLength={80} />
+                <button type="button" className="btn btn--pri btn--sm" disabled={busy || !day} onClick={() => void add()}><IconPlus />{busy ? t("saving") : t("add")}</button>
+              </div>
+            ) : null}
           </div>
 
           <div className="bcal__sect">

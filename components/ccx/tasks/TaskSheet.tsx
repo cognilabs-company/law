@@ -17,12 +17,15 @@ export type FormMode = { kind: "create" } | { kind: "edit"; task: Task } | { kin
 type Props = {
   mode: FormMode;
   limits?: TaskUploadLimits;
+  // meta capabilities.assign: without it a new task is created without
+  // picking assignees (the picker is not shown).
+  canAssign?: boolean;
   onClose: () => void;
   onSaved: (task: Task | null) => void;
   onError: (e: TaskError, task: Task | null) => boolean;
 };
 
-export default function TaskSheet({ mode, limits = TASK_UPLOAD_DEFAULTS, onClose, onSaved, onError }: Props) {
+export default function TaskSheet({ mode, limits = TASK_UPLOAD_DEFAULTS, canAssign = false, onClose, onSaved, onError }: Props) {
   const { t } = useTx();
   const uid = useId();
   const task = mode.kind === "create" ? null : mode.task;
@@ -45,7 +48,7 @@ export default function TaskSheet({ mode, limits = TASK_UPLOAD_DEFAULTS, onClose
 
   const deadline = joinLocal(date, time);
   const showFields = mode.kind !== "assign";
-  const showPeople = mode.kind !== "edit";
+  const showPeople = mode.kind === "assign" || (mode.kind === "create" && canAssign);
   const showUpload = mode.kind !== "assign";
   const locked = savedTask !== null;
   const titleBad = showFields && !title.trim();
@@ -71,7 +74,7 @@ export default function TaskSheet({ mode, limits = TASK_UPLOAD_DEFAULTS, onClose
     try {
       if (!saved) {
         setPhase("save");
-        if (mode.kind === "create") saved = await createTask({ title, description, deadlineAt: deadline, assigneeIds: people });
+        if (mode.kind === "create") saved = await createTask({ title, description, deadlineAt: deadline, assigneeIds: showPeople ? people : [] });
         else if (mode.kind === "assign") saved = await setTaskAssignees(mode.task, people);
         else {
           const edit: { title?: string; description?: string; deadlineAt?: string } = {};

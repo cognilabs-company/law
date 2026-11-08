@@ -195,7 +195,7 @@ function NewLeadSheet({ meta, onClose }: { meta: CrmMeta; onClose: () => void })
                   </button>
                 </div>
               ) : (
-                <CustomerPick invalid={!!show("who")} onPick={pickCustomer} onNew={() => setStep("customer")} />
+                <CustomerPick invalid={!!show("who")} onPick={pickCustomer} onNew={crmCan(meta, "crm.customers.manage") ? () => setStep("customer") : undefined} />
               )}
               {show("who") ? (
                 <p className="opx-ferr" role="alert">
@@ -264,7 +264,8 @@ function NewLeadSheet({ meta, onClose }: { meta: CrmMeta; onClose: () => void })
 
 type PickState = "loading" | "idle" | "more" | "failed";
 
-function CustomerPick({ invalid, onPick, onNew }: { invalid: boolean; onPick: (c: CustomerOption) => void; onNew: () => void }) {
+// onNew: only when the session may create customers (crm.customers.manage).
+function CustomerPick({ invalid, onPick, onNew }: { invalid: boolean; onPick: (c: CustomerOption) => void; onNew?: () => void }) {
   const t = useTranslations("crm.picker");
   const tx = useTranslations("admin.ccx.crmLeads");
   const regionName = useRegionName();
@@ -403,10 +404,12 @@ function CustomerPick({ invalid, onPick, onNew }: { invalid: boolean; onPick: (c
           </button>
         ) : null}
       </div>
-      <button type="button" className="opx-ld-pick__new" onClick={onNew}>
-        <IcPlus size={16} />
-        {t("newCustomer")}
-      </button>
+      {onNew ? (
+        <button type="button" className="opx-ld-pick__new" onClick={onNew}>
+          <IcPlus size={16} />
+          {t("newCustomer")}
+        </button>
+      ) : null}
     </div>
   );
 }

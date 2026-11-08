@@ -33,7 +33,8 @@ export default function PricingHistoryModal({
   open: boolean;
   hist: PricingHistoryState;
   onClose: () => void;
-  onLoad: (policy: PricingPolicy, version: string) => void;
+  // Absent when the viewer may not edit the pricing (no "load this version").
+  onLoad?: (policy: PricingPolicy, version: string) => void;
 }) {
   const t = useTranslations("admin.policies.pricing");
   const tm = useTranslations("marketPricing");
@@ -89,7 +90,7 @@ export default function PricingHistoryModal({
                 <div className="mpph__h">
                   <span className="mpph__tag">{v.version ? `v${v.version}` : t("history.noVersion")}</span>
                   {when ? <time>{when}</time> : null}
-                  {pol ? (
+                  {pol && onLoad ? (
                     <button type="button" className="btn btn--line btn--sm" onClick={() => onLoad(pol, v.version)}>
                       {t("history.load")}
                     </button>

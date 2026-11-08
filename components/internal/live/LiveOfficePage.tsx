@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { asDict, asStr } from "@/lib/http";
+import { asDict, asStr, isForbidden } from "@/lib/http";
 import { canInternal, getMyProfile } from "@/lib/services/internalHrm";
 import { LIVE_STATUSES, getLiveRooms, startBusy, stopBusy, updateRoom, type LiveActivity, type LiveBusy, type LivePerson, type LiveRoom } from "@/lib/services/internalLive";
 import Select from "@/components/Select";
@@ -31,6 +31,14 @@ const INACTIVE_AFTER = 300;
 // kept live over the socket; one's own busy switch; each person's day; the
 // period analytics; correction requests; and, for admins, rooms,
 // memberships, temporary access and the activity registry.
+//
+// Who may do what (owner law: no permission, no button): rooms, settings,
+// reviewing corrections and stopping someone else's busy follow
+// internal_org.manage or internal_hr.manage (as before); dressing a
+// character saves to the HRM employee record (PATCH /internal/employees/{id})
+// and so needs internal_hr.manage. Anything the backend still refuses (403)
+// is taken off the screen for the rest of the visit.
+type Denied = "rooms" | "dress" | "correct" | "analytics" | "busy";
 export default function LiveOfficePage() {
   const { t } = useLiveText();
   const f = useHrmFormat();
@@ -38,6 +46,15 @@ export default function LiveOfficePage() {
   const dir = useHrmDirectory();
   const now = useNow(30_000);
   const canManage = canInternal(session, "internal_org.manage") || canInternal(session, "internal_hr.manage");
+  const [denied, setDenied] = useState<Partial<Record<Denied, true>>>({});
+  const deny = useCallback((k: Denied) => setDenied((cur) => (cur[k] ? cur : { ...cur, [k]: true })), []);
+  const denyRooms = useCallback(() => deny("rooms"), [deny]);
+  const denyAnalytics = useCallback(() => deny("analytics"), [deny]);
+  const canRooms = canManage && !denied.rooms;
+  const canDress = canInternal(session, "internal_hr.manage") && !denied.dress;
+  const canCorrect = !denied.correct;
+  const canAnalytics = !denied.analytics;
+  const canBusy = !denied.busy;
   const [tab, setTab] = useState<Tab>("board");
   const [q, setQ] = useState("");
   const [query, setQuery] = useState("");
@@ -90,9 +107,9 @@ export default function LiveOfficePage() {
     const c = new AbortController();
     getLiveRooms({}, c.signal)
       .then((r) => !c.signal.aborted && setRoomRows(r))
-      .catch(() => undefined);
+      .catch((e) => !c.signal.aborted && isForbidden(e) && denyRooms());
     return () => c.abort();
-  }, [canManage, roomTick]);
+  }, [canManage, roomTick, denyRooms]);
   const roomMeta = useMemo(() => Object.fromEntries(roomRows.map((r) => [r.id, asDict(r.raw.meta)])), [roomRows]);
   const fullRoom = (r: LiveRoom) => roomRows.find((x) => x.id === r.id) ?? r;
   // Rooms put somewhere else on the floor: each keeps the rest of its meta.
@@ -104,7 +121,12 @@ export default function LiveOfficePage() {
       const meta = { ...asDict(full.raw.meta), floor: { x, y } };
       return { ...full, raw: { ...full.raw, meta } };
     });
-    await Promise.all(next.map((r) => updateRoom(r.id, roomPayload(r, asDict(r.raw.meta)))));
+    try {
+      await Promise.all(next.map((r) => updateRoom(r.id, roomPayload(r, asDict(r.raw.meta)))));
+    } catch (e) {
+      if (isForbidden(e)) denyRooms();
+      throw e;
+    }
     setRoomRows((rows) => [...rows.filter((r) => !next.some((n) => n.id === r.id)), ...next]);
     reload();
   };
@@ -199,24 +221,28 @@ export default function LiveOfficePage() {
             <p className="hrm-muted">{t("me.hint")}</p>
           )}
         </div>
-        <div className="lv-me__a">
-          {busy ? (
-            <button type="button" className="btn btn--pri btn--sm" onClick={() => setBusyDialog("stop")} disabled={!busy.id}>
-              {t("busy.stop")}
-            </button>
-          ) : (
-            <button type="button" className="btn btn--line btn--sm" onClick={() => setBusyDialog("start")}>
-              <IconHourglass />
-              {t("busy.start")}
-            </button>
-          )}
-          {myId ? (
-            <button type="button" className="btn btn--line btn--sm" onClick={() => setCorrection({ targetType: "employee", targetId: myId, title: "", type: "department" })}>
-              <IconFlag />
-              {t("corrections.wrongPlace")}
-            </button>
-          ) : null}
-        </div>
+        {(canBusy && (!busy || busy.id)) || (myId && canCorrect) ? (
+          <div className="lv-me__a">
+            {!canBusy ? null : busy ? (
+              busy.id ? (
+                <button type="button" className="btn btn--pri btn--sm" onClick={() => setBusyDialog("stop")}>
+                  {t("busy.stop")}
+                </button>
+              ) : null
+            ) : (
+              <button type="button" className="btn btn--line btn--sm" onClick={() => setBusyDialog("start")}>
+                <IconHourglass />
+                {t("busy.start")}
+              </button>
+            )}
+            {myId && canCorrect ? (
+              <button type="button" className="btn btn--line btn--sm" onClick={() => setCorrection({ targetType: "employee", targetId: myId, title: "", type: "department" })}>
+                <IconFlag />
+                {t("corrections.wrongPlace")}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       {grants.length ? (
@@ -229,7 +255,7 @@ export default function LiveOfficePage() {
       ) : null}
 
       <div className="hrm-tabs lv-tabs" role="tablist" aria-label={t("title")}>
-        {(["board", "analytics", "corrections", ...(canManage ? (["settings"] as Tab[]) : [])] as Tab[]).map((v) => (
+        {(["board", ...(canAnalytics ? (["analytics"] as Tab[]) : []), "corrections", ...(canManage ? (["settings"] as Tab[]) : [])] as Tab[]).map((v) => (
           <button key={v} type="button" role="tab" aria-selected={tab === v} className={tab === v ? "on" : ""} onClick={() => setTab(v)}>
             {v === "board" ? <IconGrid /> : v === "analytics" ? <IconChartBar /> : v === "corrections" ? <IconFlag /> : <IconSliders />}
             {t(`tabs.${v}`)}
@@ -251,7 +277,7 @@ export default function LiveOfficePage() {
             requestAnimationFrame(() => document.querySelector(".lv .lf, .lv .lv-board")?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
           }}
           onRecord={() => openPerson(watched)}
-          onDress={canManage ? () => setDressing({ id: watched.id, name: watched.name }) : undefined}
+          onDress={canDress ? () => setDressing({ id: watched.id, name: watched.name }) : undefined}
         />
       ) : null}
       {tab === "board" ? (
@@ -312,20 +338,20 @@ export default function LiveOfficePage() {
               filtered={filtered}
               lookOf={lookOf}
               roomMeta={canManage ? roomMeta : undefined}
-              onArrange={canManage ? saveMoves : undefined}
-              onAddRoom={canManage ? () => setBuilder("new") : undefined}
-              onEditRoom={canManage ? (r) => setBuilder(fullRoom(r)) : undefined}
+              onArrange={canRooms ? saveMoves : undefined}
+              onAddRoom={canRooms ? () => setBuilder("new") : undefined}
+              onEditRoom={canRooms ? (r) => setBuilder(fullRoom(r)) : undefined}
             />
           ) : (
             <LiveBoardView board={board} now={now} inactiveAfter={INACTIVE_AFTER} onOpen={setWatch} filtered={filtered} lookOf={lookOf} />
           )}
         </div>
       ) : tab === "analytics" ? (
-        <LiveAnalytics employeeId={analyticsFor} onEmployee={setAnalyticsFor} unitOptions={unitOptions} employeeOptions={employeeOptions} />
+        <LiveAnalytics employeeId={analyticsFor} onEmployee={setAnalyticsFor} unitOptions={unitOptions} employeeOptions={employeeOptions} onForbidden={denyAnalytics} />
       ) : tab === "corrections" ? (
-        <LiveCorrections unitName={unitName} roomName={roomName} canReview={canManage} onNew={() => setCorrection({ targetType: "employee", targetId: myId, title: "", type: "department" })} />
+        <LiveCorrections unitName={unitName} roomName={roomName} canReview={canManage} onNew={canCorrect ? () => setCorrection({ targetType: "employee", targetId: myId, title: "", type: "department" }) : undefined} />
       ) : (
-        <LiveSettings opts={{ unitOptions, employeeOptions, userOptions: dir.userOptions, unitName }} grants={board.grants} onChanged={reload} cast={{ lookOf, onDress: setDressing }} />
+        <LiveSettings opts={{ unitOptions, employeeOptions, userOptions: dir.userOptions, unitName }} grants={board.grants} onChanged={reload} cast={{ lookOf, onDress: canDress ? setDressing : undefined }} roomsLocked={!canRooms} onRoomsForbidden={denyRooms} />
       )}
 
       {open ? (
@@ -338,14 +364,18 @@ export default function LiveOfficePage() {
           roomName={roomName}
           inactiveAfter={INACTIVE_AFTER}
           liveEvents={events.id === open.id ? events.list : []}
-          onAnalytics={(id) => {
-            setOpenId("");
-            setAnalyticsFor(id);
-            setTab("analytics");
-          }}
-          onCorrect={(target) => setCorrection(target)}
+          onAnalytics={
+            canAnalytics
+              ? (id) => {
+                  setOpenId("");
+                  setAnalyticsFor(id);
+                  setTab("analytics");
+                }
+              : undefined
+          }
+          onCorrect={canCorrect ? (target) => setCorrection(target) : undefined}
           look={lookOf(open.id)}
-          onDress={canManage ? () => setDressing({ id: open.id, name: open.name }) : undefined}
+          onDress={canDress ? () => setDressing({ id: open.id, name: open.name }) : undefined}
           onBusyStopped={() => {
             upsert(open.id, (cur) => (cur ? { ...cur, busy: null, status: cur.status === "busy" ? "working" : cur.status } : null));
             if (open.id === myId) setMyBusy(null);
@@ -365,6 +395,7 @@ export default function LiveOfficePage() {
             setRoomTick((n) => n + 1);
             reload();
           }}
+          onForbidden={denyRooms}
         />
       ) : null}
       {dressing ? (
@@ -378,9 +409,10 @@ export default function LiveOfficePage() {
             setSavedLooks((cur) => ({ ...cur, [dressing.id]: look }));
             setDressing(null);
           }}
+          onForbidden={() => deny("dress")}
         />
       ) : null}
-      {correction ? <CorrectionForm key={`${correction.targetType}-${correction.targetId}-${correction.title}`} target={correction} onClose={() => setCorrection(null)} onSent={() => undefined} unitOptions={unitOptions} roomOptions={board.rooms.map((r) => ({ value: r.id, label: r.name, sub: unitName(r.unitId) }))} /> : null}
+      {correction ? <CorrectionForm key={`${correction.targetType}-${correction.targetId}-${correction.title}`} target={correction} onClose={() => setCorrection(null)} onSent={() => undefined} onForbidden={() => deny("correct")} unitOptions={unitOptions} roomOptions={board.rooms.map((r) => ({ value: r.id, label: r.name, sub: unitName(r.unitId) }))} /> : null}
 
       <ReasonModal
         open={busyDialog === "start"}
@@ -395,6 +427,7 @@ export default function LiveOfficePage() {
           setMyBusy(b ?? { id: "", reason, startedAt: new Date().toISOString(), endedAt: "", stopReason: "", raw: {} });
           if (myId) upsert(myId, (cur) => (cur ? { ...cur, status: "busy", busy: b } : null));
         }}
+        onForbidden={() => deny("busy")}
       />
       <ReasonModal
         open={busyDialog === "stop"}
@@ -409,6 +442,7 @@ export default function LiveOfficePage() {
           setMyBusy(null);
           if (myId) upsert(myId, (cur) => (cur ? { ...cur, busy: null, status: "working" } : null));
         }}
+        onForbidden={() => deny("busy")}
       />
     </section>
   );

@@ -808,7 +808,8 @@ export default function DocumentEditorWorkspace({
   // editor options is live at a time, because the backend — not this screen
   // — decides which file the editor session holds (`editor_source`), and
   // offering the other as a button would promise something no endpoint can
-  // deliver. The dead one still shows, with the true reason it is shut.
+  // deliver. The dead one is left out of the grid (owner law 2026-11-08:
+  // an action that cannot be taken is not shown).
   const startOptions: { key: StartChoice; icon: ReactNode; title: string; text: string; enabled: boolean; recommended: boolean }[] = [
     {
       key: "upload",
@@ -971,43 +972,50 @@ export default function DocumentEditorWorkspace({
             title={[req?.request.workId ? `#${req.request.workId}` : "", req?.requestedDocumentType || req?.title || req?.serviceName].filter(Boolean).join(" · ") || undefined}
             context={{ label: req?.requestedDocumentType || req?.title || req?.serviceName || t("title"), work_id: req?.request.workId || undefined, editor: editorState }}
           />
-          <button
-            type="button"
-            className="deditor__act"
-            onClick={() => setSrcOpen(true)}
-            disabled={isSent || editorState === "needsClaim"}
-            data-ai-target="button:editor-source"
-            data-ai-id={`${ai}.source`}
-            data-ai-label={t("chooseSource")}
-          >
-            <IconLayers />
-            <span className="deditor__actLabel">{t("chooseSource")}</span>
-          </button>
-          <button
-            type="button"
-            className="deditor__act"
-            onClick={startMeeting}
-            disabled={meetBusy || !req?.meetingUrl || isSent || !!meeting}
-            data-ai-target="button:editor-meeting"
-            data-ai-id={`${ai}.meeting`}
-            data-ai-type="call_button"
-            data-ai-label={t("startMeeting")}
-          >
-            <IconVideo />
-            <span className="deditor__actLabel">{meetBusy ? t("processingShort") : t("startMeeting")}</span>
-          </button>
-          <button
-            type="button"
-            className="deditor__act deditor__act--primary"
-            onClick={() => setFinalizeConfirmOpen(true)}
-            disabled={isSent || editorState !== "ready" || finalizeBusy}
-            data-ai-target="button:editor-finalize"
-            data-ai-id={`${ai}.finalize`}
-            data-ai-label={t("finalize")}
-          >
-            <IconCheck />
-            <span className="deditor__actLabel">{isSent ? t("statusSent") : t("finalize")}</span>
-          </button>
+          {/* Status locks (sent, not claimed yet, no meeting link, not
+              ready) remove the action instead of greying it out. */}
+          {isSent || editorState === "needsClaim" ? null : (
+            <button
+              type="button"
+              className="deditor__act"
+              onClick={() => setSrcOpen(true)}
+              data-ai-target="button:editor-source"
+              data-ai-id={`${ai}.source`}
+              data-ai-label={t("chooseSource")}
+            >
+              <IconLayers />
+              <span className="deditor__actLabel">{t("chooseSource")}</span>
+            </button>
+          )}
+          {req?.meetingUrl && !isSent && !meeting ? (
+            <button
+              type="button"
+              className="deditor__act"
+              onClick={startMeeting}
+              disabled={meetBusy}
+              data-ai-target="button:editor-meeting"
+              data-ai-id={`${ai}.meeting`}
+              data-ai-type="call_button"
+              data-ai-label={t("startMeeting")}
+            >
+              <IconVideo />
+              <span className="deditor__actLabel">{meetBusy ? t("processingShort") : t("startMeeting")}</span>
+            </button>
+          ) : null}
+          {!isSent && editorState === "ready" ? (
+            <button
+              type="button"
+              className="deditor__act deditor__act--primary"
+              onClick={() => setFinalizeConfirmOpen(true)}
+              disabled={finalizeBusy}
+              data-ai-target="button:editor-finalize"
+              data-ai-id={`${ai}.finalize`}
+              data-ai-label={t("finalize")}
+            >
+              <IconCheck />
+              <span className="deditor__actLabel">{t("finalize")}</span>
+            </button>
+          ) : null}
         </div>
         <button
           type="button"
@@ -1194,25 +1202,20 @@ export default function DocumentEditorWorkspace({
                   <p>{t("startLead")}</p>
                 </header>
                 <div className="dstart__grid">
-                  {startOptions.map((o) => (
+                  {/* An option the backend shuts for this record is left out. */}
+                  {startOptions.filter((o) => o.enabled).map((o) => (
                     <button
                       key={o.key}
                       type="button"
-                      className={`dstart__opt${o.recommended && o.enabled ? " dstart__opt--rec" : ""}`}
+                      className={`dstart__opt${o.recommended ? " dstart__opt--rec" : ""}`}
                       onClick={() => start(o.key)}
-                      disabled={!o.enabled}
-                      aria-disabled={!o.enabled}
                       data-ai-id={`${ai}.start.${o.key.replace(/_/g, "-")}`}
                       data-ai-label={o.title}
                     >
                       <span className="dstart__i" aria-hidden>{o.icon}</span>
                       <b>{o.title}</b>
                       <small>{o.text}</small>
-                      {o.enabled ? (
-                        o.recommended ? <span className="dstart__tag">{t("startRecommended")}</span> : null
-                      ) : (
-                        <span className="dstart__tag dstart__tag--off">{t("startUnavailable")}</span>
-                      )}
+                      {o.recommended ? <span className="dstart__tag">{t("startRecommended")}</span> : null}
                     </button>
                   ))}
                 </div>
@@ -1309,11 +1312,11 @@ export default function DocumentEditorWorkspace({
                   <button type="button" className="btn btn--grad btn--full" onClick={rejoinMeeting} disabled={meetBusy || meeting.open} data-ai-id={`${ai}.meeting.join`} data-ai-type="call_button" data-ai-label={t("meetingJoin")}>
                     <IconVideo /> {meetBusy ? t("processingShort") : t("meetingJoin")}
                   </button>
-                ) : (
-                  <button type="button" className="btn btn--grad btn--full" onClick={startMeeting} disabled={meetBusy || !req?.meetingUrl || isSent}>
+                ) : req?.meetingUrl && !isSent ? (
+                  <button type="button" className="btn btn--grad btn--full" onClick={startMeeting} disabled={meetBusy}>
                     <IconVideo /> {meetBusy ? t("processingShort") : t("startMeeting")}
                   </button>
-                )}
+                ) : null}
                 {meeting ? (
                   <section className="dsec">
                     <h3 className="dsec__h"><IconUsers />{t("participants")} <b className="dsec__n">{roster.length}</b></h3>

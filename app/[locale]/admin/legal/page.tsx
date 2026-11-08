@@ -30,6 +30,7 @@ import { legalLang, type LegalLang } from "@/lib/legal";
 import { LEGAL_LANGS, draftOf, emptyDraft, firstErrorLang, i18nPayload, langState, missingLangs, serverDraftErrors, validateDraft, type LegalDraft, type LegalDraftErrors, type LegalPart } from "@/lib/legalAdmin";
 import { FlagEn, FlagRu, FlagUz } from "@/components/flags";
 import { humanize } from "@/lib/labels";
+import { isForbidden } from "@/lib/http";
 
 // T0-18: the legal documents with their versions and the consents journal
 // (who accepted what, when, from which IP). Every document is written in
@@ -91,6 +92,10 @@ export default function AdminLegal() {
   const [view, setView] = useState<ConsentDoc | null>(null);
   const [edit, setEdit] = useState<EditTarget | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  // Publishing (POST/PATCH /admin/legal/consents) sits under this page's
+  // users.manage. A 403 anyway keeps its message and takes New document /
+  // New version / Publish off the page; versions stay readable.
+  const [writeDenied, setWriteDenied] = useState(false);
 
   // Slug → versions (newest first).
   const bySlug = useMemo(() => {
@@ -126,7 +131,7 @@ export default function AdminLegal() {
         <div className="ppanel">
           <div className="ppanel__h">
             <b>{t("docsTitle")}</b>
-            <button type="button" className="btn btn--pri btn--sm" onClick={() => setEdit({ base: null, slug: "" })} data-ai-target="button:new-legal-doc"><IconPlus />{t("newDoc")}</button>
+            {writeDenied ? null : <button type="button" className="btn btn--pri btn--sm" onClick={() => setEdit({ base: null, slug: "" })} data-ai-target="button:new-legal-doc"><IconPlus />{t("newDoc")}</button>}
           </div>
           {docs.status === "loading" ? (
             <Skeleton rows={5} />
@@ -149,6 +154,7 @@ export default function AdminLegal() {
                         {cur ? <LangChips langs={cur.availableLanguages} /> : null}
                       </div>
                     </div>
+                    {versions.length || !writeDenied ? (
                     <div className="aitem__acts">
                       {versions.length ? (
                         <button type="button" className="btn btn--line btn--sm" aria-expanded={open === slug} aria-controls={histId} onClick={() => setOpen((o) => (o === slug ? null : slug))}>
@@ -156,10 +162,13 @@ export default function AdminLegal() {
                           {t("history", { n: versions.length })}
                         </button>
                       ) : null}
-                      <button type="button" className="btn btn--soft btn--sm" onClick={() => setEdit(cur ? { base: cur, slug } : { base: null, slug })}>
-                        {cur ? t("newVersion") : t("publish")}
-                      </button>
+                      {writeDenied ? null : (
+                        <button type="button" className="btn btn--soft btn--sm" onClick={() => setEdit(cur ? { base: cur, slug } : { base: null, slug })}>
+                          {cur ? t("newVersion") : t("publish")}
+                        </button>
+                      )}
                     </div>
+                    ) : null}
                     {open === slug ? (
                       <ul className="lghist" id={histId} aria-label={t("historyAria", { doc: nameOf(slug) })}>
                         {versions.map((v) => (
@@ -186,7 +195,7 @@ export default function AdminLegal() {
       )}
 
       <VersionView doc={view} name={view ? nameOf(view.slug) : ""} onClose={() => setView(null)} />
-      <EditModal target={edit} name={edit?.slug ? nameOf(edit.slug) : ""} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); setKey((k) => k + 1); }} />
+      <EditModal target={edit} name={edit?.slug ? nameOf(edit.slug) : ""} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); setKey((k) => k + 1); }} onForbidden={() => { setWriteDenied(true); setEdit(null); }} />
     </>
   );
 }
@@ -263,7 +272,7 @@ function LangTabs({ value, onChange, states, disabledEmpty = false }: { value: L
 
 type EditTarget = { base: ConsentDoc | null; slug: string };
 
-function EditModal({ target, name, onClose, onSaved }: { target: EditTarget | null; name: string; onClose: () => void; onSaved: () => void }) {
+function EditModal({ target, name, onClose, onSaved, onForbidden }: { target: EditTarget | null; name: string; onClose: () => void; onSaved: () => void; onForbidden: () => void }) {
   const t = useTranslations("admin.legal");
   const base = target?.base ?? null;
   const fresh = !base;
@@ -329,6 +338,7 @@ function EditModal({ target, name, onClose, onSaved }: { target: EditTarget | nu
       } else {
         const soon = t("noWriteApiShort");
         notify.error(t("saveFailed"), { id: "legal-save", error: err, map: { 403: t("forbidden"), 404: soon, 405: soon, 501: soon } });
+        if (isForbidden(err)) onForbidden();
       }
     } finally {
       setBusy(false);

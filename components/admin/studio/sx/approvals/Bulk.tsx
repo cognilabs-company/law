@@ -21,6 +21,7 @@ import { useStudioLabels } from "../useStudioLabels";
 import { BULK_MAX, BULK_NOTE_MAX, bulkPublish, isBulkMissing, publishApproval, publishUrlOf, type BulkFailure } from "./approvalsApi";
 import type { ApprRow } from "./model";
 import { actionErrorOf, publishFailKey } from "./review/actions";
+import { studioDenied } from "../denied";
 
 export type BulkItem = { id: string; title: string; code: string; group: string; url: string };
 export type BulkFail = { item: BulkItem; reason: string };
@@ -61,9 +62,15 @@ export function BulkBar({ count, onPublish, onClear }: BulkBarProps): ReactEleme
   );
 }
 
-export type BulkDialogProps = { items: readonly BulkItem[]; onClose: (published: readonly string[], fails: readonly BulkFail[]) => void; onFinished: () => void };
+export type BulkDialogProps = {
+  items: readonly BulkItem[];
+  onClose: (published: readonly string[], fails: readonly BulkFail[]) => void;
+  onFinished: () => void;
+  // Items the backend refused to publish with 403: the page stops offering them.
+  onDenied?: (ids: readonly string[]) => void;
+};
 
-export function BulkDialog({ items, onClose, onFinished }: BulkDialogProps): ReactElement {
+export function BulkDialog({ items, onClose, onFinished, onDenied }: BulkDialogProps): ReactElement {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const stageText = useStageText();
@@ -112,6 +119,7 @@ export function BulkDialog({ items, onClose, onFinished }: BulkDialogProps): Rea
       } catch (e) {
         logApiError("studio.sx.approvals.bulk-publish", e);
         fails.push({ item: it, reason: t(actionErrorOf(e).key) });
+        if (studioDenied(e)) onDenied?.([it.id]);
       }
       done += 1;
       tick();
@@ -153,6 +161,7 @@ export function BulkDialog({ items, onClose, onFinished }: BulkDialogProps): Rea
         logApiError("studio.sx.approvals.bulk-publish", e);
         const reason = t(actionErrorOf(e).key);
         for (const it of chunk) fails.push({ item: it, reason });
+        if (studioDenied(e)) onDenied?.(chunk.map((it) => it.id));
         done += chunk.length;
         tick();
       }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, type CSSProperties, type ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { aiSeg } from "@/lib/ai/ids";
 import { initials } from "@/lib/lawyers";
@@ -10,7 +10,7 @@ import { leadUserId, type LeadX, type OperatorsState } from "@/lib/services/lead
 import { formatUzPhone, isValidUzPhone } from "@/lib/phone";
 import { IconPhone, IconVideo } from "@/components/icons";
 import type { PopoverAlign } from "@/lib/usePopover";
-import Menu, { isMenuItem, menuSeparator, type MenuEntry, type MenuItem } from "@/components/ui/Menu";
+import Menu, { isMenuItem, menuSeparator, tidyMenu, type MenuEntry, type MenuItem } from "@/components/ui/Menu";
 import type { TipAlign, TipSide } from "@/components/ui/IconButton";
 
 export type LeadStage = { key: string; label: string; color?: string; lost?: boolean };
@@ -59,6 +59,11 @@ export function leadPhoneText(phone: string): string {
 
 export const isAllowed = (can: LeadCan | undefined): boolean => can !== false;
 
+// Owner law (2026-11-08): an action the account may not take is not shown at
+// all. A LeadCan string is the reason it is refused, so it hides the action
+// just like `false` does (it is never rendered as a disabled entry).
+export const isOffered = (can: LeadCan | undefined): boolean => can === undefined || can === true;
+
 export const deniedReason = (can: LeadCan | undefined): string | undefined => (typeof can === "string" && can ? can : undefined);
 
 export function lostStageOf(stages: readonly LeadStage[]): LeadStage | undefined {
@@ -101,7 +106,9 @@ export function leadStageEntries(o: { stages: readonly LeadStage[]; stage: strin
 export function leadOperatorEntries(o: { lead: LeadX; ops?: OperatorsState; load?: ReadonlyMap<string, number>; meId?: string; aiBase?: string; tp: Tr; tl: Tr; onPick: (userId: string) => void }): MenuEntry[] {
   const { lead, ops, tp, tl } = o;
   if (!ops || ops.status === "loading") return [{ key: "ops:loading", label: tl("opsLoading"), disabled: true }];
-  if (ops.status === "forbidden") return [{ key: "ops:forbidden", label: tl("opsUnavailable"), disabled: tp("assign.opsForbidden") }];
+  // No operator directory for this account (403): there is nobody to pick, so
+  // only "unassign" stays when the lead has an operator.
+  if (ops.status === "forbidden") return lead.assignedTo ? [{ key: "op:-", label: tl("unassign"), onSelect: () => o.onPick(""), aiId: o.aiBase ? `${o.aiBase}.none` : undefined }] : [];
   if (ops.status === "error") return [{ key: "ops:error", label: tl("opsUnavailable"), disabled: tp("assign.opsError") }];
   const ranked = rankForAssign(ops.ops, o.load ?? NO_LOAD, { unknown: tp("assign.unknown"), count: (n) => tp("assign.leadCount", { n }), idle: tl("idle"), me: tp("assign.me") }, o.meId);
   const rows: MenuEntry[] = [];
@@ -157,35 +164,33 @@ export function leadActionEntries(p: Omit<LeadActionsMenuProps, "size" | "busy" 
     const onOpen = p.onOpen;
     out.push({ key: "open", label: tl("open"), onSelect: () => onOpen(lead), aiId: id("open") });
   }
-  if (p.onMove && isAllowed(p.canMove) && stages.length > 1) {
+  if (p.onMove && isOffered(p.canMove) && stages.length > 1) {
     const onMove = p.onMove;
     out.push({
       key: "move",
       label: tl("move"),
-      disabled: deniedReason(p.canMove),
       items: () => leadStageEntries({ stages, stage, skipLost: !!lost, aiBase: id("move"), onPick: (k) => onMove(lead, k) }),
       aiId: id("move"),
     });
   }
-  if (p.onAssign && isAllowed(p.canAssign)) {
+  if (p.onAssign && isOffered(p.canAssign) && !(p.ops?.status === "forbidden" && !lead.assignedTo)) {
     const onAssign = p.onAssign;
     out.push({
       key: "assign",
       label: tl("assign"),
-      disabled: deniedReason(p.canAssign),
       items: () => leadOperatorEntries({ lead, ops: p.ops, load: p.load, meId: p.meId, aiBase: id("assign"), tp, tl, onPick: (u) => onAssign(lead, u) }),
       aiId: id("assign"),
     });
   }
   out.push(menuSeparator("sep-contact"));
   const tel = leadTel(lead.phone);
-  if (isAllowed(p.canCall)) {
+  if (isOffered(p.canCall)) {
     const onCall = p.onCall;
     const call: MenuItem = {
       key: "call",
       label: tl("call"),
       icon: <IconPhone />,
-      disabled: !tel ? tl("noPhone") : deniedReason(p.canCall),
+      disabled: !tel ? tl("noPhone") : undefined,
       href: tel ? `tel:${tel}` : undefined,
       onSelect: onCall ? () => onCall(lead) : undefined,
       aiId: id("call"),
@@ -193,26 +198,34 @@ export function leadActionEntries(p: Omit<LeadActionsMenuProps, "size" | "busy" 
     };
     out.push(call);
   }
-  if (p.onVideo && isAllowed(p.canVideo)) {
+  if (p.onVideo && isOffered(p.canVideo)) {
     const onVideo = p.onVideo;
     out.push({
       key: "video",
       label: tl("video"),
       icon: <IconVideo />,
-      disabled: !tel && !leadUserId(lead) ? tl("noPhone") : deniedReason(p.canVideo),
+      disabled: !tel && !leadUserId(lead) ? tl("noPhone") : undefined,
       onSelect: () => onVideo(lead),
       aiId: id("video"),
       aiType: "call_button",
     });
   }
   out.push(menuSeparator("sep-end"));
-  if (lost && p.onLost && isAllowed(p.canMove) && stage !== lost.key) {
+  out.push(...leadTailEntries(p, tl, lost, id));
+  // No separator left dangling at either end once hidden actions are gone.
+  return tidyMenu(out);
+}
+
+function leadTailEntries(p: Omit<LeadActionsMenuProps, "size" | "busy" | "disabled" | "open" | "onOpenChange" | "triggerClassName" | "tipSide" | "tipAlign" | "align">, tl: Tr, lost: LeadStage | undefined, id: (part: string) => string | undefined): MenuEntry[] {
+  const { lead, stage } = p;
+  const out: MenuEntry[] = [];
+  if (lost && p.onLost && isOffered(p.canMove) && stage !== lost.key) {
     const onLost = p.onLost;
-    out.push({ key: "lost", label: tl("lost"), disabled: deniedReason(p.canMove), onSelect: () => onLost(lead, lost.key), aiId: id("lost") });
+    out.push({ key: "lost", label: tl("lost"), onSelect: () => onLost(lead, lost.key), aiId: id("lost") });
   }
-  if (p.onDelete && isAllowed(p.canDelete)) {
+  if (p.onDelete && isOffered(p.canDelete)) {
     const onDelete = p.onDelete;
-    out.push({ key: "delete", label: tl("delete"), danger: true, disabled: deniedReason(p.canDelete), onSelect: () => onDelete(lead), aiId: id("delete") });
+    out.push({ key: "delete", label: tl("delete"), danger: true, onSelect: () => onDelete(lead), aiId: id("delete") });
   }
   return out;
 }
@@ -222,6 +235,8 @@ export function LeadActionsMenu(props: LeadActionsMenuProps) {
   const tl = useTranslations("admin.leadCard");
   const { name, aiId, size = "sm", busy, disabled, open, onOpenChange, triggerClassName, tipSide, tipAlign, align = "end" } = props;
   const items = leadActionEntries(props, tp, tl);
+  // Nothing this account may do here: no "⋯" button leading to an empty menu.
+  if (!items.some(isMenuItem)) return null;
   return (
     <Menu
       items={items}
@@ -254,10 +269,19 @@ export type LeadStageMenuProps = {
 
 export function LeadStageMenu({ lead, stage, stages, onMove, canMove, busy, className, aiId }: LeadStageMenuProps) {
   const tl = useTranslations("admin.leadCard");
-  const whyId = useId();
   const cur = stages.find((s) => s.key === stage);
-  const why = deniedReason(canMove);
   const items = leadStageEntries({ stages, stage, aiBase: aiId, onPick: (k) => onMove(lead, k) });
+  // May not move it: the stage reads as a label, not a disabled button.
+  if (!isOffered(canMove)) {
+    return (
+      <span className="lmenu-field">
+        <span className="lasg" data-ai-id={aiId}>
+          {stageDot(cur?.color)}
+          <span>{tl("stageButton", { stage: cur?.label ?? stage })}</span>
+        </span>
+      </span>
+    );
+  }
   return (
     <span className="lmenu-field">
       <Menu
@@ -272,15 +296,8 @@ export function LeadStageMenu({ lead, stage, stages, onMove, canMove, busy, clas
         triggerClassName={className ?? "btn btn--line btn--sm lmenu-btn"}
         focus="checked"
         busy={busy}
-        disabled={canMove === false || !!why}
-        describedBy={why ? whyId : undefined}
         aiId={aiId}
       />
-      {why ? (
-        <span id={whyId} className="lmenu-why">
-          {why}
-        </span>
-      ) : null}
     </span>
   );
 }
@@ -298,12 +315,28 @@ export type LeadOperatorMenuProps = LeadPeople & {
 export function LeadOperatorMenu({ lead, ops, load, meId, onAssign, canAssign, look = "button", busy, className, aiId }: LeadOperatorMenuProps) {
   const tp = useTranslations("admin.pipeline");
   const tl = useTranslations("admin.leadCard");
-  const whyId = useId();
   const view = leadOperatorView(lead, tp, ops, meId);
-  const why = deniedReason(canAssign);
   const items = leadOperatorEntries({ lead, ops, load, meId, aiBase: aiId, tp, tl, onPick: (u) => onAssign(lead, u) });
   const count = items.filter(isMenuItem).length;
   const pill = look === "pill";
+  // May not assign (or nobody to pick): the operator reads as a label.
+  if (!isOffered(canAssign) || !count) {
+    return pill ? (
+      <span className={`ldc__who${view.none ? " is-none" : view.me ? " is-me" : ""}`}>
+        <OperatorAvatar view={view} />
+        <span className="ldc__wn">
+          <span className="sr-only">{`${tp("assign.title")}: `}</span>
+          {view.name}
+        </span>
+      </span>
+    ) : (
+      <span className="lmenu-field">
+        <span className={`lasg${view.none ? " lasg--none" : view.me ? " lasg--me" : ""}`}>
+          <span>{tl("operatorButton", { name: view.name })}</span>
+        </span>
+      </span>
+    );
+  }
   const cls = pill ? `ldc__who ldc__who--btn${view.none ? " is-none" : view.me ? " is-me" : ""}` : "btn btn--line btn--sm lmenu-btn";
   return (
     <span className={pill ? "lmenu-pill" : "lmenu-field"}>
@@ -321,15 +354,8 @@ export function LeadOperatorMenu({ lead, ops, load, meId, onAssign, canAssign, l
         focus="checked"
         search={count > 8}
         busy={busy}
-        disabled={canAssign === false || !!why}
-        describedBy={why ? whyId : undefined}
         aiId={aiId}
       />
-      {why && !pill ? (
-        <span id={whyId} className="lmenu-why">
-          {why}
-        </span>
-      ) : null}
     </span>
   );
 }

@@ -49,7 +49,7 @@ import {
   type CallQualityPolicy,
   type CallVideoProfile,
 } from "@/lib/services/backend";
-import { ApiError } from "@/lib/http";
+import { ApiError, isForbidden } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { getToken } from "@/lib/client";
 import { emitRoomCallEvent, isCallEvent, subscribeRoomCallEvents } from "@/lib/callEvents";
@@ -1678,6 +1678,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       // real 409 ("faqat 1 marta ishlaydi") means the free extension is
       // spent — a network blip must not take the button away.
       const used = e instanceof ApiError && e.status === 409;
+      // Not this account's meeting to extend after all: the host controls leave the bar.
+      if (isForbidden(e)) dropPerm("canEnd");
       if (used) say("warning", t("extendFreeUsed"), { id: "call-ext" });
       else say("error", t("extendError"), { id: "call-ext", error: e, action: { label: tn("retry"), onClick: () => again.current.extend() } });
       if (used) setLimits((l) => (l ? { ...l, freeExtensionAvailable: false, freeExtensionUsed: true } : l));
@@ -1694,6 +1696,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       setExtOpen(false);
       notify.dismiss("call-ext-paid");
     } catch (e) {
+      if (isForbidden(e)) { dropPerm("canEnd"); setExtOpen(false); }
       notify.error(t("extendError"), { id: "call-ext-paid", error: e });
     } finally {
       setExtBusy(false);
@@ -1756,6 +1759,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       // Not deployed on this backend: take the button away instead of leaving
       // it in the bar to 404 again on the next press.
       if (e instanceof ApiError && (e.status === 404 || e.status === 405)) { setPauseGone(true); return; }
+      // Refused: not this account's hold to take — the control leaves the bar.
+      if (isForbidden(e)) setPauseGone(true);
       // Everything else goes through the room's own error affordance, the
       // same toast the free extension uses — there is no dialog to put an
       // inline message in, and .mtg__ext-err only renders inside one.
@@ -1784,31 +1789,50 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   function cancelRecReq() {
     setRecReq(null);
   }
-  // Host controls (gated by backend permissions).
+  // Host controls (gated by backend permissions). A 403 means the backend no
+  // longer grants this account that control: it leaves the screen (owner law
+  // 2026-11-08 — an action the user may not do is not shown at all).
+  function dropPerm(k: keyof CallPermissions) {
+    setPerms((p) => (p ? { ...p, [k]: false } : p));
+  }
   async function muteParticipant(userId: string, mute: boolean) {
     try {
       await updateCallParticipant(roomId, callId, userId, { mic_enabled: !mute });
       setMetaTick((n) => n + 1);
-    } catch { /* ignore */ }
+    } catch (e) {
+      if (isForbidden(e)) dropPerm("canMute");
+    }
   }
   async function kickParticipant(userId: string) {
     setRoster((rs) => rs.filter((p) => p.userId !== userId));
     try {
       await updateCallParticipant(roomId, callId, userId, { status: "removed" });
       setMetaTick((n) => n + 1);
-    } catch { /* ignore */ }
+    } catch (e) {
+      if (isForbidden(e)) { dropPerm("canKick"); setMetaTick((n) => n + 1); }
+    }
   }
   async function sendInvites() {
     if (inviteBusy || !invitePicks.length) return;
     setInviteBusy(true);
     try {
       const failed: string[] = [];
+      let refused = false;
       for (const uid of invitePicks) {
         try {
           await inviteCallParticipant(roomId, callId, uid);
-        } catch {
+        } catch (e) {
           failed.push(uid);
+          if (isForbidden(e)) { refused = true; break; }
         }
+      }
+      // Refused outright: inviting is not this account's to do here — the
+      // picker leaves the roster panel instead of offering a retry.
+      if (refused) {
+        dropPerm("canInvite");
+        setInvitePicks([]);
+        notify.error(t("inviteFailed"), { id: "call-invite" });
+        return;
       }
       setInvitePicks(failed);
       setMetaTick((n) => n + 1);

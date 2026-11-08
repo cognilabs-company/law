@@ -20,6 +20,8 @@ import ScrollCue from "@/components/ui/ScrollCue";
 import { Skeleton } from "@/components/portal/DataState";
 import { DeliveryChips } from "@/components/portal/NotificationsPanel";
 import { IconBell, IconCheck, IconSend, IconUsers } from "@/components/icons";
+import { useCan } from "@/lib/useCan";
+import { isForbidden } from "@/lib/http";
 
 // Role tabs feed GET /admin/users?role=… (backend UserRole values).
 const ROLE_TABS = ["all", "client", "yurist", "advokat", "advokat_tashkiloti", "call_center", "sales"] as const;
@@ -41,6 +43,15 @@ export default function AdminNotifications() {
   const tc = useTranslations("common");
   const tcp = useTranslations("common.person");
   const uid = useId();
+  const canDo = useCan();
+  // Sending is this page's own notifications.manage. The recipient picker
+  // lists people from GET /admin/users (users.manage): without that code
+  // the list, its role filter and select-all are not offered — recipients
+  // are entered by hand or the message goes out as a role broadcast.
+  const canListUsers = canDo("users.manage");
+  // A 403 on send (permission revoked mid-session) keeps its message and
+  // takes the send button off the form.
+  const [sendDenied, setSendDenied] = useState(false);
 
   const [mode, setMode] = useState<SendMode>("individual");
   useAiReveal("notifications:recipients", () => setMode("individual"));
@@ -57,7 +68,10 @@ export default function AdminNotifications() {
     const h = setTimeout(() => setQLive(q.trim()), 300);
     return () => clearTimeout(h);
   }, [q]);
-  const users = useResource(() => listAdminUsers({ role: roleTab === "all" ? undefined : roleTab, q: qLive || undefined }), [roleTab, qLive]);
+  const users = useResource(
+    () => (canListUsers ? listAdminUsers({ role: roleTab === "all" ? undefined : roleTab, q: qLive || undefined }) : Promise.resolve([] as AdminUser[])),
+    [roleTab, qLive, canListUsers],
+  );
   // Selection survives role switches so one send can mix roles.
   const [selected, setSelected] = useState<Map<string, AdminUser>>(() => new Map());
   const [manualId, setManualId] = useState("");
@@ -101,7 +115,7 @@ export default function AdminNotifications() {
 
   async function send(e: FormEvent) {
     e.preventDefault();
-    if (progress || askRef.current) return;
+    if (progress || askRef.current || sendDenied) return;
     if (!title.trim() || !body.trim()) {
       setBad((b) => ({ ...b, title: !title.trim(), body: !body.trim() }));
       document.getElementById(`${uid}-${title.trim() ? "body" : "title"}`)?.focus();
@@ -140,6 +154,7 @@ export default function AdminNotifications() {
         setProgress(null);
         setSummary({ results: [{ id: broadcastRole, name: roleName, ok: false, deliveries: [] }], stopped: false });
         notify.error(tn("broadcastFailed", { role: roleName }), { id: "admin-notif-send", error: err });
+        if (isForbidden(err)) setSendDenied(true);
       }
       return;
     }
@@ -180,6 +195,7 @@ export default function AdminNotifications() {
       }
     };
     await Promise.all(Array.from({ length: Math.min(CONCURRENCY, total) }, worker));
+    if (!results.some((r) => r.ok) && isForbidden(lastError)) setSendDenied(true);
     const stopped = stopRef.current && done < total;
     const okCount = results.filter((r) => r.ok).length;
     const failCount = results.length - okCount;
@@ -203,6 +219,7 @@ export default function AdminNotifications() {
   const pct = progress ? Math.round((progress.done / Math.max(1, progress.total)) * 100) : 0;
   const noRecipients = Boolean(bad.recipients) && !selected.size && !manualId.trim();
   const recErrId = `${uid}-recipients-err`;
+  const manualInput = <input value={manualId} onChange={(e) => setManualId(e.target.value)} placeholder={tn("manualIdPh")} aria-label={tn("manualId")} aria-invalid={noRecipients || undefined} aria-describedby={noRecipients ? recErrId : undefined} />;
 
   return (
     <div className="ppanel" style={{ maxWidth: 760 }}>
@@ -229,6 +246,8 @@ export default function AdminNotifications() {
       <section id={`${uid}-recipients`} className="nrcp" aria-label={tn("recipients")} data-ai-target="notifications:recipients">
         <div className="nrcp__lbl">{tn("recipients")}</div>
         <p className="nrcp__hint">{tn("recipientsHint")}</p>
+        {canListUsers ? (
+        <>
         <FilterBar
           className="uf--tray nrcp__filters"
           fields={[
@@ -274,13 +293,22 @@ export default function AdminNotifications() {
           <span>{tn("shownN", { n: users.data.length })}</span>
           <b>{tn("selectedN", { n: selected.size })}</b>
         </div>
+        </>
+        ) : null}
         {/* Always available, not only once the list above fails to load —
             the person you need may be outside the roles this list covers,
             or you may already know their id. */}
-        <details className="nrcp__manual">
-          <summary>{tn("manualId")}</summary>
-          <input value={manualId} onChange={(e) => setManualId(e.target.value)} placeholder={tn("manualIdPh")} aria-label={tn("manualId")} aria-invalid={noRecipients || undefined} aria-describedby={noRecipients ? recErrId : undefined} />
-        </details>
+        {canListUsers ? (
+          <details className="nrcp__manual">
+            <summary>{tn("manualId")}</summary>
+            {manualInput}
+          </details>
+        ) : (
+          <div className="nrcp__manual">
+            <b style={{ display: "block", fontSize: ".82rem", fontWeight: 600 }}>{tn("manualId")}</b>
+            {manualInput}
+          </div>
+        )}
         <FieldError id={recErrId} msg={noRecipients ? tn("noRecipients") : null} />
       </section>
       )}
@@ -333,12 +361,14 @@ export default function AdminNotifications() {
             <button type="button" className="btn btn--line btn--sm" onClick={() => { stopRef.current = true; }}>{tn("stop")}</button>
           </div>
         ) : null}
-        <div>
-          <button className="btn btn--pri" type="submit" disabled={!!progress} data-ai-target="button:send-notification">
-            <IconSend />
-            {progress ? t("notifications.sending") : t("notifications.send")}
-          </button>
-        </div>
+        {sendDenied ? null : (
+          <div>
+            <button className="btn btn--pri" type="submit" disabled={!!progress} data-ai-target="button:send-notification">
+              <IconSend />
+              {progress ? t("notifications.sending") : t("notifications.send")}
+            </button>
+          </div>
+        )}
       </form>
 
       {summary?.results.length ? (

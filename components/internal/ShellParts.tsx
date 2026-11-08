@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { hasAdminAccess, isCallCenterUser, useAuth } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 import { notifLink } from "@/lib/notifications";
 import { listNotificationsRich, type RichNotification } from "@/lib/services/notify";
 import { readAllInternalNotifications as markAllNotificationsRead, readInternalNotification as markNotificationRead } from "@/lib/services/hrmOps";
@@ -198,7 +199,7 @@ function NotificationsPanel({ close }: { close: () => void }) {
       void Promise.all(n.ids.map((id) => markNotificationRead(id).catch(() => undefined))).then(() => window.dispatchEvent(new Event(NOTIF_READ_EVENT)));
       setItems((cur) => cur?.map((x) => (x.id === n.id ? { ...x, read: true } : x)) ?? cur);
     }
-    const to = notifLink(n.event, n.category, n.data, role, hasAdminAccess(session), isCallCenterUser(session));
+    const to = notifLink(n.event, n.category, n.data, role, hasAdminAccess(session), isCallCenterUser(session), (code) => can(session, code));
     close();
     if (to) router.push(to);
   };

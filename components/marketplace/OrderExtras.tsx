@@ -9,6 +9,8 @@ import { saveBlob } from "@/lib/download";
 import { getSecureMessageFileAt } from "@/lib/services/backend";
 import { fileOrderComplaint, marketErrorCode, rateMarketplaceOrder, type MarketOrder, type OrderOption, type ResultFile } from "@/lib/services/marketplace";
 import { useMarketError } from "./useMarketError";
+import { markRefused, useRefused } from "./order/refused";
+import { isForbidden } from "@/lib/http";
 import { useCountdown } from "@/lib/useCountdown";
 import { useGuardedField } from "@/components/ui/ContactGuardNote";
 
@@ -184,6 +186,7 @@ export function ComplaintPanel({ o, onFiled, onExpired }: { o: MarketOrder; onFi
   const [filed, setFiled] = useState(false);
   const [closed, setClosed] = useState(false);
   const fieldId = useId();
+  const refusedFor = useRefused();
   // A fresh window after a re-completed rework (contract 2026-10-26 §1):
   // the old ruling stays in history and must not hide the new form.
   const fresh = o.complaint.available && o.complaint.submitted === false;
@@ -199,6 +202,8 @@ export function ComplaintPanel({ o, onFiled, onExpired }: { o: MarketOrder; onFi
   }
   if (closed || (left === 0 && o.complaint.available && !lowRated)) return <Notice ok={false} msg={t("closed")} />;
   if (!o.complaint.available || lowRated) return null;
+  // Refused (403): no complaint form or button — only the reason, once.
+  if (refusedFor(o.id, "complaint")) return err ? <Notice ok={false} msg={err} /> : null;
   const short = reason.trim().length < COMPLAINT_MIN;
   const clock =
     left !== null && left > 0 ? (
@@ -223,6 +228,7 @@ export function ComplaintPanel({ o, onFiled, onExpired }: { o: MarketOrder; onFi
       // The window closed on the backend: said in our words, never its text.
       if (code === "complaint_window_closed" || code === "rating_window_closed") setClosed(true);
       else setErr(marketErr(e, t("error")));
+      if (isForbidden(e)) markRefused(o.id, "complaint");
     } finally {
       setBusy(false);
     }
@@ -274,6 +280,7 @@ export function RatingPanel({ o, onRated, onExpired }: { o: MarketOrder; onRated
   const [closed, setClosed] = useState(false);
   const [sent, setSent] = useState(0);
   const errId = useId();
+  const refusedFor = useRefused();
   const submitBtn = useRef<HTMLButtonElement>(null);
   const [refocus, setRefocus] = useState(0);
   useEffect(() => {
@@ -303,6 +310,8 @@ export function RatingPanel({ o, onRated, onExpired }: { o: MarketOrder; onRated
   }
   if (closed) return <Notice ok={false} msg={t("rating.closed")} />;
   if (!o.rating.canRate) return null;
+  // Refused (403): no stars or submit — only the reason, once.
+  if (refusedFor(o.id, "rating")) return err ? <Notice ok={false} msg={err} /> : null;
 
   const remain = ratingLeftMs(o.rating, now);
   if (Number.isFinite(remain) && remain <= 0 && !busy) return <Notice ok={false} msg={t("rating.closed")} />;
@@ -323,7 +332,8 @@ export function RatingPanel({ o, onRated, onExpired }: { o: MarketOrder; onRated
         setClosed(true);
       } else {
         setErr(msg);
-        setRefocus((n) => n + 1);
+        if (isForbidden(e)) markRefused(o.id, "rating");
+        else setRefocus((n) => n + 1);
       }
     } finally {
       setBusy(false);

@@ -7,7 +7,7 @@ import { useRouter } from "@/i18n/navigation";
 import { IconFileText, IconGraduation, IconSearch, IconUser, IconUserPlus } from "@/components/icons";
 import { useHrmDirectory } from "@/components/internal/useHrmDirectory";
 import { listHrm } from "@/lib/services/hrm";
-import { navHref, type NavGroup, type NavIcon } from "./nav";
+import { navHref, navMatches, type NavGroup, type NavIcon } from "./nav";
 
 type HitGroup = "pages" | "people" | "candidates" | "courses" | "policies";
 type Hit = { id: string; label: string; sub: string; href: string; Icon: NavIcon; group: HitGroup };
@@ -34,15 +34,24 @@ export default function CommandPalette({ groups }: { groups: NavGroup[] }) {
   const [remote, setRemote] = useState<{ q: string; hits: Hit[] }>({ q: "", hits: [] });
   const input = useRef<HTMLInputElement>(null);
   const term = q.trim();
+  // `groups` is the menu the account may see (permission-filtered by the
+  // shell): a hit is offered only when its page is one of them, so no entry
+  // leads to a page the account cannot open (people need the employee list,
+  // candidates the recruiting module — internal_hr.manage).
+  const reach = (href: string) => groups.some((g) => g.items.some((i) => navMatches(href.split("?")[0], i)));
+  const remoteKey = REMOTE.filter((r) => reach(r.route)).map((r) => r.group).join(",");
+  const canPeople = reach("/internal/employees/x");
 
   // Two letters or more, 200 ms after the last key; a newer query cancels
   // the one still on its way; a module the account may not read is skipped.
   useEffect(() => {
     if (!open || term.length < 2) return;
+    const allowed = REMOTE.filter((r) => remoteKey.split(",").includes(r.group));
+    if (!allowed.length) return;
     const c = new AbortController();
     const h = setTimeout(() => {
       void Promise.all(
-        REMOTE.map((r) =>
+        allowed.map((r) =>
           listHrm(r.domain, { type: r.type, q: term, limit: 6, offset: 0 }, c.signal)
             .then((page) => page.items.slice(0, 6).map<Hit>((row) => ({ id: `${r.group}-${row.id}`, label: row.title || row.code, sub: [row.code, row.status].filter(Boolean).join(" · "), href: `${r.route}?type=${r.type}&open=${encodeURIComponent(row.id)}`, Icon: r.Icon, group: r.group })))
             .catch(() => [] as Hit[]),
@@ -53,7 +62,7 @@ export default function CommandPalette({ groups }: { groups: NavGroup[] }) {
       clearTimeout(h);
       c.abort();
     };
-  }, [open, term]);
+  }, [open, term, remoteKey]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -85,11 +94,11 @@ export default function CommandPalette({ groups }: { groups: NavGroup[] }) {
         return { id: navHref(i), label: t(`nav.${i.key}`), sub: t(`groups.${g.key}`), href: navHref(i), Icon: i.Icon, group: "pages" as const };
       }),
     );
-    const people: Hit[] = needle.length < 2 ? [] : dir.employees.map((e) => ({ id: `e-${e.id}`, label: e.name || e.code, sub: [e.code, dir.positionTitle(e.positionId)].filter(Boolean).join(" · "), href: `/internal/employees/${encodeURIComponent(e.id)}`, Icon: IconUser, group: "people" as const }));
+    const people: Hit[] = needle.length < 2 || !canPeople ? [] : dir.employees.map((e) => ({ id: `e-${e.id}`, label: e.name || e.code, sub: [e.code, dir.positionTitle(e.positionId)].filter(Boolean).join(" · "), href: `/internal/employees/${encodeURIComponent(e.id)}`, Icon: IconUser, group: "people" as const }));
     const match = (h: Hit) => !needle || fold(`${h.label} ${h.sub} ${words.get(h.href) ?? ""}`).includes(needle);
     const server = remote.q === q.trim() ? remote.hits : [];
     return [...pages.filter(match).slice(0, needle ? 8 : 12), ...people.filter(match).slice(0, 6), ...server];
-  }, [q, groups, dir, t, remote]);
+  }, [q, groups, dir, t, remote, canPeople]);
 
   if (!open) {
     return (

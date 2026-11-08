@@ -476,13 +476,13 @@ export default function DocPaper({
                 <IconDownload />
               </button>
             ) : null}
-            {onAskLawyer ? (
+            {onAskLawyer && !askLawyerNote ? (
               <button
                 type="button"
                 className={`docpaper__ask${askLawyerSent ? " docpaper__ask--sent" : ""}`}
                 onClick={onAskLawyer}
-                disabled={askLawyerBusy || askLawyerSent || !!askLawyerNote}
-                title={askLawyerNote || (askLawyerSent ? t("askLawyerSent") : t("askLawyer"))}
+                disabled={askLawyerBusy || askLawyerSent}
+                title={askLawyerSent ? t("askLawyerSent") : t("askLawyer")}
               >
                 {askLawyerSent ? <IconCheck /> : <IconHeadset />}
                 {askLawyerSent ? t("askLawyerSent") : askLawyerBusy ? t("askLawyerSending") : t("askLawyer")}

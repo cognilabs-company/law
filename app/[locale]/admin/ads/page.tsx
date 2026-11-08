@@ -12,6 +12,7 @@ import { fmtDate } from "@/lib/date";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import { IconBriefcase, IconEye, IconImage, IconInfo, IconLayers, IconMegaphone, IconRocket, IconSearch, IconTag, IconTrendingUp, IconUser } from "@/components/icons";
 import { useStudioCatalog } from "@/lib/studio/catalogLink";
+import { useStudioAccess } from "@/lib/services/studio";
 
 // Read-only overview of the advertising packages (K12-PROMO). Creating and
 // editing them lives in Studio; this page shows every package in full.
@@ -68,7 +69,10 @@ function packOf(a: ModuleRecord): Pack {
 export default function AdminAds() {
   const t = useTranslations("admin");
   // Studio's K12-PROMO only while the constructor catalog lists it (§4.7).
-  const adsStudioHref = useStudioCatalog().listHref("K12-PROMO");
+  // …and only for an account Studio admits.
+  const studioCatalog = useStudioCatalog();
+  const studioOk = useStudioAccess().any;
+  const adsStudioHref = studioOk ? studioCatalog.listHref("K12-PROMO") : "";
   const locale = useLocale();
   const ads = useResource(listAds, []);
   const [status, setStatus] = useState("");

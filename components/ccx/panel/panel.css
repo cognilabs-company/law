@@ -239,6 +239,12 @@ html[data-opx-theme="light"] .opx-sheet__scrim {
   align-items: start;
 }
 
+/* No decision column (nothing this account may do here): the story column
+   takes the full row instead of leaving a hole. */
+.opx-pcols > :only-child {
+  grid-column: 1 / -1;
+}
+
 .opx-party {
   display: flex;
   align-items: flex-start;

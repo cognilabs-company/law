@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { subscribeUserEvents } from "@/lib/userSocket";
-import { ApiError } from "@/lib/http";
+import { ApiError, isForbidden } from "@/lib/http";
 import { humanize } from "@/lib/labels";
 import { decideApproval, getMyApprovals, normApproval, type HrmApproval, type InternalPage } from "@/lib/services/internalHrm";
 import { IconCheck, IconClose, IconRefresh, IconShieldCheck } from "@/components/icons";
@@ -33,6 +33,10 @@ export default function InternalApprovalsPage() {
   const [proc, setProc] = useState("");
   const [needComment, setNeedComment] = useState(false);
   const [quick, setQuick] = useState("");
+  // Approvals the backend refused this account a decision on (403): they
+  // leave the inbox instead of being offered again. The inbox itself only
+  // lists what waits for this account (GET /internal/me/approvals).
+  const [refused, setRefused] = useState<string[]>([]);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -72,7 +76,11 @@ export default function InternalApprovalsPage() {
       setComment("");
       setDone(decision);
       await load();
-    } catch {
+    } catch (cause) {
+      if (isForbidden(cause)) {
+        setRefused((r) => [...r, open.id]);
+        setOpenId("");
+      }
       setError(true);
     } finally {
       setSaving(false);
@@ -88,14 +96,16 @@ export default function InternalApprovalsPage() {
       await decideApproval(a.id, { decision: "approved", comment: "" });
       setDone("approved");
       await load();
-    } catch {
+    } catch (cause) {
+      if (isForbidden(cause)) setRefused((r) => [...r, a.id]);
       setError(true);
     } finally {
       setQuick("");
     }
   }
-  const procs = [...new Set(page.items.map((a) => a.type).filter(Boolean))];
-  const shown = proc ? page.items.filter((a) => a.type === proc) : page.items;
+  const items = page.items.filter((a) => !refused.includes(a.id));
+  const procs = [...new Set(items.map((a) => a.type).filter(Boolean))];
+  const shown = proc ? items.filter((a) => a.type === proc) : items;
   const facts = (a: HrmApproval) =>
     Object.entries(a.payload)
       .filter(([k, v]) => !HIDDEN_PAYLOAD.has(k) && (typeof v === "string" || typeof v === "number") && String(v).length < 40)
@@ -108,9 +118,9 @@ export default function InternalApprovalsPage() {
       {done ? <div className="hrm-ok"><IconCheck />{done === "approved" ? t("approvedNote") : t("rejectedNote")}</div> : null}
       {procs.length > 1 ? (
         <div className="hrm-chips" role="tablist" aria-label={t("process")}>
-          <button type="button" role="tab" aria-selected={!proc} className={!proc ? "on" : ""} onClick={() => setProc("")}>{t("allProcesses")}<span>{page.items.length}</span></button>
+          <button type="button" role="tab" aria-selected={!proc} className={!proc ? "on" : ""} onClick={() => setProc("")}>{t("allProcesses")}<span>{items.length}</span></button>
           {procs.map((p) => (
-            <button key={p} type="button" role="tab" aria-selected={proc === p} className={proc === p ? "on" : ""} onClick={() => setProc(p)}>{humanize(p)}<span>{page.items.filter((a) => a.type === p).length}</span></button>
+            <button key={p} type="button" role="tab" aria-selected={proc === p} className={proc === p ? "on" : ""} onClick={() => setProc(p)}>{humanize(p)}<span>{items.filter((a) => a.type === p).length}</span></button>
           ))}
         </div>
       ) : null}

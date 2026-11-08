@@ -13,6 +13,7 @@ import { useCrmEvents } from "@/lib/crm/useCrm";
 import CrmFrame from "../CrmFrame";
 import { CrmDate } from "../fields";
 import { useCrmError } from "../bits";
+import { sectionOk } from "../sections";
 
 // The ROP overview (ROP final contract §6, §24): operational cards only.
 // Built from /crm/me/metrics, the Kanban counts, the unassigned queue,
@@ -126,9 +127,9 @@ function Board({ meta }: { meta: CrmMeta }): ReactElement {
       ) : null}
 
       <div className="rop-grid rop-grid--kpi">
-        <Kpi tone="pri" Icon={Target} label={t("allLeads")} value={n(totalLeads)} note={t("activeN", { n: n(m?.active) })} href="/admin/crm/kanban" loading={loading} />
-        <Kpi Icon={Inbox} label={t("queue")} value={n(data.queue)} note={t("queueNote")} href="/admin/crm/leads?tab=queue" loading={loading} />
-        <Kpi tone={m && m.overdue > 0 ? "warn" : undefined} Icon={AlarmClock} label={t("overdue")} value={n(m?.overdue)} note={t("overdueNote")} href="/admin/crm/leads?tab=all&due=overdue" loading={loading} />
+        <Kpi tone="pri" Icon={Target} label={t("allLeads")} value={n(totalLeads)} note={t("activeN", { n: n(m?.active) })} href={canLeads ? "/admin/crm/kanban" : undefined} loading={loading} />
+        <Kpi Icon={Inbox} label={t("queue")} value={n(data.queue)} note={t("queueNote")} href={canLeads ? "/admin/crm/leads?tab=queue" : undefined} loading={loading} />
+        <Kpi tone={m && m.overdue > 0 ? "warn" : undefined} Icon={AlarmClock} label={t("overdue")} value={n(m?.overdue)} note={t("overdueNote")} href={canLeads ? "/admin/crm/leads?tab=all&due=overdue" : undefined} loading={loading} />
         {canLive ? <Kpi Icon={PhoneCall} label={t("calls")} value={n(data.calls?.length)} note={t("callsNote")} href="/admin/crm/live" loading={loading} /> : <Kpi Icon={Gauge} label={t("conversion")} value={m ? `${fmtNum(m.conversion, locale, 1)}%` : "—"} note={t("conversionNote")} loading={loading} />}
       </div>
 
@@ -159,7 +160,7 @@ function Board({ meta }: { meta: CrmMeta }): ReactElement {
         <section className="rop-card" aria-labelledby="rop-ops">
           <div className="rop-card__h">
             <h2 id="rop-ops" className="rop-h2"><Users aria-hidden="true" />{t("workload")}</h2>
-            <Link href="/admin/crm/operators" className="crm-btn">{t("allOperators")}<ArrowUpRight aria-hidden="true" /></Link>
+            {sectionOk("operators", meta) ? <Link href="/admin/crm/operators" className="crm-btn">{t("allOperators")}<ArrowUpRight aria-hidden="true" /></Link> : null}
           </div>
           {loading ? <Sk n={5} /> : ops.length ? (
             <ul className="rop-list">

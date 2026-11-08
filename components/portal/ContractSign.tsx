@@ -8,7 +8,7 @@ import { OTP_RESEND_SEC, fmtClock, useOtpTimer } from "@/lib/useOtpTimer";
 import { OtpCountdown, OtpResendButton } from "@/components/auth/OtpStatus";
 import { notify } from "@/lib/toast";
 import FieldError from "@/components/ui/FieldError";
-import { IconCheck, IconChevronLeft, IconExternal, IconShieldCheck } from "@/components/icons";
+import { IconCheck, IconChevronLeft, IconExternal, IconLock, IconShieldCheck } from "@/components/icons";
 import { dateTimeFull } from "@/lib/date";
 
 // 3 wrong codes lock the signature for 15 minutes (backend rule).
@@ -41,6 +41,10 @@ export default function ContractSign({ contractId }: { contractId: string }) {
   const [codeErr, setCodeErr] = useState("");
   const [signed, setSigned] = useState<{ id: string; value: Signed | null } | null>(null);
   const current = signed?.id === contractId ? signed.value : null;
+  // A 403 on start/verify: this account is not the contract's signer, so the
+  // signing controls leave and the reason stays in their place.
+  const [denied, setDenied] = useState<string | null>(null);
+  const isDenied = denied === contractId;
 
   // Already signed earlier (GET /contracts/{id}).
   useEffect(() => {
@@ -85,6 +89,11 @@ export default function ContractSign({ contractId }: { contractId: string }) {
       else notify.dismiss(nid);
     } catch (e) {
       if (isRateLimited(e)) otp.cooldown(retryAfterSec(e, OTP_RESEND_SEC));
+      if (isForbidden(e)) {
+        setDenied(contractId);
+        setStage("idle");
+        otp.clear();
+      }
       notify.error(startError(e), { id: nid });
     } finally {
       setBusy(false);
@@ -109,7 +118,12 @@ export default function ContractSign({ contractId }: { contractId: string }) {
       } else if (isOtpExpired(e)) {
         otp.expire();
       } else if (e instanceof ApiError && e.status >= 400 && e.status < 500) {
-        if (isForbidden(e)) notify.error(t("forbidden"), { id: nid });
+        if (isForbidden(e)) {
+          setDenied(contractId);
+          setStage("idle");
+          otp.clear();
+          notify.error(t("forbidden"), { id: nid });
+        }
         else setCodeErr(tOtp("incorrect"));
       } else {
         notify.error(isOffline(e) ? tc("offline") : t("verifyError"), { id: nid });
@@ -133,6 +147,18 @@ export default function ContractSign({ contractId }: { contractId: string }) {
             {t("verifyLink")}
           </a>
         ) : null}
+      </div>
+    );
+  }
+
+  if (isDenied) {
+    return (
+      <div className="csign">
+        <span className="csign__i"><IconLock /></span>
+        <div className="csign__t">
+          <b>{t("title")}</b>
+          <span>{t("forbidden")}</span>
+        </div>
       </div>
     );
   }

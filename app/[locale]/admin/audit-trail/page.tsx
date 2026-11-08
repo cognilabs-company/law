@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import StaffPerson from "@/components/ui/StaffPerson";
 import { listAuditTrail, exportAuditTrailCsv, listAdminSecurityEvents, searchUsers, type ActivityEntry, type AuditFilters, type ModuleRecord } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import SearchSelect, { type SearchOption } from "@/components/SearchSelect";
@@ -81,6 +82,7 @@ function chainStates(rows: ActivityEntry[]) {
 function Anomalies({ onReady }: { onReady?: () => void }) {
   const locale = useLocale();
   const t = useTranslations("admin.audit.anomalies");
+  const tPerson = useTranslations("common.person");
   const [status, setStatus] = useState("all");
   const res = useResource(() => listAdminSecurityEvents(status === "all" ? undefined : status), [status]);
   const firedRef = useRef(false);
@@ -113,12 +115,15 @@ function Anomalies({ onReady }: { onReady?: () => void }) {
         <div className="alist">
           {rows.slice(0, 50).map((r) => {
             const p = r.payload as Record<string, unknown>;
-            const meta = [p.previous_ip && p.current_ip ? `${String(p.previous_ip)} → ${String(p.current_ip)}` : "", r.ownerUserId ? `${t("user")} ${r.ownerUserId.slice(0, 8)}…` : "", fmt(r.createdAt, locale)].filter(Boolean).join(" · ");
+            const meta = [p.previous_ip && p.current_ip ? `${String(p.previous_ip)} → ${String(p.current_ip)}` : "", fmt(r.createdAt, locale)].filter(Boolean).join(" · ");
             return (
               <div className="aitem" key={r.id}>
                 <div className="aitem__m">
                   <b>{label(r)}</b>
-                  <span className="aitem__meta">{meta}</span>
+                  <span className="aitem__meta">
+                    {r.ownerUserId ? <>{t("user")} <StaffPerson id={r.ownerUserId} fallback={tPerson("unknown")} /> · </> : null}
+                    {meta}
+                  </span>
                 </div>
                 <div className="aitem__r"><em className={`atag${r.status === "new" ? "" : " atag--muted"}`}>{t.has(`status.${r.status}`) ? t(`status.${r.status}`) : r.status}</em></div>
               </div>
@@ -132,6 +137,7 @@ function Anomalies({ onReady }: { onReady?: () => void }) {
 
 export default function AdminAuditTrail() {
   const t = useTranslations("admin.audit");
+  const tPerson = useTranslations("common.person");
   const locale = useLocale();
   const tc = useTranslations("chart");
   const tn = useTranslations("common.notify");
@@ -165,6 +171,10 @@ export default function AdminAuditTrail() {
   const rows = useMemo(() => current?.data ?? [], [current]);
   const chain = useMemo(() => chainStates(rows), [rows]);
   const [exporting, setExporting] = useState(false);
+  // Export is this page's own users.manage. Not offered while the log itself
+  // answers 403, nor again after the export did (permission revoked).
+  const [exportDenied, setExportDenied] = useState(false);
+  const canExport = !exportDenied && current?.status !== "forbidden";
   const [names, setNames] = useState<Record<string, string>>({});
   const dirty = draft.userId.trim() !== applied.userId || TEXT_KEYS.some((k) => draft[k].trim() !== applied[k]);
 
@@ -190,7 +200,7 @@ export default function AdminAuditTrail() {
   }
   const findUsers = (q: string) =>
     searchUsers(q).then((list) => {
-      const opts: SearchOption[] = list.map((u) => ({ value: u.id, label: u.name || u.lexgoId || u.id, sub: u.phone }));
+      const opts: SearchOption[] = list.map((u) => ({ value: u.id, label: u.name || u.lexgoId || u.phone, sub: u.phone }));
       setNames((cur) => {
         const next = { ...cur };
         for (const o of opts) next[o.value] = o.label;
@@ -198,7 +208,8 @@ export default function AdminAuditTrail() {
       });
       return opts;
     });
-  const nameOf = (id: string) => names[id] || id;
+  // Never the raw id (UI law): the looked-up name, else the neutral word.
+  const nameOf = (id: string) => names[id] || tPerson("unknown");
   const day = (iso: string) => (iso ? shortDate(iso, locale) : "…");
   const dateChip = from || to ? (from && from === to ? day(from) : `${day(from)} – ${day(to)}`) : null;
 
@@ -271,6 +282,7 @@ export default function AdminAuditTrail() {
       setTimeout(() => URL.revokeObjectURL(url), 60000);
       notify.dismiss("audit-export");
     } catch (e) {
+      if (isForbidden(e)) setExportDenied(true);
       notify.error(t("exportFailed"), {
         id: "audit-export",
         error: e,
@@ -315,10 +327,12 @@ export default function AdminAuditTrail() {
         <b>{t("title")}</b>
         <span className="audit__hact">
           <span className="advmuted">{rows.length}</span>
-          <button type="button" className="btn btn--line btn--sm" onClick={exportCsv} disabled={exporting || current?.status === "forbidden"} data-ai-target="button:export-audit">
-            <IconDownload />
-            {exporting ? t("exporting") : t("export")}
-          </button>
+          {canExport ? (
+            <button type="button" className="btn btn--line btn--sm" onClick={exportCsv} disabled={exporting} data-ai-target="button:export-audit">
+              <IconDownload />
+              {exporting ? t("exporting") : t("export")}
+            </button>
+          ) : null}
         </span>
       </div>
       <p className="ppanel__note">{t("lead")}</p>
@@ -365,12 +379,11 @@ export default function AdminAuditTrail() {
                   <div className="creq__m">
                     <b>{a.action ? humanize(a.action) : "—"}{locale === "uz" && a.titleUz ? <small className="advmuted"> · {a.titleUz}</small> : null}</b>
                     <span>{[(locale === "uz" && a.descriptionUz) || a.detail, a.ip, fmt(a.createdAt, locale)].filter(Boolean).join(" · ")}</span>
-                    {a.userId || a.targetType || a.targetId ? (
+                    {a.userId || a.targetType ? (
                       <span className="audit__who">
-                        {a.userId ? <span>{t("user")}: <code>{a.userId}</code></span> : null}
-                        {a.targetType || a.targetId ? (
-                          <span>{t("target")}: <code>{[a.targetType, a.targetId].filter(Boolean).join(" · ")}</code></span>
-                        ) : null}
+                        {a.userId ? <span>{t("user")}: <StaffPerson id={a.userId} fallback={tPerson("unknown")} /></span> : null}
+                        {/* The target's type only — its id is a UUID (UI law). */}
+                        {a.targetType ? <span>{t("target")}: <b>{humanize(a.targetType)}</b></span> : null}
                       </span>
                     ) : null}
                     {hash ? (

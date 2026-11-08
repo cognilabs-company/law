@@ -26,6 +26,7 @@ import { fetchApprovalDetail, type ApprEvent, type ApprSummaryItem } from "../ap
 import { COMMENT_EVENTS, DETAIL_EVENTS, buildRow, isListEvent, type ApprRow, type ApprViewer } from "../model";
 import { NO_REVIEW, reviewCan, type ReviewCan } from "./actions";
 import type { ReviewTarget } from "./ReviewDrawer";
+import { studioDenied } from "../../denied";
 
 export type ReviewBase = "live" | "prev" | "first" | "none" | "unknown";
 export type ReviewComments = { items: StudioComment[] | null; error: unknown; sending: boolean; sendError: unknown };
@@ -53,6 +54,8 @@ export type ReviewState = {
   reloadComments: () => void;
   refresh: () => Promise<StudioDetail | null>;
   retry: () => void;
+  // The backend refused these with 403: they leave the drawer for this object.
+  deny: (keys: readonly (keyof ReviewCan)[]) => void;
 };
 
 export const REVIEW_DEBOUNCE_MS = 300;
@@ -128,6 +131,7 @@ export function useReview(target: ReviewTarget | null, viewer: ApprViewer): Revi
   const hseq = useRef(0);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<unknown>(null);
+  const [denied, setDenied] = useState<{ id: string; keys: readonly (keyof ReviewCan)[] }>({ id: "", keys: [] });
   const [full, setFull] = useState<{ code: string; ctor: StudioConstructor | null } | null>(null);
   const [desc, setDesc] = useState<{ key: string; n: number } | null>(null);
   const seq = useRef(0);
@@ -274,7 +278,24 @@ export function useReview(target: ReviewTarget | null, viewer: ApprViewer): Revi
   const missing = useMemo(() => (reviewOpen && model ? missingRequired(model, after, { fileMissing }) : []), [reviewOpen, model, after, fileMissing]);
   const editInReview = useMemo(() => editInReviewOf(detail?.raw), [detail]);
   const row = useMemo(() => (detail ? buildRow(detail, viewer, { items: reg.items, groups: reg.groups }) : (target?.row ?? null)), [detail, viewer, reg.items, reg.groups, target?.row]);
-  const can = useMemo(() => (detail ? reviewCan(detail, viewer, regCtor) : NO_REVIEW), [detail, viewer, regCtor]);
+  const deniedKeys = denied.id === id ? denied.keys : null;
+  const can = useMemo(() => {
+    const out = detail ? reviewCan(detail, viewer, regCtor) : NO_REVIEW;
+    if (!deniedKeys?.length) return out;
+    const masked = { ...out };
+    for (const k of deniedKeys) masked[k] = false;
+    return masked;
+  }, [detail, viewer, regCtor, deniedKeys]);
+  const deny = useCallback(
+    (keys: readonly (keyof ReviewCan)[]) => {
+      if (!id || !keys.length) return;
+      setDenied((d) => {
+        const had = d.id === id ? d.keys : [];
+        return keys.every((k) => had.includes(k)) ? d : { id, keys: [...new Set([...had, ...keys])] };
+      });
+    },
+    [id],
+  );
 
   const addComment = useCallback(
     async (body: string): Promise<boolean> => {
@@ -291,10 +312,11 @@ export function useReview(target: ReviewTarget | null, viewer: ApprViewer): Revi
         logApiError("studio.sx.approvals.comment", e);
         setSending(false);
         setSendError(e);
+        if (studioDenied(e)) deny(["comment"]);
         return false;
       }
     },
-    [id, loadComments],
+    [id, loadComments, deny],
   );
 
   const reloadComments = useCallback(() => void loadComments(), [loadComments]);
@@ -336,5 +358,6 @@ export function useReview(target: ReviewTarget | null, viewer: ApprViewer): Revi
     reloadComments,
     refresh,
     retry,
+    deny,
   };
 }

@@ -199,8 +199,9 @@ export function AgentJobView({
   polling: boolean;
   onRefresh: () => void;
   onNew: () => void;
-  onRetry: () => void;
-  onAnother: () => void;
+  // Absent when this account may not start a job (refused with 403).
+  onRetry?: () => void;
+  onAnother?: () => void;
 }): ReactElement {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
@@ -325,9 +326,11 @@ export function AgentJobView({
               <SxButton size="sm" variant="secondary" icon={ListChecksIcon} onClick={() => document.getElementById("sx-ag-drafts")?.scrollIntoView({ behavior: "smooth", block: "start" })} aiId={`${AI}.partial.review`}>
                 {t("sx.agent.partial.review")}
               </SxButton>
-              <SxButton size="sm" variant="secondary" icon={SparklesIcon} onClick={onAnother} aiId={`${AI}.partial.another`}>
-                {t("sx.agent.partial.another")}
-              </SxButton>
+              {onAnother ? (
+                <SxButton size="sm" variant="secondary" icon={SparklesIcon} onClick={onAnother} aiId={`${AI}.partial.another`}>
+                  {t("sx.agent.partial.another")}
+                </SxButton>
+              ) : null}
             </span>
           }
         >
@@ -340,9 +343,11 @@ export function AgentJobView({
           tone="error"
           title={t("sx.agent.failed.title")}
           action={
-            <SxButton size="sm" variant="secondary" icon={RefreshCwIcon} onClick={onRetry} aiId={`${AI}.retry`}>
-              {t("sx.agent.failed.retry")}
-            </SxButton>
+            onRetry ? (
+              <SxButton size="sm" variant="secondary" icon={RefreshCwIcon} onClick={onRetry} aiId={`${AI}.retry`}>
+                {t("sx.agent.failed.retry")}
+              </SxButton>
+            ) : undefined
           }
         >
           {/* The words only: the job's code, reason and id are never shown (UI law). */}

@@ -9,6 +9,8 @@
 import { asNum, asStr, type Dict } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { profileTabHref } from "@/lib/profileTabs";
+import { isPathHidden } from "@/lib/roleNav";
+import type { CanOptions } from "@/lib/permissions";
 
 export const NOTIF_CATEGORIES = ["all", "orders", "payments", "chat", "documents", "system", "marketing"] as const;
 export type NotifTab = (typeof NOTIF_CATEGORIES)[number];
@@ -167,9 +169,42 @@ export function templateVars(data: Dict, title: string, body: string): NotifTemp
   };
 }
 
+// The admin pages a staff notification can open, with the permission the
+// admin shell gates each on (components/admin/AdminShell.tsx NAV). Longest
+// prefix first.
+const ADMIN_LINK_GATES: readonly [prefix: string, perm: string | readonly string[], opts: CanOptions][] = [
+  ["/admin/call-center/support", "callcenter.access", { roles: ["call_center", "call_center_lawyer"] }],
+  ["/admin/call-center", ["leads.manage", "callcenter.access"], { roles: ["call_center_lawyer"] }],
+  ["/admin/marketplace", "orders.manage", {}],
+];
+
 // Portal route a notification can open, or "" when there is no fitting page.
 // `role` is the UI role (client | lawyer | advocate) that prefixes portal URLs.
-export function notifLink(event: string, category: NotifCategory, data: Dict, role: string, staff = false, callCenter = false): string {
+// Owner law (2026-11-08): a link to a page this account may not open is not
+// offered — a page the role profile lost (GET /me/navigation) never is, and
+// when `allows` (useCan()'s canDo) is given, neither is an admin page whose
+// permission the session lacks.
+export function notifLink(
+  event: string,
+  category: NotifCategory,
+  data: Dict,
+  role: string,
+  staff = false,
+  callCenter = false,
+  allows?: (perm: string | readonly string[], opts?: CanOptions) => boolean,
+): string {
+  const link = rawNotifLink(event, category, data, role, staff, callCenter);
+  if (!link) return "";
+  const path = link.split(/[?#]/)[0];
+  if (isPathHidden(path)) return "";
+  if (allows) {
+    const gate = ADMIN_LINK_GATES.find(([prefix]) => path === prefix || path.startsWith(`${prefix}/`));
+    if (gate && !allows(gate[1], gate[2])) return "";
+  }
+  return link;
+}
+
+function rawNotifLink(event: string, category: NotifCategory, data: Dict, role: string, staff: boolean, callCenter: boolean): string {
   const roomId = asStr(data.room_id).trim();
   if (roomId && (event === "secure_chat_message" || event === "meeting_invite" || category === "chat")) {
     const callId = asStr(data.call_id).trim();

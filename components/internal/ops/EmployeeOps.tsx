@@ -5,6 +5,8 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { saveBlob } from "@/lib/download";
 import { notify } from "@/lib/toast";
+import { useAuth } from "@/lib/auth";
+import { canInternal } from "@/lib/services/internalHrm";
 import { hrmErrorOf } from "@/lib/services/hrm";
 import { employeeLifecycle, exportEmployees, getEmployeeDetail, getReadiness, LIFECYCLE_STATUSES, type Lifecycle } from "@/lib/services/hrmOps";
 import DatePicker from "@/components/DatePicker";
@@ -13,6 +15,7 @@ import InternalField from "@/components/internal/InternalField";
 import { HrmDrawer, HrmError, HrmLoading, HrmPanel, useStatusLabel } from "@/components/internal/HrmUi";
 import { useHrmText } from "@/components/internal/hrm/text";
 import { domainHref } from "@/components/internal/hrm/routes";
+import { useHrmAccess } from "@/components/internal/hrm/access";
 import { useHrmCatalog } from "@/lib/services/hrm";
 import { IconAlert, IconBriefcase, IconCheck, IconClipboardCheck, IconDocLines, IconDownload, IconFileText, IconFolder, IconGraduation, IconLogout, IconRefresh, IconUser, IconUserPlus } from "@/components/icons";
 
@@ -55,12 +58,17 @@ export function ReadinessPanel({ id }: { id: string }) {
   );
 }
 
+// A count without a link looks like the linked ones (.ops-counts a).
+const COUNT_RO = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "9px 11px", borderRadius: 10, background: "var(--dk-surface-2,#F4F6FA)", color: "var(--ink)", fontSize: ".82rem" } as const;
+
 // How many HRM records the person has in each module (record_counts of
 // GET /internal/employees/{id}), each opening its module filtered to them.
 export function ModuleCounts({ id }: { id: string }) {
   const t = useTranslations("internal.ops.ready");
   const { module } = useHrmText();
   const cat = useHrmCatalog();
+  // A module the account may not open is counted, not linked.
+  const { canModule } = useHrmAccess();
   const { data } = useOps((s) => getEmployeeDetail(id, s), [id], ["hrm"]);
   const list = Object.entries(data?.counts ?? {}).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
   if (!data || !list.length) return null;
@@ -69,10 +77,17 @@ export function ModuleCounts({ id }: { id: string }) {
       <ul className="ops-counts">
         {list.map(([d, n]) => (
           <li key={d}>
-            <Link href={`${domainHref(d, "")}${domainHref(d, "").includes("?") ? "&" : "?"}employee=${encodeURIComponent(id)}`}>
-              <span>{module(cat.data?.modules.find((m) => m.key === d) ?? null, d)}</span>
-              <b>{n}</b>
-            </Link>
+            {canModule(d) ? (
+              <Link href={`${domainHref(d, "")}${domainHref(d, "").includes("?") ? "&" : "?"}employee=${encodeURIComponent(id)}`}>
+                <span>{module(cat.data?.modules.find((m) => m.key === d) ?? null, d)}</span>
+                <b>{n}</b>
+              </Link>
+            ) : (
+              <span style={COUNT_RO}>
+                <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{module(cat.data?.modules.find((m) => m.key === d) ?? null, d)}</span>
+                <b>{n}</b>
+              </span>
+            )}
           </li>
         ))}
       </ul>
@@ -89,9 +104,14 @@ export function lifecycleFor(status: string): Lifecycle[] {
   return ["status", "dismiss"];
 }
 
+// Hiring, moving and dismissing someone (POST /internal/employees/{id}/…)
+// is employee management: internal_hr.manage (10-08 guide). Without it
+// nothing is rendered.
 export function LifecycleButtons({ id, name, status, onDone }: { id: string; name: string; status: string; onDone: () => void }) {
   const t = useTranslations("internal.ops.life");
+  const { session } = useAuth();
   const [open, setOpen] = useState<Lifecycle | "">("");
+  if (!canInternal(session, "internal_hr.manage")) return null;
   const Icon = { hire: IconUserPlus, status: IconRefresh, dismiss: IconLogout, reinstate: IconUserPlus } as const;
   return (
     <>
@@ -171,9 +191,12 @@ function LifecycleDrawer({ id, name, action, current, onClose, onDone }: { id: s
 }
 
 // GET /internal/employees/export.xlsx — the file keeps the server's name.
+// The staff list file is the HR list's (internal_hr.manage).
 export function ExportEmployeesButton() {
   const t = useTranslations("internal.ops.life");
+  const { session } = useAuth();
   const [busy, setBusy] = useState(false);
+  if (!canInternal(session, "internal_hr.manage")) return null;
   return (
     <button
       type="button"

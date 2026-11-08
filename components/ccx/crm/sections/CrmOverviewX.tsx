@@ -202,7 +202,7 @@ export default function CrmOverviewX({ meta }: CrmSectionProps) {
             </div>
           )}
         </section>
-      ) : (
+      ) : crmCan(meta, "crm.analytics.self") ? (
         <Link href={crmHref("performance")} className="opx-ov-row opx-ov-solo">
           <span className="opx-ov-time" aria-hidden="true">
             <IcAward size={22} />
@@ -214,7 +214,7 @@ export default function CrmOverviewX({ meta }: CrmSectionProps) {
             <IcArrowRight size={20} />
           </span>
         </Link>
-      )}
+      ) : null}
     </div>
   );
 }

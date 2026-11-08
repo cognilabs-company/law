@@ -3,7 +3,7 @@
 import "./WcDecide.css";
 import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { ApiError, errDetail, logApiError } from "@/lib/http";
+import { ApiError, errDetail, isForbidden, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { shortDateTime } from "@/lib/date";
 import PersonName from "@/components/ui/PersonName";
@@ -119,7 +119,8 @@ export default function EscalationDecide({ job, item: esc, onDone, onClose, onDi
   const t = useTranslations("callCenter.escalations");
   const tx = useTranslations("admin.ccx.panel");
   const tc = useTranslations("admin.ccx.cases");
-  const none = useTranslations("common")("none");
+  const tcm = useTranslations("common");
+  const none = tcm("none");
   const locale = useLocale();
   const once = useSameTickGuard();
   const slot = useRef<IdemSlot["current"]>(null);
@@ -134,9 +135,12 @@ export default function EscalationDecide({ job, item: esc, onDone, onClose, onDi
   const [busy, setBusy] = useState(false);
   const [lost, setLost] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // A 403 means this account may not rule here (any more): the decision
+  // leaves the panel instead of being offered again.
+  const [denied, setDenied] = useState(false);
 
   const o = esc.order;
-  const acts = esc.actions.filter((a) => (ESCALATION_ACTIONS as readonly string[]).includes(a));
+  const acts: EscalationAction[] = denied ? [] : esc.actions.filter((a) => (ESCALATION_ACTIONS as readonly string[]).includes(a));
   const act = action && acts.includes(action) ? action : "";
   const danger = act === "cancel" || act === "full_refund";
   const offer = esc.resolution?.offer ?? null;
@@ -208,6 +212,13 @@ export default function EscalationDecide({ job, item: esc, onDone, onClose, onDi
         return;
       }
       logApiError("escalation.resolve", e);
+      if (isForbidden(e)) {
+        setDenied(true);
+        setAction("");
+        onDirty(false);
+        setErr(errDetail(e) || tcm("forbidden"));
+        return;
+      }
       const gone = idemLost(e);
       setLost(gone);
       setErr(gone ? t("err.lost") : e instanceof ApiError && e.code === "no_eligible_marketplace_candidate" ? t("err.noCandidate") : errDetail(e));
@@ -373,6 +384,8 @@ export default function EscalationDecide({ job, item: esc, onDone, onClose, onDi
                   </Note>
                 ) : null}
               </>
+            ) : denied ? (
+              <Note tone="bad">{err}</Note>
             ) : (
               <p className="opx-pnone">{t("noActions")}</p>
             )}

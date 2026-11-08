@@ -9,7 +9,7 @@ import { SxButton, SxLinkButton } from "@/components/admin/studio/sx/Button";
 import { SxDialog, SxDialogError, type SxDialogErrorText } from "@/components/admin/studio/sx/editor/SxDialog";
 import { Field } from "@/components/admin/studio/sx/form/Field";
 import { TextArea } from "@/components/admin/studio/sx/form/TextArea";
-import { errDetail, parseServerTime } from "@/lib/http";
+import { errDetail, isForbidden, parseServerTime } from "@/lib/http";
 import { startCall } from "@/lib/services/backend";
 import { cancelMarketplaceOrder, marketChatHref, type MarketOrder, type MarketPhase } from "@/lib/services/marketplace";
 import type { OrderChecklist } from "@/lib/services/marketRuntime";
@@ -19,6 +19,7 @@ import { useMarketError } from "../useMarketError";
 import ContactAdvocate, { callStateOf } from "./ContactAdvocate";
 import { MessageSquareTextIcon, CircleCheckIcon, CoinsIcon, PhoneIcon, VideoIcon, XIcon } from "./icons";
 import type { OrderView } from "./types";
+import { markRefused, useRefused } from "./refused";
 
 const REASON_MAX = 500;
 const WORK_PHASES: ReadonlySet<MarketPhase> = new Set<MarketPhase>(["paid", "in_progress"]);
@@ -56,16 +57,20 @@ export default function OrderActions({
   const [reason, setReason] = useState("");
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancelErr, setCancelErr] = useState<SxDialogErrorText>(null);
+  const refusedFor = useRefused();
 
   const seller = view === "seller";
   const chat = o.canStartChat ? "open" : o.roomId && o.chatReadOnly ? "view" : "";
-  const calls = o.canCreateCall && o.callsAllowed && !CLOSED_PHASES.has(phase);
+  const calls = o.canCreateCall && o.callsAllowed && !CLOSED_PHASES.has(phase) && !refusedFor(o.id, "call");
   const contact = !seller && chat === "open";
-  const supplemental = seller && WORK_PHASES.has(phase) && !o.workPaused && !!(o.serviceId || o.packageId);
-  const complete = seller && o.canComplete && (o.explicit.complete ? !CLOSED_PHASES.has(phase) : phase === "in_progress" || (phase === "paid" && !o.canStart));
-  const cancel = o.canCancel && (o.explicit.cancel ? !CLOSED_PHASES.has(phase) && phase !== "review" : view === "client" && phase === "pending");
+  const supplemental = seller && WORK_PHASES.has(phase) && !o.workPaused && !!(o.serviceId || o.packageId) && !refusedFor(o.id, "supplemental");
+  const complete = seller && o.canComplete && !refusedFor(o.id, "complete") && (o.explicit.complete ? !CLOSED_PHASES.has(phase) : phase === "in_progress" || (phase === "paid" && !o.canStart));
+  const cancel = o.canCancel && !refusedFor(o.id, "cancel") && (o.explicit.cancel ? !CLOSED_PHASES.has(phase) && phase !== "review" : view === "client" && phase === "pending");
 
-  if (!chat && !calls && !supplemental && !complete && !cancel) return null;
+  const anyAction = !!chat || calls || supplemental || complete || cancel;
+  // A dialog whose action was just refused stays up to show why; the panel
+  // itself goes once nothing is left in it.
+  if (!anyAction && !cancelOpen && !completeOpen && !supOpen) return null;
 
   const counterpartId = view === "client" ? o.lawyerUserId : o.clientUserId;
 
@@ -79,6 +84,7 @@ export default function OrderActions({
     } catch (e) {
       setCallErr(errDetail(e) || to("callError"));
       setCalling("");
+      if (isForbidden(e)) markRefused(o.id, "call");
     }
   }
 
@@ -102,57 +108,15 @@ export default function OrderActions({
       const fallback = to("cancelError");
       const msg = marketErr(e, fallback);
       setCancelErr({ title: fallback, text: msg === fallback ? "" : msg });
+      // Refused: the dialog keeps the message; the Cancel button is gone.
+      if (isForbidden(e)) markRefused(o.id, "cancel");
     } finally {
       setCancelBusy(false);
     }
   }
 
-  return (
-    <SxPanel title={t("actions.title")} className="mod-actions" as="section">
-      <div className="mod-actions__list">
-        {contact ? (
-          <ContactAdvocate tone="sx" chatHref={marketChatHref(o)} roomId={o.roomId} callTitle={o.serviceTitle || o.workId || "LexGo"} counterpartId={counterpartId} calls={CLOSED_PHASES.has(phase) ? "closed" : callStateOf(o)} callTypes={o.callTypes} aiId={`${aiBase}.contact`} chatAiId={`${aiBase}.chat`} />
-        ) : chat ? (
-          <SxLinkButton variant={chat === "open" ? "primary" : "secondary"} icon={MessageSquareTextIcon} href={marketChatHref(o)} aiId={`${aiBase}.chat`}>
-            {chat === "open" ? to("openChat") : t("actions.viewChat")}
-          </SxLinkButton>
-        ) : null}
-        {calls && !contact ? (
-          <div className="mod-actions__calls" role="group" aria-label={to("call")} data-ai-id={`${aiBase}.call`} data-ai-type="call_button" data-ai-label={to("call")}>
-            {o.callTypes.includes("audio") ? (
-              <SxButton icon={PhoneIcon} disabled={!!calling} onClick={() => void call("audio")}>
-                {calling === "audio" ? to("calling") : to("audio")}
-              </SxButton>
-            ) : null}
-            {o.callTypes.includes("video") ? (
-              <SxButton icon={VideoIcon} disabled={!!calling} onClick={() => void call("video")}>
-                {calling === "video" ? to("calling") : to("video")}
-              </SxButton>
-            ) : null}
-          </div>
-        ) : null}
-        {callErr ? (
-          <SxNote tone="error" role="alert">
-            {callErr}
-          </SxNote>
-        ) : null}
-        {supplemental ? (
-          <SxButton icon={CoinsIcon} onClick={() => setSupOpen(true)} aiId={`${aiBase}.supplemental`}>
-            {to("supplemental")}
-          </SxButton>
-        ) : null}
-        {complete ? (
-          <SxButton variant="primary" icon={CircleCheckIcon} disabled={o.workPaused} title={o.workPaused ? to("pausedHint") : undefined} onClick={() => setCompleteOpen(true)} aiId={`${aiBase}.complete`}>
-            {to("complete")}
-          </SxButton>
-        ) : null}
-        {cancel ? (
-          <SxButton variant="danger" icon={XIcon} onClick={() => setCancelOpen(true)} aiId={`${aiBase}.cancel`}>
-            {to("cancel")}
-          </SxButton>
-        ) : null}
-      </div>
-
+  const dialogs = (
+    <>
       {seller ? (
         <SupplementalDialog
           order={supOpen ? o : null}
@@ -196,9 +160,11 @@ export default function OrderActions({
           aiId={`${aiBase}.cancel-modal`}
           footer={
             <>
-              <SxButton variant="danger" busy={cancelBusy} onClick={() => void runCancel()}>
-                {cancelBusy ? to("cancelling") : to("cancelConfirm")}
-              </SxButton>
+              {refusedFor(o.id, "cancel") ? null : (
+                <SxButton variant="danger" busy={cancelBusy} onClick={() => void runCancel()}>
+                  {cancelBusy ? to("cancelling") : to("cancelConfirm")}
+                </SxButton>
+              )}
               <SxButton variant="ghost" disabled={cancelBusy} onClick={closeCancel}>
                 {to("keep")}
               </SxButton>
@@ -211,6 +177,58 @@ export default function OrderActions({
           <SxDialogError error={cancelErr} />
         </SxDialog>
       ) : null}
+    </>
+  );
+
+  if (!anyAction) return dialogs;
+
+  return (
+    <SxPanel title={t("actions.title")} className="mod-actions" as="section">
+      <div className="mod-actions__list">
+        {contact ? (
+          <ContactAdvocate tone="sx" chatHref={marketChatHref(o)} roomId={o.roomId} callTitle={o.serviceTitle || o.workId || "LexGo"} counterpartId={counterpartId} calls={CLOSED_PHASES.has(phase) ? "closed" : refusedFor(o.id, "call") ? "unavailable" : callStateOf(o)} callTypes={o.callTypes} aiId={`${aiBase}.contact`} chatAiId={`${aiBase}.chat`} />
+        ) : chat ? (
+          <SxLinkButton variant={chat === "open" ? "primary" : "secondary"} icon={MessageSquareTextIcon} href={marketChatHref(o)} aiId={`${aiBase}.chat`}>
+            {chat === "open" ? to("openChat") : t("actions.viewChat")}
+          </SxLinkButton>
+        ) : null}
+        {calls && !contact ? (
+          <div className="mod-actions__calls" role="group" aria-label={to("call")} data-ai-id={`${aiBase}.call`} data-ai-type="call_button" data-ai-label={to("call")}>
+            {o.callTypes.includes("audio") ? (
+              <SxButton icon={PhoneIcon} disabled={!!calling} onClick={() => void call("audio")}>
+                {calling === "audio" ? to("calling") : to("audio")}
+              </SxButton>
+            ) : null}
+            {o.callTypes.includes("video") ? (
+              <SxButton icon={VideoIcon} disabled={!!calling} onClick={() => void call("video")}>
+                {calling === "video" ? to("calling") : to("video")}
+              </SxButton>
+            ) : null}
+          </div>
+        ) : null}
+        {callErr ? (
+          <SxNote tone="error" role="alert">
+            {callErr}
+          </SxNote>
+        ) : null}
+        {supplemental ? (
+          <SxButton icon={CoinsIcon} onClick={() => setSupOpen(true)} aiId={`${aiBase}.supplemental`}>
+            {to("supplemental")}
+          </SxButton>
+        ) : null}
+        {complete ? (
+          <SxButton variant="primary" icon={CircleCheckIcon} disabled={o.workPaused} title={o.workPaused ? to("pausedHint") : undefined} onClick={() => setCompleteOpen(true)} aiId={`${aiBase}.complete`}>
+            {to("complete")}
+          </SxButton>
+        ) : null}
+        {cancel ? (
+          <SxButton variant="danger" icon={XIcon} onClick={() => setCancelOpen(true)} aiId={`${aiBase}.cancel`}>
+            {to("cancel")}
+          </SxButton>
+        ) : null}
+      </div>
+
+      {dialogs}
     </SxPanel>
   );
 }

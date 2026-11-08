@@ -6,7 +6,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
 import { IconAlert, IconCard, IconChat, IconCheck, IconChevronDown, IconChevronLeft, IconClock, IconClose, IconExternal, IconHourglass, IconPhone, IconRefresh, IconSend, IconUsers, IconVideo } from "@/components/icons";
-import { ApiError, errDetail } from "@/lib/http";
+import { ApiError, errDetail, isForbidden } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { setReturnTo } from "@/lib/returnTo";
 import {
@@ -119,6 +119,9 @@ export default function PurchaseDialog({
   const onAttachBusy = useCallback((b: boolean) => setAttaching(b), []);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  // The backend refused this account the purchase (403): the reason stays,
+  // the submit buttons go.
+  const [refused, setRefused] = useState(false);
   const [done, setDone] = useState<MarketPurchase | null>(null);
   const [active, setActive] = useState<ActivePurchase | null>(null);
   const [price, setPrice] = useState<PriceState>(EMPTY_PRICE);
@@ -138,6 +141,7 @@ export default function PurchaseDialog({
     setFiles([]);
     setVoices([]);
     setErr("");
+    setRefused(false);
     setDone(null);
     setActive(null);
     setPrice(EMPTY_PRICE);
@@ -192,7 +196,7 @@ export default function PurchaseDialog({
   }
 
   async function submit(via: PurchaseProvider = provider) {
-    if (busy || done || !service || price.pending || price.failed || attaching) return;
+    if (busy || done || refused || !service || price.pending || price.failed || attaching) return;
     if (findContacts(note).length) return;
     if (note.length > NOTE_MAX) {
       setErr(t("noteTooLong"));
@@ -214,6 +218,9 @@ export default function PurchaseDialog({
       const act = activePurchaseOf(e);
       if (act) {
         setActive(act);
+      } else if (isForbidden(e)) {
+        setErr(marketErr(e, t("error")));
+        setRefused(true);
       } else if (e instanceof ApiError && e.status === 401) {
         setReturnTo(returnPath);
         router.push("/login");
@@ -551,7 +558,7 @@ export default function PurchaseDialog({
               </div>
             </fieldset>
             <p className="mk-buy__note">{auto ? t("autoNote") : t("totalNote")}</p>
-            {provErr ? (
+            {provErr && !refused ? (
               <div className="mk-pay__fallback" role="alert">
                 <IconAlert aria-hidden="true" />
                 <span>
@@ -574,9 +581,9 @@ export default function PurchaseDialog({
               </div>
             ) : null}
             {err ? <Notice ok={false} msg={err} /> : null}
-            <button type="submit" className="btn btn--grad btn--full btn--lg" disabled={busy || price.pending || price.failed || attaching} data-ai-target="button:marketplace-purchase-submit" data-ai-id="marketplace.purchase.submit" data-ai-entity-type={pkg ? "marketplace_package" : "marketplace_service"} data-ai-entity-id={service.id}>
+            {refused ? null : <button type="submit" className="btn btn--grad btn--full btn--lg" disabled={busy || price.pending || price.failed || attaching} data-ai-target="button:marketplace-purchase-submit" data-ai-id="marketplace.purchase.submit" data-ai-entity-type={pkg ? "marketplace_package" : "marketplace_service"} data-ai-entity-id={service.id}>
               {busy ? t("sending") : price.pending ? t("pricing") : auto ? t("autoSubmit") : t("submit")}
-            </button>
+            </button>}
             {auto ? (
               <button type="button" className="btn btn--line btn--full" onClick={auto.onChooseMyself} disabled={busy} data-ai-id="marketplace.purchase.choose-myself">
                 {t("chooseMyself")}

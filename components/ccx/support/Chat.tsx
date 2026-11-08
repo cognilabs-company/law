@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useId, useRef, useState, type KeyboardEvent } from "react";
+import { Fragment, useRef, useState, type KeyboardEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { aiId } from "@/lib/ai/ids";
 import { dateOnly, dateTimeFull, timeOnly } from "@/lib/date";
@@ -41,7 +41,6 @@ export function ChatHead({ ticket, mine, isOpen, claimable, busy, transferOff, g
   const t = useTranslations("support");
   const tx = useTranslations("admin.ccx.support");
   const labels = useSupportLabels();
-  const uid = useId();
   const known = Boolean(ticket.status);
   const title = ticketTitle(ticket, t("untitled"));
   const status = ticket.status ? (t.has(`status.${ticket.status}`) ? t(`status.${ticket.status}`) : humanize(ticket.status)) : "";
@@ -101,19 +100,22 @@ export function ChatHead({ ticket, mine, isOpen, claimable, busy, transferOff, g
         <div className="opx-sx-chead__acts">
           {own ? (
             <>
-              <button
-                type="button"
-                className="opx-pbtn opx-sx-act"
-                disabled={busy || transferOff}
-                aria-label={t("transfer")}
-                title={transferOff ? t("queue.transferOff") : t("transfer")}
-                aria-describedby={transferOff ? `${uid}-noxfer` : undefined}
-                onClick={onTransfer}
-                data-ai-id={aiId("call_center.support.ticket", tid, "transfer")}
-              >
-                <IcSwap size={16} />
-                <span className="opx-sx-act__l">{tx("transferShort")}</span>
-              </button>
+              {/* Transfer follows the ticket's operator_transfer capability:
+                  not offered at all when the backend says no. */}
+              {transferOff ? null : (
+                <button
+                  type="button"
+                  className="opx-pbtn opx-sx-act"
+                  disabled={busy}
+                  aria-label={t("transfer")}
+                  title={t("transfer")}
+                  onClick={onTransfer}
+                  data-ai-id={aiId("call_center.support.ticket", tid, "transfer")}
+                >
+                  <IcSwap size={16} />
+                  <span className="opx-sx-act__l">{tx("transferShort")}</span>
+                </button>
+              )}
               <button
                 type="button"
                 className="opx-pbtn opx-sx-act"
@@ -152,14 +154,8 @@ export function ChatHead({ ticket, mine, isOpen, claimable, busy, transferOff, g
           ) : null}
         </div>
       ) : null}
-      {(own && transferOff) || reason ? (
+      {reason ? (
         <div className="opx-sx-notes">
-          {own && transferOff ? (
-            <p className="opx-sx-note" id={`${uid}-noxfer`}>
-              <IcLock size={15} />
-              <span>{t("queue.transferOff")}</span>
-            </p>
-          ) : null}
           {reason ? (
             <p className="opx-sx-note" data-tone="info" data-ai-private>
               <b>{reason.label}:</b>
@@ -379,14 +375,21 @@ export function Composer({ chat, ticket, canWrite, claimable }: { chat: TicketCh
     void submit();
   };
 
-  return (
-    <div className="opx-sx-compose">
-      {!canWrite && known && !claimable ? (
+  // Only the ticket's own operator writes (assignee-only on the backend):
+  // everyone else reads, with no disabled composer left on screen.
+  if (!writable) {
+    return !canWrite && known && !claimable ? (
+      <div className="opx-sx-compose">
         <p className="opx-sx-ro">
           <IcLock size={15} />
           <span>{t("readOnly")}</span>
         </p>
-      ) : null}
+      </div>
+    ) : null;
+  }
+
+  return (
+    <div className="opx-sx-compose">
       {writable ? (
         <div className="opx-sx-quick" role="group" aria-label={tx("quickLabel")}>
           <span>{tx("quickLabel")}</span>

@@ -15,7 +15,7 @@ import { TagsInput } from "@/components/admin/studio/sx/form/TagsInput";
 import { TextArea } from "@/components/admin/studio/sx/form/TextArea";
 import { glyph } from "@/components/admin/studio/sx/icons";
 import { aiId as makeAiId } from "@/lib/ai/ids";
-import { isAborted } from "@/lib/http";
+import { isAborted, isForbidden } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { notify } from "@/lib/toast";
 import {
@@ -179,8 +179,9 @@ export function GroupOpinionDialog({
       .catch((e: unknown) => {
         if (ctrl.signal.aborted || isAborted(e)) return;
         const info = groupErrorOf(e);
-        if (info.kind === "unavailable" || info.kind === "not_found") {
-          goneRef.current(info);
+        // 403: not this account's to request — the offer leaves like an unavailable one.
+        if (info.kind === "unavailable" || info.kind === "not_found" || isForbidden(e)) {
+          goneRef.current(isForbidden(e) ? { ...info, kind: "unavailable" } : info);
           return;
         }
         if (info.kind === "ineligible") setBlocked(t("errors.ineligible"));
@@ -224,8 +225,8 @@ export function GroupOpinionDialog({
 
   const failWith = (e: unknown, fallback: string) => {
     const info = groupErrorOf(e);
-    if (info.kind === "unavailable" || info.kind === "not_found") {
-      onGone(info);
+    if (info.kind === "unavailable" || info.kind === "not_found" || isForbidden(e)) {
+      onGone(isForbidden(e) ? { ...info, kind: "unavailable" } : info);
       return;
     }
     if (info.kind === "placement") {
@@ -312,18 +313,22 @@ export function GroupOpinionDialog({
       </SxButton>
     ) : step === "select" ? (
       <>
-        <SxButton variant="primary" busy={busy} disabled={!!blocked} onClick={() => void askQuote()} aria-describedby={error ? errId : undefined} aiId={`${ai}.quote`}>
-          {busy ? t("quoting") : t("quote")}
-        </SxButton>
+        {blocked ? null : (
+          <SxButton variant="primary" busy={busy} onClick={() => void askQuote()} aria-describedby={error ? errId : undefined} aiId={`${ai}.quote`}>
+            {busy ? t("quoting") : t("quote")}
+          </SxButton>
+        )}
         <SxButton variant="ghost" onClick={onClose} disabled={busy} aiId={`${ai}.cancel`}>
           {t("cancel")}
         </SxButton>
       </>
     ) : (
       <>
-        <SxButton variant="primary" busy={busy} disabled={!liveQuote || !!blocked} onClick={() => void submit()} aria-describedby={error ? errId : undefined} aiId={`${ai}.submit`}>
-          {busy ? t("sending") : t("submit")}
-        </SxButton>
+        {blocked ? null : (
+          <SxButton variant="primary" busy={busy} disabled={!liveQuote} onClick={() => void submit()} aria-describedby={error ? errId : undefined} aiId={`${ai}.submit`}>
+            {busy ? t("sending") : t("submit")}
+          </SxButton>
+        )}
         <SxButton
           variant="ghost"
           onClick={() => {

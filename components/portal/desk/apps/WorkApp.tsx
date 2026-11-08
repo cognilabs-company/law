@@ -26,7 +26,7 @@ export function workShortcut(w: WorkItem) {
 // in an info pane with the way to it, its chat and the copilot focused on
 // it. A row dragged onto the desk becomes a shortcut. A read-only view:
 // every change happens in the work's own page.
-export default function WorkApp({ onOpen, onChat, onCopilot, onShortcut }: { onOpen: (link: DeskLink, title: string) => void; onChat: (roomId: string) => void; onCopilot: (w: WorkItem) => void; onShortcut?: (w: WorkItem) => void }) {
+export default function WorkApp({ onOpen, onChat, onCopilot, onShortcut }: { onOpen: (link: DeskLink, title: string) => void; onChat: (roomId: string) => void; onCopilot?: (w: WorkItem) => void; onShortcut?: (w: WorkItem) => void }) {
   const t = useTranslations("portal.desk.work");
   const tc = useTranslations("portal.desk.copilot");
   const locale = useLocale();
@@ -77,7 +77,7 @@ export default function WorkApp({ onOpen, onChat, onCopilot, onShortcut }: { onO
     setSel(w.id);
     menu?.(e, w.title || w.code, [
       { id: "open", label: t("open"), icon: <IconArrowRight />, onSelect: () => onOpen(w.link, w.title) },
-      { id: "cop", label: t("askCopilot"), icon: <IconSparkle />, onSelect: () => onCopilot(w) },
+      ...(onCopilot ? [{ id: "cop", label: t("askCopilot"), icon: <IconSparkle />, onSelect: () => onCopilot(w) }] : []),
       ...(w.chatRoomId ? [{ id: "chat", label: t("chat"), icon: <IconChat />, onSelect: () => onChat(w.chatRoomId) }] : []),
       ...(onShortcut && w.link.route ? [{ id: "desk", label: t("toDesktop"), icon: <IconPlus />, onSelect: () => onShortcut(w) }] : []),
     ]);
@@ -127,9 +127,11 @@ export default function WorkApp({ onOpen, onChat, onCopilot, onShortcut }: { onO
               <Btn kind="primary" icon={<IconArrowRight />} onClick={() => onOpen(cur.link, cur.title)}>
                 {t("open")}
               </Btn>
-              <Btn icon={<IconSparkle />} onClick={() => onCopilot(cur)}>
-                {t("askCopilot")}
-              </Btn>
+              {onCopilot ? (
+                <Btn icon={<IconSparkle />} onClick={() => onCopilot(cur)}>
+                  {t("askCopilot")}
+                </Btn>
+              ) : null}
               {cur.chatRoomId ? (
                 <Btn icon={<IconChat />} onClick={() => onChat(cur.chatRoomId)}>
                   {t("chat")}

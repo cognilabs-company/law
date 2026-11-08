@@ -8,7 +8,7 @@ import { useResourceOne } from "@/lib/useResource";
 import { getQualityOverview } from "@/lib/services/backend";
 import { fmtUzsShort } from "@/lib/money";
 import { fmtDate, fmtNum, fmtPct, monthNames, shortDate } from "@/lib/date";
-import { ApiError, isAborted } from "@/lib/http";
+import { ApiError, isAborted, isForbidden } from "@/lib/http";
 import { humanizeSlug } from "@/lib/lawyers";
 import { leadSourceInfo, sourceGroup, type SourceGroup } from "@/lib/leadLabels";
 import { useAiSelection } from "@/lib/ai/registry";
@@ -18,6 +18,7 @@ import StatDrillModal, { type Drill, type DrillRow } from "@/components/admin/St
 import { EmptyState, ErrorState } from "@/components/portal/DataState";
 import Segmented from "@/components/ui/Segmented";
 import Menu, { type MenuEntry } from "@/components/ui/Menu";
+import { useCan } from "@/lib/useCan";
 import { IconAlert, IconArrowRight, IconChartBar, IconDownload, IconList, IconRefresh } from "@/components/icons";
 
 const GIFT0 = { giftPurchases: 0, giftActivationRate: 0, recipientConversion: 0, giftToPaidConversion: 0, averageGiftValue: 0, referralRate: 0, giftCac: 0, giftLtv: 0 };
@@ -375,7 +376,10 @@ export default function AdminCeo() {
   // TSK-328538: the KPIs for a chosen period (both ends picked), else all time.
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const canDo = useCan();
   const [exporting, setExporting] = useState(false);
+  // A 403 on the export keeps its message and takes the entry off the menu.
+  const [exportDenied, setExportDenied] = useState(false);
   const exportingRef = useRef(false);
   const ranged = !!from && !!to;
   const filter = ranged ? { ...EMPTY_FILTER, from, to } : undefined;
@@ -589,7 +593,9 @@ export default function AdminCeo() {
         { kind: "steps", title: tr("steps"), rows: steps.map((s) => ({ label: stage(s.key), value: num(s.value), n: s.value, sub: s.sub })) },
         { kind: "note", text: tr("paidLine", { n: num(paid), count: paid }) },
       ],
-      link: { href: "/admin/crm/leads?tab=all&view=board", label: td("drill.goPipeline"), primary: true },
+      // The CRM leads page needs crm.leads.view (AdminShell NAV); without it
+      // the link would only bounce back, so it isn't offered.
+      link: canDo("crm.leads.view") ? { href: "/admin/crm/leads?tab=all&view=board", label: td("drill.goPipeline"), primary: true } : undefined,
     });
   const more = (onClick: () => void, label: string) => (
     <button type="button" className="ceo-more" onClick={onClick} aria-label={`${td("drill.details")}: ${label}`}>
@@ -672,7 +678,7 @@ export default function AdminCeo() {
   ];
   const actions: MenuEntry[] = [
     { key: "refresh", label: tr("refresh"), icon: <IconRefresh />, onSelect: retry, aiId: "admin.ceo.actions.refresh" },
-    {
+    ...(exportDenied ? [] : [{
       key: "export",
       label: exporting ? tr("exporting") : tr("export"),
       icon: <IconDownload />,
@@ -684,14 +690,17 @@ export default function AdminCeo() {
         setExporting(true);
         downloadCeoExport(filter)
           .then(() => notify.success(tr("exported"), { id: "ceo-export" }))
-          .catch((e) => notify.error(tr("exportFailed"), { id: "ceo-export", error: e }))
+          .catch((e) => {
+            if (isForbidden(e)) setExportDenied(true);
+            notify.error(tr("exportFailed"), { id: "ceo-export", error: e });
+          })
           .finally(() => {
             exportingRef.current = false;
             setExporting(false);
           });
       },
       aiId: "admin.ceo.actions.export",
-    },
+    } satisfies MenuEntry]),
   ];
 
   return (

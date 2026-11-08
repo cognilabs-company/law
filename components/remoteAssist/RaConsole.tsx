@@ -7,7 +7,7 @@ import { Link } from "@/i18n/navigation";
 import { toast } from "@/lib/toast";
 import { errorText } from "@/lib/errorText";
 import { timeOnly } from "@/lib/date";
-import { asDict, asNum, asStr, parseServerTime, ApiError, type Dict } from "@/lib/http";
+import { asDict, asNum, asStr, parseServerTime, ApiError, isForbidden, type Dict } from "@/lib/http";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import Select from "@/components/Select";
 import { humanize } from "@/lib/labels";
@@ -163,6 +163,10 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
   const [retry, setRetry] = useState<Intent | null>(null);
   // Components the backend called secret: never offered again this session.
   const [blocked, setBlocked] = useState<string[]>([]);
+  // What the backend refused for lack of permission in this console (owner
+  // law 2026-11-08: the action then leaves the screen, it is not offered again).
+  const [refused, setRefused] = useState<ReadonlySet<"request" | "command" | "end">>(() => new Set());
+  const refuse = (k: "request" | "command" | "end") => setRefused((r) => new Set(r).add(k));
   // 429: no command (or request) before the backend's retry_after_seconds.
   const [coolUntil, setCoolUntil] = useState(0);
   const sid = state.sessionId;
@@ -288,6 +292,12 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
   const failLabel = (s: string) => (t.has(`fail.${s}`) ? t(`fail.${s}`) : s.replace(/^remote_assist_/, "").replace(/_/g, " "));
   const pageLabel = (p: string) => (t.has(`pages.${raKey(p)}`) ? t(`pages.${raKey(p)}`) : p);
   const cooling = coolUntil > now;
+  // A refusal of the action itself — not a 2FA, rate-limit or object-state
+  // answer, which keep their own messages and the control.
+  const isRefusal = (e: unknown) => {
+    const code = raErrorCode(e);
+    return code === "remote_assist_permission_required" || code === "remote_assist_assigned_operator_required" || (isForbidden(e) && !code);
+  };
   const holdOff = useCallback((e: unknown) => {
     if (raErrorCode(e) !== "remote_assist_rate_limit") return;
     const at = Date.now();
@@ -318,6 +328,7 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
       const code = raErrorCode(e);
       const existing = asStr(raErrorDetail(e).session_id);
       holdOff(e);
+      if (isRefusal(e)) refuse("request");
       if (code === "remote_assist_session_already_active" && existing) {
         patchRaConsole({ sessionId: existing, open: true });
         toast(t("errors.remote_assist_session_already_active"), { tone: "info" });
@@ -330,8 +341,13 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
   // ---- commands ----
 
   const granted = useMemo(() => (session ? raGrantedActions(meta, session.mode, session.grantedScopes) : new Set<string>()), [meta, session]);
-  const canCommand = phase === "active" && session?.caps?.canCommand === true && Boolean(mirror) && !cooling;
-  const canDraw = phase === "active" && session?.caps?.canCommand === true && !cooling;
+  // mayCommand: the session grants this operator commands at all (can_command);
+  // without it no command control is rendered. canCommand/canDraw add the
+  // moment-to-moment state (active, mirror known, not cooling down).
+  const mayCommand = session?.caps?.canCommand === true && !refused.has("command");
+  const mayEnd = session?.caps?.canEnd !== false && !refused.has("end");
+  const canCommand = phase === "active" && mayCommand && Boolean(mirror) && !cooling;
+  const canDraw = phase === "active" && mayCommand && !cooling;
   const clientId = session?.client.id ?? "";
   const operatorId = session?.operator.id ?? "";
 
@@ -392,6 +408,7 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
         setRetry(null);
         holdOff(e);
         if (code === "remote_assist_secret_component_blocked" && intent.componentId) setBlocked((cur) => [...cur, intent.componentId]);
+        if (isRefusal(e)) refuse("command");
         if (code === "remote_assist_ui_revision_conflict" || code === "remote_assist_command_expired") refresh();
         toast(codeText(e), { tone: "err" });
       }
@@ -429,6 +446,7 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
       takeSession(await endRemoteAssist(session.id, "Operator ended the session"));
       refresh();
     } catch (e) {
+      if (isRefusal(e)) refuse("end");
       toast(codeText(e), { tone: "err" });
       refresh();
     } finally {
@@ -474,7 +492,7 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
   const seen = Number.isFinite(seenAt) ? Math.max(0, Math.round((now - seenAt) / 1000)) : null;
   const who = state.clientName || session?.client.name || t("op.client");
   const tone = phase === "active" ? "live" : phase === "paused" || phase === "pending" ? "wait" : phase === "closed" ? "off" : "idle";
-  const canRequest = meta.loaded && meta.capabilities.request !== false;
+  const canRequest = meta.loaded && meta.capabilities.request !== false && !refused.has("request");
 
   if (!state.open) {
     return (
@@ -653,7 +671,7 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
               </span>
             ))}
           </div>
-          {session.caps?.canEnd !== false ? (
+          {mayEnd ? (
             <button type="button" className="btn btn--line btn--sm" onClick={() => void end()} disabled={Boolean(busy)}>
               {t("op.cancelRequest")}
             </button>
@@ -666,6 +684,7 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
             clientId={clientId}
             share={clientShare}
             canDraw={canDraw}
+            tools={mayCommand}
             pageTitle={mirror ? pageLabel(mirror.pageId) : t("op.waitingScreen")}
             route={mirror?.route ?? ""}
             onHit={onProbeHit}
@@ -689,7 +708,7 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
               <IconPause aria-hidden="true" />
               <span>{t("op.pausedNote")}</span>
             </div>
-          ) : !session.caps?.canCommand ? (
+          ) : !mayCommand ? (
             <div className="ra-note ra-note--warn ra-con__pad">
               <IconLock aria-hidden="true" />
               <span>{t("op.noCommand")}</span>
@@ -722,7 +741,7 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
 
           {tab === "pages" ? (
             <div className="ra-con__body ra-con__body--list">
-              <RaPagePicker currentPageId={mirror?.pageId ?? ""} currentRoute={mirror?.route ?? ""} disabled={!canCommand || !granted.has("route.navigate") || Boolean(busy)} busyRoute="" onOpen={(route) => send("route.navigate", null, { route })} />
+              <RaPagePicker currentPageId={mirror?.pageId ?? ""} currentRoute={mirror?.route ?? ""} canOpen={mayCommand && granted.has("route.navigate")} disabled={!canCommand || Boolean(busy)} busyRoute="" onOpen={(route) => send("route.navigate", null, { route })} />
             </div>
           ) : tab === "elements" ? (
             <div className="ra-con__body ra-con__body--list">
@@ -768,6 +787,7 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
                                   {blocked && el.sensitivity === "personal" ? <span className="ra-sens ra-sens--personal">{t("op.needPersonal")}</span> : null}
                                 </small>
                               </span>
+                              {mayCommand && acts.length ? (
                               <span className="ra-el__acts">
                                 {acts.map((a) => {
                                   const Ico = ACTION_ICON[a] ?? IconArrowRight;
@@ -795,7 +815,8 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
                                   );
                                 })}
                               </span>
-                              {inputFor?.id === el.componentId ? (
+                              ) : null}
+                              {mayCommand && inputFor?.id === el.componentId ? (
                                 <form
                                   className="ra-fill"
                                   onSubmit={(e) => {
@@ -869,7 +890,7 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
               <IconRefresh aria-hidden="true" />
               {t("op.refresh")}
             </button>
-            {session.caps?.canEnd !== false ? (
+            {mayEnd ? (
               <button type="button" className="btn btn--sm ra-con__end" onClick={() => void end()} disabled={Boolean(busy)}>
                 <IconPower aria-hidden="true" />
                 {t("op.end")}

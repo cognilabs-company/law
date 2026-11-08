@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { getToken } from "@/lib/client";
-import { backoffMs, isConflict, refreshAccessToken } from "@/lib/http";
+import { backoffMs, isConflict, isForbidden, refreshAccessToken } from "@/lib/http";
 import { emitRoomCallEvent, isCallEvent, subscribeRoomCallEvents } from "@/lib/callEvents";
 import { playRingtone, primeCallAudio } from "@/lib/callSounds";
 import { VoiceRecorder } from "@/lib/voiceRecorder";
@@ -40,6 +40,9 @@ export function useChat(roomId: string, opts: { joinCallId?: string; onError: (e
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [conn, setConn] = useState<Conn>("connecting");
   const [finished, setFinished] = useState(false);
+  // A 403 on writing: this account may not post in the room, so the composer
+  // and the call buttons leave (the history stays readable).
+  const [denied, setDenied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [rec, setRec] = useState<{ on: boolean; sec: number }>({ on: false, sec: 0 });
   const [active, setActive] = useState<ActiveCall | null>(null);
@@ -78,6 +81,7 @@ export function useChat(roomId: string, opts: { joinCallId?: string; onError: (e
       setMsgs([]);
       setStatus("loading");
       setFinished(false);
+      setDenied(false);
     }, 0);
     const history = () =>
       getSecureMessages(roomId)
@@ -146,7 +150,10 @@ export function useChat(roomId: string, opts: { joinCallId?: string; onError: (e
           if (code === 401) return void expired();
           failPending();
           if (code === 409) setFinished(true);
-          else errRef.current(code === 403 ? "forbidden" : "send", typeof o.detail === "string" ? o.detail : undefined);
+          else {
+            if (code === 403) setDenied(true);
+            errRef.current(code === 403 ? "forbidden" : "send", typeof o.detail === "string" ? o.detail : undefined);
+          }
           return;
         }
         const raw = (o.message ?? o) as Record<string, unknown>;
@@ -264,7 +271,7 @@ export function useChat(roomId: string, opts: { joinCallId?: string; onError: (e
 
   async function send(text: string, reply: ChatMsg | null) {
     const content = text.trim();
-    if (!content || finished) return;
+    if (!content || finished || denied) return;
     const tmp = optimistic({ filteredContent: content, replyToId: reply?.id ?? "", replyTo: quote(reply) });
     setMsgs((p) => [...p, tmp]);
     setBusy(true);
@@ -284,13 +291,16 @@ export function useChat(roomId: string, opts: { joinCallId?: string; onError: (e
     } catch (e) {
       setMsgs((p) => p.map((x) => (x.id === tmp.id ? { ...x, pending: false, failed: true } : x)));
       if (isConflict(e)) setFinished(true);
-      else errRef.current("send");
+      else if (isForbidden(e)) {
+        setDenied(true);
+        errRef.current("forbidden");
+      } else errRef.current("send");
     } finally {
       setBusy(false);
     }
   }
   async function attach(file: File | Blob, kind: "file" | "voice", name: string, reply: ChatMsg | null) {
-    if (finished) return;
+    if (finished || denied) return;
     const tmp = optimistic({ messageType: kind, replyToId: reply?.id ?? "", replyTo: quote(reply), file: { fileName: name, mimeType: file.type, size: file.size, downloadUrl: "", inlineUrl: "", preview: null } });
     setMsgs((p) => [...p, tmp]);
     try {
@@ -300,7 +310,10 @@ export function useChat(roomId: string, opts: { joinCallId?: string; onError: (e
     } catch (e) {
       setMsgs((p) => p.map((x) => (x.id === tmp.id ? { ...x, pending: false, failed: true } : x)));
       if (isConflict(e)) setFinished(true);
-      else errRef.current("attach", undefined, secureUploadRefusal(e, name));
+      else if (isForbidden(e)) {
+        setDenied(true);
+        errRef.current("forbidden");
+      } else errRef.current("attach", undefined, secureUploadRefusal(e, name));
     }
   }
   async function voice(reply: ChatMsg | null) {
@@ -369,5 +382,5 @@ export function useChat(roomId: string, opts: { joinCallId?: string; onError: (e
       () => (setFinished(true), true),
       (e) => (isConflict(e) ? (setFinished(true), true) : (errRef.current("complete"), false)),
     );
-  return { msgs, status, conn, finished, setFinished, busy, rec, active, setActive, incoming, send, attach, voice, cancelVoice, call, join, dismiss, ttl, remove, complete, retry: () => setReload((n) => n + 1) };
+  return { msgs, status, conn, finished, denied, setFinished, busy, rec, active, setActive, incoming, send, attach, voice, cancelVoice, call, join, dismiss, ttl, remove, complete, retry: () => setReload((n) => n + 1) };
 }

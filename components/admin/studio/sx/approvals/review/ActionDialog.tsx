@@ -20,6 +20,7 @@ import { publishApproval, publishUrlOf } from "../approvalsApi";
 import { actionErrorOf, allowedBy, decisionOf, needsComment, type ActionError, type ReviewKind } from "./actions";
 import { WarningNote } from "./ChangeList";
 import type { ReviewState } from "./useReview";
+import { studioDenied } from "../../denied";
 
 export type ActionDialogProps = {
   kind: ReviewKind;
@@ -95,6 +96,9 @@ export function ActionDialog({ kind, state, changed, onClose, onDone, onStale, o
       const a = actionErrorOf(ex);
       logApiError(`studio.sx.approvals.${kind}`, ex);
       setErr(a);
+      // Refused (403): the message stays in this dialog, and the decision
+      // (or publish) leaves the drawer so it is not offered again.
+      if (studioDenied(ex)) state.deny(kind === "publish" ? ["publish"] : ["approve", "back", "reject"]);
       busy(false);
       if (a.field === "comment") focusField();
       if (a.stale) {

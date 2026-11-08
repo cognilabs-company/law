@@ -7,6 +7,8 @@ export type KanbanColumn = { key: string; label: string; tone?: "info" | "ok" | 
 // A board of columns. A card is dragged to another column to move it (the
 // parent decides what a move means and may refuse it); the same move is also
 // offered from the card's own drawer, so the board never depends on a mouse.
+// `canMove` says which cards this account may move at all (owner law
+// 2026-11-08): the others are not draggable and no column takes them.
 export default function HrmKanban<T>({
   columns,
   items,
@@ -14,6 +16,7 @@ export default function HrmKanban<T>({
   idOf,
   renderCard,
   onMove,
+  canMove,
   onOpen,
   emptyText,
 }: {
@@ -23,11 +26,13 @@ export default function HrmKanban<T>({
   idOf: (item: T) => string;
   renderCard: (item: T) => ReactNode;
   onMove?: (item: T, to: string) => void;
+  canMove?: (item: T) => boolean;
   onOpen?: (item: T) => void;
   emptyText: string;
 }) {
   const [drag, setDrag] = useState("");
   const [over, setOver] = useState("");
+  const movable = (item: T) => !!onMove && (!canMove || canMove(item));
   return (
     <div className="hrm-kb" role="list">
       {columns.map((col) => {
@@ -65,8 +70,12 @@ export default function HrmKanban<T>({
                   <article
                     key={idOf(item)}
                     className={`hrm-kb__card${drag === idOf(item) ? " is-drag" : ""}`}
-                    draggable={!!onMove}
+                    draggable={movable(item)}
                     onDragStart={(e) => {
+                      if (!movable(item)) {
+                        e.preventDefault();
+                        return;
+                      }
                       e.dataTransfer.effectAllowed = "move";
                       e.dataTransfer.setData("text/plain", idOf(item));
                       setDrag(idOf(item));

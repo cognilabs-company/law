@@ -197,7 +197,7 @@ const changedParts = (a: DocSettings, b: DocSettings): number => {
   return Object.keys(x).filter((k) => JSON.stringify(x[k]) !== JSON.stringify(y[k])).length;
 };
 
-function Editor({ start, onSaved, onCancel }: { start: DocSettings; onSaved: (v: DocSettingsVersion) => void; onCancel: () => void }): ReactElement {
+function Editor({ start, onSaved, onCancel, onForbidden }: { start: DocSettings; onSaved: (v: DocSettingsVersion) => void; onCancel: () => void; onForbidden: (msg: string) => void }): ReactElement {
   const t = useTranslations("admin.docSettings");
   const [s, setS] = useState<DocSettings>(start);
   const [tried, setTried] = useState(false);
@@ -245,6 +245,8 @@ function Editor({ start, onSaved, onCancel }: { start: DocSettings; onSaved: (v:
     } catch (e) {
       sending.current = false;
       logApiError("docSettings.draft", e);
+      // Refused: the editor closes and "new version" leaves the page.
+      if (isForbidden(e)) return onForbidden(errDetail(e) || t("saveFailed"));
       setErr(errDetail(e) || t("saveFailed"));
     } finally {
       setBusy(false);
@@ -458,6 +460,9 @@ export default function DocumentSettingsPage(): ReactElement {
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [acting, setActing] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  // A 403 on a write (draft, publish, rollback): this account may read the
+  // settings but not change them now, so no write is offered again.
+  const [readOnly, setReadOnly] = useState(false);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -492,6 +497,7 @@ export default function DocumentSettingsPage(): ReactElement {
       logApiError(`docSettings.${confirm.kind}`, e);
       setNote({ ok: false, msg: errDetail(e) || t("actionFailed") });
       setConfirm(null);
+      if (isForbidden(e)) setReadOnly(true);
     } finally {
       setActing(false);
     }
@@ -524,7 +530,7 @@ export default function DocumentSettingsPage(): ReactElement {
               void load().finally(() => setRefreshing(false));
             }}
           />
-          {state === "ready" && !editing ? (
+          {state === "ready" && !editing && !readOnly ? (
             <button type="button" className="btn btn--pri btn--sm" onClick={() => setEditing(true)}>
               <IconPlus aria-hidden="true" />
               {t("newVersion")}
@@ -588,10 +594,15 @@ export default function DocumentSettingsPage(): ReactElement {
             ) : null}
           </section>
 
-          {editing ? (
+          {editing && !readOnly ? (
             <Editor
               start={data.admin.active?.settings ?? data.runtime.settings}
               onCancel={() => setEditing(false)}
+              onForbidden={(msg) => {
+                setEditing(false);
+                setReadOnly(true);
+                setNote({ ok: false, msg });
+              }}
               onSaved={(v) => {
                 setEditing(false);
                 setNote({ ok: true, msg: t("draftSaved", { n: v.version ?? "" }) });
@@ -636,7 +647,7 @@ export default function DocumentSettingsPage(): ReactElement {
                           <summary>{t("show")}</summary>
                           <Summary s={v.settings} compact />
                         </details>
-                        {!isActive ? (
+                        {!isActive && !readOnly && (v.status === "draft" || v.status === "published" || v.status === "superseded" || v.status === "archived") ? (
                           <div className="dss-acts">
                             {v.status === "draft" ? (
                               <button type="button" className="btn btn--pri btn--sm" onClick={() => setConfirm({ kind: "publish", v })}>

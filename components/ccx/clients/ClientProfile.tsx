@@ -7,6 +7,7 @@ import CcCallForm from "@/components/admin/CcCallForm";
 import PersonName from "@/components/ui/PersonName";
 import { getCcClientCard, listCcCalls, type CcClient, type CcClientCard } from "@/lib/services/backend";
 import { isForbidden } from "@/lib/http";
+import { isCallCenterUser, useAuth } from "@/lib/auth";
 import { dateOnly } from "@/lib/date";
 import { fmtUzs } from "@/lib/money";
 import { labelOf } from "@/lib/labels";
@@ -37,6 +38,11 @@ export default function ClientProfile({ client, onLogged }: { client: CcClient; 
   const [logBusy, setLogBusy] = useState(false);
   const [logDirty, setLogDirty] = useState(false);
   const [slot, setSlot] = useState<HTMLDivElement | null>(null);
+  // Logging a call is call-center work (POST /call-center/calls); a 403 from
+  // the call list means the account lost it, so the button leaves too.
+  const { session } = useAuth();
+  const [logDenied, setLogDenied] = useState(false);
+  const canLog = isCallCenterUser(session) && !logDenied;
 
   useEffect(() => {
     let live = true;
@@ -59,8 +65,10 @@ export default function ClientProfile({ client, onLogged }: { client: CcClient; 
       (list) => {
         if (live) setCalls({ status: "ready", list });
       },
-      () => {
-        if (live) setCalls({ status: "error", list: [] });
+      (e: unknown) => {
+        if (!live) return;
+        setCalls({ status: "error", list: [] });
+        if (isForbidden(e)) setLogDenied(true);
       },
     );
     return () => {
@@ -180,18 +188,22 @@ export default function ClientProfile({ client, onLogged }: { client: CcClient; 
               </span>
             </div>
           </dl>
-          <div className="opx-cl-head__acts">
-            {dial ? (
-              <a className="opx-cl-btn opx-cl-btn--call" href={`tel:${dial}`}>
-                <IcPhone size={18} />
-                {tcard("call")}
-              </a>
-            ) : null}
-            <button type="button" className="opx-cl-btn opx-cl-btn--log" onClick={() => setLogging(true)}>
-              <IcDoc size={18} />
-              {tc("logCall")}
-            </button>
-          </div>
+          {dial || canLog ? (
+            <div className="opx-cl-head__acts">
+              {dial ? (
+                <a className="opx-cl-btn opx-cl-btn--call" href={`tel:${dial}`}>
+                  <IcPhone size={18} />
+                  {tcard("call")}
+                </a>
+              ) : null}
+              {canLog ? (
+                <button type="button" className="opx-cl-btn opx-cl-btn--log" onClick={() => setLogging(true)}>
+                  <IcDoc size={18} />
+                  {tc("logCall")}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </header>
 
         {card === null ? (
@@ -242,7 +254,7 @@ export default function ClientProfile({ client, onLogged }: { client: CcClient; 
         <CallTimeline calls={calls} freshId={freshId} onRetry={retryCalls} />
       </div>
 
-      {logging ? (
+      {logging && canLog ? (
         <Modal
           open
           onClose={() => setLogging(false)}

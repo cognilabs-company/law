@@ -163,8 +163,10 @@ export default function MeetingsApp({ tell, pip }: NativeProps) {
   const joinBtn = (c: Item, small = true) => {
     const j = joinable(c);
     if (!j.show) return null;
+    // Not joinable yet / any more: the reason as a note, not a dead button.
+    if (!j.ok) return j.why ? <Tag tone="neutral">{j.why}</Tag> : null;
     return (
-      <Btn kind={j.ok ? "primary" : "default"} small={small} icon={c.callType === "audio" ? <IconPhone /> : <IconVideo />} disabled={!j.ok} title={j.why || undefined} onClick={() => join(c)}>
+      <Btn kind="primary" small={small} icon={c.callType === "audio" ? <IconPhone /> : <IconVideo />} onClick={() => join(c)}>
         {c.status === "joined" || c.callerUserId === me ? t("rejoin") : t("join")}
       </Btn>
     );

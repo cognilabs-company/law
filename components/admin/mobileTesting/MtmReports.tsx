@@ -8,6 +8,7 @@ import DatePicker from "@/components/DatePicker";
 import { notify } from "@/lib/toast";
 import { fmtDate, fmtNum } from "@/lib/date";
 import { isPrimaryOnly } from "@/lib/services/superadvokat";
+import { useAuth } from "@/lib/auth";
 import { listMtmReports, mtmErrorKey, sendMtmReport, tashToday, type MtmPage, type MtmReport } from "@/lib/services/mobileTesting";
 import { IconAlert, IconCheck, IconSend } from "@/components/icons";
 import { LiveBar, MtmEmpty, MtmError, MtmForbidden, MtmFrame, MtmSkeleton, Pager, ReportBadge, TashTime, TzNote, useMtmLive, useMtmLoad } from "./MtmBits";
@@ -33,6 +34,11 @@ export default function MtmReports() {
   const [ack, setAck] = useState(false);
   const [busy, setBusy] = useState(false);
   const [dlgErr, setDlgErr] = useState("");
+  // Sending a report is the primary superadmin's only (/auth/me
+  // is_primary_superadmin): nobody else sees the send panel, not even while
+  // the history loads; a 403 on a send takes the page's actions away.
+  const primary = useAuth().session?.isPrimarySuperadmin === true;
+  const [denied, setDenied] = useState(false);
 
   const open = (next: Ask) => {
     setAck(false);
@@ -54,6 +60,12 @@ export default function MtmReports() {
       res.reload(true);
     } catch (e) {
       const key = mtmErrorKey(e);
+      if (isPrimaryOnly(e)) {
+        notify.error(tm(`err.${key}`));
+        setAsk(null);
+        setDenied(true);
+        return;
+      }
       if (!force && (key === "alreadySent" || key === "conflict")) {
         // Already sent: say so in the same dialog; a resend is a separate,
         // clearly-warned path, never this button.
@@ -65,7 +77,7 @@ export default function MtmReports() {
     }
   };
 
-  if (res.status === "error" && isPrimaryOnly(res.error)) {
+  if (!primary || denied || (res.status === "error" && isPrimaryOnly(res.error))) {
     return (
       <MtmFrame>
         <MtmForbidden />

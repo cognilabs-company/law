@@ -20,6 +20,8 @@ import RegisterRequestDetail from "@/components/admin/RegisterRequestDetail";
 import { dateOnly, shortDate } from "@/lib/date";
 import { aiId } from "@/lib/ai/ids";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
+import { isForbidden } from "@/lib/http";
+import { notify } from "@/lib/toast";
 
 const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const fmtDate = (v: string, locale: string) => {
@@ -56,8 +58,12 @@ function pickRole(opts: { value: string; label: string }[], raw: string): RoleTa
   return near.length ? (near[0].value as RoleTab) : null;
 }
 
-function Actions({ id, onDone }: { id: string; onDone: () => void }) {
+// Accept/reject (POST /admin/register-requests/{id}/accept|reject) belong to
+// the page's own users.manage gate. A 403 anyway (permission revoked while
+// the page was open) says so once and takes the decision buttons off every row.
+function Actions({ id, onDone, onForbidden }: { id: string; onDone: () => void; onForbidden: () => void }) {
   const t = useTranslations("admin.registerRequests");
+  const tc = useTranslations("common");
   const [busy, setBusy] = useState<null | "accept" | "reject">(null);
   const [done, setDone] = useState<null | "accept" | "reject">(null);
   const [error, setError] = useState(false);
@@ -78,8 +84,12 @@ function Actions({ id, onDone }: { id: string; onDone: () => void }) {
       else await rejectRegisterRequest(id);
       setDone(kind);
       onDone();
-    } catch {
+    } catch (e) {
       setBusy(null);
+      if (isForbidden(e)) {
+        notify.error(tc("forbidden"), { id: "register-request-decision" });
+        onForbidden();
+      }
     }
   }
   if (done) {
@@ -116,6 +126,7 @@ export default function AdminRegisterRequests() {
     [key, roleTab, from, to],
   );
   const [detail, setDetail] = useState<string | null>(null);
+  const [decideDenied, setDecideDenied] = useState(false);
   const stats = res.data?.stats;
   const items: RegisterRequest[] = res.data?.items ?? [];
   useAiSelection("register_requests_role", roleTab);
@@ -214,7 +225,7 @@ export default function AdminRegisterRequests() {
                   fmtDate(r.createdAt, locale),
                 ].filter(Boolean).join(" · ")}
                 tags={[{ label: r.status ? (t.has(`status.${r.status}`) ? t(`status.${r.status}`) : r.status) : t("status.pending"), tone: "muted" }]}
-                right={<Actions id={r.id} onDone={reload} />}
+                right={decideDenied ? undefined : <Actions id={r.id} onDone={reload} onForbidden={() => setDecideDenied(true)} />}
                 actions={<button type="button" className="aitem__act" aria-label={t("detailTitle")} title={t("detailTitle")} onClick={() => setDetail(r.id)} data-ai-target="button:register-request-detail" data-ai-id={r.id ? aiId("admin.register-requests.item", r.id, "detail") : undefined}><IconEye /></button>}
               />
             </div>

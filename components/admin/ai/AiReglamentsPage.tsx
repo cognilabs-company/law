@@ -61,6 +61,11 @@ export default function AiReglamentsPage() {
   const [editBusy, setEditBusy] = useState("");
   const [flashId, setFlashId] = useState("");
   const [added, setAdded] = useState<string[]>([]);
+  // A write the backend refused with 403 (permission taken away, or this
+  // admin never had it): the editor/upload keep their message, and the
+  // action leaves the page so it isn't offered again.
+  const [denied, setDenied] = useState<{ create?: boolean; update?: boolean; upload?: boolean }>({});
+  const deny = useCallback((k: "create" | "update" | "upload") => setDenied((d) => (d[k] ? d : { ...d, [k]: true })), []);
   const listSeq = useRef(0);
   const gapSeq = useRef(0);
 
@@ -114,10 +119,10 @@ export default function AiReglamentsPage() {
 
   const ready = list.phase === "ready";
   const forbidden = list.phase === "error" && isForbidden(list.error);
-  const canCreate = ready && !createMissing;
-  const canUpload = ready && !uploadMissing;
-  const canEdit = ready && !updateMissing;
-  const canAddGap = ready && !(createMissing && updateMissing);
+  const canCreate = ready && !createMissing && !denied.create;
+  const canUpload = ready && !uploadMissing && !denied.upload;
+  const canEdit = ready && !updateMissing && !denied.update;
+  const canAddGap = ready && !((createMissing || denied.create) && (updateMissing || denied.update));
 
   useAiModal("admin.ai-reglaments.editor", () => {
     if (canCreate) setEditor({ kind: "create" });
@@ -214,7 +219,9 @@ export default function AiReglamentsPage() {
   const openGaps = gaps.phase === "ready" ? gaps.items.filter(isOpenGap).length : 0;
   const gapsPhase: Phase = gaps.filter !== gapFilter && gaps.phase !== "missing" ? "loading" : gaps.phase;
   const drawerBase = drawerId ? (items.find((r) => (r.id || r.title) === drawerId) ?? null) : null;
-  const showActions = list.phase === "loading" || ready;
+  const showUpload = !denied.upload;
+  const showCreate = !denied.create;
+  const showActions = (list.phase === "loading" || ready) && (showUpload || showCreate);
 
   const kpis = [
     { key: "active", Icon: IconCircleCheck, value: ready ? `${num(active)} / ${num(items.length)}` : "—", label: t("kpi.active"), warn: false },
@@ -236,6 +243,7 @@ export default function AiReglamentsPage() {
           </div>
           {showActions ? (
             <div className="rgl-head__acts">
+              {showUpload ? (
               <button
                 type="button"
                 className="btn btn--line btn--sm"
@@ -249,6 +257,8 @@ export default function AiReglamentsPage() {
                 {t("uploadCta")}
                 {uploadMissing ? <span className="rgl-soon">{t("missing.soon")}</span> : null}
               </button>
+              ) : null}
+              {showCreate ? (
               <button
                 type="button"
                 className="btn btn--pri btn--sm"
@@ -262,6 +272,7 @@ export default function AiReglamentsPage() {
                 {t("newCta")}
                 {createMissing ? <span className="rgl-soon">{t("missing.soon")}</span> : null}
               </button>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -364,7 +375,7 @@ export default function AiReglamentsPage() {
       </section>
 
       <ReglamentDrawer reglament={drawerBase} canEdit={canEdit} editBusy={Boolean(editBusy)} onEdit={(r) => void startEdit(r)} onClose={() => setDrawerId("")} />
-      <ReglamentEditor mode={editor} reglaments={items} resolve={resolveFull} onClose={() => setEditor(null)} onSaved={(info) => void onSaved(info)} />
+      <ReglamentEditor mode={editor} reglaments={items} resolve={resolveFull} onClose={() => setEditor(null)} onSaved={(info) => void onSaved(info)} onForbidden={deny} />
       <ReglamentUpload
         open={uploadOpen}
         missing={uploadMissing}
@@ -372,6 +383,8 @@ export default function AiReglamentsPage() {
         onClose={() => setUploadOpen(false)}
         onDone={(info) => void onUploaded(info)}
         onUseEditor={switchToEditor}
+        canUseEditor={!denied.create}
+        onForbidden={() => deny("upload")}
       />
     </div>
   );

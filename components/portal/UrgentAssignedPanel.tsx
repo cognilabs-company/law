@@ -463,12 +463,10 @@ export default function UrgentAssignedPanel() {
                         No `lk` prop: this advocate is a joiner, not the
                         caller, so CallRoom fetches its own join token from
                         the room and call ids. */}
-                    {up || r.callId ? (
+                    {joinable(r) ? (
                       <button
                         type="button"
                         className="btn btn--grad btn--sm"
-                        disabled={!joinable(r)}
-                        title={joinable(r) ? undefined : t("joinWaiting")}
                         data-ai-id={item ? `${item}.join` : undefined}
                         data-ai-type="call_button"
                         data-ai-label={t("joinMeeting")}
@@ -490,6 +488,9 @@ export default function UrgentAssignedPanel() {
                         {r.callChannel === "audio" ? <IconPhone /> : <IconVideo />}
                         {t("joinMeeting")}
                       </button>
+                    ) : up ? (
+                      // No meeting yet: a note, not a dead button.
+                      <span className="uasg__when"><IconClock />{t("joinPending")}</span>
                     ) : null}
                     {r.secureChatRoomId ? (
                       <Link href={chatHref} className="btn btn--line btn--sm" data-ai-id={item ? `${item}.chat` : undefined} data-ai-label={t("openChat")}><IconChat />{t("openChat")}</Link>

@@ -37,8 +37,10 @@ export default function LiveEmployeeDrawer({
   roomName: (id: string) => string;
   inactiveAfter: number;
   liveEvents: LiveActivity[];
-  onAnalytics: (employeeId: string) => void;
-  onCorrect: (target: CorrectionTarget) => void;
+  // Absent: the viewer may not open analytics / file corrections, so the
+  // buttons for them are not shown.
+  onAnalytics?: (employeeId: string) => void;
+  onCorrect?: (target: CorrectionTarget) => void;
   onBusyStopped: () => void;
   look?: Look;
   onDress?: () => void;
@@ -50,6 +52,8 @@ export default function LiveEmployeeDrawer({
   const [data, setData] = useState<{ id: string; key: string; d: LiveEmployeeDetail } | null>(null);
   const [err, setErr] = useState("");
   const [stopping, setStopping] = useState(false);
+  // Stopping this busy was refused (403): the button is taken away.
+  const [noStop, setNoStop] = useState(false);
   const id = person?.id ?? "";
   const key = `${id}|${range.from}|${range.to}`;
 
@@ -76,7 +80,7 @@ export default function LiveEmployeeDrawer({
   const seen = new Set((d?.timeline ?? []).map((a) => a.id).filter(Boolean));
   const timeline = [...liveEvents.filter((a) => !a.id || !seen.has(a.id)), ...(d?.timeline ?? [])];
   const busy = person.busy && !person.busy.endedAt ? person.busy : null;
-  const canStop = Boolean(busy?.id) && (isMe || canManage);
+  const canStop = Boolean(busy?.id) && (isMe || canManage) && !noStop;
 
   return (
     <HrmDrawer
@@ -94,18 +98,22 @@ export default function LiveEmployeeDrawer({
         )
       }
       footer={
-        <>
-          <button type="button" className="btn btn--line btn--sm" onClick={() => onAnalytics(person.id)}>
-            <IconChartBar />
-            {t("detail.analytics")}
-          </button>
-          {onDress ? (
-            <button type="button" className="btn btn--line btn--sm" onClick={onDress}>
-              <IconEdit />
-              {t("avatar.dress")}
-            </button>
-          ) : null}
-        </>
+        onAnalytics || onDress ? (
+          <>
+            {onAnalytics ? (
+              <button type="button" className="btn btn--line btn--sm" onClick={() => onAnalytics(person.id)}>
+                <IconChartBar />
+                {t("detail.analytics")}
+              </button>
+            ) : null}
+            {onDress ? (
+              <button type="button" className="btn btn--line btn--sm" onClick={onDress}>
+                <IconEdit />
+                {t("avatar.dress")}
+              </button>
+            ) : null}
+          </>
+        ) : undefined
       }
     >
       <div className="lv-now">
@@ -205,7 +213,7 @@ export default function LiveEmployeeDrawer({
                       <b>{a.detailUrl ? <ObjectLink href={a.detailUrl}>{a.label || a.code || module(a.module)}</ObjectLink> : a.label || a.code || module(a.module)}</b>
                       <small>{[module(a.module), a.unitId ? unitName(a.unitId) : "", a.roomId ? roomName(a.roomId) : ""].filter(Boolean).join(" · ")}</small>
                     </span>
-                    {isMe && a.id ? (
+                    {isMe && a.id && onCorrect ? (
                       <button type="button" className="lv-tl__fix" title={t("corrections.report")} aria-label={t("corrections.report")} onClick={() => onCorrect({ targetType: "activity_event", targetId: a.id, title: a.label, type: "activity" })}>
                         <IconFlag />
                       </button>
@@ -257,7 +265,7 @@ export default function LiveEmployeeDrawer({
             )}
           </HrmSection>
 
-          {isMe ? (
+          {isMe && onCorrect ? (
             <button type="button" className="btn btn--line btn--sm lv-wrong" onClick={() => onCorrect({ targetType: "employee", targetId: person.id, title: "", type: "department" })}>
               <IconAlert />
               {t("corrections.wrongPlace")}
@@ -278,6 +286,7 @@ export default function LiveEmployeeDrawer({
           await stopBusy(busy!.id, reason);
           onBusyStopped();
         }}
+        onForbidden={() => setNoStop(true)}
       />
     </HrmDrawer>
   );

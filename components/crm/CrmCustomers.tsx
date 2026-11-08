@@ -126,7 +126,7 @@ function CustomerGrid({ meta }: { meta: CrmMeta }): ReactElement {
         </div>
       ) : !rows.length ? (
         <div className="crm-card">
-          <Empty icon={<IconUsers />} title={q ? t("noMatch") : t("empty")} text={t("emptyText")} />
+          <Empty icon={<IconUsers />} title={q ? t("noMatch") : t("empty")} text={crmCan(meta, "crm.customers.manage") ? t("emptyText") : t("emptyTextView")} />
         </div>
       ) : (
         <div className="crm-clist crm-rise">

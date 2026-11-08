@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { asDict } from "@/lib/http";
+import { asDict, isForbidden } from "@/lib/http";
 import type { LiveBoard, LivePerson, LiveRoom, LiveUnit } from "@/lib/services/internalLive";
 import { initials } from "@/lib/lawyers";
 import { IconMoon, IconSun, IconCheck, IconChevronDown, IconChevronLeft, IconChevronRight, IconClose, IconEdit, IconExpand, IconGrid, IconMinus, IconPlus, IconUsers } from "@/components/icons";
@@ -159,7 +159,10 @@ export default function LiveFloor({
 }) {
   const { t, roomType, status } = useLiveText();
   const statusOf = useMemo(() => (p: LivePerson) => shownStatus(p.status, p.lastSeenAt, now, inactiveAfter), [now, inactiveAfter]);
-  const [arrange, setArrange] = useState<Arrange | null>(null);
+  const [arranging, setArrange] = useState<Arrange | null>(null);
+  // Arranging lasts only while the page still offers it (it is taken away
+  // when the backend refuses room changes).
+  const arrange = onArrange ? arranging : null;
   const [saving, setSaving] = useState(false);
   const [arrErr, setArrErr] = useState("");
   const metaOf = useCallback((id: string) => roomMeta?.[id] ?? asDict(board.rooms.find((r) => r.id === id)?.raw.meta), [roomMeta, board.rooms]);
@@ -254,6 +257,8 @@ export default function LiveFloor({
       setArrange(null);
     } catch (cause) {
       setArrErr(apiMessage(cause, t("errors.save")));
+      // Refused (403): the page takes the arrange tools away; leave the mode.
+      if (isForbidden(cause)) setArrange(null);
     } finally {
       setSaving(false);
     }

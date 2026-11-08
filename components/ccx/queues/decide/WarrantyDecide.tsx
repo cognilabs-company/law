@@ -4,7 +4,7 @@ import "./WcDecide.css";
 import { useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { shortDateTime } from "@/lib/date";
-import { ApiError, errDetail, logApiError } from "@/lib/http";
+import { ApiError, errDetail, isForbidden, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
 import { resolveWarrantyClaim, type WarrantyClaim, type WarrantyDecision } from "@/lib/services/mpComplaints";
@@ -24,7 +24,8 @@ export default function WarrantyDecide({ job, item: claim, onDone, onClose, onDi
   const tp = useTranslations("marketplace.orderDetail.pricing");
   const tx = useTranslations("admin.ccx.panel");
   const tc = useTranslations("admin.ccx.cases");
-  const none = useTranslations("common")("none");
+  const tcom = useTranslations("common");
+  const none = tcom("none");
   const locale = useLocale();
   const once = useSameTickGuard();
   const box = useRef<HTMLDivElement>(null);
@@ -35,9 +36,13 @@ export default function WarrantyDecide({ job, item: claim, onDone, onClose, onDi
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // A 403 on the ruling: this account may not rule here — the form leaves.
+  const [denied, setDenied] = useState("");
 
   const label = (group: string, v: string) => (v && t.has(`${group}.${v}`) ? t(`${group}.${v}`) : v ? t("other") : none);
   const settled = !!claim.resolution;
+  // Only the decisions the backend offers for this claim; none → no form.
+  const open = !settled && !denied && claim.resolutions.length > 0;
   const order = claim.order;
   const errs = {
     resolution: resolution ? "" : t("err.resolution"),
@@ -56,7 +61,7 @@ export default function WarrantyDecide({ job, item: claim, onDone, onClose, onDi
   };
 
   const submit = async () => {
-    if (busy || !once()) return;
+    if (busy || !open || !once()) return;
     setTried(true);
     if (errs.resolution || errs.seller || errs.note || !resolution) {
       focusFirstError(box.current);
@@ -74,6 +79,11 @@ export default function WarrantyDecide({ job, item: claim, onDone, onClose, onDi
       if (e instanceof ApiError && e.code === "material_transfer_consent_required") {
         setTransfer(false);
         setErr(t("err.noConsent"));
+        return;
+      }
+      if (isForbidden(e)) {
+        setDenied(errDetail(e) || tcom("forbidden"));
+        onDirty(false);
         return;
       }
       setErr(errDetail(e));
@@ -122,7 +132,9 @@ export default function WarrantyDecide({ job, item: claim, onDone, onClose, onDi
             <CaseBox icon={<IcCheck size={18} />} label={t("f.resolution")} title={label("res", claim.resolution)}>
               {claim.note ? <p>{claim.note}</p> : null}
             </CaseBox>
-          ) : (
+          ) : denied ? (
+            <Note tone="bad">{denied}</Note>
+          ) : open ? (
             <Section icon={<IcScale size={17} />} title={t("resolveTitle")}>
               <Choice
                 label={t("resolution")}
@@ -179,10 +191,10 @@ export default function WarrantyDecide({ job, item: claim, onDone, onClose, onDi
                 </Note>
               ) : null}
             </Section>
-          )}
+          ) : null}
         </div>
       </div>
-      {settled ? (
+      {!open ? (
         <PanelFoot onCancel={onClose} cancelLabel={tx("close")} />
       ) : (
         <PanelFoot onCancel={onClose} primary={() => void submit()} primaryLabel={resolution ? t(`confirm.${resolution}`) : t("confirmAny")} busy={busy} danger={resolution === "full_refund"} />

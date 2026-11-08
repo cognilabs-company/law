@@ -68,7 +68,8 @@ export const LeadCard = memo(function LeadCard({ lead: l, meta, now, stageLabel,
   const menuBtn = useRef<HTMLButtonElement>(null);
   const menuBox = useRef<HTMLDivElement>(null);
   const movable = leadCan(l, "change_status") || leadCan(l, "move");
-  const nextOnes = movable ? crmNextStatuses(meta, l.status) : [];
+  // Status moves need change_status; "move" alone only reorders inside the column.
+  const nextOnes = leadCan(l, "change_status") ? crmNextStatuses(meta, l.status) : [];
   const canMove = movable && !movingTo;
   const who = l.customer?.name || l.title || l.workId;
   const sub = l.customer?.name ? l.title : "";

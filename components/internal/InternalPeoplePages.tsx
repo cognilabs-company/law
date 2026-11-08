@@ -6,7 +6,8 @@ import { useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { ApiError } from "@/lib/http";
-import { getEmployees, normEmployee, type HrmEmployee } from "@/lib/services/internalHrm";
+import { useAuth } from "@/lib/auth";
+import { canInternal, getEmployees, normEmployee, type HrmEmployee } from "@/lib/services/internalHrm";
 import { IconBriefcase, IconBuilding, IconCheck, IconChevronLeft, IconChevronRight, IconPlus, IconRefresh, IconUsers } from "@/components/icons";
 import FilterBar from "@/components/filters/FilterBar";
 import Select from "@/components/Select";
@@ -61,6 +62,9 @@ function Employees() {
   const label = useStatusLabel();
   const f = useHrmFormat();
   const dir = useHrmDirectory();
+  const { session } = useAuth();
+  // Creating a person: POST /internal/employees, internal_hr.manage.
+  const canCreate = canInternal(session, "internal_hr.manage");
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
@@ -188,7 +192,7 @@ function Employees() {
           <>
             <button className="btn btn--line btn--sm" type="button" onClick={reload} disabled={loading}><IconRefresh />{t("refresh")}</button>
             <ExportEmployeesButton />
-            <button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("newEmployee")}</button>
+            {canCreate ? <button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("newEmployee")}</button> : null}
           </>
         }
       />
@@ -251,7 +255,7 @@ function Employees() {
               </tbody>
             </table>
           </div>
-        ) : <HrmEmpty icon={IconUsers} title={t("emptyEmployees")} text={filtered ? t("emptyFiltered") : t("emptyEmployeesLead")} action={<button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("newEmployee")}</button>} />}
+        ) : <HrmEmpty icon={IconUsers} title={t("emptyEmployees")} text={filtered ? t("emptyFiltered") : t("emptyEmployeesLead")} action={canCreate ? <button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("newEmployee")}</button> : undefined} />}
         {total ? (
           <div className="hrm-pager">
             <span>{tc("range", { from: (cur - 1) * size + 1, to: Math.min(cur * size, total), total })}</span>
@@ -287,7 +291,7 @@ function Employees() {
         </form>
       </Modal>
 
-      <EmployeeCreate open={creating} onClose={() => setCreating(false)} onCreated={(id) => { setCreating(false); reload(); open(id); }} />
+      {canCreate ? <EmployeeCreate open={creating} onClose={() => setCreating(false)} onCreated={(id) => { setCreating(false); reload(); open(id); }} /> : null}
     </section>
   );
 }

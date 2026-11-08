@@ -26,6 +26,7 @@ import { Avatar, Card, SectionHead, useRoleName } from "./parts";
 import { RoleMatrix } from "./RoleMatrix";
 import type { AccessList } from "./useAccessList";
 import { PlayIcon, UserPlusIcon, UsersIcon } from "lucide-react";
+import { studioDenied } from "../denied";
 
 const AI = `${SET_AI}.access`;
 const SCOPE_MAX = 4;
@@ -40,6 +41,8 @@ export function AccessSection({ list }: { list: AccessList }): ReactElement {
   const reg = useStudioRegistry();
   const [busy, setBusy] = useState(false);
   const [writeOff, setWriteOff] = useState(false);
+  // The backend refused a grant change (403): every write action leaves.
+  const [writeDenied, setWriteDenied] = useState(false);
   const [drawer, setDrawer] = useState<GrantMode | null>(null);
   const [ask, setAsk] = useState<Ask | null>(null);
   const [toggling, setToggling] = useState("");
@@ -48,7 +51,7 @@ export function AccessSection({ list }: { list: AccessList }): ReactElement {
   const [stateF, setStateF] = useState("");
 
   const items = list.items;
-  const canWrite = list.phase === "ready" && list.known && !writeOff;
+  const canWrite = list.phase === "ready" && list.known && !writeOff && !writeDenied;
   const activeN = items.filter((g) => g.active).length;
   const pausedN = items.length - activeN;
   const roleN = (r: string) => items.filter((g) => g.roles.some((x) => roleCodeOf(x) === r)).length;
@@ -85,6 +88,7 @@ export function AccessSection({ list }: { list: AccessList }): ReactElement {
       setAsk(null);
       if (studioErrorOf(e).kind === "missing") onMissing();
       else toast(errText(e).text, { tone: "err" });
+      if (studioDenied(e)) setWriteDenied(true);
     } finally {
       setToggling("");
     }
@@ -413,6 +417,7 @@ export function AccessSection({ list }: { list: AccessList }): ReactElement {
       </SectionHead>
 
       {list.phase === "ready" && (!list.known || writeOff) ? <SxNote tone="info">{writeOff ? t("settings.access.readOnlyWrite") : t("settings.access.readOnlyShape")}</SxNote> : null}
+      {list.phase === "ready" && list.known && !writeOff && writeDenied ? <SxNote tone="info">{t("sx.editor.err.forbidden")}</SxNote> : null}
       {list.phase === "ready" && list.error ? (
         <SxNote
           tone="error"
@@ -432,7 +437,7 @@ export function AccessSection({ list }: { list: AccessList }): ReactElement {
 
       <RoleMatrix />
 
-      <GrantDrawer mode={drawer} grants={items} onClose={() => setDrawer(null)} onSaved={(s) => void onSaved(s)} onMissing={onMissing} />
+      <GrantDrawer mode={drawer} grants={items} onClose={() => setDrawer(null)} onSaved={(s) => void onSaved(s)} onMissing={onMissing} onDenied={() => setWriteDenied(true)} />
 
       <SxDialog
         open={ask !== null}

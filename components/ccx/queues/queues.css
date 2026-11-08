@@ -895,6 +895,11 @@ a.opx-lrow:focus-visible {
   gap: 12px;
 }
 
+/* Without CRM access only the clients card is left: it takes the row. */
+.opx-fam__people > :only-child {
+  grid-column: 1 / -1;
+}
+
 .opx-fam__none {
   margin: 0;
   padding: 28px;

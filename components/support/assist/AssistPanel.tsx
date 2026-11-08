@@ -210,17 +210,20 @@ export default function AssistPanel({
     setTab(k);
     setSeen((s) => (s[k] ? s : { ...s, [k]: true }));
   };
-  const onTabKey = (e: KeyboardEvent<HTMLDivElement>) => {
-    const i = TABS.indexOf(tab);
+  // Only the actions the ticket's capabilities allow are offered (owner law
+  // 2026-11-08: an action the operator may not do is not shown at all).
+  const onTabKey = (e: KeyboardEvent<HTMLDivElement>, shown: Tab[], cur: Tab) => {
+    if (!shown.length) return;
+    const i = Math.max(0, shown.indexOf(cur));
     let next = -1;
-    if (e.key === "ArrowRight") next = (i + 1) % TABS.length;
-    else if (e.key === "ArrowLeft") next = (i - 1 + TABS.length) % TABS.length;
+    if (e.key === "ArrowRight") next = (i + 1) % shown.length;
+    else if (e.key === "ArrowLeft") next = (i - 1 + shown.length) % shown.length;
     else if (e.key === "Home") next = 0;
-    else if (e.key === "End") next = TABS.length - 1;
+    else if (e.key === "End") next = shown.length - 1;
     if (next < 0) return;
     e.preventDefault();
-    pick(TABS[next]);
-    document.getElementById(`${uid}-tab-${TABS[next]}`)?.focus();
+    pick(shown[next]);
+    document.getElementById(`${uid}-tab-${shown[next]}`)?.focus();
   };
 
   const lockOf = (): Lock => (closed ? "closed" : ticket.operatorUserId ? "other" : "claim");
@@ -268,11 +271,12 @@ export default function AssistPanel({
       supplement: caps.marketplacePurchaseRequest || ctx.supplementals.length > 0,
       urgent: caps.urgentAdvokatRequest !== false,
     };
+    const shown = TABS.filter((k) => allowed[k]);
+    const cur: Tab = shown.includes(tab) ? tab : (shown[0] ?? tab);
     const supOpen = ctx.supplementals.filter((s) => s.status === "pending" || s.status === "escalated").length;
     const soon = (k: Tab) => k === "urgent" && allowed.urgent && urgentState === "soon";
-    const hint = (k: Tab) => (!allowed[k] ? t("tabs.off") : soon(k) ? t("tabs.soon") : k === "supplement" && supOpen ? t("tabs.hint.supplementOpen", { n: supOpen }) : t(`tabs.hint.${k}`));
+    const hint = (k: Tab) => (soon(k) ? t("tabs.soon") : k === "supplement" && supOpen ? t("tabs.hint.supplementOpen", { n: supOpen }) : t(`tabs.hint.${k}`));
     const section = (k: Tab) => {
-      if (!allowed[k]) return <p className="sasst__empty">{t("tabs.capOff")}</p>;
       const common = { ticketId, client: ctx.client, clientName: ticket.clientName, ctx, ctxAt: current?.at ?? 0, onDone: done, onBlock };
       if (k === "plan") return <AssistPlan key={ticketId} {...common} plans={plansState} />;
       if (k === "doc") return <AssistDoc key={ticketId} {...common} />;
@@ -299,13 +303,13 @@ export default function AssistPanel({
         <AssistClientCard ctx={ctx} ticket={ticket} onCall={viewOnly ? undefined : onCall} calling={calling} />
         <AssistAiHistory key={ticketId} history={ctx.aiHistory} />
         <AssistOverview ctx={ctx} plans={plansNow?.all ?? []} plansReady={plansNow !== null} />
-        {viewOnly ? null : (
+        {viewOnly || !shown.length ? null : (
           <div className="sasst__card sasst__acard">
             <h4 className="sasst__h4" id={`${uid}-acts`}>
               {t("tabs.label")}
             </h4>
-            <div className="sasst__menu" role="tablist" aria-labelledby={`${uid}-acts`} onKeyDown={onTabKey}>
-              {TABS.map((k) => {
+            <div className="sasst__menu" role="tablist" aria-labelledby={`${uid}-acts`} onKeyDown={(e) => onTabKey(e, shown, cur)}>
+              {shown.map((k) => {
                 const Icon = TAB_ICON[k];
                 return (
                   <button
@@ -313,10 +317,10 @@ export default function AssistPanel({
                     id={`${uid}-tab-${k}`}
                     type="button"
                     role="tab"
-                    aria-selected={tab === k}
-                    aria-controls={seen[k] ? `${uid}-panel-${k}` : undefined}
-                    tabIndex={tab === k ? 0 : -1}
-                    className={`sasst__mi${!allowed[k] ? " is-off" : soon(k) ? " is-soon" : ""}`}
+                    aria-selected={cur === k}
+                    aria-controls={seen[k] || cur === k ? `${uid}-panel-${k}` : undefined}
+                    tabIndex={cur === k ? 0 : -1}
+                    className={`sasst__mi${soon(k) ? " is-soon" : ""}`}
                     onClick={() => pick(k)}
                     data-ai-id={aiId("call_center.support.ticket", ticketId, "assist", AI_TAB[k])}
                   >
@@ -331,9 +335,9 @@ export default function AssistPanel({
                 );
               })}
             </div>
-            {TABS.map((k) =>
-              seen[k] ? (
-                <div key={k} id={`${uid}-panel-${k}`} role="tabpanel" aria-labelledby={`${uid}-tab-${k}`} hidden={tab !== k} className="sasst__sec">
+            {shown.map((k) =>
+              seen[k] || cur === k ? (
+                <div key={k} id={`${uid}-panel-${k}`} role="tabpanel" aria-labelledby={`${uid}-tab-${k}`} hidden={cur !== k} className="sasst__sec">
                   {section(k)}
                 </div>
               ) : null,

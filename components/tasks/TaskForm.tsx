@@ -45,12 +45,16 @@ export type TaskFormMode = { kind: "create" } | { kind: "edit"; task: Task } | {
 export default function TaskForm({
   mode,
   limits = TASK_UPLOAD_DEFAULTS,
+  canAssign = false,
   onClose,
   onSaved,
   onError,
 }: {
   mode: TaskFormMode;
   limits?: TaskUploadLimits;
+  // GET /task-management/meta capabilities.assign: without it a new task
+  // is created without the people picker.
+  canAssign?: boolean;
   onClose: () => void;
   onSaved: (task: Task | null) => void;
   onError: (e: TaskError, task: Task | null) => boolean;
@@ -81,7 +85,7 @@ export default function TaskForm({
 
   const deadline = joinLocal(date, time);
   const showFields = mode.kind !== "assign";
-  const showPeople = mode.kind !== "edit";
+  const showPeople = mode.kind === "assign" || (mode.kind === "create" && canAssign);
   const showUpload = mode.kind !== "assign";
   const locked = savedTask !== null;
   const titleBad = showFields && !title.trim();

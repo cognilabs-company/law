@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
 import { statusColorVars } from "@/components/crm/bits";
-import { getCrmCustomer, getCrmLead, isClaimRace, isCrmDenied, isFinalStatus, isVersionConflict, journeyOf, leadCan, type CrmContact, type CrmLead, type CrmMeta } from "@/lib/services/crm";
+import { crmCan, getCrmCustomer, getCrmLead, isClaimRace, isCrmDenied, isFinalStatus, isVersionConflict, journeyOf, leadCan, type CrmContact, type CrmLead, type CrmMeta } from "@/lib/services/crm";
 import { useCrmEvents, useNow } from "@/lib/crm/useCrm";
 import { IcArrowLeft } from "../../icons";
 import { crmHref, type CrmSectionProps } from "../nav";
@@ -257,7 +257,7 @@ function Workspace({ meta, leadId, startPane }: { meta: CrmMeta; leadId: string;
         </div>
         <div className="opx-cd-col opx-cd-col--side">
           <div className="opx-cd-m1">
-            <CustomerCard lead={lead} contacts={contacts} onDial={() => setDialed(true)} />
+            <CustomerCard lead={lead} contacts={contacts} onDial={() => setDialed(true)} profile={crmCan(meta, "crm.customers.view")} />
           </div>
           {step !== "nextAction" ? (
             <div className="opx-cd-m3">

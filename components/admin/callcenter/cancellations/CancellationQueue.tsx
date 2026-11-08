@@ -22,6 +22,8 @@ export default function CancellationQueue({ onCount }: { onCount?: (n: number) =
   const q = useCancellationQueue(onCount);
   const t = useTranslations("admin.callCenter.cancellations");
   const [resolving, setResolving] = useState<CancellationReview | null>(null);
+  // Reviews the backend refused this operator a ruling on (403): no Resolve.
+  const [refused, setRefused] = useState<ReadonlySet<string>>(() => new Set());
   const rootRef = useRef<HTMLElement>(null);
   const refreshResolving = useCallback((r: CancellationReview) => setResolving((cur) => (cur && cur.id === r.id ? r : cur)), []);
 
@@ -94,7 +96,7 @@ export default function CancellationQueue({ onCount }: { onCount?: (n: number) =
         <ul className="ccx-list" aria-busy={q.busy || undefined}>
           {q.items.map((r) => (
             <li key={r.id}>
-              <ReviewItem review={r} onResolve={setResolving} onFresh={refreshResolving} />
+              <ReviewItem review={r} onResolve={setResolving} onFresh={refreshResolving} refused={refused.has(r.id)} />
             </li>
           ))}
         </ul>
@@ -139,7 +141,7 @@ export default function CancellationQueue({ onCount }: { onCount?: (n: number) =
           </p>
         </div>
       </section>
-      {resolving ? <ResolveDialog review={resolving} onClose={closeDialog} onResolved={() => q.refresh()} onStale={q.refresh} /> : null}
+      {resolving ? <ResolveDialog review={resolving} onClose={closeDialog} onResolved={() => q.refresh()} onStale={q.refresh} onForbidden={() => setRefused((cur) => new Set(cur).add(resolving.id))} /> : null}
     </SxIconScope>
   );
 }

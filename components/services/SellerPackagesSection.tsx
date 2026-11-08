@@ -46,6 +46,9 @@ export default function SellerPackagesSection() {
   const [load, setLoad] = useState<Load>({ key: -1, items: null, error: null });
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [fails, setFails] = useState<Record<string, TierFailure>>({});
+  // A switch the backend refused with 403: the switches leave the screen,
+  // the packages stay readable.
+  const [denied, setDenied] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
 
@@ -106,6 +109,9 @@ export default function SellerPackagesSection() {
         setFails((f) => ({ ...f, [p.id]: tier }));
         toast(t("tier.toast"), { tone: "err" });
         reload();
+      } else if (isForbidden(e)) {
+        setDenied(true);
+        toast(marketErr(e, t("lockedText")), { tone: "err" });
       } else {
         toast(marketErr(e, t("actionFailed")), { tone: "err" });
         if (PACKAGE_SELLER_ERRORS.includes(marketErrorCode(e))) reload();
@@ -314,24 +320,29 @@ export default function SellerPackagesSection() {
                         note={p.eligibility.missingServiceIds.length ? t("missingServices", { n: p.eligibility.missingServiceIds.length }) : ""}
                       />
                     ) : null}
-                    <div className="pkg__acts spk__acts">
-                      {s === "active" ? (
-                        <button type="button" className="btn btn--line btn--sm" disabled={working} onClick={() => void act(p, "disabled")} data-ai-id={`seller.packages.${p.id}.disable`}>
-                          <IconPause aria-hidden="true" />
-                          {working ? t("saving") : t("disable")}
-                        </button>
-                      ) : s === "paused" ? (
-                        <button type="button" className="btn btn--pri btn--sm" disabled={working || !p.eligibility.eligible} onClick={() => void act(p, "active")} data-ai-id={`seller.packages.${p.id}.activate`}>
-                          <IconPower aria-hidden="true" />
-                          {working ? t("saving") : t("activate")}
-                        </button>
-                      ) : (
-                        <button type="button" className="btn btn--grad btn--sm" disabled={working || s === "blocked"} onClick={() => void act(p, "enable")} data-ai-id={`seller.packages.${p.id}.enable`}>
-                          <IconPlay aria-hidden="true" />
-                          {working ? t("saving") : t("enable")}
-                        </button>
-                      )}
-                    </div>
+                    {/* Only the step this package can take: none after a 403;
+                        an ineligible package is not switched on (the reasons
+                        are listed above). */}
+                    {denied || s === "blocked" || (s === "paused" && !p.eligibility.eligible) ? null : (
+                      <div className="pkg__acts spk__acts">
+                        {s === "active" ? (
+                          <button type="button" className="btn btn--line btn--sm" disabled={working} onClick={() => void act(p, "disabled")} data-ai-id={`seller.packages.${p.id}.disable`}>
+                            <IconPause aria-hidden="true" />
+                            {working ? t("saving") : t("disable")}
+                          </button>
+                        ) : s === "paused" ? (
+                          <button type="button" className="btn btn--pri btn--sm" disabled={working} onClick={() => void act(p, "active")} data-ai-id={`seller.packages.${p.id}.activate`}>
+                            <IconPower aria-hidden="true" />
+                            {working ? t("saving") : t("activate")}
+                          </button>
+                        ) : (
+                          <button type="button" className="btn btn--grad btn--sm" disabled={working} onClick={() => void act(p, "enable")} data-ai-id={`seller.packages.${p.id}.enable`}>
+                            <IconPlay aria-hidden="true" />
+                            {working ? t("saving") : t("enable")}
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}

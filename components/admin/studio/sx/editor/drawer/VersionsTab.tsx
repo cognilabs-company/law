@@ -17,6 +17,7 @@ import type { EditorState } from "../useEditorState";
 import { useEditorErrorText } from "../useEditorErrorText";
 import { routeStepNames, versionRollbackable } from "../model";
 import { sxStatus } from "../../status";
+import { studioDenied } from "../../denied";
 
 export function versionsNewestFirst(list: readonly StudioVersion[]): StudioVersion[] {
   return list
@@ -99,6 +100,8 @@ export function VersionsTab({ st, onPreview, onRollback }: { st: EditorState; on
   const labels = useStudioLabels();
   const errText = useEditorErrorText();
   const [exporting, setExporting] = useState(false);
+  // A refused export (403) keeps its toast and leaves the bar.
+  const [exportDenied, setExportDenied] = useState(false);
   const [loadingFile, setLoadingFile] = useState("");
   const saveFirstId = useId();
   const detail = st.detail;
@@ -112,6 +115,7 @@ export function VersionsTab({ st, onPreview, onRollback }: { st: EditorState; on
       await exportStudioVersionsXlsx(detail.id, st.title || detail.title);
     } catch (e) {
       logApiError("studio.sx.versions.export", e);
+      if (studioDenied(e)) setExportDenied(true);
       toast(errText(e).text || t("sx.editor.versions.exportFail"), { tone: "err" });
     } finally {
       setExporting(false);
@@ -133,7 +137,7 @@ export function VersionsTab({ st, onPreview, onRollback }: { st: EditorState; on
 
   return (
     <div className="sx-ed-vers" data-ai-id="admin.studio.editor.versions" data-ai-type="section" data-ai-label={t("sx.editor.tab.versions")}>
-      {st.can.exportVersions && list.length ? (
+      {st.can.exportVersions && !exportDenied && list.length ? (
         <div className="sx-ed-vers__bar">
           <SxButton size="sm" icon={DownloadIcon} busy={exporting} onClick={() => void doExport()} aiId="admin.studio.editor.versions.export">
             {t("sx.editor.versions.export")}

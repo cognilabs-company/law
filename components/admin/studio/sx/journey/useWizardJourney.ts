@@ -7,6 +7,7 @@ import { studioEventJourneyId, studioEventObjectId, useStudioLive } from "../liv
 import { getCreationJourney, isJourneyEvent, journeyMovePath, runJourneyAction, saveJourney, type JourneyAction } from "./journeyApi";
 import { isFullJourneyPayload, isOlderJourney, mergeJourney, stepsKey, unionSteps } from "./model";
 import { journeyEventData } from "./useCreationJourneys";
+import { studioDenied } from "../denied";
 
 export type JourneyPatch = { completedSteps: string[]; currentStep: string; context: Record<string, unknown> };
 
@@ -23,6 +24,8 @@ export type WizardJourney = {
   act: (action: JourneyAction) => Promise<StudioCreationJourney | null>;
   acting: JourneyAction | "";
   actError: unknown;
+  // Journey actions the backend refused (403): not offered again.
+  refused: ReadonlySet<JourneyAction>;
   reload: () => void;
 };
 
@@ -41,6 +44,7 @@ export function useWizardJourney(id: string): WizardJourney {
   const [patchError, setPatchError] = useState<unknown>(null);
   const [acting, setActing] = useState<JourneyAction | "">("");
   const [actError, setActError] = useState<unknown>(null);
+  const [refused, setRefused] = useState<ReadonlySet<JourneyAction>>(() => new Set());
   const journeyRef = useRef<StudioCreationJourney | null>(load.journey);
   const sentRef = useRef<string>("");
   const failedRef = useRef<JourneyPatch | null>(null);
@@ -178,6 +182,7 @@ export function useWizardJourney(id: string): WizardJourney {
         return merged;
       } catch (e) {
         logApiError("studio.journeys.patch", e);
+        studioDenied(e);
         failedRef.current = input;
         setPatchError(e);
         return null;
@@ -213,6 +218,7 @@ export function useWizardJourney(id: string): WizardJourney {
       } catch (e) {
         logApiError(`studio.journeys.${action}`, e);
         setActError(e);
+        if (studioDenied(e)) setRefused((cur) => new Set(cur).add(action));
         return null;
       } finally {
         actingRef.current = false;
@@ -250,6 +256,7 @@ export function useWizardJourney(id: string): WizardJourney {
     act,
     acting,
     actError,
+    refused,
     reload,
   };
 }

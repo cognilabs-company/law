@@ -131,7 +131,8 @@ export default function SellerDashboard({ role, compact = false }: { role: Role;
       link = { href: `${base}/payouts`, label: td("drill.goPayouts") };
     } else {
       sections.push({ kind: "list", title: td("drill.newOrders"), rows: c.newOrders.map((o) => ({ label: o.serviceName || o.title, value: o.budget || "", sub: o.region || "" })) });
-      link = { href: role === "advocate" ? "/portal/advocate/opportunities" : "/portal/lawyer/marketplace", label: td("drill.goOrders") };
+      // Only with the right to answer orders (available_actions.accept_orders).
+      if (c.actions.acceptOrders) link = { href: role === "advocate" ? "/portal/advocate/opportunities" : "/portal/lawyer/marketplace", label: td("drill.goOrders") };
     }
     // No way into a page the role profile lost (GET /me/navigation).
     setDrill({ title: t(m.label), value: fmtTile(m), demo, sections, link: link && isPathHidden(link.href) ? undefined : link });

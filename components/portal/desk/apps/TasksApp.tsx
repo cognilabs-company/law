@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEven
 import { useLocale, useTranslations } from "next-intl";
 import { createTask, deleteTask, listMyTasks, updateTask, type TaskCheckItem, type WorkTask } from "@/lib/services/backend";
 import { dateOnly } from "@/lib/date";
+import { isForbidden } from "@/lib/http";
 import { IconAlert, IconCalendar, IconCheck, IconClipboardList, IconClose, IconFileText, IconFlag, IconGrid, IconList, IconPlus, IconStarRate, IconSun, IconTrash } from "@/components/icons";
 import { App, Btn, Check, Empty, Field, Loading, Search, Seg, Select, Sidebar, TextArea, Toggle, Tool, Toolbar, useConfirm, useHost, useOs, useToast, type NavSection } from "../kit/kit";
 import { DateField } from "../kit/pickers";
@@ -45,6 +46,15 @@ export default function TasksApp(_props: NativeProps) {
   const [today, setToday] = useState("");
   const [confirmNode, confirm] = useConfirm();
   const [toast, say] = useToast();
+  // A 403 on any change: this account may not change its tasks. The lists
+  // stay readable; every way to add, edit, move or delete leaves the screen.
+  const [ro, setRo] = useState(false);
+  const failed403 = (e: unknown) => {
+    if (!isForbidden(e)) return false;
+    setRo(true);
+    say(t("forbidden"), "err");
+    return true;
+  };
 
   useEffect(() => {
     let alive = true;
@@ -105,9 +115,9 @@ export default function TasksApp(_props: NativeProps) {
       };
       const saved = await updateTask(x.id, body);
       patchLocal(x.id, { ...saved, ...p });
-    } catch {
+    } catch (e) {
       patchLocal(x.id, before);
-      say(t("saveFailed"), "err");
+      if (!failed403(e)) say(t("saveFailed"), "err");
     }
   }
   const setStage = (x: WorkTask, s: Stage) => save(x, { status: s });
@@ -124,8 +134,8 @@ export default function TasksApp(_props: NativeProps) {
       const x = await createTask({ title: name, priority: inherits.priority ?? "medium", ...inherits });
       setTasks((l) => [x, ...(l ?? [])]);
       setSel(x.id);
-    } catch {
-      say(t("createFailed"), "err");
+    } catch (e) {
+      if (!failed403(e)) say(t("createFailed"), "err");
     }
   }
   async function remove(x: WorkTask) {
@@ -136,13 +146,13 @@ export default function TasksApp(_props: NativeProps) {
       setTasks((l) => (l ?? []).filter((y) => y.id !== x.id));
       if (sel === x.id) setSel("");
       say(t("deleted"));
-    } catch {
-      say(t("deleteFailed"), "err");
+    } catch (e) {
+      if (!failed403(e)) say(t("deleteFailed"), "err");
     }
   }
 
   const rowMenu = (e: MouseEvent, x: WorkTask) =>
-    menu?.(e, x.title, [
+    !ro && menu?.(e, x.title, [
       { id: "done", label: open(x) ? d("markDone") : d("markOpen"), icon: <IconCheck />, onSelect: () => void toggleDone(x) },
       { sep: true, id: "s1" },
       { heading: d("moveTo"), id: "h-st" },
@@ -155,7 +165,7 @@ export default function TasksApp(_props: NativeProps) {
       { id: "del", label: t("delete"), icon: <IconTrash />, danger: true, onSelect: () => void remove(x) },
     ]);
   const onListKey = (e: KeyboardEvent) => {
-    if (!current || (e.target as HTMLElement).closest("input,textarea")) return;
+    if (ro || !current || (e.target as HTMLElement).closest("input,textarea")) return;
     if (e.key === "Delete" || e.key === "Backspace") void remove(current);
     if (e.key === " ") {
       e.preventDefault();
@@ -191,19 +201,19 @@ export default function TasksApp(_props: NativeProps) {
         <Loading label={d("loading")} />
       )
     ) : view === "board" && !needle ? (
-      <Board tasks={sorted(all.filter(matches))} selected={sel} onSelect={setSel} onMove={(x, s) => void setStage(x, s)} onMenu={rowMenu} overdue={overdue} onAdd={(title, s) => void add(title, s)} />
+      <Board tasks={sorted(all.filter(matches))} selected={sel} onSelect={setSel} onMove={ro ? undefined : (x, s) => void setStage(x, s)} onMenu={rowMenu} overdue={overdue} onAdd={ro ? undefined : (title, s) => void add(title, s)} />
     ) : (
       <div className="dxt-list" onKeyDown={onListKey}>
         {shown.length ? (
           <div className="dx-list" role="listbox" aria-label={listName(list)}>
             {shown.map((x) => (
-              <TaskRow key={x.id} x={x} selected={sel === x.id} overdue={overdue(x)} onSelect={() => setSel(x.id)} onToggle={() => void toggleDone(x)} onStar={() => void save(x, { priority: x.priority === "high" ? "medium" : "high" })} onMenu={(e) => rowMenu(e, x)} />
+              <TaskRow key={x.id} x={x} selected={sel === x.id} overdue={overdue(x)} onSelect={() => setSel(x.id)} onToggle={ro ? undefined : () => void toggleDone(x)} onStar={ro ? undefined : () => void save(x, { priority: x.priority === "high" ? "medium" : "high" })} onMenu={(e) => rowMenu(e, x)} />
             ))}
           </div>
         ) : (
           <Empty icon={<IconCheck />} title={needle ? d("noResults") : d(`empty.${list}`)} text={needle ? undefined : d("emptyHint")} />
         )}
-        <QuickAdd placeholder={os === "mac" ? d("newMac") : d("newWin")} onAdd={(v) => void add(v)} />
+        {ro ? null : <QuickAdd placeholder={os === "mac" ? d("newMac") : d("newWin")} onAdd={(v) => void add(v)} />}
       </div>
     );
 
@@ -211,15 +221,15 @@ export default function TasksApp(_props: NativeProps) {
     <App
       name="tasks"
       sidebar={<Sidebar label={t("title")} header={tiles ?? <Search value={q} onChange={setQ} placeholder={d("search")} wide />} sections={sideSections} value={needle ? "" : list} onChange={(id) => (setQ(""), setList(id as ListId))} />}
-      inspector={current ? <Details key={current.id} x={current} onSave={(p) => void save(current, p)} onClose={() => setSel("")} onDelete={() => void remove(current)} locale={locale} /> : undefined}
+      inspector={current ? <Details key={current.id} x={current} readOnly={ro} onSave={(p) => void save(current, p)} onClose={() => setSel("")} onDelete={() => void remove(current)} locale={locale} /> : undefined}
     >
       <Toolbar
         title={listName(list)}
         subtitle={tasks ? d("countOpen", { n: shown.length }) : undefined}
         end={os === "mac" ? <Search value={q} onChange={setQ} placeholder={d("search")} /> : undefined}
       >
-        <Tool icon={<IconPlus />} label={t("add")} primary onClick={() => document.querySelector<HTMLInputElement>(".dx-app--tasks .dxt-add input")?.focus()} />
-        {os === "win" ? <span className="dx-sep" aria-hidden /> : null}
+        {ro ? null : <Tool icon={<IconPlus />} label={t("add")} primary onClick={() => document.querySelector<HTMLInputElement>(".dx-app--tasks .dxt-add input")?.focus()} />}
+        {os === "win" && !ro ? <span className="dx-sep" aria-hidden /> : null}
         <Seg
           label={d("view")}
           small
@@ -240,7 +250,7 @@ export default function TasksApp(_props: NativeProps) {
 
 // One task in the list: done circle, title, its date (red when late), stage,
 // case and steps; the Mac marks it important with !!!, Windows with a star.
-function TaskRow({ x, selected, overdue: late, onSelect, onToggle, onStar, onMenu }: { x: WorkTask; selected: boolean; overdue: boolean; onSelect: () => void; onToggle: () => void; onStar: () => void; onMenu: (e: MouseEvent) => void }) {
+function TaskRow({ x, selected, overdue: late, onSelect, onToggle, onStar, onMenu }: { x: WorkTask; selected: boolean; overdue: boolean; onSelect: () => void; onToggle?: () => void; onStar?: () => void; onMenu: (e: MouseEvent) => void }) {
   const t = useTranslations("portal.tasks");
   const d = useTranslations("portal.desk.tasks");
   const locale = useLocale();
@@ -269,7 +279,7 @@ function TaskRow({ x, selected, overdue: late, onSelect, onToggle, onStar, onMen
         }
       }}
     >
-      <Check round checked={done} onChange={onToggle} label={done ? d("markOpen") : d("markDone")} />
+      {onToggle ? <Check round checked={done} onChange={onToggle} label={done ? d("markOpen") : d("markDone")} /> : null}
       <span className="dx-row__t">
         <b>{x.title || "—"}</b>
         <small>
@@ -286,7 +296,7 @@ function TaskRow({ x, selected, overdue: late, onSelect, onToggle, onStar, onMen
           ))}
         </small>
       </span>
-      {os === "mac" ? (
+      {os === "mac" || !onStar ? (
         x.priority === "high" ? (
           <span className="dxt-prio" title={t("priority.high")}>
             !!!
@@ -371,7 +381,7 @@ function ColumnAdd({ label, onAdd }: { label: string; onAdd: (v: string) => void
 }
 
 // The stages side by side; a card is dragged from one to another.
-function Board({ tasks, selected, onSelect, onMove, onMenu, overdue, onAdd }: { tasks: WorkTask[]; selected: string; onSelect: (id: string) => void; onMove: (x: WorkTask, s: Stage) => void; onMenu: (e: MouseEvent, x: WorkTask) => void; overdue: (x: WorkTask) => boolean; onAdd: (title: string, s: Stage) => void }) {
+function Board({ tasks, selected, onSelect, onMove, onMenu, overdue, onAdd }: { tasks: WorkTask[]; selected: string; onSelect: (id: string) => void; onMove?: (x: WorkTask, s: Stage) => void; onMenu: (e: MouseEvent, x: WorkTask) => void; overdue: (x: WorkTask) => boolean; onAdd?: (title: string, s: Stage) => void }) {
   const t = useTranslations("portal.tasks");
   const d = useTranslations("portal.desk.tasks");
   const locale = useLocale();
@@ -380,7 +390,7 @@ function Board({ tasks, selected, onSelect, onMove, onMenu, overdue, onAdd }: { 
   const drop = (e: DragEvent, s: Stage) => {
     e.preventDefault();
     const x = tasks.find((y) => y.id === drag.current);
-    if (x && stageOf(x.status) !== s) onMove(x, s);
+    if (x && onMove && stageOf(x.status) !== s) onMove(x, s);
     setOver(null);
   };
   return (
@@ -393,6 +403,7 @@ function Board({ tasks, selected, onSelect, onMove, onMenu, overdue, onAdd }: { 
             className={`dxt-col${over === s ? " is-over" : ""}`}
             aria-label={t(`stages.${s}`)}
             onDragOver={(e) => {
+              if (!onMove) return;
               e.preventDefault();
               setOver(s);
             }}
@@ -409,7 +420,7 @@ function Board({ tasks, selected, onSelect, onMove, onMenu, overdue, onAdd }: { 
                 <article
                   key={x.id}
                   className={`dxt-card${selected === x.id ? " is-on" : ""}${overdue(x) ? " is-late" : ""}`}
-                  draggable
+                  draggable={!!onMove}
                   onDragStart={(e) => {
                     drag.current = x.id;
                     e.dataTransfer.effectAllowed = "move";
@@ -435,7 +446,7 @@ function Board({ tasks, selected, onSelect, onMove, onMenu, overdue, onAdd }: { 
                   </footer>
                 </article>
               ))}
-              <ColumnAdd label={d("addTo", { stage: t(`stages.${s}`) })} onAdd={(v) => onAdd(v, s)} />
+              {onAdd ? <ColumnAdd label={d("addTo", { stage: t(`stages.${s}`) })} onAdd={(v) => onAdd(v, s)} /> : null}
             </div>
           </section>
         );
@@ -445,7 +456,7 @@ function Board({ tasks, selected, onSelect, onMove, onMenu, overdue, onAdd }: { 
 }
 
 // The chosen task, every field of it, each saved when it is left.
-function Details({ x, onSave, onClose, onDelete, locale }: { x: WorkTask; onSave: (p: Partial<WorkTask>) => void; onClose: () => void; onDelete: () => void; locale: string }) {
+function Details({ x, readOnly, onSave, onClose, onDelete, locale }: { x: WorkTask; readOnly?: boolean; onSave: (p: Partial<WorkTask>) => void; onClose: () => void; onDelete: () => void; locale: string }) {
   const t = useTranslations("portal.tasks");
   const d = useTranslations("portal.desk.tasks");
   const [title, setTitle] = useState(x.title);
@@ -455,6 +466,59 @@ function Details({ x, onSave, onClose, onDelete, locale }: { x: WorkTask; onSave
   const steps: TaskCheckItem[] = x.checklist ?? [];
   const commit = <K extends keyof WorkTask>(k: K, v: WorkTask[K], was: WorkTask[K]) => v !== was && onSave({ [k]: v } as Partial<WorkTask>);
   const setSteps = (next: TaskCheckItem[]) => onSave({ checklist: next });
+  // No right to change tasks: the same details, read only.
+  if (readOnly)
+    return (
+      <aside className="dxt-insp" aria-label={d("details")}>
+        <header className="dxt-insp__h">
+          <b>{d("details")}</b>
+          <Btn kind="plain" small icon={<IconClose />} title={d("closeDetails")} onClick={onClose} />
+        </header>
+        <div className="dxt-insp__b">
+          <div className="dxt-insp__title">
+            <b>{x.title || "—"}</b>
+          </div>
+          {steps.length ? (
+            <div className="dxt-steps">
+              {steps.map((c, i) => (
+                <div key={i} className="dxt-step">
+                  {c.done ? <IconCheck aria-hidden /> : null}
+                  <span className={c.done ? "is-done" : ""}>{c.text}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          <div className="dxt-insp__fields">
+            <Field label={d("stage")}>
+              <span>{x.status === "blocked" ? t("blocked") : t(`stages.${stageOf(x.status)}`)}</span>
+            </Field>
+            <Field label={t("priorityLabel")}>
+              <span>{t.has(`priority.${x.priority}`) ? t(`priority.${x.priority}`) : t("priority.medium")}</span>
+            </Field>
+            {x.dueDate ? (
+              <Field label={t("due")}>
+                <span>{dateOnly(x.dueDate, locale)}</span>
+              </Field>
+            ) : null}
+            {x.caseTitle ? (
+              <Field label={t("caseTitle")}>
+                <span>{x.caseTitle}</span>
+              </Field>
+            ) : null}
+            {x.description ? (
+              <Field label={t("description")}>
+                <span>{x.description}</span>
+              </Field>
+            ) : null}
+          </div>
+        </div>
+        {x.createdAt ? (
+          <footer className="dxt-insp__f">
+            <small>{d("created", { date: dateOnly(x.createdAt, locale) })}</small>
+          </footer>
+        ) : null}
+      </aside>
+    );
   return (
     <aside className="dxt-insp" aria-label={d("details")}>
       <header className="dxt-insp__h">

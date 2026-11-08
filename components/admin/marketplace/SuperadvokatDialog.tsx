@@ -23,7 +23,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const dayOf = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const isoOf = (day: string, time: string) => (day ? new Date(`${day}T${time || "00:00"}:00`).toISOString() : "");
 
-export default function SuperadvokatDialog({ sellerUserId, sellerName, canEdit, onClose }: { sellerUserId: string; sellerName: string; canEdit: boolean; onClose: () => void }): ReactElement {
+export default function SuperadvokatDialog({ sellerUserId, sellerName, canEdit, onDenied, onClose }: { sellerUserId: string; sellerName: string; canEdit: boolean; onDenied?: () => void; onClose: () => void }): ReactElement {
   const t = useTranslations("admin.superadvokat");
   const locale = useLocale();
   // A before/after snapshot in words: on or off, and its period.
@@ -46,6 +46,12 @@ export default function SuperadvokatDialog({ sellerUserId, sellerName, canEdit, 
   const [tried, setTried] = useState(false);
   const [now, setNow] = useState(0);
   const [tick, setTick] = useState(0);
+  // The parent drops its Superadvokat button after a 403; kept in a ref so
+  // the history load does not re-run when the parent re-renders.
+  const deniedRef = useRef(onDenied);
+  useEffect(() => {
+    deniedRef.current = onDenied;
+  });
 
   useEffect(() => {
     // The history is the primary superadmin's too: nobody else asks for it.
@@ -63,7 +69,10 @@ export default function SuperadvokatDialog({ sellerUserId, sellerName, canEdit, 
         if (isAborted(e)) return;
         logApiError("superadvokat.history", e);
         setLoadFailed(true);
-        if (isPrimaryOnly(e)) setLocked(true);
+        if (isPrimaryOnly(e)) {
+          setLocked(true);
+          deniedRef.current?.();
+        }
       },
     );
     return () => ctl.abort();
@@ -88,8 +97,10 @@ export default function SuperadvokatDialog({ sellerUserId, sellerName, canEdit, 
       setTick((n) => n + 1);
     } catch (e) {
       logApiError("superadvokat.set", e);
-      if (isPrimaryOnly(e)) setLocked(true);
-      else setMsg({ ok: false, text: errDetail(e) || t("failed") });
+      if (isPrimaryOnly(e)) {
+        setLocked(true);
+        deniedRef.current?.();
+      } else setMsg({ ok: false, text: errDetail(e) || t("failed") });
     } finally {
       sending.current = false;
       setBusy(false);
@@ -116,9 +127,11 @@ export default function SuperadvokatDialog({ sellerUserId, sellerName, canEdit, 
           <button type="button" className="btn btn--line" onClick={onClose} disabled={busy}>
             {t("close")}
           </button>
-          <button type="button" className="btn btn--pri" onClick={() => void save()} disabled={busy || locked || !history}>
-            {busy ? t("saving") : active ? t("turnOn") : t("turnOff")}
-          </button>
+          {locked ? null : (
+            <button type="button" className="btn btn--pri" onClick={() => void save()} disabled={busy || !history}>
+              {busy ? t("saving") : active ? t("turnOn") : t("turnOff")}
+            </button>
+          )}
         </>
       }
     >
@@ -142,7 +155,8 @@ export default function SuperadvokatDialog({ sellerUserId, sellerName, canEdit, 
         {loadFailed && !locked ? <Notice ok={false} msg={t("loadFailed")} /> : null}
         {msg ? <Notice ok={msg.ok} msg={msg.text} /> : null}
 
-        <fieldset className="sav__form" disabled={locked || busy}>
+        {locked ? null : (
+        <fieldset className="sav__form" disabled={busy}>
           <legend>{t("change")}</legend>
           <div className="sav__seg" role="radiogroup" aria-label={t("change")}>
             {[true, false].map((on) => (
@@ -176,6 +190,7 @@ export default function SuperadvokatDialog({ sellerUserId, sellerName, canEdit, 
           </div>
           <p className="sav__note">{t("recalc")}</p>
         </fieldset>
+        )}
 
         {canEdit ? (
           <section className="sav__hist" aria-labelledby="sav-h">

@@ -5,13 +5,14 @@ import { useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
 import { IconAlert, IconClock, IconCoins, IconRefresh, IconSend, IconSparkle } from "@/components/icons";
-import { isAborted } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { getPriceOptions, getPriceQuote, type PriceOptionSection, type PriceQuote, type PriceTarget } from "@/lib/services/priceOptions";
 import { PRICE_OPTION_ERRORS, marketErrorCode, requestAdditionalPayment, type MarketOrder, type SupplementalPayment } from "@/lib/services/marketplace";
 import { OptionGroups } from "./PriceOptions";
 import { OptionLines } from "./OrderExtras";
 import { useMarketError } from "./useMarketError";
+import { markRefused, useRefused } from "./order/refused";
+import { isAborted, isForbidden } from "@/lib/http";
 import { useGuardedField } from "@/components/ui/ContactGuardNote";
 
 const NOTE_MAX = 1000;
@@ -24,6 +25,7 @@ export default function SupplementalDialog({ order, onClose, onSent }: { order: 
   const t = useTranslations("marketplace.supplemental");
   const tp = useTranslations("marketplace.priceOptions");
   const marketErr = useMarketError();
+  const refusedFor = useRefused();
   const target: PriceTarget = order?.packageId ? "package" : "service";
   const targetId = order ? order.packageId || order.serviceId : "";
   const key = order ? `${order.id}:${target}:${targetId}` : "";
@@ -98,6 +100,9 @@ export default function SupplementalDialog({ order, onClose, onSent }: { order: 
       onClose();
     } catch (e) {
       setErr(marketErr(e, t("error")));
+      // Refused (403) or "not allowed" for this order: the message stays,
+      // the submit button and the order's "Request extra payment" entry go.
+      if (isForbidden(e) || marketErrorCode(e) === "additional_payment_not_allowed") markRefused(target0.id, "supplemental");
       if (PRICE_OPTION_ERRORS.includes(marketErrorCode(e))) setReload((n) => n + 1);
     } finally {
       setBusy(false);
@@ -189,10 +194,12 @@ export default function SupplementalDialog({ order, onClose, onSent }: { order: 
         {noteGuard.note}
         {err ? <Notice ok={false} msg={err} /> : null}
         <div className="mk-buy__acts">
-          <button type="button" className="btn btn--grad" disabled={busy || !picked.length || pending} onClick={() => void send()} data-ai-id="advocate.marketplace-orders.supplemental.submit">
-            <IconSend aria-hidden="true" />
-            {busy ? t("sending") : t("submit")}
-          </button>
+          {refusedFor(target0.id, "supplemental") ? null : (
+            <button type="button" className="btn btn--grad" disabled={busy || !picked.length || pending} onClick={() => void send()} data-ai-id="advocate.marketplace-orders.supplemental.submit">
+              <IconSend aria-hidden="true" />
+              {busy ? t("sending") : t("submit")}
+            </button>
+          )}
           <button type="button" className="btn btn--line" disabled={busy} onClick={onClose}>
             {t("keep")}
           </button>

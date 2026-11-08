@@ -1103,10 +1103,14 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
                   onOpen={(l) => openLink(l)}
                   onChat={(room) => (byKey.has("messages") ? openApp("messages", false, `/portal/chat/${room}`) : openApp("chat"))}
                   onShortcut={ready ? (it) => addShortcut(workShortcut(it)) : undefined}
-                  onCopilot={(it) => {
-                    setCopilotFocus({ type: it.entityType, id: it.id, title: it.title || it.code });
-                    openApp("copilot");
-                  }}
+                  onCopilot={
+                    aiMode
+                      ? (it) => {
+                          setCopilotFocus({ type: it.entityType, id: it.id, title: it.title || it.code });
+                          openApp("copilot");
+                        }
+                      : undefined
+                  }
                 />
                 </KitOs>
               ) : Native ? (

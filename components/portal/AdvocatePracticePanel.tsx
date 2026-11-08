@@ -191,6 +191,12 @@ export default function AdvocatePracticePanel(): ReactElement | null {
       setNote({ ok: true, msg: t("sent") });
       await load();
     } catch (e) {
+      // 403: this account may not submit — the form and the upload button leave.
+      if (isForbidden(e)) {
+        setFlow(null);
+        setDenied(true);
+        return;
+      }
       logApiError("practice.submit", e);
       const fe = licenseErrorOf(e);
       const msg = fe && t.has(`err.${fe.code}`) ? t(`err.${fe.code}`) : errDetail(e) || t("failed");
@@ -337,7 +343,7 @@ export default function AdvocatePracticePanel(): ReactElement | null {
                 <IconClock aria-hidden="true" />
                 {t("pendingNote")}
               </p>
-            ) : (
+            ) : denied ? null : (
               <button type="button" className={verified ? "btn btn--line btn--sm" : "btn btn--pri btn--sm"} onClick={start} disabled={!!flow}>
                 <IconUpload aria-hidden="true" />
                 {verified ? t("reupload") : p.verification === "not_submitted" ? t("upload") : t("resubmit")}

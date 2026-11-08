@@ -464,6 +464,7 @@ export default function CopilotPanel({ state, mode, role }: Props) {
                     index={i}
                     role={role}
                     busy={sending || state.denied}
+                    denied={state.denied}
                     onRetry={retry}
                     onGo={go}
                     onFlash={flash}
@@ -495,6 +496,9 @@ export default function CopilotPanel({ state, mode, role }: Props) {
                   })}
                 </div>
               ) : null}
+              {/* Refused for this account: the deny card stands alone — no
+                  composer to type into (owner law 2026-11-08: hide, don't disable). */}
+              {state.denied ? null : (
               <form
                 className="cpl-compose"
                 onSubmit={(e) => {
@@ -509,8 +513,7 @@ export default function CopilotPanel({ state, mode, role }: Props) {
                     value={text}
                     maxLength={4000}
                     readOnly={sending}
-                    aria-disabled={sending || state.denied || undefined}
-                    disabled={state.denied}
+                    aria-disabled={sending || undefined}
                     onChange={(e) => {
                       if (conv) setText(conv.key, conv.promptSeq, e.target.value);
                     }}
@@ -528,7 +531,6 @@ export default function CopilotPanel({ state, mode, role }: Props) {
                     type="button"
                     className={`cpl-send${sending ? " cpl-send--stop" : ""}`}
                     onClick={sending ? cancel : () => send(text, true)}
-                    disabled={!sending && state.denied}
                     aria-disabled={!sending && !text.trim() ? true : undefined}
                     aria-label={sending ? t("cancel") : t("send")}
                     title={sending ? t("cancel") : t("send")}
@@ -539,6 +541,7 @@ export default function CopilotPanel({ state, mode, role }: Props) {
                 </div>
                 <p className="cpl-hint">{sending ? t("composer.busy") : t("composer.hint")}</p>
               </form>
+              )}
             </>
           )}
         </div>

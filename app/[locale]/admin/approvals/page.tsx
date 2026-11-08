@@ -8,21 +8,33 @@ import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { useReload } from "@/components/admin/AdminBits";
 import { IconShieldCheck, IconCheck } from "@/components/icons";
 import { aiId } from "@/lib/ai/ids";
+import { isForbidden } from "@/lib/http";
+import { notify } from "@/lib/toast";
+
+type Stamp = "admin" | "manager";
 
 export default function AdminApprovals() {
   const t = useTranslations("admin");
+  const tc = useTranslations("common");
   const [key, reload] = useReload();
   const res = useResource(listApprovals, [key]);
   const [busy, setBusy] = useState<string | null>(null);
+  // Which stamp the backend refused this session (403): that button leaves
+  // every row. Nothing tells ahead of time which of the two stamps this
+  // account may give (backend gap, see the permissions questions file).
+  const [denied, setDenied] = useState<Partial<Record<Stamp, boolean>>>({});
 
-  async function act(id: string, fn: (id: string) => Promise<unknown>) {
+  async function act(id: string, stamp: Stamp) {
     if (busy) return;
     setBusy(id);
     try {
-      await fn(id);
+      await (stamp === "admin" ? adminApprove : managerApprove)(id);
       reload();
-    } catch {
-      /* ignore */
+    } catch (e) {
+      if (isForbidden(e)) {
+        notify.error(tc("forbidden"), { id: `approval-${stamp}` });
+        setDenied((d) => ({ ...d, [stamp]: true }));
+      }
     } finally {
       setBusy(null);
     }
@@ -65,28 +77,37 @@ export default function AdminApprovals() {
                   <em className="atag">{a.status ? (t.has(`approvals.status.${a.status}`) ? t(`approvals.status.${a.status}`) : a.status) : ""}</em>
                 </div>
               </div>
-              <div className="aitem__r" style={{ display: "flex", gap: 8 }} data-ai-target="approvals:actions">
-                <button
-                  className="btn btn--soft btn--sm"
-                  type="button"
-                  disabled={a.adminApproved || busy === a.id}
-                  onClick={() => act(a.id, adminApprove)}
-                  data-ai-id={a.id ? aiId("admin.approvals.item", a.id, "admin-approve") : undefined}
-                >
-                  <IconCheck />
-                  {t("approvals.adminApprove")}
-                </button>
-                <button
-                  className="btn btn--line btn--sm"
-                  type="button"
-                  disabled={a.managerApproved || busy === a.id}
-                  onClick={() => act(a.id, managerApprove)}
-                  data-ai-id={a.id ? aiId("admin.approvals.item", a.id, "manager-approve") : undefined}
-                >
-                  <IconCheck />
-                  {t("approvals.managerApprove")}
-                </button>
-              </div>
+              {/* Only an open request (pending / partial) takes stamps. A stamp
+                  already given shows as ✓ in the tags; only the missing ones
+                  are offered, and only those the backend hasn't refused. */}
+              {(!a.status || a.status === "pending" || a.status === "partial") && ((!a.adminApproved && !denied.admin) || (!a.managerApproved && !denied.manager)) ? (
+                <div className="aitem__r" style={{ display: "flex", gap: 8, flexWrap: "wrap" }} data-ai-target="approvals:actions">
+                  {!a.adminApproved && !denied.admin ? (
+                    <button
+                      className="btn btn--soft btn--sm"
+                      type="button"
+                      disabled={busy === a.id}
+                      onClick={() => act(a.id, "admin")}
+                      data-ai-id={a.id ? aiId("admin.approvals.item", a.id, "admin-approve") : undefined}
+                    >
+                      <IconCheck />
+                      {t("approvals.adminApprove")}
+                    </button>
+                  ) : null}
+                  {!a.managerApproved && !denied.manager ? (
+                    <button
+                      className="btn btn--line btn--sm"
+                      type="button"
+                      disabled={busy === a.id}
+                      onClick={() => act(a.id, "manager")}
+                      data-ai-id={a.id ? aiId("admin.approvals.item", a.id, "manager-approve") : undefined}
+                    >
+                      <IconCheck />
+                      {t("approvals.managerApprove")}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ))}
         </div>

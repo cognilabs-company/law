@@ -389,10 +389,12 @@ export default function AchievementsPanel(): ReactElement | null {
           </span>
           {t("title")}
         </b>
-        <button type="button" className="btn btn--pri btn--sm" onClick={() => open(empty())} disabled={!!draft || !cfg}>
-          <IconPlus aria-hidden="true" />
-          {t("add")}
-        </button>
+        {denied ? null : (
+          <button type="button" className="btn btn--pri btn--sm" onClick={() => open(empty())} disabled={!!draft || !cfg}>
+            <IconPlus aria-hidden="true" />
+            {t("add")}
+          </button>
+        )}
       </div>
       <p className="exp__lead">{t("lead")}</p>
       {denied ? (
@@ -447,7 +449,7 @@ export default function AchievementsPanel(): ReactElement | null {
           </span>
           <b>{status ? t("emptyFiltered") : t("emptyTitle")}</b>
           {status ? null : <p>{t("emptyText")}</p>}
-          {status || !cfg ? null : (
+          {status || !cfg || denied ? null : (
             <button type="button" className="btn btn--line btn--sm" onClick={() => open(empty())}>
               <IconPlus aria-hidden="true" />
               {t("add")}
@@ -473,14 +475,15 @@ export default function AchievementsPanel(): ReactElement | null {
                     <b>{L.stage(a.stage, a.stageLabel)}</b>
                     <small>{L.result(a.result, a.resultLabel)}</small>
                   </div>
-                  {a.status !== "superseded" ? (
+                  {/* Under review (pending) or no right to edit: no revise button. */}
+                  {a.status !== "superseded" && !g.pending && !denied ? (
                     <button
                       type="button"
                       className="exp__edit"
                       onClick={() => open(draftOf(g.latest ?? a))}
                       aria-label={t("revise")}
-                      title={g.pending ? t("revisePending") : t("revise")}
-                      disabled={!!draft || !!g.pending || !cfg}
+                      title={t("revise")}
+                      disabled={!!draft || !cfg}
                     >
                       <IconEdit aria-hidden="true" />
                     </button>

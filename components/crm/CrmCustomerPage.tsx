@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useState, type ReactElement, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
 import CheckBox from "@/components/CheckBox";
@@ -63,6 +63,9 @@ function Profile({ api, customerId }: { api: CrmApi; customerId: string }): Reac
   const [sheet, setSheet] = useState<"" | "edit" | "contact" | "merge">("");
   const [contactBusy, setContactBusy] = useState("");
   const canManage = crmCan(meta, "crm.customers.manage");
+  // The lead workspace needs crm.leads.view; without it the customer's leads
+  // are listed but do not open.
+  const canLeads = crmCan(meta, "crm.leads.view");
   const load = useCallback(
     async (signal?: AbortSignal) => {
       try {
@@ -183,26 +186,28 @@ function Profile({ api, customerId }: { api: CrmApi; customerId: string }): Reac
             </span>
           </span>
         </div>
-        <div className="crm-moves">
-          {crmCan(meta, "crm.leads.manage") ? (
-            <button type="button" className="crm-move" onClick={() => api.open("lead", { customerId: c.id, customerName: c.name })}>
-              <IconPlus aria-hidden="true" />
-              {t("newLead")}
-            </button>
-          ) : null}
-          {canManage ? (
-            <button type="button" className="crm-move" onClick={() => setSheet("edit")}>
-              <IconEdit aria-hidden="true" />
-              {t("edit")}
-            </button>
-          ) : null}
-          {crmCan(meta, "crm.customers.merge") ? (
-            <button type="button" className="crm-move" onClick={() => setSheet("merge")}>
-              <IconUsers aria-hidden="true" />
-              {t("merge")}
-            </button>
-          ) : null}
-        </div>
+        {crmCan(meta, "crm.leads.manage") || canManage || crmCan(meta, "crm.customers.merge") ? (
+          <div className="crm-moves">
+            {crmCan(meta, "crm.leads.manage") ? (
+              <button type="button" className="crm-move" onClick={() => api.open("lead", { customerId: c.id, customerName: c.name })}>
+                <IconPlus aria-hidden="true" />
+                {t("newLead")}
+              </button>
+            ) : null}
+            {canManage ? (
+              <button type="button" className="crm-move" onClick={() => setSheet("edit")}>
+                <IconEdit aria-hidden="true" />
+                {t("edit")}
+              </button>
+            ) : null}
+            {crmCan(meta, "crm.customers.merge") ? (
+              <button type="button" className="crm-move" onClick={() => setSheet("merge")}>
+                <IconUsers aria-hidden="true" />
+                {t("merge")}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </section>
 
       <div className="crm-grid">
@@ -216,7 +221,7 @@ function Profile({ api, customerId }: { api: CrmApi; customerId: string }): Reac
             {current.length ? (
               <div className="crm-leadcards">
                 {current.map((l) => (
-                  <Link key={l.id} href={`/admin/crm/leads/${encodeURIComponent(l.id)}`} className="crm-leadcard" style={statusVar(l.status)}>
+                  <LeadCard key={l.id} id={l.id} open={canLeads} status={l.status}>
                     <b>{l.title || l.workId}</b>
                     <span style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                       <StatusPill status={l.status} />
@@ -225,7 +230,7 @@ function Profile({ api, customerId }: { api: CrmApi; customerId: string }): Reac
                     <small>
                       {[l.workId, l.region, l.operator?.name || t("unassigned")].filter(Boolean).join(" · ")}
                     </small>
-                  </Link>
+                  </LeadCard>
                 ))}
               </div>
             ) : (
@@ -239,13 +244,13 @@ function Profile({ api, customerId }: { api: CrmApi; customerId: string }): Reac
                 </h4>
                 <div className="crm-leadcards">
                   {past.map((l) => (
-                    <Link key={l.id} href={`/admin/crm/leads/${encodeURIComponent(l.id)}`} className="crm-leadcard" style={statusVar(l.status)}>
+                    <LeadCard key={l.id} id={l.id} open={canLeads} status={l.status}>
                       <b>{l.title || l.workId}</b>
                       <StatusPill status={l.status} />
                       <small>
                         {l.workId} · {l.closedAt ? shortDateTime(l.closedAt, locale) : l.createdAt ? shortDateTime(l.createdAt, locale) : ""}
                       </small>
-                    </Link>
+                    </LeadCard>
                   ))}
                 </div>
               </>
@@ -359,6 +364,20 @@ function Profile({ api, customerId }: { api: CrmApi; customerId: string }): Reac
       {sheet === "contact" ? <AddContact c={c} meta={meta} onClose={() => setSheet("")} onSaved={() => void load()} /> : null}
       {sheet === "merge" ? <MergeDialog target={c} onClose={() => setSheet("")} onMerged={() => void load()} /> : null}
     </>
+  );
+}
+
+// One of the customer's leads: opens the lead workspace when allowed, else a
+// plain card (same look, nothing to click).
+function LeadCard({ id, open, status, children }: { id: string; open: boolean; status: string; children: ReactNode }): ReactElement {
+  return open ? (
+    <Link href={`/admin/crm/leads/${encodeURIComponent(id)}`} className="crm-leadcard" style={statusVar(status)}>
+      {children}
+    </Link>
+  ) : (
+    <div className="crm-leadcard" style={statusVar(status)}>
+      {children}
+    </div>
   );
 }
 

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { searchServices, type BackendCategory } from "@/lib/services/backend";
-import { sessionRoles, useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import { CATEGORY_PATH_SEP, categoryPathLabel, descendantIds, flattenCategoryTree, getCategoryTree, invalidateCategoryTree, type CategoryRow } from "@/lib/services/categoryTree";
 import {
   createService,
@@ -17,7 +17,7 @@ import {
 } from "@/lib/services/admin";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
-import { ApiError } from "@/lib/http";
+import { ApiError, isForbidden } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { matchesSearch } from "@/lib/searchText";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
@@ -29,7 +29,9 @@ import { useAiSelection } from "@/lib/ai/registry";
 import { IconAlert, IconBriefcase, IconChevronRight, IconPlus, IconSearch, IconEdit, IconTrash, IconRefresh, IconInfo, IconEye, IconLayers, IconCircleCheck } from "@/components/icons";
 import "./categoryTree.css";
 import { useStudioCatalog } from "@/lib/studio/catalogLink";
+import { useStudioAccess } from "@/lib/services/studio";
 import { categoryTitleName } from "@/lib/categoryNames";
+import { can } from "@/lib/permissions";
 
 function num(v: string | boolean): number {
   const n = parseInt(String(v || "0"), 10);
@@ -95,11 +97,19 @@ export default function AdminServices() {
   const t = useTranslations("admin");
   const ts = useTranslations("admin.services");
   // Categories are edited in Studio K01 — linked only while the catalog lists it (§4.7).
-  const categoriesHref = useStudioCatalog().listHref("K01");
+  // …and only for an account Studio admits.
+  const studioCatalog = useStudioCatalog();
+  const studioOk = useStudioAccess().any;
+  const categoriesHref = studioOk ? studioCatalog.listHref("K01") : "";
   const locale = useLocale();
   const { session } = useAuth();
-  const roles = sessionRoles(session);
-  const canManage = roles.includes("superadmin") || roles.includes("admin") || Boolean(session?.permissions?.includes("services.manage"));
+  // A 403 on a write (services.manage taken away, or this account refused)
+  // takes every catalog write off the screen; the toast still says why.
+  const [denied, setDenied] = useState(false);
+  const canManage = can(session, "services.manage", { roles: ["admin"] }) && !denied;
+  const deny = (e: unknown) => {
+    if (isForbidden(e)) setDenied(true);
+  };
   const [scope, setScope] = useState<Scope>("marketplace");
   const [replaceOpen, setReplaceOpen] = useState(false);
   const [replaceBusy, setReplaceBusy] = useState(false);
@@ -207,6 +217,8 @@ export default function AdminServices() {
       reloadSvcs();
     } catch (e) {
       notify.error(ts("scope.replaceError"), { id: "svc-replace", error: e, map: { 403: ts("edit.errForbidden") } });
+      if (isForbidden(e)) setReplaceOpen(false);
+      deny(e);
     } finally {
       setReplaceBusy(false);
     }
@@ -231,6 +243,8 @@ export default function AdminServices() {
       notify.success(ts("del.done"), { id: `svc-del-${del.id}`, body: del.name });
     } catch (e) {
       notify.error(t("form.deleteError"), { id: `svc-del-${del.id}`, error: e, map: { 404: ts("del.errNotFound"), 403: ts("del.errForbidden") } });
+      if (isForbidden(e)) setDel(null);
+      deny(e);
     } finally {
       setDelBusy(false);
     }
@@ -245,6 +259,7 @@ export default function AdminServices() {
       notify.success(ts("reactivated"), { id: `svc-react-${s.id}`, body: s.name });
     } catch (e) {
       notify.error(ts("reactivateError"), { id: `svc-react-${s.id}`, error: e, map: { 404: ts("edit.errNotFound"), 403: ts("edit.errForbidden") } });
+      deny(e);
     } finally {
       setReactivating("");
     }
@@ -311,10 +326,12 @@ export default function AdminServices() {
           <b>{t("services.svcTitle")}</b>
           <span className="ahdr">
             <span className="advmuted">{svcs.status === "ready" ? ts("shown", { n: list.length, total: all.length }) : svcs.data.length}</span>
-            <button className="btn btn--pri btn--sm" type="button" onClick={() => setSvcOpen(true)} data-ai-target="button:new-service">
-              <IconPlus />
-              {t("form.add")}
-            </button>
+            {canManage ? (
+              <button className="btn btn--pri btn--sm" type="button" onClick={() => setSvcOpen(true)} data-ai-target="button:new-service">
+                <IconPlus />
+                {t("form.add")}
+              </button>
+            ) : null}
           </span>
         </div>
 
@@ -362,34 +379,36 @@ export default function AdminServices() {
                   { label: s.hasMetadata ? ts("tagCatalog") : ts("tagCustom"), tone: s.hasMetadata ? undefined : "muted" },
                 ]}
                 actions={
-                  <>
-                    {!s.isActive ? (
-                      <button
-                        className="aitem__act"
-                        type="button"
-                        aria-label={ts("reactivate")}
-                        title={ts("reactivate")}
-                        disabled={reactivating === s.id}
-                        onClick={() => void reactivate(s)}
-                      >
-                        <IconRefresh />
+                  canManage ? (
+                    <>
+                      {!s.isActive ? (
+                        <button
+                          className="aitem__act"
+                          type="button"
+                          aria-label={ts("reactivate")}
+                          title={ts("reactivate")}
+                          disabled={reactivating === s.id}
+                          onClick={() => void reactivate(s)}
+                        >
+                          <IconRefresh />
+                        </button>
+                      ) : null}
+                      <button className="aitem__act" type="button" aria-label={t("form.edit")} title={t("form.edit")} onClick={() => setEdit(s)}>
+                        <IconEdit />
                       </button>
-                    ) : null}
-                    <button className="aitem__act" type="button" aria-label={t("form.edit")} title={t("form.edit")} onClick={() => setEdit(s)}>
-                      <IconEdit />
-                    </button>
-                    {s.isActive ? (
-                      <button
-                        className="aitem__act aitem__act--danger"
-                        type="button"
-                        aria-label={t("form.delete")}
-                        title={t("form.delete")}
-                        onClick={() => setDel(s)}
-                      >
-                        <IconTrash />
-                      </button>
-                    ) : null}
-                  </>
+                      {s.isActive ? (
+                        <button
+                          className="aitem__act aitem__act--danger"
+                          type="button"
+                          aria-label={t("form.delete")}
+                          title={t("form.delete")}
+                          onClick={() => setDel(s)}
+                        >
+                          <IconTrash />
+                        </button>
+                      ) : null}
+                    </>
+                  ) : undefined
                 }
               />
             ))}
@@ -397,7 +416,7 @@ export default function AdminServices() {
         )}
       </div>
 
-      <Modal open={svcOpen} onClose={() => setSvcOpen(false)} title={t("services.svcCreate")}>
+      <Modal open={svcOpen && canManage} onClose={() => setSvcOpen(false)} title={t("services.svcCreate")}>
         <AdminForm
           fields={[
             {
@@ -415,18 +434,25 @@ export default function AdminServices() {
             { name: "delivery_minutes", label: t("form.deliveryMinutes"), type: "number", placeholder: "60" },
             { name: "is_active", label: t("form.active"), type: "checkbox" },
           ]}
-          onSubmit={async (v) =>
-            void (await createService({
-              category_id: String(v.category_id),
-              slug: String(v.slug),
-              title: String(v.title),
-              description: String(v.description),
-              base_price: num(v.base_price),
-              currency: "UZS",
-              delivery_minutes: num(v.delivery_minutes),
-              is_active: v.is_active as boolean,
-            }))
-          }
+          onSubmit={async (v) => {
+            try {
+              await createService({
+                category_id: String(v.category_id),
+                slug: String(v.slug),
+                title: String(v.title),
+                description: String(v.description),
+                base_price: num(v.base_price),
+                currency: "UZS",
+                delivery_minutes: num(v.delivery_minutes),
+                is_active: v.is_active as boolean,
+              });
+            } catch (e) {
+              // The form still shows its error; the create button goes.
+              if (isForbidden(e)) setSvcOpen(false);
+              deny(e);
+              throw e;
+            }
+          }}
           submitLabel={t("form.save")}
           busyLabel={t("form.saving")}
           okMsg={t("form.created")}
@@ -438,10 +464,20 @@ export default function AdminServices() {
         />
       </Modal>
 
-      <ServiceEditModal service={edit} categories={editCats} professional={Boolean(edit && !edit.documentTemplateId && scope === "marketplace")} onClose={() => setEdit(null)} onSaved={onSaved} />
+      <ServiceEditModal
+        service={canManage ? edit : null}
+        categories={editCats}
+        professional={Boolean(edit && !edit.documentTemplateId && scope === "marketplace")}
+        onClose={() => setEdit(null)}
+        onSaved={onSaved}
+        onForbidden={() => {
+          setEdit(null);
+          setDenied(true);
+        }}
+      />
 
       {/* Delete (soft) confirm */}
-      <Modal open={del !== null} onClose={() => setDel(null)} title={ts("del.title")}>
+      <Modal open={del !== null && canManage} onClose={() => setDel(null)} title={ts("del.title")}>
         {del ? (
           <div className="cform" style={{ maxWidth: "none" }}>
             <p style={{ margin: 0 }}>
@@ -462,7 +498,7 @@ export default function AdminServices() {
       </Modal>
 
       {/* Replace the professional catalog */}
-      <Modal open={replaceOpen} onClose={() => !replaceBusy && setReplaceOpen(false)} title={ts("scope.replaceTitle")}>
+      <Modal open={replaceOpen && canManage} onClose={() => !replaceBusy && setReplaceOpen(false)} title={ts("scope.replaceTitle")}>
         <div className="cform" style={{ maxWidth: "none" }}>
           <p style={{ margin: 0 }}>{ts("scope.replaceText")}</p>
           <ul className="svcadm__rules">

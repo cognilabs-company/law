@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { sessionRoles, useAuth, type Session } from "@/lib/auth";
+import { useAuth, type Session } from "@/lib/auth";
 import { fmtDate, fmtInt, shortDateTime } from "@/lib/date";
 import { listAdminPayouts, listRegisterRequests, seedDemoData } from "@/lib/services/backend";
 import {
@@ -27,7 +27,7 @@ import {
 import { demoAdminDashboard, demoCeo, demoQuality } from "@/lib/demoStats";
 import { humanizeSlug } from "@/lib/lawyers";
 import { leadSourceInfo, leadSourceLabel } from "@/lib/leadLabels";
-import { ApiError, isDemoUnavailable } from "@/lib/http";
+import { ApiError, isDemoUnavailable, isForbidden } from "@/lib/http";
 import { useResourceOne, type ResStatus } from "@/lib/useResource";
 import { useDemoTools } from "@/lib/demoTools";
 import { notify } from "@/lib/toast";
@@ -59,25 +59,30 @@ import {
 } from "@/components/icons";
 import { fmtRating } from "@/lib/date";
 import { humanize } from "@/lib/labels";
+import { can as canDo } from "@/lib/permissions";
 
 // Grouped by lib/date.ts#fmtInt, which uses a space in uz/ru and a comma
 // in en; the old toLocaleString("ru-RU") gave English a space too.
 const fmt = (n: number, locale = "uz") => (Math.abs(n) >= 1000 ? fmtInt(n, locale) : String(Math.round(n)));
 const DASH = "—";
 
-const PERMS: Record<string, string> = {
-  ceo: "",
-  pipeline: "leads.manage",
-  payouts: "payments.manage",
-  registerRequests: "users.manage",
-  services: "services.manage",
+// What a link/panel here needs: the same code AdminShell's NAV asks of the
+// page it opens (the overview itself is full-admin only, so the CEO page —
+// also full-admin only — needs nothing more). A link to a page the account
+// can't open would only bounce it back, so it isn't shown.
+const PERMS: Record<string, readonly string[] | true> = {
+  ceo: true,
+  // /admin/crm/leads — the CRM leads list (GET /crm/leads).
+  pipeline: ["crm.leads.view"],
+  payouts: ["payments.manage"],
+  registerRequests: ["users.manage"],
+  services: ["services.manage"],
 };
 
 function can(key: string, session: Session | null): boolean {
-  const roles = sessionRoles(session);
-  if (roles.includes("superadmin") || roles.includes("admin")) return true;
   const permission = PERMS[key];
-  return Boolean(permission && session?.permissions?.includes(permission));
+  if (permission === true) return Boolean(session);
+  return Boolean(permission) && canDo(session, permission);
 }
 
 function adminLinkFor(key: string, href: string, label: string, session: Session | null): { href: string; label: string } | undefined {
@@ -174,6 +179,7 @@ export default function AdminOverview() {
   const [tab, setTab] = useState<"tasks" | "reviews" | "b2b">("tasks");
   const [seedBusy, setSeedBusy] = useState(false);
   const [seedAsk, setSeedAsk] = useState(false);
+  const [seedDenied, setSeedDenied] = useState(false);
   const demoTools = useDemoTools();
 
   async function seed() {
@@ -185,6 +191,11 @@ export default function AdminOverview() {
       notify.success(t("seedDone"), { id: "aov-seed", body: [r.removed > 0 ? t("seedRemoved", { n: r.removed }) : "", t("seedRerun")].filter(Boolean).join(" ") });
     } catch (e) {
       if (isDemoUnavailable(e)) notify.warning(t("seedUnavailable"), { id: "aov-seed" });
+      else if (isForbidden(e)) {
+        // Keep the message, and don't offer the seed again to this account.
+        setSeedDenied(true);
+        notify.error(t("seedFailed"), { id: "aov-seed", error: e });
+      }
       else notify.error(t("seedFailed"), { id: "aov-seed", error: e, action: !(e instanceof ApiError) || e.status === 0 || (e.status >= 500 && e.status !== 501) ? { label: tnf("retry"), onClick: () => void seed() } : undefined });
     } finally {
       setSeedBusy(false);
@@ -427,7 +438,7 @@ export default function AdminOverview() {
             <IconRefresh />
             {tb("refresh")}
           </button>
-          {demoTools ? (
+          {demoTools && !seedDenied ? (
             <button className="btn btn--line btn--sm" type="button" onClick={() => setSeedAsk(true)} disabled={seedBusy}>
               <IconBolt />
               {seedBusy ? t("seeding") : t("seed")}

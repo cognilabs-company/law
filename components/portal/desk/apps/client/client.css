@@ -673,6 +673,9 @@
 .dx--win .dxco-pick button{border-radius:6px}
 .dx .dxco-pick button:hover{background:var(--x-fill)}
 .dx .dxco-pick button.is-on{border-color:var(--x-acc);background:var(--x-acc-soft);box-shadow:0 0 0 1px var(--x-acc)}
+.dx .dxco-pick__off{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:1px dashed var(--x-ctl-line);border-radius:10px;background:transparent;color:var(--x-ink);opacity:.85}
+.dx--win .dxco-pick__off{border-radius:6px}
+.dxco-pick__off>.dx-av{display:grid;place-items:center;flex:none}
 .dxco-pick.is-bad button{border-color:var(--x-err)}
 .dxco-pick button>.dx-av{display:grid;place-items:center;flex:none}
 .dxco-pick__m{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}

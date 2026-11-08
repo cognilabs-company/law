@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { errDetail, parseServerTime } from "@/lib/http";
+import { errDetail, isForbidden, parseServerTime } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { saveBlob } from "@/lib/download";
 import { shortDateTime } from "@/lib/date";
@@ -44,6 +44,8 @@ export default function Workspace({ orderId, openApp, base, onChanged }: NativeP
   const det = useOrderDetail(orderId, "seller");
   const durationText = useDurationText();
   const [calling, setCalling] = useState<"" | "audio" | "video">("");
+  // 403 on starting a call: the call buttons leave this order.
+  const [callsDenied, setCallsDenied] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
   const [supOpen, setSupOpen] = useState(false);
   const [toast, say] = useToast();
@@ -66,9 +68,11 @@ export default function Workspace({ orderId, openApp, base, onChanged }: NativeP
   };
   const chat = o.canStartChat ? "open" : o.roomId && o.chatReadOnly ? "view" : "";
   const closed = phase === "completed" || phase === "rated" || phase === "cancelled";
-  const calls = o.canCreateCall && o.callsAllowed && !closed;
+  const calls = o.canCreateCall && o.callsAllowed && !closed && !callsDenied;
   const supplemental = (phase === "paid" || phase === "in_progress") && !o.workPaused && !!(o.serviceId || o.packageId);
-  const complete = o.canComplete && (phase === "in_progress" || (phase === "paid" && !o.canStart));
+  // Paused work cannot be completed: the button is not offered (the paused
+  // tag in the header says why).
+  const complete = o.canComplete && !o.workPaused && (phase === "in_progress" || (phase === "paid" && !o.canStart));
   const steps = ["request", "confirm", "work", "done"] as const;
   const stepAt = { pending: 1, active: 2, completed: 4, cancelled: -1 }[stage];
   const duration = durationText(o.duration ?? (det.runtime && det.runtime.duration.value > 0 ? det.runtime.duration : null));
@@ -80,6 +84,7 @@ export default function Workspace({ orderId, openApp, base, onChanged }: NativeP
       const c = await startCall(o.roomId, kind, o.serviceTitle || o.workId || "LexGo", o.clientUserId ? { participantUserIds: [o.clientUserId] } : undefined);
       openApp("messages", `/portal/chat/${encodeURIComponent(o.roomId)}?join=${encodeURIComponent(c.id)}`);
     } catch (e) {
+      if (isForbidden(e)) setCallsDenied(true);
       say(errDetail(e) || to("callError"), "err");
     } finally {
       setCalling("");
@@ -139,7 +144,7 @@ export default function Workspace({ orderId, openApp, base, onChanged }: NativeP
             </Btn>
           ) : null}
           {complete ? (
-            <Btn kind="primary" icon={<IconCheck />} disabled={o.workPaused} title={o.workPaused ? to("pausedHint") : undefined} onClick={() => setCompleteOpen(true)}>
+            <Btn kind="primary" icon={<IconCheck />} onClick={() => setCompleteOpen(true)}>
               {to("complete")}
             </Btn>
           ) : null}
