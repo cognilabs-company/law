@@ -110,19 +110,22 @@ h1,h2,h3,h4{font-family:var(--fd);margin:0;letter-spacing:-.03em;line-height:1.0
   transition:transform .18s cubic-bezier(.2,.8,.3,1),box-shadow .2s,background .2s,color .2s}
 .btn:active{transform:scale(.97)}
 .btn--pri{background:var(--b600);color:#fff;box-shadow:var(--sblue)}
-.btn--pri:hover{background:var(--b700);box-shadow:0 18px 40px -12px rgba(22,104,240,.65)}
+.btn--pri:hover:where(:not(:disabled,[aria-disabled="true"])){background:var(--b700);box-shadow:0 18px 40px -12px rgba(22,104,240,.65)}
 .btn--grad{background:var(--grad);color:#fff;box-shadow:var(--sblue)}
-.btn--grad:hover{filter:brightness(1.07)}
+.btn--grad:hover:where(:not(:disabled,[aria-disabled="true"])){filter:brightness(1.07)}
 .btn--soft{background:var(--b100);color:var(--dk-acc-strong, var(--b700))}
-.btn--soft:hover{background:var(--b200)}
+.btn--soft:hover:where(:not(:disabled,[aria-disabled="true"])){background:var(--b200)}
 .btn--line{background:var(--dk-surface, #fff);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--line)}
-.btn--line:hover{box-shadow:inset 0 0 0 1.5px var(--b400);color:var(--dk-acc, var(--b600))}
+.btn--line:hover:where(:not(:disabled,[aria-disabled="true"])){box-shadow:inset 0 0 0 1.5px var(--b400);color:var(--dk-acc, var(--b600))}
 .btn--glass{background:rgba(255,255,255,.14);color:#fff;backdrop-filter:blur(10px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
-.btn--glass:hover{background:rgba(255,255,255,.24)}
+.btn--glass:hover:where(:not(:disabled,[aria-disabled="true"])){background:rgba(255,255,255,.24)}
 .btn--sm{padding:10px 17px;font-size:.87rem}
 .btn--lg{padding:17px 32px;font-size:1.02rem}
 .btn--full{width:100%}
 .btn svg{width:18px;height:18px;flex:none}
+/* A disabled .btn never answers the pointer: every variant hover above is
+   scoped to enabled buttons (:where keeps the specificity unchanged). */
+.btn:is(:disabled,[aria-disabled="true"]){cursor:not-allowed}
 
 .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:var(--pill);
   font-size:.75rem;font-weight:600;background:var(--b100);color:var(--dk-acc-strong, var(--b700));white-space:nowrap}
@@ -156,6 +159,7 @@ html:not([data-theme="dark"]) .bar.on .logo__wtxt{position:static;width:auto;hei
 .bar.on .nav a:hover{background:var(--b50);color:var(--dk-acc, var(--b600))}
 .bar__act{display:flex;gap:8px;align-items:center;flex:none}
 .bar.on .btn--glass{background:var(--b100);color:var(--dk-acc-strong, var(--b700));box-shadow:none;backdrop-filter:none}
+.bar.on .btn--glass:hover:where(:not(:disabled,[aria-disabled="true"])){background:var(--b200);color:var(--dk-acc-strong, var(--b700))}
 .burg{display:none;width:44px;height:44px;border-radius:14px;background:rgba(255,255,255,.14);backdrop-filter:blur(10px);
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.22);place-items:center;cursor:pointer;flex:none}
 .bar.on .burg{background:var(--b100);box-shadow:none}
@@ -566,7 +570,7 @@ section[id]{scroll-margin-top:86px}
 .btn--grad::before,.btn--pri::before{content:"";position:absolute;top:-40%;bottom:-40%;width:38%;left:-70%;
   background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent);transform:skewX(-22deg);
   transition:left .75s cubic-bezier(.3,.9,.4,1);z-index:-1}
-.btn--grad:hover::before,.btn--pri:hover::before{left:130%}
+.btn--grad:hover:where(:not(:disabled,[aria-disabled="true"]))::before,.btn--pri:hover:where(:not(:disabled,[aria-disabled="true"]))::before{left:130%}
 /* bosqich chizig'i to'ladi */
 .step__l::before{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--grad);
   transform:scaleX(0);transform-origin:left;transition:transform .85s cubic-bezier(.2,.8,.3,1);z-index:1}
@@ -953,6 +957,7 @@ body:has(.plogin) .fab{display:none}
 /* the language pill is styled for the dark hero (white text); on this header it
    needs the same tinted look the navbar gets once scrolled */
 .ptop .lang .btn--glass{background:var(--b50);color:var(--dk-acc-strong, var(--b700));box-shadow:none;backdrop-filter:none}
+.ptop .lang .btn--glass:hover:where(:not(:disabled,[aria-disabled="true"])){background:var(--b100);color:var(--dk-acc-strong, var(--b700))}
 .ptop__user:focus-visible{outline:0;box-shadow:0 0 0 2px var(--b400)}
 .ptop__av{width:34px;height:34px;border-radius:50%;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.78rem;flex:none}
 .ptop__burger{display:none;width:38px;height:38px;border-radius:11px;background:var(--b100);border:0;cursor:pointer;align-items:center;justify-content:center;color:var(--dk-acc-strong, var(--b700));flex:none}
@@ -1662,7 +1667,7 @@ body:has(.rf) .fab{display:none}
 
 /* shared button variants */
 .btn--ghost{background:transparent;color:var(--gray);box-shadow:inset 0 0 0 1.5px var(--line)}
-.btn--ghost:hover{background:var(--b50);color:var(--ink)}
+.btn--ghost:hover:where(:not(:disabled,[aria-disabled="true"])){background:var(--b50);color:var(--ink)}
 .btn--lg{padding:15px 28px;font-size:1rem}
 
 /* login extras */
@@ -3871,7 +3876,7 @@ html[data-theme="dark"] .giftn:hover{box-shadow:0 24px 48px -18px rgba(0,0,0,.75
 .aitem__act:hover{border-color:var(--b300);color:var(--dk-acc, var(--b600));background:var(--b50)}
 .aitem__act--danger:hover{border-color:var(--dk-bd-err, #fecaca);color:var(--dk-txt-err, #dc2626);background:var(--dk-surface-2, #fef2f2)}
 .btn--danger{background:#dc2626;color:#fff;border:0}
-.btn--danger:hover{background:#b91c1c}
+.btn--danger:hover:where(:not(:disabled,[aria-disabled="true"])){background:#b91c1c}
 
 /* Kanban column rename button + color picker (add/rename status) */
 .pipe__edit{width:26px;height:26px;flex:none;display:grid;place-items:center;border:0;background:none;border-radius:7px;color:var(--gray2);cursor:pointer;opacity:.55;transition:.15s}
@@ -4432,6 +4437,9 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .mtg__pmic.off{color:#fca5a5}.mtg__pmic svg{width:14px;height:14px}
 .mtg__pact{flex:none;border:0;cursor:pointer;font-size:.72rem;font-weight:700;padding:5px 9px;border-radius:8px;background:rgba(255,255,255,.1);color:#fff}
 .mtg__pact:hover{background:rgba(255,255,255,.2)}.mtg__pact--danger{background:rgba(229,72,77,.22);color:#fecaca}
+/* The danger action keeps its red on hover (the shared hover above is white glass). */
+.mtg__pact--danger:hover{background:rgba(229,72,77,.38);color:#fff}
+.mtg__pact:focus-visible{outline:2px solid #7FB2FF;outline-offset:2px}
 
 /* Control bar */
 .mtg__bar{flex:none;display:flex;align-items:flex-start;justify-content:center;gap:6px;padding:12px 16px 14px;border-top:1px solid var(--mtg-line);background:rgba(11,31,69,.96)}
@@ -11068,9 +11076,11 @@ html[data-theme="dark"] .splan--feat.splan--sel{
 .mk-card__price b{font-family:var(--fd);font-size:1.02rem;letter-spacing:-.02em;color:var(--ink)}
 .mk-card__price b.mk-card__ask{color:var(--gray);font-size:.9rem}
 .mk-card__busy{font-size:.72rem;font-weight:700;color:var(--dk-txt-warn, #8F5500)}
-.mk-card__go{position:relative;z-index:2;display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:var(--pill);background:var(--dk-tint-blue, var(--b100));color:var(--dk-acc-strong, var(--b700));font-weight:700;font-size:.86rem;transition:background .2s,color .2s,gap .2s;flex:none}
-.mk-card__go svg{width:16px;height:16px}
-.mk-card:hover .mk-card__go{background:var(--b600);color:#fff;gap:10px}
+.mk-card__go{position:relative;z-index:2;display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:var(--pill);background:var(--dk-tint-blue, var(--b100));color:var(--dk-acc-strong, var(--b700));font-weight:700;font-size:.86rem;transition:background .2s,color .2s;flex:none}
+.mk-card__go svg{width:16px;height:16px;transition:transform .2s cubic-bezier(.2,.8,.2,1)}
+.mk-card:hover .mk-card__go{background:var(--b600);color:#fff}
+.mk-card:hover .mk-card__go svg{transform:translateX(3px)}
+.mk-card__go:focus-visible{outline:2px solid var(--b400);outline-offset:2px}
 .mk-empty{display:flex;flex-direction:column;align-items:center;gap:10px;padding:48px 20px;border-radius:var(--rl);background:var(--dk-surface, #fff);box-shadow:inset 0 0 0 1.5px var(--line);text-align:center;color:var(--gray)}
 .mk-empty>svg{width:30px;height:30px;color:var(--dk-acc, var(--b500))}
 .mk-empty b{color:var(--ink);font-family:var(--fd);font-size:1.08rem}
@@ -12324,9 +12334,11 @@ a.ag-card__hd:hover .ag-card__doc{color:var(--dk-acc, var(--b600))}
 .mk-show__price{display:flex;flex-direction:column;min-width:0}
 .mk-show__price small{font-size:.66rem;line-height:1.3;color:rgba(255,255,255,.55)}
 .mk-show__price b{overflow:hidden;font-family:var(--fd);font-size:.9rem;line-height:1.2;color:#fff;white-space:nowrap;text-overflow:ellipsis}
-.mk-show__go{display:inline-flex;flex:1;align-items:center;justify-content:center;gap:6px;height:42px;padding:0 10px;border-radius:14px;background:linear-gradient(135deg,#1668F0 60%,#00A6E6);color:#fff;font-size:.8rem;font-weight:800;text-decoration:none;white-space:nowrap;box-shadow:0 12px 24px -12px rgba(22,104,240,.9),inset 0 1px 0 rgba(255,255,255,.25);transition:background .18s,gap .18s}
-.mk-show__go:hover{gap:11px;background:var(--b700)}
-.mk-show__go svg{width:15px;height:15px;flex:none}
+.mk-show__go{display:inline-flex;flex:1;align-items:center;justify-content:center;gap:6px;height:42px;padding:0 10px;border-radius:14px;background:linear-gradient(135deg,#1668F0 60%,#00A6E6);color:#fff;font-size:.8rem;font-weight:800;text-decoration:none;white-space:nowrap;box-shadow:0 12px 24px -12px rgba(22,104,240,.9),inset 0 1px 0 rgba(255,255,255,.25);transition:background .18s,box-shadow .18s}
+.mk-show__go:hover{background:linear-gradient(135deg,#0B57C9 60%,#0090CC);box-shadow:0 14px 28px -12px rgba(22,104,240,1),inset 0 1px 0 rgba(255,255,255,.25)}
+.mk-show__go:focus-visible{outline:2px solid var(--b400);outline-offset:2px}
+.mk-show__go svg{width:15px;height:15px;flex:none;transition:transform .18s cubic-bezier(.2,.8,.2,1)}
+.mk-show__go:hover svg{transform:translateX(3px)}
 .mk-show__dots{position:absolute;top:16px;left:16px;z-index:4;display:flex;gap:5px;padding:6px 7px;border-radius:var(--pill);background:rgba(3,16,43,.45);backdrop-filter:blur(8px)}
 .mk-show__dots button{position:relative;width:14px;height:4px;padding:0;border:0;border-radius:var(--pill);overflow:hidden;background:rgba(255,255,255,.35);cursor:pointer;transition:width .3s}
 .mk-show__dots button.is-on{width:26px}
@@ -17635,6 +17647,8 @@ html[data-theme="dark"] .ob{--ob-bg:#0E1626;--ob-dot:rgba(148,163,184,.18);--ob-
 .ob-legend button{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 9px;border:0;border-radius:999px;background:color-mix(in srgb,var(--dk-surface,#fff) 92%,transparent);box-shadow:inset 0 0 0 1px var(--line);color:var(--ink);font:inherit;font-size:.74rem;font-weight:700;cursor:pointer}
 .ob-legend i{width:9px;height:9px;border-radius:3px;background:var(--c)}
 .ob-legend b{color:var(--gray);font-weight:700}
+.ob-legend button:hover{background:var(--dk-surface,#fff);box-shadow:inset 0 0 0 1px var(--b300)}
+.ob-legend button:focus-visible{outline:2px solid var(--b400);outline-offset:2px}
 .ob-legend button.on{box-shadow:inset 0 0 0 1.5px var(--c);background:color-mix(in srgb,var(--c) 12%,var(--dk-surface,#fff))}
 .ob-zoom{position:absolute;left:12px;bottom:12px;display:flex;align-items:center;border-radius:12px;background:var(--dk-surface,#fff);box-shadow:0 8px 22px -14px rgba(15,31,61,.4),inset 0 0 0 1px var(--line);overflow:hidden;cursor:default;z-index:4}
 .ob-zoom button{display:grid;place-items:center;width:36px;height:36px;border:0;background:none;color:var(--gray);cursor:pointer}
@@ -19318,6 +19332,8 @@ a.hn-app:hover{background:color-mix(in srgb,var(--b600) 7%,transparent)}
 .hn-notif__sk{display:grid;gap:8px;padding:12px}.hn-notif__sk span{height:36px;border-radius:10px;background:var(--mc-surface-2,#f1f4f9)}
 .hn-notif__f{display:flex;justify-content:center;padding:8px;border-top:1px solid var(--mc-hair,var(--line))}
 .hn-user{display:flex;align-items:center;gap:8px;height:40px;padding:0 10px 0 3px;border:0;border-radius:999px;background:var(--mc-card-solid,var(--dk-surface,#fff));box-shadow:var(--s1),inset 0 0 0 1px var(--mc-card-border,var(--line));color:var(--ink);font:inherit;cursor:pointer}
+.hn-user:hover{box-shadow:var(--s1),inset 0 0 0 1px var(--b300)}
+.hn-user:focus-visible{outline:2px solid var(--b400);outline-offset:2px}
 .hn-user__av{display:grid;place-items:center;flex:none;width:34px;height:34px;border-radius:50%;background:linear-gradient(160deg,#3f76ed,#1b49ae);color:#fff;font-size:.74rem;font-weight:800}
 .hn-user__n{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.84rem;font-weight:600}
 .hn-menu{display:grid;padding:6px}

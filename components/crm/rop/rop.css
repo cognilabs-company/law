@@ -18,6 +18,13 @@
   --crm-rl: 24px;
   --crm-r: 14px;
 }
+/* --crm-acc is an ink colour in the CRM (links, active chips, hover text);
+   --lx-blue is a fill blue that sits at ~3:1 on the dark card, so the dark
+   theme takes the link blue (the CRM default does the same: --dk-acc). */
+html[data-theme="dark"] .portal.rop .crm { --crm-acc: var(--lx-link); }
+.portal.rop a.rop-pill { transition: box-shadow .15s, filter .15s; text-decoration: none; }
+.portal.rop a.rop-pill:hover { box-shadow: inset 0 0 0 1px currentColor; }
+.portal.rop a.rop-pill:focus-visible { outline: 2px solid var(--lx-link); outline-offset: 2px; }
 .portal.rop .crm-card { border-radius: 24px; box-shadow: inset 0 0 0 1px var(--lx-line-2); padding: 22px; }
 html[data-theme="dark"] .portal.rop .crm-card { box-shadow: inset 0 0 0 1px var(--lx-line); }
 .portal.rop .crm-btn { border-radius: 12px; min-height: 42px; }

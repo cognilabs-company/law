@@ -241,7 +241,7 @@ html[data-theme="dark"] .lhome {
   cursor: pointer;
   transition: transform 0.45s var(--lh-ease), background-color 0.25s, color 0.25s, border-color 0.25s;
 }
-.lh-round:hover { transform: scale(1.06); }
+.lh-round:hover:where(:not(:disabled, [aria-disabled="true"])) { transform: scale(1.06); }
 .lh-round:focus-visible { border-radius: 50%; }
 .lh-round svg { width: 1.1em; height: 1.1em; }
 .lh-round--solid {

@@ -747,7 +747,20 @@ html[data-opx-theme="light"] .opx-choice__opt.is-on:not(.is-danger) {
   margin-left: auto;
 }
 
+/* Panel buttons. Every variant (and the light theme) sets only the --pb-*
+   tokens; the base rule and its :hover / :focus-visible / :active /
+   :disabled consume them. So a variant can never fall through to another
+   variant's hover (the teal Call button used to turn navy glass under its
+   dark label on hover), and a disabled button never reacts. */
 .opx-pbtn {
+  --pb-bg: var(--opx-glass-2);
+  --pb-bg-h: var(--opx-glass-3);
+  --pb-ink: var(--opx-ink);
+  --pb-ink-h: var(--pb-ink);
+  --pb-bd: var(--opx-line-2);
+  --pb-bd-h: rgba(127, 178, 255, 0.5);
+  --pb-shadow: 0 0 #0000;
+  --pb-shadow-h: var(--pb-shadow);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -755,34 +768,42 @@ html[data-opx-theme="light"] .opx-choice__opt.is-on:not(.is-danger) {
   min-height: 44px;
   padding: 0 18px;
   border-radius: 13px;
-  border: 1px solid var(--opx-line-2);
-  background: var(--opx-glass-2);
-  color: var(--opx-ink);
+  border: 1px solid var(--pb-bd);
+  background: var(--pb-bg);
+  color: var(--pb-ink);
+  box-shadow: var(--pb-shadow);
   font: inherit;
   font-size: 14px;
   font-weight: 750;
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, transform 0.35s var(--opx-spring), box-shadow 0.3s;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, filter 0.2s, transform 0.35s var(--opx-spring), box-shadow 0.3s;
 }
 
-.opx-pbtn:hover {
-  border-color: rgba(127, 178, 255, 0.5);
-  background: var(--opx-glass-3);
+.opx-pbtn svg {
+  color: inherit;
+}
+
+.opx-pbtn:hover:not(:disabled, [aria-disabled="true"]) {
+  border-color: var(--pb-bd-h);
+  background: var(--pb-bg-h);
+  color: var(--pb-ink-h);
+  box-shadow: var(--pb-shadow-h);
   text-decoration: none;
 }
 
-.opx-pbtn:active {
+.opx-pbtn:active:not(:disabled, [aria-disabled="true"]) {
   transform: scale(0.97);
 }
 
 .opx-pbtn:focus-visible {
   outline: none;
-  box-shadow: var(--opx-ring);
+  box-shadow: var(--pb-shadow), var(--opx-ring);
 }
 
-.opx-pbtn:disabled {
+.opx-pbtn:disabled,
+.opx-pbtn[aria-disabled="true"] {
   cursor: not-allowed;
   opacity: 0.5;
   transform: none;
@@ -796,55 +817,94 @@ html[data-opx-theme="light"] .opx-choice__opt.is-on:not(.is-danger) {
   font: 700 11.5px/1.4 var(--opx-mono), ui-monospace, monospace;
 }
 
+/* Teal fill (main action, Call): a brighter teal on hover, same dark ink. */
+.opx-pbtn--main,
+.opx-pbtn--call {
+  --pb-bd: rgba(94, 230, 208, 0.6);
+  --pb-bd-h: rgba(94, 230, 208, 0.9);
+  --pb-bg: linear-gradient(120deg, #18a99d, #23c3b4);
+  --pb-bg-h: linear-gradient(120deg, #22bcae, #36d8c8);
+  --pb-ink: #032623;
+  --pb-shadow-h: 0 14px 30px -14px rgba(60, 220, 200, 0.95);
+}
+
 .opx-pbtn--main {
-  border-color: rgba(94, 230, 208, 0.6);
-  background: linear-gradient(120deg, #18a99d, #23c3b4);
-  color: #032623;
-  box-shadow: 0 14px 30px -16px rgba(60, 220, 200, 0.95);
-}
-
-.opx-pbtn--main:hover {
-  background: linear-gradient(120deg, #1db3a6, #2ad0c0);
-  border-color: rgba(94, 230, 208, 0.85);
-}
-
-.opx-pbtn--main.is-danger {
-  border-color: color-mix(in srgb, var(--opx-hot) 70%, transparent);
-  background: linear-gradient(120deg, #c2405a, #db5a73);
-  color: #fff;
-  box-shadow: 0 14px 30px -16px rgba(255, 120, 140, 0.8);
-}
-
-.opx-pbtn--blue {
-  border-color: rgba(120, 175, 255, 0.6);
-  background: linear-gradient(120deg, #2a6ff0, #3b8cff);
-  color: #fff;
+  --pb-shadow: 0 14px 30px -16px rgba(60, 220, 200, 0.95);
+  --pb-shadow-h: 0 16px 34px -14px rgba(60, 220, 200, 1);
 }
 
 .opx-pbtn--call {
   min-height: 38px;
   padding: 0 14px;
-  border-color: rgba(94, 230, 208, 0.6);
-  background: linear-gradient(120deg, #18a99d, #23c3b4);
-  color: #032623;
   font-size: 13px;
 }
 
+.opx-pbtn--main.is-danger {
+  --pb-bd: color-mix(in srgb, var(--opx-hot) 70%, transparent);
+  --pb-bd-h: color-mix(in srgb, var(--opx-hot) 95%, transparent);
+  --pb-bg: linear-gradient(120deg, #c2405a, #db5a73);
+  --pb-bg-h: linear-gradient(120deg, #b0344d, #cc4b65);
+  --pb-ink: #fff;
+  --pb-shadow: 0 14px 30px -16px rgba(255, 120, 140, 0.8);
+  --pb-shadow-h: 0 16px 34px -14px rgba(255, 120, 140, 0.95);
+}
+
+.opx-pbtn--blue {
+  --pb-bd: rgba(120, 175, 255, 0.6);
+  --pb-bd-h: rgba(150, 195, 255, 0.9);
+  --pb-bg: linear-gradient(120deg, #2a6ff0, #3b8cff);
+  --pb-bg-h: linear-gradient(120deg, #2462d8, #2f7cec);
+  --pb-ink: #fff;
+  --pb-shadow-h: 0 14px 30px -16px rgba(59, 140, 255, 0.85);
+}
+
 .opx-pbtn--ghost {
-  border-color: transparent;
-  background: none;
+  --pb-bd: transparent;
+  --pb-bg: transparent;
+  --pb-bg-h: var(--opx-glass-3);
+  --pb-bd-h: var(--opx-line-2);
 }
 
 .opx-pbtn--rose {
-  border-color: transparent;
-  background: none;
-  color: var(--opx-hot);
+  --pb-bd: transparent;
+  --pb-bg: transparent;
+  --pb-ink: var(--opx-hot);
+  --pb-bg-h: color-mix(in srgb, var(--opx-hot) 12%, transparent);
+  --pb-bd-h: color-mix(in srgb, var(--opx-hot) 40%, transparent);
 }
 
+/* Light theme: deeper teal under a white label; hover deepens it. */
 html[data-opx-theme="light"] .opx-pbtn--main,
 html[data-opx-theme="light"] .opx-pbtn--call {
-  background: linear-gradient(120deg, #0e8b80, #12a497);
-  color: #fff;
+  --pb-bd: rgba(14, 139, 128, 0.55);
+  --pb-bd-h: rgba(11, 116, 107, 0.9);
+  --pb-bg: linear-gradient(120deg, #0e8b80, #12a497);
+  --pb-bg-h: linear-gradient(120deg, #0a7a70, #0e9285);
+  --pb-ink: #fff;
+  --pb-shadow-h: 0 12px 26px -14px rgba(14, 139, 128, 0.75);
+}
+
+html[data-opx-theme="light"] .opx-pbtn--main.is-danger {
+  --pb-bd: color-mix(in srgb, var(--opx-hot) 70%, transparent);
+  --pb-bd-h: var(--opx-hot);
+  --pb-bg: linear-gradient(120deg, #c2405a, #db5a73);
+  --pb-bg-h: linear-gradient(120deg, #a8304a, #c4465f);
+  --pb-ink: #fff;
+}
+
+html[data-opx-theme="light"] .opx-pbtn--blue {
+  --pb-bg-h: linear-gradient(120deg, #1f58c4, #2a72e0);
+  --pb-shadow-h: 0 12px 26px -14px rgba(31, 95, 196, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opx-pbtn {
+    transition: none;
+  }
+
+  .opx-pbtn:active:not(:disabled, [aria-disabled="true"]) {
+    transform: none;
+  }
 }
 
 .opx-pload {

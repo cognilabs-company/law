@@ -273,20 +273,19 @@
 }
 
 .opx-pbtn.opx-cd-btn-warn {
-  border-color: color-mix(in srgb, var(--opx-warn) 55%, transparent);
-  background: color-mix(in srgb, var(--opx-warn) 14%, transparent);
-  color: var(--opx-warn);
+  --pb-bd: color-mix(in srgb, var(--opx-warn) 55%, transparent);
+  --pb-bd-h: color-mix(in srgb, var(--opx-warn) 80%, transparent);
+  --pb-bg: color-mix(in srgb, var(--opx-warn) 14%, transparent);
+  --pb-bg-h: color-mix(in srgb, var(--opx-warn) 22%, transparent);
+  --pb-ink: var(--opx-warn);
 }
 
 .opx-pbtn.opx-cd-btn-reject {
-  border-color: color-mix(in srgb, var(--opx-hot) 50%, transparent);
-  background: color-mix(in srgb, var(--opx-hot) 10%, transparent);
-  color: var(--opx-hot);
-}
-
-.opx-pbtn.opx-cd-btn-reject:hover {
-  border-color: color-mix(in srgb, var(--opx-hot) 75%, transparent);
-  background: color-mix(in srgb, var(--opx-hot) 16%, transparent);
+  --pb-bd: color-mix(in srgb, var(--opx-hot) 50%, transparent);
+  --pb-bd-h: color-mix(in srgb, var(--opx-hot) 75%, transparent);
+  --pb-bg: color-mix(in srgb, var(--opx-hot) 10%, transparent);
+  --pb-bg-h: color-mix(in srgb, var(--opx-hot) 16%, transparent);
+  --pb-ink: var(--opx-hot);
 }
 
 .opx-cd-ibtn {
@@ -1298,9 +1297,11 @@ button.opx-cd-who:hover,
 }
 
 .opx-pbtn.opx-cd-ai {
+  --pb-bd: color-mix(in srgb, var(--opx-ice) 45%, transparent);
+  --pb-bd-h: color-mix(in srgb, var(--opx-ice) 70%, transparent);
+  --pb-bg: var(--opx-blue-soft);
+  --pb-bg-h: color-mix(in srgb, var(--opx-ice) 22%, transparent);
   min-height: 40px;
-  border-color: color-mix(in srgb, var(--opx-ice) 45%, transparent);
-  background: var(--opx-blue-soft);
 }
 
 .opx-pbtn.opx-cd-ai .opx-i {

@@ -1074,8 +1074,10 @@
 }
 
 .opx-pbtn.is-on {
-  border-color: color-mix(in srgb, var(--opx-aqua) 60%, transparent);
-  background: var(--opx-teal-soft);
+  --pb-bd: color-mix(in srgb, var(--opx-aqua) 60%, transparent);
+  --pb-bd-h: color-mix(in srgb, var(--opx-aqua) 80%, transparent);
+  --pb-bg: var(--opx-teal-soft);
+  --pb-bg-h: color-mix(in srgb, var(--opx-aqua) 20%, transparent);
 }
 
 .opx-ug-dl {
@@ -1224,14 +1226,6 @@
 
 .opx-pbtn.opx-ug-cancel {
   margin-left: auto;
-  border-color: color-mix(in srgb, var(--opx-hot) 45%, transparent);
-  background: color-mix(in srgb, var(--opx-hot) 10%, transparent);
-  color: var(--opx-hot);
-}
-
-.opx-pbtn.opx-ug-cancel:hover {
-  border-color: color-mix(in srgb, var(--opx-hot) 70%, transparent);
-  background: color-mix(in srgb, var(--opx-hot) 18%, transparent);
 }
 
 .opx-ug-acts .opx-pbtn svg,
@@ -1933,14 +1927,14 @@ html[data-opx-motion="off"] .opx-ug-confirm {
   max-width: 100%;
 }
 
+/* A quiet text action that turns rose on hover. */
 .opx-pbtn.opx-ug-cancel {
-  border-color: transparent;
-  background: none;
-  color: var(--opx-ink-3);
-}
-
-.opx-pbtn.opx-ug-cancel:hover {
-  color: var(--opx-hot);
+  --pb-bd: transparent;
+  --pb-bg: transparent;
+  --pb-ink: var(--opx-ink-3);
+  --pb-ink-h: var(--opx-hot);
+  --pb-bg-h: color-mix(in srgb, var(--opx-hot) 10%, transparent);
+  --pb-bd-h: color-mix(in srgb, var(--opx-hot) 35%, transparent);
 }
 
 .opx-ug-card__heads .opx-ug-card__title {

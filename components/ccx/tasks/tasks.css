@@ -1616,8 +1616,9 @@
   flex: 1 1 160px;
 }
 
-.opx-tk-back {
-  border-color: color-mix(in srgb, var(--opx-warn) 45%, transparent);
+.opx-pbtn.opx-tk-back {
+  --pb-bd: color-mix(in srgb, var(--opx-warn) 45%, transparent);
+  --pb-bd-h: color-mix(in srgb, var(--opx-warn) 75%, transparent);
 }
 
 .opx-tk-back .opx-i {

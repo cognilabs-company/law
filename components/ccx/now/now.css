@@ -1879,6 +1879,22 @@ html[data-opx-theme="light"] .opx-hist__list li::before {
   color: var(--opx-ink-3);
 }
 
+/* The pill row overrides .opx-act's paint, so it carries its own hover and
+   keyboard ring (box-shadow: none above used to swallow the ring). */
+.opx-focus .opx-acts > .opx-act:not(:first-child):hover {
+  border-color: var(--opx-line-2);
+  background: var(--opx-glass-3);
+  color: var(--opx-ink);
+}
+
+.opx-focus .opx-acts > .opx-act:first-child:hover {
+  background: linear-gradient(120deg, #22bcae, #36d8c8);
+}
+
+.opx-focus .opx-acts > .opx-act:focus-visible {
+  box-shadow: var(--opx-ring);
+}
+
 .opx-focus__more {
   display: inline-flex;
   align-items: center;

@@ -1099,12 +1099,6 @@ html[data-opx-theme="light"] .opx-qbtn--call {
   white-space: normal;
 }
 
-html[data-opx-theme="light"] .opx-pbtn--main.is-danger {
-  border-color: color-mix(in srgb, var(--opx-hot) 70%, transparent);
-  background: linear-gradient(120deg, #c2405a, #db5a73);
-  color: #fff;
-}
-
 /* Barcha navbatlar: the oldest job first, then only the queues with work. */
 .opx-board2 {
   display: grid;
@@ -1236,10 +1230,11 @@ html[data-opx-theme="light"] .opx-pbtn--main.is-danger {
 }
 
 .opx-board2__quiet.opx-pbtn {
+  --pb-bd: transparent;
+  --pb-bg: transparent;
+  --pb-ink: var(--opx-ink-3);
+  --pb-ink-h: var(--opx-ink);
   margin-left: auto;
-  border-color: transparent;
-  background: none;
-  color: var(--opx-ink-3);
 }
 
 .opx-board2__quiet[aria-expanded="true"] svg {

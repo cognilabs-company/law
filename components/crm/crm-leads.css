@@ -24,7 +24,9 @@
 .crm-textarea { resize: vertical; min-height: 84px; }
 .crm-input:focus, .crm-search input:focus, .crm-select:focus, .crm-textarea:focus { outline: none; box-shadow: inset 0 0 0 2px var(--crm-acc), 0 0 0 4px color-mix(in srgb, var(--crm-acc) 15%, transparent); }
 .crm-select { width: auto; min-width: 130px; padding-right: 28px; appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--crm-muted) 50%), linear-gradient(135deg, var(--crm-muted) 50%, transparent 50%); background-position: calc(100% - 15px) 52%, calc(100% - 10px) 52%; background-size: 5px 5px; background-repeat: no-repeat; cursor: pointer; }
-.crm-chip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: 0; border-radius: 999px; background: var(--crm-soft); color: var(--crm-ink); font: 700 .74rem/1 var(--fb); box-shadow: inset 0 0 0 1px var(--crm-line); cursor: pointer; }
+.crm-chip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: 0; border-radius: 999px; background: var(--crm-soft); color: var(--crm-ink); font: 700 .74rem/1 var(--fb); box-shadow: inset 0 0 0 1px var(--crm-line); cursor: pointer; transition: box-shadow .15s, color .15s, background .15s; }
+.crm-chip:hover:not([aria-pressed="true"]) { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--crm-acc) 55%, var(--crm-line)); color: var(--crm-acc); }
+.crm-chip:focus-visible { outline: 2px solid var(--crm-acc); outline-offset: 2px; }
 .crm-chip[aria-pressed="true"] { background: color-mix(in srgb, var(--crm-acc) 14%, var(--crm-card)); box-shadow: inset 0 0 0 1.5px var(--crm-acc); color: var(--crm-acc); }
 .crm-chip svg { width: 13px; height: 13px; }
 .crm-field { display: grid; gap: 6px; }
