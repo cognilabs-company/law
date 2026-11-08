@@ -147,7 +147,10 @@ html[data-theme="dark"] :is(.mmx,.ymk-stage,.mfs,.mpn,.mseg,.mfh,.mtb,.msd,.mnv)
 .mmchip button:focus-visible{outline:2px solid var(--mm-acc);outline-offset:2px;border-radius:4px}
 
 .mmman{display:flex;flex-direction:column;gap:10px;padding:4px 4px 8px;animation:mm-rise var(--mm-med) var(--mm-ease) both}
-.mmman__head b{font-size:.94rem;font-weight:650;color:var(--ink)}
+.mmman__head{display:flex;align-items:center;gap:10px;min-width:0}
+.mmman__ic{display:grid;place-items:center;flex:none;width:32px;height:32px;border-radius:10px;background:var(--mm-tint, var(--dk-tint-blue, #EAF2FF));color:var(--mm-acc, var(--dk-acc, var(--b600)))}
+.mmman__ic svg{display:block;width:17px;height:17px}
+.mmman__head b{min-width:0;font-size:.94rem;font-weight:650;line-height:1.3;color:var(--ink);overflow-wrap:anywhere}
 .mmman__lead{margin:0;font-size:.82rem;line-height:1.45;color:var(--gray)}
 .mmman__picked{display:inline-flex;align-items:center;gap:6px;margin:0;font-size:.82rem;font-weight:600;color:var(--dk-txt-ok, #0B6B4B)}
 .mmman__picked svg{width:15px;height:15px}

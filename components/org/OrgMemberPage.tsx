@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { isAborted, isForbidden, isRouteMissing } from "@/lib/http";
 import { fmtRating } from "@/lib/date";
+import { humanizeSlug } from "@/lib/lawyers";
 import { getOwnerDashboard, type OrgMemberRow } from "@/lib/services/orgOwner";
 import type { ManagedServices, ServiceScope } from "@/lib/services/sellerServices";
 import { IconBolt, IconBriefcase, IconChevronLeft, IconClipboardList, IconShieldCheck, IconStarRate, IconTag } from "@/components/icons";
@@ -97,11 +98,11 @@ export default function OrgMemberPage({ orgId, memberId, tab }: { orgId: string;
           <span className="omem__kick">{t("member.kicker")}</span>
           <h2 className="omem__name">{name || "…"}</h2>
           <div className="omem__tags">
-            {sellerType ? <span className="omem__tag">{t.has(`sellerTypes.${sellerType}`) ? t(`sellerTypes.${sellerType}`) : sellerType}</span> : null}
+            {sellerType ? <span className="omem__tag">{t.has(`sellerTypes.${sellerType}`) ? t(`sellerTypes.${sellerType}`) : humanizeSlug(sellerType)}</span> : null}
             {verification ? (
               <span className={`omem__tag${verified ? " omem__tag--ok" : " omem__tag--warn"}`}>
                 <IconShieldCheck aria-hidden="true" />
-                {t.has(`verification.${verification}`) ? t(`verification.${verification}`) : verification}
+                {t.has(`verification.${verification}`) ? t(`verification.${verification}`) : humanizeSlug(verification)}
               </span>
             ) : null}
             {m && m.reviewsCount > 0 && m.rating > 0 ? (

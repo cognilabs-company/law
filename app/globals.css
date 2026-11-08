@@ -3335,7 +3335,7 @@ body:has(.auth) .fab{display:none}
 .docpend__ic--ai{background:var(--b100);color:var(--dk-acc, var(--b600))}
 .docpend__ic--lawyer{background:var(--dk-tint-violet, #F1EBFF);color:var(--dk-txt-violet, #6A3DE8)}
 /* Register: experience benefit note */
-.rf__benefit{background:var(--b50);border:1px solid #bcd4ff;border-radius:12px;padding:13px 15px;margin-top:2px}
+.rf__benefit{background:var(--b50);border:1px solid var(--dk-bd-blue, #bcd4ff);border-radius:12px;padding:13px 15px;margin-top:2px}
 .rf__benefit b{display:block;font-size:.9rem;color:var(--dk-acc, var(--b600));margin-bottom:4px}
 .rf__benefit p{margin:0;font-size:.84rem;color:var(--gray2);line-height:1.5}
 .rf__benefit b:has(svg){display:flex;align-items:center;gap:7px}
@@ -4111,6 +4111,9 @@ a.lsrc__i:hover{border-color:var(--b300)}
 .docup__t span{font-size:.86rem;color:var(--gray);line-height:1.4}
 .docup__t .docup__price{color:var(--ink);font-weight:700}
 .docup__act{display:flex;gap:8px;flex-wrap:wrap}
+/* Hand-off status under the actions: its own full-width line, not a squeezed
+   third column beside the buttons. */
+.docup__note{flex-basis:100%}
 
 /* ── Seller onboarding checklist (T1A-02) ── */
 .onbp__bar{height:8px;border-radius:99px;background:var(--dk-surface-2, #eef2f7);overflow:hidden;margin-bottom:14px}
@@ -7862,6 +7865,10 @@ button.cdact__i{text-align:left;font-family:inherit;border:1px solid var(--line)
   font-size:.82rem;font-weight:600;color:var(--ok);background:var(--dk-tint-ok, #E1F6EE)}
 .drate__done svg{width:14px;height:14px;stroke-width:3;flex:none}
 .drate__done em{font-style:normal;font-weight:800}
+/* The window has closed: one quiet line, the clock inline before the words
+   (the base .drate is a column grid, which stacked the icon above the text). */
+.drate--shut{display:flex;align-items:center;gap:8px;font-size:.82rem;font-weight:600;line-height:1.45;color:var(--gray)}
+.drate--shut svg{flex:none;width:15px;height:15px;color:var(--gray2)}
 
 /* The work id the client and the advocate quote at each other, and the
    over-and-done tone for a case nothing more will happen on. */
@@ -15957,6 +15964,9 @@ html[data-theme="dark"] .aov-conv__arrow{--c:#38C6F4}
 .psb--admin .psb__link.on .psb__ic,.psb--admin .psb__link.on:hover .psb__ic{background:rgba(255,255,255,.18);color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.22)}
 .psb--admin .psb__link.on .psb__lt{font-weight:700}
 .psb--admin .psb__link.on:focus-visible{outline-color:var(--b300)}
+/* Open call-center work count on the "Call center" nav link: a pill at the end of the row, same tones as the console tab counter (.ccon__n--hot). */
+.psb__count{flex:none;margin-left:auto;display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;padding:0 7px;border-radius:var(--pill);background:var(--dk-tint-err, #FDECEC);color:var(--dk-txt-err, #C0392B);font-size:.72rem;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.psb--admin .psb__link.on .psb__count{background:rgba(255,255,255,.22);color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.28)}
 .psb--admin .psb__link.is-first{box-shadow:inset 0 0 0 1.5px var(--b200)}
 .psb__none{margin:8px 12px;font-size:.84rem;color:var(--gray)}
 html[data-theme="dark"] .psb--admin .psb__group.is-open{background:rgba(255,255,255,.035)}

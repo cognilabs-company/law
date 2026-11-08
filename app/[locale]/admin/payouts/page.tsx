@@ -90,7 +90,7 @@ export default function AdminPayouts() {
                   <span className="aitem__meta">{t("gross")}: {som(p.gross)} · {t("fees")}: {som(p.platformFee + p.providerFee)}</span>
                 </div>
                 <div className="aitem__r" style={{ display: "flex", gap: 8, alignItems: "center" }} data-ai-target="payouts:item-actions">
-                  <span className={`creq__badge payout__st payout__st--${p.status}`}>{t.has(`status.${p.status}`) ? t(`status.${p.status}`) : p.status}</span>
+                  <span className={`creq__badge payout__st payout__st--${p.status}`}>{t.has(`status.${p.status}`) ? t(`status.${p.status}`) : t.has("statusOther") ? t("statusOther") : "—"}</span>
                   {p.status !== "paid" && !denied ? (
                     <button className="btn btn--pri btn--sm" type="button" disabled={busy === p.id} onClick={() => mark(p.id, "paid", `${som(p.sellerShare)} ${p.currency}`)} data-ai-target="button:mark-paid" data-ai-id={p.id ? aiId("admin.payouts.item", p.id, "mark-paid") : undefined}>{t("markPaid")}</button>
                   ) : null}

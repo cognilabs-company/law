@@ -406,7 +406,7 @@ export default function AdminAuditTrail() {
                     <div className="creq__side">
                       {a.outcome && a.outcome !== "success" ? (
                         <span className={`creq__badge audit__outcome audit__outcome--${/fail|deni|error|block|reject/i.test(a.outcome) ? "bad" : "ok"}`}>
-                          {t.has(`outcome.${a.outcome}`) ? t(`outcome.${a.outcome}`) : a.outcome}
+                          {t.has(`outcome.${a.outcome}`) ? t(`outcome.${a.outcome}`) : /fail|deni|error|block|reject/i.test(a.outcome) ? t("outcome.failed") : t.has("outcomeOther") ? t("outcomeOther") : "—"}
                         </span>
                       ) : null}
                       {chain.hashed && state ? (

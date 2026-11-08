@@ -134,7 +134,7 @@ export default function LegacyServicePicker() {
               return (
                 <div className={`svprice${bad ? " err" : ""}`} key={id}>
                   <div className="svprice__m">
-                    <b>{s?.name ?? id}</b>
+                    <b>{s?.name || "—"}</b>
                     <span>{b ? t("recommended", { min: fmtUzs(b.min), max: fmtUzs(b.max) }) : t("noRecommended")}</span>
                   </div>
                   <input

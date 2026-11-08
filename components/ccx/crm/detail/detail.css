@@ -3647,3 +3647,158 @@ html[data-opx-theme="light"] .opx-cd-slash {
 html[data-opx] .opx-cd-comp__side .crm-dt {
   grid-template-columns: minmax(0, 1fr);
 }
+
+/* ── Customer card: Leads / LexGo orders / timeline tabs ─────────────
+   Same look as the lead workspace tabs (.opx-ntab in now/now.css): text
+   tabs on a hairline, an aqua underline for the selected one, count pills
+   inline. Before 2026-11-08 these had no rules and rendered as native
+   grey buttons. The bar scrolls sideways on narrow screens instead of
+   wrapping. */
+.opx-cd-tabs {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  margin: -4px -4px 0;
+  padding: 0 4px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--opx-line);
+  scrollbar-width: none;
+}
+
+.opx-cd-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.opx-cd-tab {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px 10px 0 0;
+  background: none;
+  color: var(--opx-ink-2);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 750;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.2s, background-color 0.2s;
+}
+
+.opx-cd-tab .opx-i {
+  flex: none;
+  color: var(--opx-ink-3);
+  transition: color 0.2s;
+}
+
+.opx-cd-tab .opx-cd-count {
+  background: var(--opx-chip);
+  color: var(--opx-ink-2);
+}
+
+.opx-cd-tab::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--opx-grad);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--opx-aqua) 60%, transparent);
+  transform: scaleX(0);
+  transition: transform 0.35s var(--opx-ease);
+}
+
+.opx-cd-tab:hover {
+  color: var(--opx-ink);
+  background: color-mix(in srgb, var(--opx-chip) 60%, transparent);
+}
+
+.opx-cd-tab.is-on {
+  color: var(--opx-ink);
+}
+
+.opx-cd-tab.is-on .opx-i {
+  color: var(--opx-ice);
+}
+
+.opx-cd-tab.is-on .opx-cd-count {
+  background: color-mix(in srgb, var(--opx-aqua) 18%, transparent);
+  color: var(--opx-ink);
+}
+
+.opx-cd-tab.is-on::after {
+  transform: scaleX(1);
+}
+
+.opx-cd-tab:focus-visible {
+  outline: none;
+  box-shadow: var(--opx-ring);
+}
+
+/* Region / language chips in the customer header: neutral pills next to
+   the status pills (.opx-cd-pill), icon inline with the text. */
+.opx-cd-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 2px 11px;
+  border: 1px solid var(--opx-line);
+  border-radius: 999px;
+  background: var(--opx-chip);
+  color: var(--opx-ink-2);
+  font-size: 12.5px;
+  font-weight: 750;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.opx-cd-tag .opx-i {
+  flex: none;
+  color: var(--opx-ink-3);
+}
+
+@media (max-width: 600px) {
+  .opx-cd-tab {
+    gap: 6px;
+    padding: 0 9px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 380px) {
+  .opx-cd-tab .opx-i {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opx-cd-tab,
+  .opx-cd-tab::after {
+    transition: none;
+  }
+}
+
+/* ── Audit group C (2026-11-08): lead feed pane menu (leadFeed.tsx) ──
+   The "Timeline / Calls / SMS …" pane switcher is a role="menuitemradio"
+   list inside .opx-cd-pop; it had no checked state, so the current pane
+   looked exactly like the others. Same look as .opx-cd-pick[aria-checked]. */
+.opx-cd-pop > button[aria-checked="true"] {
+  background: var(--opx-teal-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--opx-aqua) 45%, transparent);
+}
+
+.opx-cd-pop > button[aria-checked="true"] .opx-i {
+  color: var(--opx-aqua);
+}
+
+.opx-cd-pop > button[aria-checked="true"]:hover {
+  background: color-mix(in srgb, var(--opx-aqua) 18%, transparent);
+}
+/* ── end audit group C ── */

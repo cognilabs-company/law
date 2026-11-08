@@ -62,6 +62,17 @@
   outline-offset: 2px;
 }
 
+/* Range line, stale note, list / empty state and pager: one column with
+   breathing room, not glued to each other. */
+.ccx .ccx__body {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.ccx .ccx__body > .ccx-pager {
+  margin-top: 4px;
+}
+
 .ccx .ccx-range {
   margin: 0;
   font-size: 13px;

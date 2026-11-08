@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type KeyboardEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -176,6 +176,22 @@ function Profile({ meta, customerId }: { meta: CrmMeta; customerId: string }) {
     { key: "timeline", label: t("timeline") },
   ];
 
+  // Arrow keys / Home / End move between the tabs (WAI-ARIA tabs pattern).
+  const onTabKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const keys = tabs.map((x) => x.key);
+    const i = keys.indexOf(tab);
+    const next =
+      e.key === "ArrowRight" ? keys[(i + 1) % keys.length]
+      : e.key === "ArrowLeft" ? keys[(i - 1 + keys.length) % keys.length]
+      : e.key === "Home" ? keys[0]
+      : e.key === "End" ? keys[keys.length - 1]
+      : null;
+    if (!next) return;
+    e.preventDefault();
+    setTab(next);
+    e.currentTarget.querySelector<HTMLButtonElement>(`[data-tab="${next}"]`)?.focus();
+  };
+
   return (
     <div className="opx-cd opx-cd--customer" style={statusColorVars(meta)}>
       <header className="opx-cd-head opx-cd-chead">
@@ -202,7 +218,7 @@ function Profile({ meta, customerId }: { meta: CrmMeta; customerId: string }) {
                   {regionName(c.region)}
                 </span>
               ) : null}
-              {c.language ? <span className="opx-cd-tag">{tl.has(c.language) ? tl(c.language) : c.language}</span> : null}
+              {c.language && tl.has(c.language) ? <span className="opx-cd-tag">{tl(c.language)}</span> : null}
             </div>
             {live.length ? (
               <ul className="opx-cd-cchips">
@@ -269,16 +285,27 @@ function Profile({ meta, customerId }: { meta: CrmMeta; customerId: string }) {
       <div className="opx-cd-grid">
         <div className="opx-cd-col opx-cd-col--main">
           <section className="opx-cd-card opx-cd-feed" aria-label={c.name || c.publicId}>
-            <div className="opx-cd-tabs" role="tablist">
+            <div className="opx-cd-tabs" role="tablist" aria-label={t("tabsAria")} onKeyDown={onTabKey}>
               {tabs.map((x) => (
-                <button key={x.key} type="button" role="tab" aria-selected={tab === x.key} onClick={() => setTab(x.key)}>
+                <button
+                  key={x.key}
+                  type="button"
+                  role="tab"
+                  id={`opx-cd-tab-${x.key}`}
+                  data-tab={x.key}
+                  aria-selected={tab === x.key}
+                  aria-controls="opx-cd-tabpanel"
+                  tabIndex={tab === x.key ? 0 : -1}
+                  className={`opx-cd-tab${tab === x.key ? " is-on" : ""}`}
+                  onClick={() => setTab(x.key)}
+                >
                   {x.key === "leads" ? <IcTimeline size={16} /> : x.key === "orders" ? <IcCart size={16} /> : <IcChat size={16} />}
-                  {x.label}
+                  <span className="opx-cd-tab__l">{x.label}</span>
                   {x.n != null ? <b className="opx-cd-count opx-num">{x.n}</b> : null}
                 </button>
               ))}
             </div>
-            <div className="opx-cd-feed__body" role="tabpanel">
+            <div className="opx-cd-feed__body" role="tabpanel" id="opx-cd-tabpanel" aria-labelledby={`opx-cd-tab-${tab}`}>
               {tab === "leads" ? (
                 c.leads.length ? (
                   <>

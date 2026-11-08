@@ -42,3 +42,15 @@
 .promo__lapse>p{margin:0;font-size:.84rem;line-height:1.5;color:var(--ink)}
 .promo__lapseacts{display:flex;flex-wrap:wrap;gap:8px}
 @media (prefers-reduced-motion:reduce){.promo__lapse{animation:none}}
+/* Checkout waiting for the admin's approval in Telegram — same card as
+   .promo__lapse, in the calm blue of "in progress" instead of amber. */
+.promo__pend{display:grid;justify-items:start;gap:8px;margin:0 0 14px;padding:12px 14px;border-radius:14px;background:var(--dk-tint-blue,#EEF5FF);box-shadow:inset 0 0 0 1px var(--dk-bd-blue,#C9DCF7);color:var(--ink);animation:svprom-boost-in .42s cubic-bezier(.16,1,.3,1) both}
+.promo__pend>b{display:flex;align-items:center;gap:8px;font-size:.9rem;font-weight:800;color:var(--dk-acc-strong,var(--b700))}
+.promo__pend>b>svg{flex:none;width:18px;height:18px}
+.promo__pend>p{margin:0;font-size:.84rem;line-height:1.5;color:var(--ink)}
+.promo__pend>.wid{max-width:100%;overflow-wrap:anywhere}
+.promo__pendamt{display:inline-flex;padding:2px 10px;border-radius:999px;background:var(--dk-surface,#fff);box-shadow:inset 0 0 0 1px var(--dk-bd-blue,#C9DCF7);color:var(--ink);font-size:.84rem;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.promo__tgok,.promo__tgbad{font-size:.78rem;font-weight:600;line-height:1.45}
+.promo__tgok{color:var(--dk-txt-ok,#00875A)}
+.promo__tgbad{color:var(--dk-txt-err,#B42318)}
+@media (prefers-reduced-motion:reduce){.promo__pend{animation:none}}
