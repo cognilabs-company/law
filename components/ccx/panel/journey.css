@@ -20,22 +20,30 @@
 .opx-jr__track::after {
   content: "";
   position: absolute;
-  top: calc(var(--jr-big) / 2 - 3px);
+  top: calc(var(--jr-big) / 2 - 2px);
   left: calc(100% / (var(--jr-n) * 2));
-  height: 6px;
-  border-radius: 6px;
+  height: 4px;
+  border-radius: 4px;
 }
 
+/* The road still ahead is dashed; the part already walked is solid light. */
 .opx-jr__track::before {
   right: calc(100% / (var(--jr-n) * 2));
-  background: var(--opx-line-2);
+  background: repeating-linear-gradient(90deg, var(--opx-line-2) 0 9px, transparent 9px 15px);
 }
 
 .opx-jr__track::after {
   width: calc((100% - 100% / var(--jr-n)) * var(--jr-at) / max(var(--jr-n) - 1, 1));
-  background: linear-gradient(90deg, var(--opx-teal), var(--opx-aqua));
+  background: linear-gradient(90deg, var(--opx-teal) 0%, var(--opx-aqua) 35%, color-mix(in srgb, var(--opx-aqua) 35%, #fff) 50%, var(--opx-aqua) 65%, var(--opx-teal) 100%);
+  background-size: 200% 100%;
   box-shadow: 0 0 14px color-mix(in srgb, var(--opx-aqua) 55%, transparent);
   transition: width 0.5s var(--opx-ease);
+  animation: opx-jr-flow 2.8s linear infinite;
+}
+
+@keyframes opx-jr-flow {
+  from { background-position: 200% 0; }
+  to { background-position: 0 0; }
 }
 
 .opx-jr__track > li {
@@ -49,8 +57,10 @@
 .opx-jr__cell {
   display: grid;
   grid-template-rows: var(--jr-big) auto;
+  grid-auto-rows: auto;
   justify-items: center;
   align-items: center;
+  align-content: start;
   gap: 6px;
   width: 100%;
   padding: 0 2px;
@@ -71,6 +81,7 @@
 }
 
 .opx-jr__dot {
+  position: relative;
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -93,6 +104,7 @@ li[data-state="done"] > * > .opx-jr__dot {
   height: var(--jr-mid);
   background: linear-gradient(135deg, var(--opx-teal), var(--opx-aqua));
   color: var(--opx-on-accent);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.35), 0 4px 12px color-mix(in srgb, var(--opx-aqua) 30%, transparent);
 }
 
 html[data-opx-theme="dark"] li[data-state="done"] > * > .opx-jr__dot,
@@ -107,39 +119,109 @@ li[data-state="done"] > * > .opx-jr__t {
 li[data-state="now"] > * > .opx-jr__dot {
   width: var(--jr-big);
   height: var(--jr-big);
+  --jr-glow: var(--opx-aqua);
   background: var(--opx-grad);
   color: #fff;
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--opx-aqua) 22%, transparent), 0 0 34px color-mix(in srgb, var(--opx-aqua) 60%, transparent);
+  box-shadow: inset 0 2px 6px rgba(255, 255, 255, 0.3), inset 0 -4px 10px rgba(0, 0, 0, 0.18), 0 0 0 6px color-mix(in srgb, var(--jr-glow) 18%, transparent), 0 0 34px color-mix(in srgb, var(--jr-glow) 55%, transparent);
 }
 
+/* The current step: a bright arc orbits it and a soft ring keeps breathing out. */
+li[data-state="now"] > * > .opx-jr__dot::before,
+li[data-state="now"] > * > .opx-jr__dot::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+li[data-state="now"] > * > .opx-jr__dot::before {
+  inset: -9px;
+  background: conic-gradient(from 0deg, transparent 0 55%, color-mix(in srgb, var(--jr-glow) 30%, transparent) 70%, var(--jr-glow) 96%, transparent 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
+  animation: opx-jr-orbit 2.6s linear infinite;
+}
+
+li[data-state="now"] > * > .opx-jr__dot::after {
+  inset: 0;
+  border: 2px solid var(--jr-glow);
+  animation: opx-jr-ripple 2.4s var(--opx-ease) infinite;
+}
+
+@keyframes opx-jr-orbit {
+  to { transform: rotate(1turn); }
+}
+
+@keyframes opx-jr-ripple {
+  0% { transform: scale(1); opacity: 0.55; }
+  80%, 100% { transform: scale(1.38); opacity: 0; }
+}
+
+/* The current label sits in a lit pill with its place in the run under it. */
 li[data-state="now"] > * > .opx-jr__t {
+  padding: 3px 12px;
+  border: 1px solid color-mix(in srgb, var(--opx-aqua) 35%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--opx-aqua) 13%, transparent);
   color: var(--opx-ink);
-  font-size: 15px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.opx-jr__k {
+  margin-top: -2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--opx-ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.opx-jr__k > b {
+  color: var(--opx-aqua);
   font-weight: 800;
 }
 
 li[data-state="todo"] > * > .opx-jr__dot {
   width: var(--jr-small);
   height: var(--jr-small);
-  border: 1.5px solid var(--opx-line-2);
-  background: var(--opx-base-2);
+  border: 1.5px dashed color-mix(in srgb, var(--opx-ink-3) 55%, transparent);
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--opx-ink-3) 16%, var(--opx-base-2)), var(--opx-base-2) 70%);
   color: var(--opx-ink-3);
 }
 
 .opx-jr__track > li > button:hover > .opx-jr__dot {
   transform: scale(1.12);
+  border-style: solid;
   border-color: var(--opx-aqua);
   color: var(--opx-aqua);
 }
 
 .opx-jr[data-ended="hot"] li[data-state="now"] > * > .opx-jr__dot {
+  --jr-glow: var(--opx-hot);
   background: linear-gradient(135deg, #c43a53, var(--opx-hot));
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--opx-hot) 22%, transparent), 0 0 34px color-mix(in srgb, var(--opx-hot) 50%, transparent);
+}
+
+.opx-jr[data-ended="hot"] li[data-state="now"] > * > .opx-jr__t {
+  border-color: color-mix(in srgb, var(--opx-hot) 40%, transparent);
+  background: color-mix(in srgb, var(--opx-hot) 14%, transparent);
 }
 
 .opx-jr[data-ended="hot"] .opx-jr__track::after {
   background: var(--opx-ink-3);
   box-shadow: none;
+  animation: none;
+}
+
+/* A finished run stops moving: no orbit, no breathing ring. */
+.opx-jr[data-ended] li[data-state="now"] > * > .opx-jr__dot::before,
+.opx-jr[data-ended] li[data-state="now"] > * > .opx-jr__dot::after {
+  animation: none;
+  display: none;
+}
+
+.opx-jr[data-ended] .opx-jr__track::after {
+  animation: none;
 }
 
 .opx-jr[data-ended="mute"] li[data-state="now"] > * > .opx-jr__dot {
@@ -163,7 +245,8 @@ li[data-state="todo"] > * > .opx-jr__dot {
     --jr-small: 22px;
   }
 
-  .opx-jr__t {
+  .opx-jr__t,
+  .opx-jr__k {
     display: none;
   }
 
@@ -175,8 +258,15 @@ li[data-state="todo"] > * > .opx-jr__dot {
 
 @media (prefers-reduced-motion: reduce) {
   .opx-jr__track::after,
-  .opx-jr__dot {
+  .opx-jr__dot,
+  .opx-jr__dot::before,
+  .opx-jr__dot::after {
     transition: none;
+    animation: none !important;
+  }
+
+  li[data-state="now"] > * > .opx-jr__dot::after {
+    display: none;
   }
 }
 
@@ -200,4 +290,8 @@ li[data-state="todo"] > * > .opx-jr__dot {
     width: 12px;
     height: 12px;
   }
+}
+
+.opx-jr[data-ended="hot"] .opx-jr__k > b {
+  color: var(--opx-hot);
 }

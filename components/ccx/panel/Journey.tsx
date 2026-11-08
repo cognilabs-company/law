@@ -30,6 +30,11 @@ export function Journey({ label, steps, at, ended = "", className }: { label: st
                 {state === "done" ? <IcCheck size={16} /> : s.icon}
               </span>
               <span className="opx-jr__t">{s.label}</span>
+              {state === "now" ? (
+                <span className="opx-jr__k" aria-hidden="true">
+                  <b>{i + 1}</b> / {steps.length}
+                </span>
+              ) : null}
             </>
           );
           return (
