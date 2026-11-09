@@ -1,14 +1,14 @@
 "use client";
 
 import "./robots.css";
-import { useEffect, useState, useSyncExternalStore, type ReactElement } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Hash, Plus, ShieldAlert, X } from "lucide-react";
 import CheckBox from "@/components/CheckBox";
 import { isAborted, logApiError } from "@/lib/http";
 import { fmtDateTime } from "@/lib/date";
 import { listCrmLeads, listCrmOperators, listCrmTemplates, type CrmLead, type CrmMeta, type CrmOperator, type CrmTemplate } from "@/lib/services/crm";
-import { getAutomationCatalog, humanKey, readableRows, type AutomationCatalog, type CatalogAction, type CatalogField, type Dict } from "@/lib/services/crmAutomation";
+import { getAutomationCatalog, humanKey, readableRows, type AutomationCatalog, type CatalogAction, type CatalogField, type CatalogOption, type Dict } from "@/lib/services/crmAutomation";
 import { LookupPicker } from "../LookupPicker";
 import { CrmDateTime, CrmSelect } from "../fields";
 import { useStatusLabel } from "../bits";
@@ -36,6 +36,8 @@ export function loadCatalog(force = false): Promise<void> {
   return catReq;
 }
 export function useCatalog(): CatState {
+  const text = useCatalogText();
+  const locale = useLocale();
   const s = useSyncExternalStore(
     (f) => {
       catSubs.add(f);
@@ -47,7 +49,51 @@ export function useCatalog(): CatState {
   useEffect(() => {
     if (!s.data && !s.error) void loadCatalog();
   }, [s.data, s.error]);
-  return s;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `text` follows the locale
+  const data = useMemo(() => (s.data ? localizeCatalog(s.data, text) : null), [s.data, locale]);
+  return useMemo(() => ({ data, error: s.error }), [data, s.error]);
+}
+
+// ── The catalog in the UI language ──
+// The backend's catalog wording is Uzbek-only and often has no label or
+// description at all. Known keys are translated here (messages rop.cat);
+// unknown ones keep the backend's own words. Every field gets a
+// description: by its key, else the backend's, else a hint for its kind.
+type CatText = (ns: string, key: string) => string;
+export function useCatalogText(): CatText {
+  const t = useTranslations("rop.cat");
+  return (ns, key) => {
+    const p = `${ns}.${key.replace(/\./g, "_")}`;
+    return key && t.has(p) ? t(p) : "";
+  };
+}
+export function fieldKind(f: Pick<CatalogField, "type" | "options" | "multiple">): string {
+  const type = f.type;
+  if (type === "boolean" || type === "bool" || type === "checkbox") return "boolean";
+  if (f.options.length && !f.multiple) return "select";
+  if (f.multiple) return "multi";
+  if (/operator|user|owner|assignee/.test(type)) return "person";
+  if (/template/.test(type)) return "template";
+  if (/status/.test(type)) return "status";
+  if (/language|lang/.test(type)) return "language";
+  if (/datetime|date_time|timestamp/.test(type)) return "datetime";
+  if (/number|integer|int|float|duration|minutes|seconds/.test(type)) return "number";
+  if (/textarea|longtext|body|message|markdown/.test(type)) return "textarea";
+  return "text";
+}
+function localizeCatalog(c: AutomationCatalog, tx: CatText): AutomationCatalog {
+  const opt = (o: CatalogOption): CatalogOption => ({ ...o, label: tx("opt", o.value) || o.label, description: tx("optD", o.value) || o.description });
+  const field = (f: CatalogField): CatalogField => ({ ...f, label: tx("field", f.key) || f.label, description: tx("fieldD", f.key) || f.description || tx("typeD", fieldKind(f)), options: f.options.map(opt) });
+  return {
+    ...c,
+    triggers: c.triggers.map((x) => ({ ...x, label: tx("trigger", x.key) || x.label, description: tx("triggerD", x.key) || x.description })),
+    actions: c.actions.map((a) => ({ ...a, label: tx("action", a.key) || a.label, description: tx("actionD", a.key) || a.description, fields: a.fields.map(field) })),
+    groups: c.groups.map((g) => ({ ...g, label: tx("group", g.value) || g.label })),
+    executionModes: c.executionModes.map(opt),
+    conditionFields: c.conditionFields.map((f) => ({ ...f, label: tx("cond", f.key) || f.label, options: f.options.map(opt) })),
+    stopPolicyFields: c.stopPolicyFields.map(field),
+    scheduleFields: c.scheduleFields.map(field),
+  };
 }
 
 // ── Labels: the backend's own words first, a readable form of the key after ──

@@ -448,6 +448,9 @@ test("robots: built from the catalog — trigger, delay, an and/or tree, ordered
   await page.locator("[data-rop-new-robot]").click();
   const b = page.locator("[data-rop-builder]");
   await expect(b.locator(".rb-step")).toHaveCount(9);
+  // Every step after the name explains itself.
+  await expect(b.locator(".rb-help")).toHaveCount(8);
+  await expect(b.locator(".rb-step").nth(2).locator(".rb-help")).toContainText("Hodisadan keyin qancha kutish");
   // Every step circle carries its icon.
   await expect(b.locator(".rb-step__dot svg")).toHaveCount(9);
   await b.getByRole("textbox", { name: "Nomi" }).fill("Javobsiz qo'ng'iroq");
@@ -461,6 +464,9 @@ test("robots: built from the catalog — trigger, delay, an and/or tree, ordered
   await b.locator(".rb-cond").first().getByRole("button", { name: "Taqqoslash" }).click();
   await expect(page.getByRole("listbox").getByRole("option")).toHaveCount(12);
   await page.getByRole("listbox").getByRole("option", { name: "teng", exact: true }).click();
+  // The row explains the chosen field and comparison.
+  await expect(b.locator(".rb-cond__hint").first()).toContainText("Lid hozir qaysi holatda");
+  await expect(b.locator(".rb-cond__hint").first()).toContainText("Qiymat aynan shunga teng");
   await b.locator(".rb-cond").first().getByRole("button", { name: "Qiymat" }).click();
   await page.getByRole("listbox").getByRole("option", { name: "Yangi" }).click();
   // Actions from the grouped, searchable picker; fields come from the catalog.
@@ -475,7 +481,10 @@ test("robots: built from the catalog — trigger, delay, an and/or tree, ordered
   await page.getByRole("dialog", { name: "Amal tanlash" }).locator("[data-rb-pick=plan_call]").click();
   await expect(b.locator(".rb-action")).toHaveCount(2);
   await expect(b.locator(".rb-approval")).toHaveCount(1);
-  await b.locator("[data-rb-action=send_sms]").getByRole("textbox", { name: /SMS matni/ }).fill("Siz bilan bog'lana olmadik.");
+  // Catalog fields teach what they do, even when the backend sends no description.
+  await expect(b.locator("[data-rb-action=plan_call] .rb-field").first()).toContainText("necha daqiqa o'tib");
+  await expect(b.locator("[data-rb-action=send_sms] .rb-field").nth(1)).toContainText("«Avto» — mijozning tilida");
+  await b.locator("[data-rb-action=send_sms]").getByRole("textbox", { name: /Xabar matni/ }).fill("Siz bilan bog'lana olmadik.");
   // Touch-friendly order: the call first.
   await b.getByRole("button", { name: "2-amalni yuqoriga" }).click();
   await expect(b.locator(".rb-action").first()).toHaveAttribute("data-rb-action", "plan_call");
@@ -780,5 +789,33 @@ test("Eslatma: a reminder time becomes the lead's next action and shows in the h
   await expect(page.getByText("Tarixga qo'shildi.").first()).toBeVisible();
   expect(st.writes.filter((w) => w.path === "patch")).toHaveLength(1);
   expect(mock.refused).toEqual([]);
+  expect(missing).toEqual([]);
+});
+
+test("robots in Russian: catalog triggers, actions, fields and dropdown options read in the UI language", async ({ page }) => {
+  const missing = watchIntl(page);
+  const { routes } = crmServer(ROP_PERMS);
+  await mockBackend(page, await signIn(page, ROP, routes as never));
+  await page.goto("/ru/admin/crm/automation");
+  await page.locator("[data-rop-new-robot]").click();
+  const b = page.locator("[data-rop-builder]");
+  await b.locator(".rb-step").nth(1).getByRole("button").first().click();
+  await expect(page.getByRole("listbox").getByRole("option", { name: /Звонок без ответа/ })).toBeVisible();
+  await page.getByRole("listbox").getByRole("option", { name: /Звонок без ответа/ }).click();
+  await expect(b.locator(".rb-desc")).toContainText("клиент не ответил");
+  await expect(b.locator(".rb-modes")).toContainText("Последовательно");
+  await b.locator("[data-rb-add]").click();
+  const pick = page.getByRole("dialog");
+  await expect(pick.getByRole("region", { name: "Коммуникации" })).toBeVisible();
+  await pick.locator("[data-rb-pick=send_sms]").click();
+  const sms = b.locator("[data-rb-action=send_sms]");
+  await expect(sms).toContainText("Подготовить SMS");
+  await expect(sms).toContainText("Текст сообщения");
+  await sms.locator(".rb-field").nth(1).getByRole("button").click();
+  await expect(page.getByRole("listbox").getByRole("option", { name: "Узбекский (латиница)" })).toBeVisible();
+  await expect(page.getByRole("listbox").getByRole("option", { name: "Русский" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(b).not.toContainText("SMS tayyorlash");
+  await shot(page, "rop-robot-builder-ru");
   expect(missing).toEqual([]);
 });

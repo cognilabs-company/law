@@ -31,7 +31,7 @@ import {
 import Modal from "@/components/admin/Modal";
 import { useCrmError, useStatusLabel } from "../bits";
 import { CrmSelect } from "../fields";
-import { ApprovalBadge, FieldInput, LeadPicker, TagsInput, actionLabel, actionOf, optLabel, triggerLabel } from "./shared";
+import { ApprovalBadge, FieldInput, LeadPicker, TagsInput, actionLabel, actionOf, optLabel, triggerLabel, useCatalogText } from "./shared";
 
 // The robot form, in the order the contract sets (§16): 1 name and
 // description → 2 trigger → 3 delay → 4 conditions → 5 ordered actions →
@@ -161,20 +161,22 @@ export default function RobotBuilder({ catalog, meta, rule, onClose, onSaved }: 
             <label className="rop-label">
               {t("name")}
               <input className="rop-input" value={d.name} onChange={(e) => set({ name: e.target.value })} placeholder={t("namePh")} aria-invalid={tried && d.name.trim().length < 2 ? true : undefined} />
+              <small>{t("help.name")}</small>
             </label>
             <label className="rop-label">
               {t("priority")}
               <input className="rop-input" inputMode="numeric" value={String(d.priority)} onChange={(e) => set({ priority: Number(e.target.value.replace(/\D/g, "")) || 0 })} />
-              <small>{t("priorityHint")}</small>
+              <small>{t("help.priority")}</small>
             </label>
           </div>
           <label className="rop-label">
             {t("description")}
             <textarea className="rop-input" value={d.description} onChange={(e) => set({ description: e.target.value })} placeholder={t("descriptionPh")} />
+            <small>{t("help.description")}</small>
           </label>
         </Step>
 
-        <Step n={2} Icon={Zap} title={t("s.trigger")}>
+        <Step n={2} Icon={Zap} title={t("s.trigger")} help={t("help.trigger")}>
           <CrmSelect
             value={d.trigger}
             onChange={(v) => set({ trigger: v })}
@@ -187,7 +189,7 @@ export default function RobotBuilder({ catalog, meta, rule, onClose, onSaved }: 
           {tried && !d.trigger ? <p className="rb-err" role="alert">{t("needTrigger")}</p> : null}
         </Step>
 
-        <Step n={3} Icon={Timer} title={t("s.delay")}>
+        <Step n={3} Icon={Timer} title={t("s.delay")} help={t("help.delay")}>
           <div className="rb-delay">
             <input
               className="rop-input"
@@ -202,11 +204,11 @@ export default function RobotBuilder({ catalog, meta, rule, onClose, onSaved }: 
           </div>
         </Step>
 
-        <Step n={4} Icon={Filter} title={t("s.conditions")} aside={<span className="rop-pill">{t("condN", { n: condCount(d.conditions) })}</span>}>
+        <Step n={4} Icon={Filter} title={t("s.conditions")} help={t("help.conditions")} aside={<span className="rop-pill">{t("condN", { n: condCount(d.conditions) })}</span>}>
           <CondTree group={d.conditions} onChange={(g) => set({ conditions: g })} catalog={catalog} meta={meta} depth={0} />
         </Step>
 
-        <Step n={5} Icon={ListOrdered} title={t("s.actions")} aside={<span className="rop-pill">{t("actionN", { n: d.actions.length })}</span>}>
+        <Step n={5} Icon={ListOrdered} title={t("s.actions")} help={t("help.actions")} aside={<span className="rop-pill">{t("actionN", { n: d.actions.length })}</span>}>
           <ActionList actions={d.actions} onChange={(a) => set({ actions: a })} catalog={catalog} meta={meta} />
           <button type="button" className="crm-btn crm-btn--pri" onClick={() => setPicking(true)} data-rb-add="">
             <Plus aria-hidden="true" />
@@ -215,7 +217,7 @@ export default function RobotBuilder({ catalog, meta, rule, onClose, onSaved }: 
           {tried && !d.actions.length ? <p className="rb-err" role="alert">{t("needAction")}</p> : null}
         </Step>
 
-        <Step n={6} Icon={Settings2} title={t("s.mode")}>
+        <Step n={6} Icon={Settings2} title={t("s.mode")} help={t("help.mode")}>
           {catalog.executionModes.length ? (
             <div className="rb-modes" role="radiogroup" aria-label={t("s.mode")}>
               {catalog.executionModes.map((m) => (
@@ -230,7 +232,7 @@ export default function RobotBuilder({ catalog, meta, rule, onClose, onSaved }: 
           )}
         </Step>
 
-        <Step n={7} Icon={CalendarClock} title={t("s.stop")}>
+        <Step n={7} Icon={CalendarClock} title={t("s.stop")} help={t("help.stop")}>
           {catalog.stopPolicyFields.length || catalog.scheduleFields.length ? (
             <div className="rb-fields">
               {catalog.stopPolicyFields.map((f) => (
@@ -248,7 +250,7 @@ export default function RobotBuilder({ catalog, meta, rule, onClose, onSaved }: 
           )}
         </Step>
 
-        <Step n={8} Icon={Eye} title={t("s.preview")}>
+        <Step n={8} Icon={Eye} title={t("s.preview")} help={t("help.preview")}>
           <div className="rb-preview__bar">
             <div className="rb-preview__lead">
               <span className="rop-label">{t("previewLead")}</span>
@@ -262,7 +264,7 @@ export default function RobotBuilder({ catalog, meta, rule, onClose, onSaved }: 
           {preview ? <PreviewView p={preview} stale={!previewFresh} /> : <p className="rop-muted">{t("previewEmpty")}</p>}
         </Step>
 
-        <Step n={9} Icon={Rocket} title={t("s.save")}>
+        <Step n={9} Icon={Rocket} title={t("s.save")} help={t("help.save")}>
           {tried && missing.length ? (
             <ul className="rb-missing" role="alert">
               {missing.map((m) => (
@@ -306,7 +308,7 @@ export default function RobotBuilder({ catalog, meta, rule, onClose, onSaved }: 
   );
 }
 
-function Step({ n, Icon, title, aside, children }: { n: number; Icon: typeof Zap; title: string; aside?: ReactNode; children: ReactNode }): ReactElement {
+function Step({ n, Icon, title, help, aside, children }: { n: number; Icon: typeof Zap; title: string; help?: string; aside?: ReactNode; children: ReactNode }): ReactElement {
   return (
     <li className="rb-step" data-step={n}>
       <span className="rb-step__dot" aria-hidden="true">
@@ -320,6 +322,7 @@ function Step({ n, Icon, title, aside, children }: { n: number; Icon: typeof Zap
           </h3>
           {aside}
         </div>
+        {help ? <p className="rb-help">{help}</p> : null}
         {children}
       </section>
     </li>
@@ -399,7 +402,7 @@ function CondTree({ group, onChange, catalog, meta, depth }: { group: CondGroup;
           {t("addCondition")}
         </button>
         {depth < 2 ? (
-          <button type="button" className="crm-btn crm-btn--sm" onClick={() => onChange({ ...group, items: [...group.items, emptyGroup(group.op === "and" ? "or" : "and")] })}>
+          <button type="button" className="crm-btn crm-btn--sm" title={t("help.group")} onClick={() => onChange({ ...group, items: [...group.items, emptyGroup(group.op === "and" ? "or" : "and")] })}>
             <GitBranch aria-hidden="true" />
             {t("addGroup")}
           </button>
@@ -413,15 +416,19 @@ function CondRow({ c, fields, catalog, meta, onChange, onRemove }: { c: CondLeaf
   const t = useTranslations("rop.robots");
   const to = useTranslations("rop.robots.op");
   const ts = useStatusLabel();
+  const tx = useCatalogText();
+  const fieldName = (k: string, label: string) => tx("cond", k) || label || humanKey(k.replace(/^(lead|customer)\./, ""));
+  const opName = (v: string, label: string) => (to.has(v) ? to(v) : label || humanKey(v));
   const ops = catalog.operators.length ? catalog.operators : OPS_FALLBACK.map((v) => ({ value: v, label: "", description: "" }));
   const field = fields.find((f) => f.key === c.field);
-  const opts = field?.options.length ? field.options : c.field === "lead.status" ? meta.statuses.map((s) => ({ value: s, label: ts(s), description: "" })) : [];
+  const hint = [tx("condD", c.field), tx("opD", c.operator)].filter(Boolean).join(" ");
+  const opts = field?.options.length ? field.options.map((o) => ({ ...o, label: tx("opt", o.value) || o.label })) : c.field === "lead.status" ? meta.statuses.map((s) => ({ value: s, label: ts(s), description: "" })) : [];
   const listy = LIST_OPS.has(c.operator);
   const val = c.value === undefined || c.value === null ? "" : c.value;
   return (
     <div className="rb-cond">
-      <CrmSelect value={c.field} onChange={(v) => onChange({ ...c, field: v, value: "" })} label={t("field")} search options={fields.map((f) => ({ value: f.key, label: f.label || humanKey(f.key.replace(/^(lead|customer)\./, "")), group: f.key.startsWith("customer.") ? t("customerFields") : t("leadFields") }))} />
-      <CrmSelect value={c.operator} onChange={(v) => onChange({ ...c, operator: v, value: LIST_OPS.has(v) ? (Array.isArray(val) ? val : val ? [String(val)] : []) : Array.isArray(val) ? (val[0] ?? "") : val })} label={t("operator")} options={ops.map((o) => ({ value: o.value, label: o.label || (to.has(o.value) ? to(o.value) : humanKey(o.value)) }))} />
+      <CrmSelect value={c.field} onChange={(v) => onChange({ ...c, field: v, value: "" })} label={t("field")} search options={fields.map((f) => ({ value: f.key, label: fieldName(f.key, f.label), group: f.key.startsWith("customer.") ? t("customerFields") : t("leadFields") }))} />
+      <CrmSelect value={c.operator} onChange={(v) => onChange({ ...c, operator: v, value: LIST_OPS.has(v) ? (Array.isArray(val) ? val : val ? [String(val)] : []) : Array.isArray(val) ? (val[0] ?? "") : val })} label={t("operator")} options={ops.map((o) => ({ value: o.value, label: opName(o.value, o.label) }))} />
       {NO_VALUE.has(c.operator) ? (
         <span className="rop-muted rb-cond__nv">{t("noValueNeeded")}</span>
       ) : listy ? (
@@ -432,6 +439,7 @@ function CondRow({ c, fields, catalog, meta, onChange, onRemove }: { c: CondLeaf
         <input className="rop-input" value={String(val)} onChange={(e) => onChange({ ...c, value: /^(gt|gte|lt|lte)$/.test(c.operator) && e.target.value !== "" && Number.isFinite(Number(e.target.value)) ? Number(e.target.value) : e.target.value })} placeholder={t("value")} aria-label={t("value")} />
       )}
       <button type="button" className="crm-btn crm-btn--icon" onClick={onRemove} aria-label={t("removeCondition")}><Trash2 aria-hidden="true" /></button>
+      {hint ? <small className="rb-cond__hint">{hint}</small> : null}
     </div>
   );
 }

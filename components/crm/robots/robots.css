@@ -19,6 +19,7 @@
 .rb-step__h { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .rb-step__h h3 { margin: 0; font-family: var(--fd); font-size: 1.02rem; font-weight: 700; color: var(--rb-ink); display: flex; align-items: center; gap: 10px; }
 .rb-step__n { width: 24px; height: 24px; border-radius: 8px; background: var(--rb-chip); color: var(--rb-gray); display: inline-grid; place-items: center; font-size: .76rem; font-weight: 700; }
+.rb-help { margin: -4px 0 0; color: var(--rb-gray); font-size: .86rem; line-height: 1.5; max-width: 72ch; }
 .rb-desc { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--rb-tint); color: var(--rb-ink); font-size: .88rem; }
 .rb-err { margin: 0; color: var(--lx-err, #c0392b); font-size: .86rem; font-weight: 500; }
 .rb-delay { display: grid; grid-template-columns: 110px minmax(140px, 220px) auto; gap: 10px; align-items: center; }
@@ -36,6 +37,7 @@
 .rb-join { justify-self: start; font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--rb-gray); padding: 2px 8px; border-radius: 999px; background: var(--rb-card); border: 1px solid var(--rb-line); }
 .rb-cond { display: grid; grid-template-columns: minmax(150px, 1.1fr) minmax(130px, .8fr) minmax(150px, 1.2fr) 42px; gap: 8px; align-items: center; min-width: 0; }
 .rb-cond > * { min-width: 0; }
+.rb-cond > .rb-cond__hint { grid-column: 1 / -1; color: var(--rb-gray); font-size: .78rem; line-height: 1.4; }
 .rb-cond__nv { padding: 0 6px; }
 .rb-subgroup { display: grid; gap: 8px; justify-items: start; }
 .rb-subgroup > .rb-group { width: 100%; }
