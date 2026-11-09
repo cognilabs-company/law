@@ -11,8 +11,9 @@ import FieldError from "@/components/ui/FieldError";
 import { OtpCountdown, OtpResendButton } from "@/components/auth/OtpStatus";
 import { IconShield, IconShieldCheck, IconChevronLeft, IconLock, IconSend } from "@/components/icons";
 
-// Two-factor management: a code sent by the Telegram bot (method "telegram";
-// "sms" is the legacy name) or an authenticator app (TOTP). Status comes from
+// Two-factor management: a one-time code (method "telegram"/"sms" — it goes
+// through the channel picked in OtpDeliveryCard, not necessarily Telegram) or
+// an authenticator app (TOTP). Status comes from
 // the session's two_factor_enabled/method, with a local flag as an offline
 // fallback. For staff/seller roles 2FA is mandatory: no Disable, and they may
 // switch from the Telegram code to the authenticator app.
@@ -277,7 +278,7 @@ export default function TwoFactorCard() {
               <span className="tfa__method-ic">{session?.twoFactorMethod === "totp" ? <IconShield /> : <IconSend />}</span>
               <div>
                 <small>{t("currentMethodLabel")}</small>
-                <b>{session?.twoFactorMethod === "totp" ? t("methodTotp") : session?.twoFactorMethod === "sms" ? t("methodSms") : t("methodTelegram")}</b>
+                <b>{session?.twoFactorMethod === "totp" ? t("methodTotp") : t("methodTelegram")}</b>
                 <span>{session?.twoFactorMethod === "totp" ? t("methodTotpText") : t("methodTelegramText")}</span>
               </div>
               <em className="tfa__on"><IconShieldCheck />{t("enabledBadge")}</em>

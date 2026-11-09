@@ -10,7 +10,9 @@ import { consentsFor, currentConsents, listLegalConsents, type RegisterStartResu
 import { useResource } from "@/lib/useResource";
 import { clearPendingRegistration, savePendingRegistration } from "@/lib/consents";
 import { LEGAL_FALLBACK_ITEMS, legalLang } from "@/lib/legal";
-import { normUzPhone } from "@/lib/phone";
+import { maskUzPhone, normUzPhone } from "@/lib/phone";
+import { OTP_DELIVERY_METHODS, type OtpDeliveryMethod } from "@/lib/otpDelivery";
+import OtpMethodPicker, { useOtpMethodName } from "@/components/auth/OtpMethodPicker";
 import { OTP_RESEND_SEC, fmtClock, useOtpTimer } from "@/lib/useOtpTimer";
 import { OtpCountdown, OtpResendButton } from "@/components/auth/OtpStatus";
 import {
@@ -81,6 +83,8 @@ export default function RegisterFlow() {
   const te = useTranslations("enums");
   const tc = useTranslations("common");
   const tOtp = useTranslations("register.otp");
+  const tm = useTranslations("otpDelivery");
+  const methodName = useOtpMethodName();
   const router = useRouter();
   const { startRegistration, register, session, ready } = useAuth();
 
@@ -98,7 +102,11 @@ export default function RegisterFlow() {
   // OTP verification state
   const [verificationId, setVerificationId] = useState("");
   const [telegramLink, setTelegramLink] = useState("");
-  const [otpMessage, setOtpMessage] = useState("");
+  // The channel the current code actually went through (the backend's
+  // delivery_method), so the verify step says where to look for it.
+  const [sentVia, setSentVia] = useState<OtpDeliveryMethod | "">("");
+  // The verify step's "get the code another way" list is open.
+  const [otherOpen, setOtherOpen] = useState(false);
   const [code, setCode] = useState("");
   const [starting, setStarting] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -107,12 +115,14 @@ export default function RegisterFlow() {
   const otp = useOtpTimer();
   const [resending, setResending] = useState(false);
   const [otpNote, setOtpNote] = useState<string | null>(null);
-  // Registration details the pending code was issued for (see otpKey).
+  // Registration details the pending code was issued for (see keyOf).
   const [issuedKey, setIssuedKey] = useState("");
   // Error from requesting the OTP (step 1). Shown in the footer on the profile
   // step, since verifyErr is only rendered on the later verify step.
   // wait = the server refused a new code for now (cooldown / daily quota).
-  const [startErr, setStartErr] = useState<{ msg: string; login?: boolean; wait?: boolean } | null>(null);
+  // channel = the picked delivery channel is down (503): offer the others
+  // instead of silently using one of them.
+  const [startErr, setStartErr] = useState<{ msg: string; login?: boolean; wait?: boolean; channel?: OtpDeliveryMethod } | null>(null);
   // Three wrong codes → the server blocks the phone for 15 min and the old
   // code is dead: the inputs are hidden until the block ends and a new code
   // is requested (register/start again — no separate resend endpoint).
@@ -161,8 +171,10 @@ export default function RegisterFlow() {
   const total = draft.accountType ? steps.length : steps.length + 3; // hint more to come
 
   const p = draft.profile;
-  // The details a code is issued for; any change needs a new code.
-  const otpKey = JSON.stringify([draft.accountType, draft.phone, p.firstName, p.lastName, p.middleName, p.region, draft.password]);
+  // The details a code is issued for; any change (the channel included) needs
+  // a new code.
+  const keyOf = (d: RegistrationDraft) =>
+    JSON.stringify([d.accountType, d.phone, d.profile.firstName, d.profile.lastName, d.profile.middleName, d.profile.region, d.password, d.otpDeliveryMethod]);
   function setProfile(patch: Partial<ProfessionalProfile>) {
     setDraft((d) => ({ ...d, profile: { ...d.profile, ...patch } }));
   }
@@ -228,15 +240,19 @@ export default function RegisterFlow() {
 
   // Keep only the newest verification: a new code supersedes the old one, so
   // id, typed code, Telegram link and timer are replaced together.
-  function applyIssue(r: RegisterStartResult) {
+  function applyIssue(r: RegisterStartResult, d: RegistrationDraft) {
     setLocked(false);
     setVerificationId(r.verificationId);
     setCode("");
     setTelegramLink(r.telegramBotLink);
-    setOtpMessage(r.message);
-    setIssuedKey(otpKey);
+    setSentVia(r.deliveryMethod || d.otpDeliveryMethod);
+    setOtherOpen(false);
+    setIssuedKey(keyOf(d));
     otp.issue(r.expiresAt);
+    if (r.resendInSec > 0) otp.cooldown(r.resendInSec);
   }
+  // 503 from register/start = the chosen channel's provider is down.
+  const channelDown = (e: unknown) => e instanceof ApiError && e.status === 503;
 
   // Remember what was accepted (real ids/versions only, so nothing while the
   // list is unavailable — the gate then asks after the first login). Saved only
@@ -248,11 +264,14 @@ export default function RegisterFlow() {
   }
 
   // Last profile step → request the OTP, then advance to the verify step.
-  async function startReg() {
+  // `via` = the user picked another channel after the chosen one failed.
+  async function startReg(via?: OtpDeliveryMethod) {
     if (!draft.accountType || starting) return;
+    const d = via ? { ...draft, otpDeliveryMethod: via } : draft;
+    if (via) setDraft(d);
     // A still-valid code for the same details → reuse it instead of burning
     // the resend cooldown and the daily OTP quota.
-    if (verificationId && issuedKey === otpKey && otp.issued && !otp.expired) {
+    if (verificationId && issuedKey === keyOf(d) && otp.issued && !otp.expired) {
       next();
       return;
     }
@@ -261,13 +280,13 @@ export default function RegisterFlow() {
     setVerifyErr(null);
     setStartErr(null);
     try {
-      const r = await startRegistration(draft);
+      const r = await startRegistration(d);
       setStarting(false);
       if (!r.verificationId) {
         setStartErr({ msg: t("verify.startError") });
         return;
       }
-      applyIssue(r);
+      applyIssue(r, d);
       setOtpNote(null);
       next();
     } catch (e) {
@@ -278,22 +297,28 @@ export default function RegisterFlow() {
         setStartErr({ msg: errDetail(e) || tc("rateLimited"), wait: true });
       } else if (e instanceof ApiError && e.status === 409) {
         setStartErr({ msg: t("verify.phoneExists"), login: true });
+      } else if (channelDown(e)) {
+        setStartErr({ msg: tm("unavailable", { method: methodName(d.otpDeliveryMethod) }), channel: d.otpDeliveryMethod });
       } else {
         setStartErr({ msg: t("verify.startError") });
       }
     }
   }
 
-  // Verify step → "Resend code": issue a new code for the same details.
-  async function resend() {
+  // Verify step → "Resend code": issue a new code for the same details, or —
+  // `via` — through another channel the user picked ("get the code another
+  // way"). The channel is only switched once the new code is out.
+  async function resend(via?: OtpDeliveryMethod) {
     if (!draft.accountType || resending || verifying || otp.resendIn > 0) return;
+    const d = via ? { ...draft, otpDeliveryMethod: via } : draft;
     setResending(true);
     setVerifyErr(null);
     setOtpNote(null);
     try {
-      const r = await startRegistration(draft);
+      const r = await startRegistration(d);
       if (r.verificationId) {
-        applyIssue(r);
+        if (via) setDraft(d);
+        applyIssue(r, d);
         setOtpNote(tOtp("resent"));
       } else {
         setVerifyErr(tOtp("resendError"));
@@ -305,6 +330,10 @@ export default function RegisterFlow() {
         setVerifyErr(errDetail(e) || tc("rateLimited"));
       } else if (e instanceof ApiError && e.status === 409) {
         setVerifyErr(t("verify.phoneExists"));
+      } else if (channelDown(e)) {
+        // Name the channel that failed and keep the others on offer.
+        setVerifyErr(tm("unavailable", { method: methodName(d.otpDeliveryMethod) }));
+        setOtherOpen(true);
       } else {
         setVerifyErr(tOtp("resendError"));
       }
@@ -426,6 +455,8 @@ export default function RegisterFlow() {
 
   // The last profile step is right before "verify".
   const lastProfileStep = !!draft.accountType && idx === steps.length - 2;
+  // The channels the verify step can switch the code to.
+  const otherMethods = OTP_DELIVERY_METHODS.filter((m) => m !== (sentVia || draft.otpDeliveryMethod));
   const showFooter = !["phone", "type", "verify"].includes(step);
 
   // Advocate mini-stepper index
@@ -543,6 +574,8 @@ export default function RegisterFlow() {
             <PhoneStep
               phone={draft.phone}
               onChange={(v) => setDraft((d) => ({ ...d, phone: v }))}
+              method={draft.otpDeliveryMethod}
+              onMethod={(m) => setDraft((d) => ({ ...d, otpDeliveryMethod: m }))}
               onSent={next}
             />
           ) : null}
@@ -553,8 +586,10 @@ export default function RegisterFlow() {
                 <span className="rf__otpnum">6</span>
               </span>
               <h1 className="rf__title">{t("verify.title")}</h1>
-              <p className="rf__sub">{(locale === "uz" && otpMessage) || t("verify.subtitle", { phone: draft.phone })}</p>
-              {telegramLink && !otp.expired && !locked ? (
+              <p className="rf__sub">
+                {tm(`sentTo.${sentVia || draft.otpDeliveryMethod}`, { phone: maskUzPhone(draft.phone) })}
+              </p>
+              {(sentVia || draft.otpDeliveryMethod) === "telegram_bot" && telegramLink && !otp.expired && !locked ? (
                 <a className="btn btn--line btn--full rf__tg" href={telegramLink} target="_blank" rel="noopener noreferrer">
                   {t("verify.telegramBtn")}
                 </a>
@@ -565,7 +600,7 @@ export default function RegisterFlow() {
                   <span>{otp.blockedIn > 0 ? tOtp("blockedFor", { time: fmtClock(otp.blockedIn) }) : tOtp("blockedOverText")}</span>
                   {verifyErr && otp.blockedIn > 0 ? <p className="rf__otpmsg rf__otpmsg--err">{verifyErr}</p> : null}
                   {otp.blockedIn <= 0 ? (
-                    <button className="btn btn--grad btn--full" type="button" onClick={resend} disabled={resending}>
+                    <button className="btn btn--grad btn--full" type="button" onClick={() => void resend()} disabled={resending}>
                       {resending ? tOtp("resending") : tOtp("newCode")}
                     </button>
                   ) : null}
@@ -584,7 +619,8 @@ export default function RegisterFlow() {
                     inputMode="numeric"
                     maxLength={i === 0 ? 6 : 1}
                     autoComplete={i === 0 ? "one-time-code" : "off"}
-                    value={code[i] ?? ""}
+                    // an expired code is gone from the field too
+                    value={otp.expired ? "" : code[i] ?? ""}
                     onChange={(e) => {
                       const v = e.target.value.replace(/\D/g, "");
                       if (i === 0 && v.length > 1) {
@@ -617,8 +653,30 @@ export default function RegisterFlow() {
                   <IconChevronLeft />
                   {t("verify.change")}
                 </button>
-                <OtpResendButton timer={otp} busy={resending} onResend={resend} />
+                <OtpResendButton timer={otp} busy={resending} onResend={() => void resend()} />
               </div>
+              {otherMethods.length ? (
+                <div className="rf__otherway">
+                  {otherOpen ? (
+                    <>
+                      <OtpMethodPicker
+                        name="rf-otp-other"
+                        legend={tm("otherMethod")}
+                        methods={otherMethods}
+                        value=""
+                        onChange={(m) => void resend(m)}
+                        disabled={resending || verifying || otp.resendIn > 0}
+                        compact
+                      />
+                      {otp.resendIn > 0 ? <p className="rf__otpmsg rf__otpmsg--muted">{tm("otherMethodIn", { time: fmtClock(otp.resendIn) })}</p> : null}
+                    </>
+                  ) : (
+                    <button type="button" className="rf__link rf__link--muted" onClick={() => setOtherOpen(true)} aria-expanded={false}>
+                      {tm("otherMethod")}
+                    </button>
+                  )}
+                </div>
+              ) : null}
               </>
               )}
             </div>
@@ -912,6 +970,15 @@ export default function RegisterFlow() {
                   <button type="button" className="rf__inlinelink" onClick={() => router.push(readReferral() ? `/login?ref=${encodeURIComponent(readReferral())}` : "/login")}>
                     {t("verify.goLogin")}
                   </button>
+                ) : null}
+                {startErr.channel ? (
+                  <span className="rf__otherbtns">
+                    {OTP_DELIVERY_METHODS.filter((m) => m !== startErr.channel).map((m) => (
+                      <button key={m} type="button" className="rf__inlinelink" onClick={() => void startReg(m)} disabled={starting}>
+                        {tm("sendVia", { method: methodName(m) })}
+                      </button>
+                    ))}
+                  </span>
                 ) : null}
               </div>
             ) : null}

@@ -52,6 +52,7 @@ import {
 import IdentityVerify from "@/components/portal/IdentityVerify";
 import PhotoUpload from "@/components/register/PhotoUpload";
 import TwoFactorCard from "@/components/portal/TwoFactorCard";
+import OtpDeliveryCard from "@/components/portal/OtpDeliveryCard";
 import TelegramLinkCard from "@/components/portal/TelegramLinkCard";
 import NotificationPrefsCard from "@/components/portal/NotificationPrefsCard";
 import AccountAudit from "@/components/portal/AccountAudit";
@@ -76,7 +77,7 @@ const TAB_REVEAL: Record<ProfileTab, RegExp> = {
   personal: /^profile[.:](family|identity)/,
   payments: /^(payments|profile[.:](cards|subscription))/,
   complaints: /^(complaints|warranty|button:new-complaint)/,
-  security: /^profile[.:](two-factor|telegram|sessions|security-events|account-audit|account-data)/,
+  security: /^profile[.:](otp-delivery|two-factor|telegram|sessions|security-events|account-audit|account-data)/,
   notifications: /^profile[.:]notification-prefs/,
 };
 
@@ -504,6 +505,7 @@ function SecurityTab() {
 
   return (
     <div className="cprofile__stack">
+      <OtpDeliveryCard />
       <div className="pgrid2 cprofile__grid">
         <TwoFactorCard />
         <TelegramLinkCard />

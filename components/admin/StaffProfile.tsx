@@ -13,6 +13,7 @@ import FieldError from "@/components/ui/FieldError";
 import { ErrorState, Skeleton } from "@/components/portal/DataState";
 import PhotoUpload from "@/components/register/PhotoUpload";
 import TwoFactorCard from "@/components/portal/TwoFactorCard";
+import OtpDeliveryCard from "@/components/portal/OtpDeliveryCard";
 import TelegramLinkCard from "@/components/portal/TelegramLinkCard";
 import NotificationPrefsCard from "@/components/portal/NotificationPrefsCard";
 import AccountAudit from "@/components/portal/AccountAudit";
@@ -24,7 +25,7 @@ type StaffTab = (typeof TABS)[number];
 const TAB_ICON: Record<StaffTab, typeof IconUser> = { personal: IconUser, security: IconShieldCheck, notifications: IconBell };
 const TAB_REVEAL: Record<StaffTab, RegExp> = {
   personal: /^staff-profile[.:]account/,
-  security: /^profile[.:](two-factor|telegram|sessions|security-events|account-audit)/,
+  security: /^profile[.:](otp-delivery|two-factor|telegram|sessions|security-events|account-audit)/,
   notifications: /^profile[.:]notification-prefs/,
 };
 
@@ -88,6 +89,7 @@ function StaffProfileInner() {
     ),
     security: (
       <div className="cprofile__stack">
+        <OtpDeliveryCard />
         <div className="pgrid2">
           <TwoFactorCard />
           <TelegramLinkCard />

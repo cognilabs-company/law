@@ -1,6 +1,8 @@
 // Shared domain types for LexGo. Mock services return these shapes so the UI
 // can later swap to a real backend without changing components.
 
+import { DEFAULT_OTP_DELIVERY, type OtpDeliveryMethod } from "@/lib/otpDelivery";
+
 export type AccountType = "client" | "lawyer" | "advocate";
 
 // A legal service a professional can offer / a client can request. `key`
@@ -91,6 +93,8 @@ export type RegistrationDraft = {
   phone: string;
   phoneVerified: boolean;
   password: string;
+  // Where the sign-up code (and every later one) is delivered.
+  otpDeliveryMethod: OtpDeliveryMethod;
   profile: ProfessionalProfile;
 };
 
@@ -112,6 +116,7 @@ export function emptyDraft(): RegistrationDraft {
     phone: "",
     phoneVerified: false,
     password: "",
+    otpDeliveryMethod: DEFAULT_OTP_DELIVERY,
     profile: emptyProfile(),
   };
 }

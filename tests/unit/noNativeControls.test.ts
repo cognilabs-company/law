@@ -32,6 +32,7 @@ const ALLOWED: Record<string, { types: string[]; why: string }> = {
   "components/ccx/panel/bits.tsx": { types: ["radio"], why: ".opx-choice__opt card drawn; input opacity 0" },
   "components/ccx/queues/decide/WcSwitch.tsx": { types: ["checkbox"], why: ".opx-wsw__tg drawn; input opacity 0" },
   "components/ccx/queues/decide/SellerPick.tsx": { types: ["radio"], why: ".opx-sp__row card drawn; input opacity 0" },
+  "components/auth/OtpMethodPicker.tsx": { types: ["radio"], why: ".otpm__o card + .otpm__dot drawn; input 1px, opacity 0" },
 };
 
 const ROOTS = ["components", "app"];

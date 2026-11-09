@@ -33,6 +33,7 @@ import { dateOnly } from "@/lib/date";
 import { ApiError, contactBlockedOf } from "@/lib/http";
 import { getMyAvailability, putMyAvailability, enabledDays, weeklyFrom, DEFAULT_DEADLINES, type ResponseDeadlines } from "@/lib/services/availability";
 import TwoFactorCard from "@/components/portal/TwoFactorCard";
+import OtpDeliveryCard from "@/components/portal/OtpDeliveryCard";
 import RatingBreakdown from "@/components/marketplace/RatingBreakdown";
 import IdentityVerify from "@/components/portal/IdentityVerify";
 import TelegramLinkCard from "@/components/portal/TelegramLinkCard";
@@ -68,7 +69,7 @@ const TAB_REVEAL: Record<SellerTab, RegExp> = {
   personal: /^(seller:profile-edit|button:request-verification|profile[.:](identity|verification))/,
   professional: /^profile[.:](professional|practice-areas|work-history|services)/,
   work: /^profile[.:](pricing|work-hours)/,
-  security: /^profile[.:](two-factor|telegram|sessions|security-events|account-audit|account-data)/,
+  security: /^profile[.:](otp-delivery|two-factor|telegram|sessions|security-events|account-audit|account-data)/,
   notifications: /^profile[.:]notification-prefs/,
 };
 
@@ -544,6 +545,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
     ),
     security: (
       <div className="cprofile__stack">
+        <OtpDeliveryCard />
         <div className="pgrid2">
           <TwoFactorCard />
           <TelegramLinkCard />

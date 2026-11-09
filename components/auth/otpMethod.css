@@ -1,0 +1,84 @@
+/* Verification-code channel picker (components/auth/OtpMethodPicker.tsx).
+   Global tokens (--line, --ink, --gray, --b600…) so it reads the same on the
+   sign-up card and inside the portal shell, light and dark. */
+.otpm{border:0;margin:0;padding:0;min-width:0;display:grid;gap:10px}
+.otpm__lg{padding:0;margin:0 0 2px;font-size:.88rem;font-weight:600;color:var(--ink)}
+.otpm__list{display:grid;gap:8px}
+.otpm__o{
+  position:relative;display:flex;align-items:center;gap:12px;padding:12px 14px;
+  border:1px solid var(--line);border-radius:14px;background:var(--dk-surface,#fff);
+  cursor:pointer;transition:border-color .15s,background .15s,box-shadow .15s;min-width:0;
+}
+/* Inside a form panel `.cform label` would turn each row into an uppercase
+   field caption; only the properties it sets are taken back, so the
+   hover / selected / compact rules below still apply. */
+.otpm label.otpm__o{display:flex;margin:0;font-size:inherit;font-weight:400;letter-spacing:normal;text-transform:none;color:inherit}
+.otpm__o:hover{border-color:#C7D6EC}
+html[data-theme="dark"] .otpm__o:hover{border-color:#3A4E78}
+.otpm__o.is-on{border-color:var(--b600);background:var(--b50);box-shadow:0 0 0 1px var(--b600) inset}
+html[data-theme="dark"] .otpm__o.is-on{border-color:var(--dk-acc,#6EA8FF);box-shadow:0 0 0 1px var(--dk-acc,#6EA8FF) inset;background:var(--dk-tint-blue,rgba(96,165,250,.14))}
+.otpm__o:has(.otpm__in:focus-visible){outline:3px solid var(--focus,#1460DC);outline-offset:2px}
+.otpm:disabled .otpm__o{cursor:default;opacity:.6}
+/* the real radio stays in the tab order and the accessibility tree */
+.otpm input.otpm__in{position:absolute;inset:auto;opacity:0;width:1px;height:1px;min-height:0;margin:0;padding:0;border:0;pointer-events:none}
+.otpm__ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;flex:none;background:var(--b100);color:var(--b600)}
+html[data-theme="dark"] .otpm__ic{background:var(--dk-tint-blue,rgba(96,165,250,.14));color:var(--dk-acc,#6EA8FF)}
+.otpm__ic svg{width:20px;height:20px}
+.otpm__tx{display:grid;gap:2px;flex:1;min-width:0}
+.otpm__t{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.otpm__t b{font-size:.94rem;font-weight:600;color:var(--ink)}
+.otpm__tx small{font-size:.82rem;line-height:1.45;color:var(--gray)}
+.otpm__badge{font-style:normal;font-size:.7rem;font-weight:600;line-height:1;padding:4px 8px;border-radius:999px;background:var(--b100);color:var(--b700)}
+html[data-theme="dark"] .otpm__badge{background:var(--dk-tint-blue,rgba(96,165,250,.14));color:var(--dk-acc-strong,#A3C8FF)}
+.otpm__badge--cur{background:#E7F6EE;color:#0E7A55}
+html[data-theme="dark"] .otpm__badge--cur{background:rgba(52,211,153,.14);color:#4ADE9F}
+.otpm__dot{width:20px;height:20px;border-radius:50%;border:2px solid #9AA8BC;flex:none;display:grid;place-items:center;transition:border-color .15s}
+.otpm__o.is-on .otpm__dot{border-color:var(--b600)}
+.otpm__o.is-on .otpm__dot::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--b600)}
+html[data-theme="dark"] .otpm__o.is-on .otpm__dot{border-color:var(--dk-acc,#6EA8FF)}
+html[data-theme="dark"] .otpm__o.is-on .otpm__dot::after{background:var(--dk-acc,#6EA8FF)}
+.otpm__hint{margin:0;font-size:.8rem;color:var(--gray)}
+.otpm--compact .otpm__o{padding:10px 12px;gap:10px}
+.otpm--compact .otpm__ic{width:34px;height:34px;border-radius:10px}
+.otpm--compact .otpm__ic svg{width:18px;height:18px}
+.otpm--compact .otpm__tx small{font-size:.78rem}
+@media (max-width:420px){
+  .otpm__o{padding:10px 12px;gap:10px}
+  .otpm__ic{width:34px;height:34px}
+}
+
+/* the "Tasdiqlash kodlari" settings card + its confirmation dialog */
+.otpd__phone{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;border-radius:12px;background:var(--b50);margin-bottom:14px}
+html[data-theme="dark"] .otpd__phone{background:var(--dk-surface-2,#18253E)}
+.otpd__phone small{font-size:.8rem;color:var(--gray)}
+.otpd__phone b{font-size:.95rem;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.otpd__cur{display:inline-flex;align-items:center;gap:6px;font-size:.84rem;font-weight:600;color:var(--ink)}
+.otpd__cur svg{width:16px;height:16px;color:#0E7A55}
+html[data-theme="dark"] .otpd__cur svg{color:#4ADE9F}
+.otpd__act{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
+.otpd__note{margin:0;font-size:.84rem;color:var(--gray)}
+.otpd__err{margin:12px 0 0}
+.otpd__skel{height:64px;border-radius:14px;background:linear-gradient(90deg,var(--b50),var(--line),var(--b50));background-size:200% 100%;animation:otpdsk 1.2s ease-in-out infinite}
+@keyframes otpdsk{0%{background-position:100% 0}100%{background-position:-100% 0}}
+@media (prefers-reduced-motion:reduce){.otpd__skel{animation:none}}
+.otpd__dlg{display:grid;gap:14px}
+.otpd__dlg p{margin:0}
+.otpd__sent{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:var(--b50);color:var(--ink);font-size:.9rem;line-height:1.5}
+html[data-theme="dark"] .otpd__sent{background:var(--dk-surface-2,#18253E)}
+.otpd__sent .otpm__ic{width:34px;height:34px}
+.otpd__row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.otpd__ok{display:grid;justify-items:center;text-align:center;gap:10px;padding:8px 0}
+.otpd__ok-ic{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:#E7F6EE;color:#0E7A55}
+html[data-theme="dark"] .otpd__ok-ic{background:rgba(52,211,153,.14);color:#4ADE9F}
+.otpd__ok-ic svg{width:28px;height:28px}
+.otpd__ok b{font-size:1.05rem;color:var(--ink)}
+.otpd__ok p{color:var(--gray);font-size:.9rem}
+.otpd__lbl{display:block;margin:0 0 8px;font-size:.86rem;font-weight:600;color:var(--ink)}
+
+/* sign-up: switch the code to another channel (verify step), and the other
+   channels offered when the picked one is down (last profile step) */
+.rf__otherway{margin-top:14px;display:grid;gap:8px;justify-items:center}
+.rf__otherway .otpm{width:100%}
+.rf__otherbtns{display:flex;flex-wrap:wrap;gap:6px 14px;flex-basis:100%}
+.rf__otherbtns .rf__inlinelink{margin-left:0}
+.rf__otherbtns .rf__inlinelink:disabled{opacity:.6;cursor:default}

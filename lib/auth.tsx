@@ -465,6 +465,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       referralCode: readReferral(),
       phone: normUzPhone(draft.phone),
       password: draft.password,
+      otpDeliveryMethod: draft.otpDeliveryMethod,
     });
   }, []);
 

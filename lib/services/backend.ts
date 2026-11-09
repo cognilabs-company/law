@@ -12,6 +12,8 @@ import { sellerTrustOf, type RatingStatus } from "./trust";
 import { gatedPhone, phoneGateOf } from "./clientPhone";
 import { getToken } from "@/lib/client";
 import type { ProfessionalProfile } from "@/lib/types";
+import { DEFAULT_OTP_DELIVERY, otpDeliveryOf, type OtpDeliveryMethod } from "@/lib/otpDelivery";
+export { DEFAULT_OTP_DELIVERY, OTP_DELIVERY_METHODS, otpDeliveryOf, type OtpDeliveryMethod } from "@/lib/otpDelivery";
 import { uzs, uzsOpt, fmtUzs } from "@/lib/money";
 import { attributionDetails } from "@/lib/attribution";
 import { applyCategoryOverrides, categoryOverridesFrom, sellablePlans } from "@/lib/catalogOverlay";
@@ -183,8 +185,19 @@ export async function revokeSession(id: string): Promise<void> {
 // always switch to the newest verification id.
 export const OTP_TTL_MS = 2 * 60 * 1000;
 const OTP_MAX_MS = 10 * 60 * 1000;
+
 // expiresAt is epoch ms on the client clock; 0 = no expiry known.
-export type OtpChallenge = { verificationId: string; phone: string; expiresAt: number; message: string };
+// deliveryMethod: the channel the backend says it used ('' when it does not
+// say). resendInSec: a resend wait the backend states for this code (0 = none
+// stated; the shared 60s cooldown still applies).
+export type OtpChallenge = {
+  verificationId: string;
+  phone: string;
+  expiresAt: number;
+  message: string;
+  deliveryMethod: OtpDeliveryMethod | "";
+  resendInSec: number;
+};
 
 // Server expiry → client deadline. Only a sane remaining time (0-60 min) is
 // trusted, capped at `maxMs` so a skewed clock or naive-UTC timestamp can't
@@ -212,7 +225,18 @@ function normOtp(v: unknown, sms = true): OtpChallenge {
     phone: asStr(d.phone ?? src.phone),
     expiresAt: otpExpiresAt(d, sms ? OTP_TTL_MS : 0, sms ? OTP_TTL_MS : OTP_MAX_MS),
     message: [d.message, src.message].find((m): m is string => typeof m === "string") ?? "",
+    deliveryMethod: otpDeliveryOf(d.delivery_method ?? src.delivery_method ?? d.method),
+    resendInSec: resendWaitOf(d),
   };
+}
+
+// A resend wait the backend states for an issued code, in seconds (0 = none).
+function resendWaitOf(d: Dict): number {
+  const sec = asNum(d.resend_after ?? d.resend_in ?? d.resend_after_seconds ?? d.resend_available_in, 0);
+  if (sec > 0) return Math.min(sec, 3600);
+  const at = parseServerTime(d.resend_available_at ?? d.next_resend_at);
+  const left = Number.isNaN(at) ? 0 : Math.ceil((at - Date.now()) / 1000);
+  return left > 0 ? Math.min(left, 3600) : 0;
 }
 
 // Telegram bot OTP-delivery link; only https:// or tg:// ever reaches an href.
@@ -234,10 +258,13 @@ export async function registerStart(input: {
   referralCode?: string;
   phone: string;
   password: string;
+  // The channel the user picked for this and every later code.
+  otpDeliveryMethod: OtpDeliveryMethod;
 }): Promise<RegisterStartResult> {
-  const { firstName, lastName, middleName, region, referralCode, ...rest } = input;
+  const { firstName, lastName, middleName, region, referralCode, otpDeliveryMethod, ...rest } = input;
   const body = {
     ...rest,
+    otp_delivery_method: otpDeliveryMethod,
     ...(region ? { region } : {}),
     ...(referralCode ? { referral_code: referralCode } : {}),
     ...(firstName ? { first_name: firstName } : {}),
@@ -297,8 +324,9 @@ export async function registerVerify(verificationId: string, code: string): Prom
 // tokens. http() would turn that into an error, so hit the endpoint raw.
 // A challenge without verificationId can't be verified; the caller shows its
 // message instead of a dead code step.
-// method: "telegram" = code sent by the Telegram bot (the backend no longer
-// sends login codes by SMS), "totp" = authenticator app, "sms" = legacy value.
+// method: "totp" = authenticator app; otherwise a code was SENT, and
+// `deliveryMethod` (from detail.method) says through which of the user's
+// channels — telegram_bot, sms or telegram_gateway. Never assume Telegram.
 export type TwoFactorChallenge = OtpChallenge & { twoFactorRequired: true; method: "telegram" | "sms" | "totp" | "" };
 export type LoginResult = AuthResult | TwoFactorChallenge;
 
@@ -352,6 +380,55 @@ export async function forgotPassword(phone: string): Promise<OtpChallenge> {
 }
 export async function resetPassword(verificationId: string, code: string, password: string): Promise<void> {
   await http("/auth/password/reset", { method: "POST", body: JSON.stringify({ verification_id: verificationId, code, password }) });
+}
+
+// ── OTP delivery channel (per user) ───────────────────────────────
+// LEXGO_FRONTEND_OTP_DELIVERY_CHANNELS_2026_11_09.md §3-4. The selected
+// channel changes only after a code sent THROUGH the new channel is confirmed,
+// so the UI never flips the selection locally — it re-reads these settings.
+export type OtpDeliveryOption = { method: OtpDeliveryMethod; title: string; available: boolean; requiresVerification: boolean };
+export type OtpDeliverySettings = {
+  selectedMethod: OtpDeliveryMethod;
+  defaultMethod: OtpDeliveryMethod;
+  language: string;
+  phone: string;
+  options: OtpDeliveryOption[];
+};
+export async function getOtpDelivery(): Promise<OtpDeliverySettings> {
+  const d = asDict(await http("/auth/otp-delivery"));
+  const options = asArr(d.options)
+    .map((x): OtpDeliveryOption | null => {
+      const o = asDict(x);
+      const method = otpDeliveryOf(o.method);
+      if (!method) return null;
+      return { method, title: asStr(o.title), available: o.available !== false, requiresVerification: o.requires_verification !== false };
+    })
+    .filter((o): o is OtpDeliveryOption => !!o);
+  // One row per channel, in the backend's order.
+  const seen = new Set<string>();
+  return {
+    selectedMethod: otpDeliveryOf(d.selected_method) || otpDeliveryOf(d.default_method) || DEFAULT_OTP_DELIVERY,
+    defaultMethod: otpDeliveryOf(d.default_method) || DEFAULT_OTP_DELIVERY,
+    language: asStr(d.language),
+    phone: asStr(d.phone),
+    options: options.filter((o) => (seen.has(o.method) ? false : (seen.add(o.method), true))),
+  };
+}
+// The UI locale as the backend's message language (uz | uz_latn | uz_cyrl | ru | en).
+export function otpLanguageOf(locale: string): "uz_latn" | "ru" | "en" {
+  return locale === "ru" ? "ru" : locale === "en" ? "en" : "uz_latn";
+}
+// Step 1: a code is sent through the NEW channel, proving the user gets it
+// there. A user who has not started the LexGo bot yet may get its link back
+// (as at sign-up), so the dialog can open it.
+export async function startOtpDeliveryChange(method: OtpDeliveryMethod, language: string): Promise<OtpChallenge & { telegramBotLink: string }> {
+  const d = await http("/auth/otp-delivery/change/start", { method: "POST", body: JSON.stringify({ method, language }) });
+  const o = normOtp(d);
+  return { ...o, deliveryMethod: o.deliveryMethod || method, telegramBotLink: tgLink(asDict(d)) };
+}
+// Step 2: the code confirms the channel and makes it the user's selection.
+export async function verifyOtpDeliveryChange(verificationId: string, code: string): Promise<void> {
+  await http("/auth/otp-delivery/change/verify", { method: "POST", body: JSON.stringify({ verification_id: verificationId, code }) });
 }
 
 export async function apiMe(): Promise<AuthUser> {

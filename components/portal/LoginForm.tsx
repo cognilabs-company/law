@@ -9,7 +9,7 @@ import { ApiError, errDetail, isOffline, isOtpExpired, isRateLimited, retryAfter
 import type { TwoFactorChallenge } from "@/lib/services/backend";
 import { OTP_RESEND_SEC, useOtpTimer } from "@/lib/useOtpTimer";
 import { Link, useRouter } from "@/i18n/navigation";
-import { formatUzSubscriber, isValidUzPhone, uzSubscriber } from "@/lib/phone";
+import { formatUzSubscriber, isValidUzPhone, maskUzPhone, uzSubscriber } from "@/lib/phone";
 import { notify } from "@/lib/toast";
 import FieldError from "@/components/ui/FieldError";
 import InlineAlert from "@/components/ui/InlineAlert";
@@ -45,6 +45,7 @@ export default function LoginForm() {
   const tOtp = useTranslations("register.otp");
   const tv = useTranslations("register.verify");
   const tr = useTranslations("register");
+  const tm = useTranslations("otpDelivery");
   const locale = useLocale();
   const { login, completeLogin2fa, session, ready, authNotice, clearAuthNotice } = useAuth();
   const router = useRouter();
@@ -359,14 +360,16 @@ export default function LoginForm() {
     );
 
   if (twoFa) {
+    // Where the code went, from the challenge's own detail.method — the
+    // user's chosen channel (telegram_bot, sms or telegram_gateway). Never
+    // assume Telegram; the number is shown masked.
+    const via = twoFa.method === "totp" ? "" : twoFa.deliveryMethod;
     const subtitle =
       twoFa.method === "totp"
         ? t("twoFaTotpSubtitle")
-        : twoFa.method === "telegram"
-          ? t("twoFaTelegramSubtitle")
-          : twoFa.method === "sms"
-            ? t("twoFaSubtitle", { phone: twoFa.phone || phone })
-            : twoFa.message || t("twoFaSubtitle", { phone: twoFa.phone || phone });
+        : via
+          ? tm(`sentTo.${via}`, { phone: maskUzPhone(twoFa.phone || phone) })
+          : twoFa.message || t("twoFaSubtitle", { phone: maskUzPhone(twoFa.phone || phone) });
     // An authenticator challenge the server expired, or whose own countdown
     // ran out: no code can pass any more.
     const totpTimedOut = twoFa.method === "totp" && (totpExpired || otp.expired);

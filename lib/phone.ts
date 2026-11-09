@@ -49,3 +49,14 @@ export function uzSubscriber(input: string): string {
 export function formatUzSubscriber(input: string): string {
   return group(subDigits(input));
 }
+
+// A number shown back to its owner where others may see the screen (OTP
+// steps): operator code and the last two digits stay, the rest is hidden,
+// e.g. "+998 90 *** ** 67". Anything that is not a full Uzbek number is masked
+// down to its last two digits.
+export function maskUzPhone(input: string): string {
+  const d = subDigits(input);
+  if (d.length === 9) return `+998 ${d.slice(0, 2)} *** ** ${d.slice(7)}`;
+  const all = (input || "").replace(/\D/g, "");
+  return all.length > 2 ? `•••${all.slice(-2)}` : "";
+}

@@ -10,6 +10,7 @@ import { getClientProfile, listCcCalls, type ClientProfile } from "@/lib/service
 import { useResourceOne } from "@/lib/useResource";
 import { useCcNow, useCcShift } from "@/lib/callcenter/ccOperator";
 import TwoFactorCard from "@/components/portal/TwoFactorCard";
+import OtpDeliveryCard from "@/components/portal/OtpDeliveryCard";
 import TelegramLinkCard from "@/components/portal/TelegramLinkCard";
 import NotificationPrefsCard from "@/components/portal/NotificationPrefsCard";
 import AccountAudit from "@/components/portal/AccountAudit";
@@ -103,6 +104,9 @@ export default function CcxProfile() {
           <IcShield size={18} />
           {t("tabs.security")}
         </h3>
+        <div className="opx-pf-legacy">
+          <OtpDeliveryCard />
+        </div>
         <div className="opx-pf-legacy opx-pf-sec">
           <TwoFactorCard />
           <TelegramLinkCard />
