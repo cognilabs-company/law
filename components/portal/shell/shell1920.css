@@ -18,7 +18,7 @@
   --b600:#1668F0; --b700:#154CB0; --b50:#F5F9FF; --b100:#EFF4FE; --line:#E4EBF5; --ink:#0A1526; --gray:#4F5F75;
   --rl:24px; --r:16px;
   --sblue:0 8px 20px -10px rgba(22,104,240,.45);
-  grid-template-columns:279px minmax(0,1fr);
+  grid-template-columns:296px minmax(0,1fr);
   background:var(--lx-bg);
 }
 html[data-theme="dark"] .portal.lx{
@@ -34,11 +34,12 @@ html[data-theme="dark"] .portal.lx{
 /* ── Sidebar ───────────────────────────────────────────── */
 .portal.lx .psb.lx-sb{
   margin:16px;background:var(--lx-navy);border:0;border-radius:24px;color:var(--lx-sb-txt);
-  padding:18px 12px 12px;display:flex;flex-direction:column;min-height:0;overflow:hidden;
+  padding:20px 14px 14px;display:flex;flex-direction:column;min-height:0;overflow:hidden;
   box-shadow:0 20px 40px -24px rgba(10,21,38,.5);
 }
 html[data-theme="dark"] .portal.lx .psb.lx-sb{box-shadow:inset 0 0 0 1px var(--lx-navy-line)}
-.lx-sb__brand{display:flex!important;flex-direction:row!important;align-items:center!important;gap:10px;padding:0 6px 18px!important}
+/* The logo keeps clear room under it before the first menu row. */
+.lx-sb__brand{display:flex!important;flex-direction:row!important;align-items:center!important;gap:10px;padding:2px 6px 24px!important}
 .lx-sb__logo{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none;font-family:var(--fd);font-weight:700;font-size:1.2rem;letter-spacing:-.01em;min-width:0}
 /* The mark stands on the navy rail by itself — the white scales and the
    blue book read on it without the blue tile that used to sit behind them. */
@@ -107,17 +108,20 @@ html[data-theme="dark"] .portal.lx .psb.lx-sb{box-shadow:inset 0 0 0 1px var(--l
 /* Short windows (a 13"/14" MacBook leaves 690-860px of page height): tighter
    rows so the whole client menu, Profil included, fits without scrolling. */
 @media (min-width:901px) and (max-height:900px){
-  .portal.lx .psb.lx-sb{padding-top:14px}
-  .lx-sb__brand{padding-bottom:10px!important}
+  .portal.lx .psb.lx-sb{padding-top:16px}
+  .lx-sb__brand{padding-bottom:20px!important}
   .portal.lx .lx-sb__link{min-height:34px;padding:5px 12px}
   .lx-sb__grp + .lx-sb__grp{margin-top:6px}
   .lx-sb__glabel{padding:4px 12px}
   .portal.lx .lx-sb__foot{margin-top:8px;padding-top:10px}
 }
+@media (min-width:901px) and (max-height:800px){
+  .portal.lx .lx-sb__link{min-height:33px}
+}
 @media (min-width:901px) and (max-height:760px){
   .portal.lx .psb.lx-sb{margin-block:10px;padding:12px 10px 10px}
-  .lx-sb__brand{padding-bottom:8px!important}
-  .portal.lx .lx-sb__link{min-height:32px;padding:5px 12px;font-size:.9rem}
+  .lx-sb__brand{padding-bottom:12px!important}
+  .portal.lx .lx-sb__link{min-height:30px;padding:4px 12px;font-size:.9rem}
   .portal.lx .lx-sb__link svg{width:18px;height:18px}
   .lx-sb__grp{gap:1px}
   .lx-sb__grp + .lx-sb__grp{margin-top:6px}

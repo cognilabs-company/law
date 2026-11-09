@@ -229,7 +229,7 @@ html[data-theme="dark"] .cx-gift{background:#0B1830;box-shadow:inset 0 0 0 1px v
 
 /* responsive
    The breakpoints follow the width the dashboard actually gets, not the
-   window's: the sidebar (279px, 108px folded, a drawer under 900px) and the
+   window's: the sidebar (296px, 108px folded, a drawer under 900px) and the
    page padding come off first, so a 1512px MacBook Pro leaves ~1170px and a
    1440px MacBook Air ~1100px. Viewport queries tuned for a 1920 screen
    squeezed four area cards into 120-130px there. `.cx` is the query
