@@ -159,6 +159,8 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
       { href: "/admin/integrations", key: "integrations", Icon: NavIntegrations },
       { href: "/admin/monitoring", key: "monitoring", Icon: NavCallAnalytics, perm: "users.manage" },
       { href: "/admin/test-otps", key: "testOtps", Icon: NavTestOtps },
+      // Superadmin only (403 superadmin_required for anyone else); see canSee.
+      { href: "/admin/otp-delivery", key: "otpDelivery", Icon: NavTestOtps },
       // Primary superadmin only (/auth/me is_primary_superadmin); see canSee.
       { href: "/admin/mobile-testing", key: "mobileTesting", Icon: NavMobileTesting },
       { href: "/admin/roles", key: "roles", Icon: NavRoles, perm: "roles.manage" },
@@ -326,6 +328,8 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         ? false
       : n.key === "mobileTesting"
         ? session?.isPrimarySuperadmin === true
+      : n.key === "otpDelivery"
+        ? isSuper
       : n.key === "studio"
         ? studioUser
         : n.key === "meetings" && canMakeCalls(session)
