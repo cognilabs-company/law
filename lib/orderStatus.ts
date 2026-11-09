@@ -37,6 +37,12 @@ const STAGE_OF: Record<string, ClientStage> = {
   sent_to_seller: "matching",
   accepted: "matching",
   waiting_payment: "payment",
+  // The marketplace's own names for the same steps (lib/services/marketplace.ts).
+  pending_payment: "payment",
+  payment_pending: "payment",
+  full_payment_required: "payment",
+  pending: "matching",
+  cancellation_review: "work",
   paid: "work",
   started: "work",
   in_progress: "work",
