@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import Typewriter from "@/components/guide/Typewriter";
 import { getIdleOnboarding, getOnboarding, goToStep, onboardingRunning, startOnboarding, stopOnboarding, subscribeOnboarding } from "@/lib/onboarding/store";
-import { tourFor, type TourStep } from "@/lib/onboarding/tour";
+import { markTourSeen, tourFor, tourSeen, type TourStep } from "@/lib/onboarding/tour";
 
 // The first-run walkthrough: the page behind is blurred and dimmed, the step's
 // real element stays sharp through a hole cut in that layer, and the caption
@@ -122,13 +122,14 @@ export default function OnboardingHost() {
   const [visible, setVisible] = useState(false);
   const scrim = useRef<HTMLDivElement>(null);
   const cap = useRef<HTMLDivElement>(null);
-  // The last route this effect handled, so one arrival starts the tour once.
-  const lastPath = useRef<string | null>(null);
+  // The user this mount has already decided about, so a re-render or a later
+  // visit to the dashboard never starts the tour a second time.
+  const bootedFor = useRef<string | null>(null);
 
   const steps = session ? tourFor(session.role) : [];
   const step: TourStep | undefined = steps[state.index];
   const running = state.running && !!step;
-  // The dashboard is the tour's home; arriving there plays it again.
+  // The dashboard is the tour's home: the first arrival there plays it.
   const home = session ? `/portal/${session.role}` : "";
 
   const finish = useCallback(() => {
@@ -142,21 +143,25 @@ export default function OnboardingHost() {
     else goToStep(s.index + 1);
   }, [steps.length, finish]);
 
-  // Play on every arrival at the dashboard. `lastPath` is written when the
-  // timer fires rather than in the effect body: Strict Mode runs the effect
-  // twice, and a flag set up front would let the first cleanup cancel the only
-  // start that was ever scheduled. It also keeps one arrival to one start, so
-  // a re-render on the same route does not replay the tour.
+  // Play once per user: on the first arrival at the dashboard, never again
+  // after that (the help menu's "Qo'llanmani ko'rish" replays it on request).
+  // The tour is marked seen the moment it starts, not when it ends, so a
+  // reload or a jump to another page mid-tour does not bring it back. The
+  // guard is written when the timer fires rather than in the effect body:
+  // Strict Mode runs the effect twice, and a flag set up front would let the
+  // first cleanup cancel the only start that was ever scheduled.
   useEffect(() => {
     if (!ready || !session) return;
-    if (pathname !== home) {
-      lastPath.current = pathname;
+    if (bootedFor.current === session.id) return;
+    if (pathname !== home) return;
+    if (!tourFor(session.role).length || tourSeen(session.id)) {
+      bootedFor.current = session.id;
       return;
     }
-    if (lastPath.current === pathname) return;
-    if (!tourFor(session.role).length) return;
+    const userId = session.id;
     const id = window.setTimeout(() => {
-      lastPath.current = pathname;
+      bootedFor.current = userId;
+      markTourSeen(userId);
       if (!onboardingRunning()) startOnboarding();
     }, 900);
     return () => window.clearTimeout(id);

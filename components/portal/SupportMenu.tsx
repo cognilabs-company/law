@@ -42,8 +42,8 @@ export default function SupportMenu({ role, text }: { role: Role; text?: string 
   const client = role === "client";
   const hub = `/portal/${role}/support`;
   const done = () => setOpen(false);
-  // The walkthrough plays itself on every dashboard visit; this is the way to
-  // call it up from anywhere else.
+  // The walkthrough plays by itself only on the first dashboard visit; this
+  // is the way to see it again.
   const hasTour = tourFor(role).length > 0;
   const replay = () => {
     setOpen(false);

@@ -34,6 +34,7 @@ import { ADVOCATE_NAV, CLIENT_NAV, LAWYER_NAV, TITLE_ONLY, groupsFor, type NavIt
 import { AccountMenu, HeaderSearch, LangSelect } from "./shell/LxHeaderTools";
 import { LxHeaderProvider, type LxHeader } from "./shell/lxHeader";
 import { useNavBadges } from "./shell/useNavBadges";
+import { useScrollEdges } from "@/lib/useScrollEdges";
 import { weekdayDate } from "@/lib/date";
 import { useRoleNav } from "../RoleNavHost";
 import type { SellerActions } from "@/lib/services/backend";
@@ -186,6 +187,10 @@ export default function PortalShell({
   const routeUnknown = !!curNav && role !== "client" && cabinet.status === "loading" && !cabinet.data && !PENDING_ALLOWED[role].has(curNav.key);
   // Last page this user was allowed to see — a locked route bounces back there.
   const lastOkRef = useRef<string | null>(null);
+  // On a short window (a 13" MacBook) the sidebar list scrolls with its
+  // scrollbar hidden; data-more lets the CSS fade the edge that has more.
+  const navRef = useRef<HTMLElement>(null);
+  useScrollEdges(navRef, { silent: true });
   useEffect(() => {
     if (!ready || !session || session.role !== role) return;
     if (!routeLocked && !routeUnknown) lastOkRef.current = pathname;
@@ -332,7 +337,7 @@ export default function PortalShell({
             <IconClose />
           </button>
         </div>
-        <nav className="psb__nav lx-sb__nav">
+        <nav className="psb__nav lx-sb__nav" ref={navRef}>
           {groups.map((g) => {
             const shut = g.collapsible && folded.has(g.key) && !g.items.some((n) => n.href === active?.href);
             return (

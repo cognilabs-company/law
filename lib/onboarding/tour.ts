@@ -47,3 +47,32 @@ const SELLER_STEPS: TourStep[] = [
 export function tourFor(role: Role): TourStep[] {
   return role === "client" ? CLIENT_STEPS : role === "advocate" || role === "lawyer" ? SELLER_STEPS : [];
 }
+
+// The tour plays by itself once: on the user's first arrival at the
+// dashboard. After that it only runs when asked for from the help menu.
+// Bump the version when the tour changes enough that everyone should see it
+// once more.
+const TOUR_VERSION = 1;
+const KEY = `lexgo_onboarding_v${TOUR_VERSION}`;
+
+/** Scoped to the signed-in user so a shared device does not swallow the tour. */
+function storeKey(userId: string): string {
+  return userId ? `${KEY}:${userId}` : KEY;
+}
+
+export function tourSeen(userId: string): boolean {
+  try {
+    return window.localStorage.getItem(storeKey(userId)) === "1";
+  } catch {
+    // Private mode or blocked storage: treat as seen so the tour cannot loop.
+    return true;
+  }
+}
+
+export function markTourSeen(userId: string): void {
+  try {
+    window.localStorage.setItem(storeKey(userId), "1");
+  } catch {
+    return;
+  }
+}
