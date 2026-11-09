@@ -44,22 +44,24 @@ const STEP: Record<string, number> = { request: 1, matching: 1, payment: 2, work
 const REGIONS = ["tashkent", "samarkand", "fergana", "bukhara", "namangan", "andijan", "kashkadarya", "khorezm", "jizzakh", "navoi"];
 const GIFT_KEY = "lexgo_dash_gift_closed";
 
-// The card pictures live in public/img/xizmatlar (512px, the drawing centred
-// in the same frame on each). "Tezkor Advokat" and the road-accident card
+// The card pictures live in public/img/xizmatlar: 512px PNG sources (the
+// drawing centred in the same frame on each) and the 192px WebP copies the
+// page loads — the circle shows them at ~63px, and the PNGs weighed 150-185 KB
+// each, which on a slow line left five empty circles for half a minute. "Tezkor Advokat" and the road-accident card
 // open the Tezkor Advokat page as it is: no ?service=, so no order dialog
 // pops open on arrival — choosing a service there is the client's own step.
 // Every other card goes to its own place.
 type Svc = { key: "urgent" | "ai" | "docs" | "catalog" | "traffic"; img: string; href: string };
 const SERVICES: Svc[] = [
-  { key: "urgent", img: "/img/xizmatlar/Tezkor_Advokat.png", href: "/portal/client/urgent" },
-  { key: "ai", img: "/img/xizmatlar/suniy-intelekt.png", href: "/portal/client/ai" },
-  { key: "docs", img: "/img/xizmatlar/Huquqiy_hujjatlar.png", href: "/portal/client/services" },
+  { key: "urgent", img: "/img/xizmatlar/Tezkor_Advokat.webp", href: "/portal/client/urgent" },
+  { key: "ai", img: "/img/xizmatlar/suniy-intelekt.webp", href: "/portal/client/ai" },
+  { key: "docs", img: "/img/xizmatlar/Huquqiy_hujjatlar.webp", href: "/portal/client/services" },
   // "Advokat va yuristlar" opened on its "Xizmatlar bo'yicha" view, scrolled
   // to those tabs rather than the hero above them
-  { key: "catalog", img: "/img/xizmatlar/xizmatlar.png", href: "/portal/client/lawyers?mode=services#market-modes" },
+  { key: "catalog", img: "/img/xizmatlar/xizmatlar.webp", href: "/portal/client/lawyers?mode=services#market-modes" },
   // a road accident needs an advocate now: the Tezkor Advokat page, as is
   // (no ?service=, so no order dialog opens on arrival)
-  { key: "traffic", img: "/img/xizmatlar/Avtoavariya.png", href: "/portal/client/urgent" },
+  { key: "traffic", img: "/img/xizmatlar/Avtoavariya.webp", href: "/portal/client/urgent" },
 ];
 
 // The questions clients actually open with, in the order they do.
