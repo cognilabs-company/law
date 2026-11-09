@@ -160,6 +160,21 @@ export default function MarketDirectory({
     syncUrl(m);
   };
 
+  // A link that names the tabs (#market-modes — the client dashboard's
+  // "Xizmatlar" card) lands on them rather than on the hero above, once the
+  // first page of sellers is in and the hero has its final height. The flag
+  // is set inside the frame, so Strict Mode's extra effect pass cannot
+  // cancel the only scroll.
+  const landed = useRef(false);
+  useEffect(() => {
+    if (landed.current || status === "loading" || window.location.hash !== "#market-modes") return;
+    const id = window.requestAnimationFrame(() => {
+      landed.current = true;
+      document.getElementById("market-modes")?.scrollIntoView({ block: "start" });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [status]);
+
   useEffect(() => {
     const my = ++seq.current;
     listMarketplace({ sort: SORT, includeMeta: !metaRef.current })

@@ -32,7 +32,6 @@ import { useLocale } from "next-intl";
 import Select from "@/components/Select";
 import Modal from "@/components/admin/Modal";
 import { useLxHeader } from "../shell/lxHeader";
-import { useRoleNav } from "../../RoleNavHost";
 import { sellerTypeLabel, specLabel } from "@/components/marketplace/bits";
 import { IconArrowRight, IconCheck } from "@/components/icons";
 
@@ -45,21 +44,19 @@ const STEP: Record<string, number> = { request: 1, matching: 1, payment: 2, work
 const REGIONS = ["tashkent", "samarkand", "fergana", "bukhara", "namangan", "andijan", "kashkadarya", "khorezm", "jizzakh", "navoi"];
 const GIFT_KEY = "lexgo_dash_gift_closed";
 
-// The card pictures live in public/img/xizmatlar, named after the service.
-// Only the "Tezkor Advokat" card belongs to the Tezkor Advokat module, and it
-// opens that page as it is: no ?service=, so no order dialog pops open on
-// arrival — choosing a service there is the client's own step. Every other
-// card goes to its own place. `fallback` is where a card goes when the
-// client's role profile hides its page (lib/roleNav.ts).
-type Svc = { key: "urgent" | "online" | "docs" | "analysis" | "problem" | "traffic"; img: string; href: string; fallback?: string };
+// The card pictures live in public/img/xizmatlar (512px, the drawing centred
+// in the same frame on each). Only the "Tezkor Advokat" card belongs to the
+// Tezkor Advokat module, and it opens that page as it is: no ?service=, so no
+// order dialog pops open on arrival — choosing a service there is the
+// client's own step. Every other card goes to its own place.
+type Svc = { key: "urgent" | "ai" | "docs" | "catalog" | "traffic"; img: string; href: string };
 const SERVICES: Svc[] = [
   { key: "urgent", img: "/img/xizmatlar/Tezkor_Advokat.png", href: "/portal/client/urgent" },
-  // a specialist, by video or chat — picked from the directory
-  { key: "online", img: "/img/xizmatlar/Onlayn_konsultatsiya.png", href: "/portal/client/lawyers" },
+  { key: "ai", img: "/img/xizmatlar/suniy-intelekt.png", href: "/portal/client/ai" },
   { key: "docs", img: "/img/xizmatlar/Huquqiy_hujjatlar.png", href: "/portal/client/services" },
-  { key: "analysis", img: "/img/xizmatlar/Hujjat_tahlili.png", href: "/portal/client/doc-analysis" },
-  // the AI problem analysis (backend page id problem_analysis)
-  { key: "problem", img: "/img/xizmatlar/Muammo_tahlili.png", href: "/portal/client/intake", fallback: "/portal/client/ai" },
+  // "Advokat va yuristlar" opened on its "Xizmatlar bo'yicha" view, scrolled
+  // to those tabs rather than the hero above them
+  { key: "catalog", img: "/img/xizmatlar/xizmatlar.png", href: "/portal/client/lawyers?mode=services#market-modes" },
   // the specialists of the road-accident area, as its area card links
   { key: "traffic", img: "/img/xizmatlar/Avtoavariya.png", href: "/portal/client/lawyers?area=traffic" },
 ];
@@ -80,10 +77,6 @@ export default function ClientHome() {
   const router = useRouter();
   const { session } = useAuth();
   const statusLabel = useOrderStatusLabel();
-  const { state: navState, hides } = useRoleNav();
-  // While the policy is still loading every role-sensitive page reads as
-  // hidden; keep the card's own page then — the router guard has the last word.
-  const svcHref = (s: Svc) => (s.fallback && navState.status !== "loading" && hides(s.href) ? s.fallback : s.href);
 
   const orders = useResource(() => listMarketplaceOrders("client"), []);
   const experts = useResource<MarketSeller>(async () => (await listMarketplace({ sort: "recommended" })).items.slice(0, 4), []);
@@ -179,7 +172,7 @@ export default function ClientHome() {
           {SERVICES.map((s) => (
             <li key={s.key}>
               {/* The whole arch is the link — no button, as in the design. */}
-              <Link href={svcHref(s)} className="cx-svc">
+              <Link href={s.href} className="cx-svc">
                 <span className="cx-svc__ic" style={{ "--img": `url(${s.img})` } as CSSProperties} />
                 <b className="cx-svc__t">{t(`services.${s.key}.t`)}</b>
                 <span className="cx-svc__s">{t(`services.${s.key}.s`)}</span>

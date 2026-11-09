@@ -54,10 +54,12 @@ import "./map/marketMap.css";
 
 export type NearbyServiceOption = { value: string; label: string; categoryId?: string };
 
+// The tabs carry id="market-modes" so a link can land on them
+// (/portal/client/lawyers?mode=services#market-modes) instead of the hero.
 export function MarketModeSwitch({ mode, onChange }: { mode: NearbyMode; onChange: (m: NearbyMode) => void }) {
   const t = useTranslations("marketplace.mode");
   return (
-    <div className="mknb-mode" role="group" aria-label={t("label")}>
+    <div className="mknb-mode" id="market-modes" role="group" aria-label={t("label")}>
       <button type="button" className="mknb-mode__b" aria-pressed={mode === "all"} onClick={() => onChange("all")} data-ai-id="marketplace.mode.all" data-ai-type="tab">
         <IconUsers aria-hidden="true" />
         <span>{t("all")}</span>
