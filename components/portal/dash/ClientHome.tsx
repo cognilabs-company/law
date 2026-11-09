@@ -45,10 +45,10 @@ const REGIONS = ["tashkent", "samarkand", "fergana", "bukhara", "namangan", "and
 const GIFT_KEY = "lexgo_dash_gift_closed";
 
 // The card pictures live in public/img/xizmatlar (512px, the drawing centred
-// in the same frame on each). Only the "Tezkor Advokat" card belongs to the
-// Tezkor Advokat module, and it opens that page as it is: no ?service=, so no
-// order dialog pops open on arrival — choosing a service there is the
-// client's own step. Every other card goes to its own place.
+// in the same frame on each). "Tezkor Advokat" and the road-accident card
+// open the Tezkor Advokat page as it is: no ?service=, so no order dialog
+// pops open on arrival — choosing a service there is the client's own step.
+// Every other card goes to its own place.
 type Svc = { key: "urgent" | "ai" | "docs" | "catalog" | "traffic"; img: string; href: string };
 const SERVICES: Svc[] = [
   { key: "urgent", img: "/img/xizmatlar/Tezkor_Advokat.png", href: "/portal/client/urgent" },
@@ -57,8 +57,9 @@ const SERVICES: Svc[] = [
   // "Advokat va yuristlar" opened on its "Xizmatlar bo'yicha" view, scrolled
   // to those tabs rather than the hero above them
   { key: "catalog", img: "/img/xizmatlar/xizmatlar.png", href: "/portal/client/lawyers?mode=services#market-modes" },
-  // the specialists of the road-accident area, as its area card links
-  { key: "traffic", img: "/img/xizmatlar/Avtoavariya.png", href: "/portal/client/lawyers?area=traffic" },
+  // a road accident needs an advocate now: the Tezkor Advokat page, as is
+  // (no ?service=, so no order dialog opens on arrival)
+  { key: "traffic", img: "/img/xizmatlar/Avtoavariya.png", href: "/portal/client/urgent" },
 ];
 
 // The questions clients actually open with, in the order they do.
