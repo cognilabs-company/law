@@ -44,7 +44,7 @@ export const DEFAULT_MINUTES = 60;
 export const PART_JOINED = new Set(["joined", "left"]);
 export const PART_ORDER: Record<string, number> = { joined: 1, left: 2, invited: 3 };
 export const PART_TONE: Record<string, string> = { joined: "ok", left: "mute", invited: "info", declined: "hot", removed: "hot", kicked: "hot" };
-export const CALL_TONE: Record<string, string> = { active: "ok", scheduled: "info", ended: "mute", expired: "warn", cancelled: "hot" };
+export const CALL_TONE: Record<string, string> = { active: "ok", scheduled: "info", ended: "mute", expired: "warn", cancelled: "hot", missed: "hot" };
 export const END_TONE: Record<string, string> = { expired: "warn", cancelled: "hot" };
 
 const CALL_TONES: Readonly<Record<string, StatusToneRule>> = {
@@ -53,6 +53,7 @@ const CALL_TONES: Readonly<Record<string, StatusToneRule>> = {
   ended: "neutral",
   expired: "warn",
   cancelled: "err",
+  missed: "err",
 };
 
 const TAB_KEY = "lexgo_ccx_meetings_tab";

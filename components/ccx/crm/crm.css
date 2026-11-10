@@ -94,3 +94,251 @@
   color: var(--opx-ink-3);
   text-align: center;
 }
+
+/* ───────────────────────────────────────────────────────────────────────
+   CRM chrome polish: the same title, section tabs and messages in the same
+   places and sizes, a richer surface. Layered glass with a soft top
+   highlight, a glowing selected tab, clear hover/focus/active states.
+   The «Mijozlar» list (its layout lives in detail/detail.css) gets its
+   look here, scoped to the list root so the customer card is untouched.
+   Light theme and motion settings matched below.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.opx-crm__head h2 {
+  background: linear-gradient(180deg, var(--opx-ink) 35%, color-mix(in srgb, var(--opx-ink) 70%, var(--opx-ice)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.opx-crm__nav {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 70%),
+    var(--opx-glass);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 14px 34px -26px rgba(0, 0, 0, 0.75);
+}
+
+.opx-crm__tab {
+  transition: background 0.2s, color 0.2s, box-shadow 0.3s, transform 0.3s var(--opx-spring);
+}
+
+.opx-crm__tab:hover:not(.is-on, .is-parent) {
+  background: var(--opx-glass-3);
+}
+
+.opx-crm__tab:active {
+  transform: scale(0.97);
+}
+
+.opx-crm__tab.is-on,
+.opx-crm__tab.is-parent {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 70%),
+    linear-gradient(135deg, color-mix(in srgb, var(--opx-ice) 26%, transparent), color-mix(in srgb, var(--opx-aqua) 12%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), inset 0 0 0 1px color-mix(in srgb, var(--opx-ice) 45%, transparent);
+}
+
+.opx-crm__tab.is-on:focus-visible,
+.opx-crm__tab.is-parent:focus-visible {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--opx-ice) 45%, transparent), var(--opx-ring);
+}
+
+.opx-crm-msg {
+  background:
+    radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--opx-ice) 10%, transparent), transparent 65%),
+    var(--opx-glass);
+  box-shadow: inset 0 1px 0 var(--opx-hi), var(--opx-shadow);
+}
+
+.opx-crm-denied {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 70%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+/* «Mijozlar» list: bar, rows, count and the go arrow. */
+.opx-crm .opx-cd--list .opx-cd-bar {
+  background:
+    radial-gradient(120% 160% at 0% 0%, rgba(127, 178, 255, 0.08), transparent 55%),
+    radial-gradient(90% 160% at 100% 100%, rgba(94, 230, 208, 0.05), transparent 60%),
+    var(--opx-glass);
+}
+
+.opx-crm .opx-cd--list .opx-cd-bar__title h2 {
+  background: linear-gradient(180deg, var(--opx-ink) 35%, color-mix(in srgb, var(--opx-ink) 70%, var(--opx-ice)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.opx-crm .opx-cd--list .opx-cd-card__ic {
+  border: 1px solid color-mix(in srgb, var(--opx-ice) 28%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 24%, transparent), color-mix(in srgb, var(--opx-aqua) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 18px -10px color-mix(in srgb, var(--opx-ice) 80%, transparent);
+}
+
+.opx-crm .opx-cd--list .opx-cd-search {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.opx-crm .opx-cd--list .opx-cd-search:focus-within {
+  box-shadow: var(--opx-ring);
+}
+
+.opx-crm .opx-cd--list .opx-jr-row {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 16px 34px -28px rgba(0, 0, 0, 0.75);
+  transition: border-color 0.25s, background 0.25s, box-shadow 0.3s, transform 0.35s var(--opx-spring);
+  animation: opx-rise 0.45s var(--opx-ease) both;
+}
+
+.opx-crm .opx-cd--list .opx-jr-row:hover {
+  border-color: color-mix(in srgb, var(--opx-aqua) 42%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--opx-aqua) 6%, transparent), transparent 70%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 20px 40px -26px color-mix(in srgb, var(--opx-aqua) 60%, transparent);
+  transform: translateY(-1px);
+}
+
+.opx-crm .opx-cd--list .opx-jr-row:active {
+  transform: translateY(0) scale(0.995);
+}
+
+.opx-crm .opx-cd--list .opx-jr-row:focus-visible {
+  box-shadow: inset 0 1px 0 var(--opx-hi), var(--opx-ring);
+}
+
+.opx-crm .opx-cd--list .opx-jr-row__go {
+  border: 1px solid var(--opx-line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent), var(--opx-chip);
+  color: var(--opx-ink-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  transition: background 0.25s, color 0.2s, border-color 0.2s, box-shadow 0.3s;
+}
+
+.opx-crm .opx-cd--list .opx-jr-row__go svg {
+  transition: transform 0.35s var(--opx-spring);
+}
+
+.opx-crm .opx-cd--list .opx-jr-row:hover .opx-jr-row__go {
+  border-color: color-mix(in srgb, var(--opx-aqua) 45%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-aqua) 26%, transparent), color-mix(in srgb, var(--opx-aqua) 8%, transparent));
+  color: var(--opx-aqua);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 18px -10px color-mix(in srgb, var(--opx-aqua) 85%, transparent);
+}
+
+.opx-crm .opx-cd--list .opx-jr-row:hover .opx-jr-row__go svg {
+  transform: translateX(2px);
+}
+
+/* Light theme: white highlights, bluish soft shadows, solid teal accents. */
+html[data-opx-theme="light"] .opx-crm__nav {
+  background: var(--opx-glass);
+  box-shadow: inset 0 1px 0 #fff, 0 12px 28px -22px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-crm__tab.is-on,
+html[data-opx-theme="light"] .opx-crm__tab.is-parent {
+  background: linear-gradient(135deg, rgba(42, 99, 201, 0.14), rgba(14, 139, 128, 0.06));
+  box-shadow: inset 0 1px 0 #fff, inset 0 0 0 1px rgba(42, 99, 201, 0.38);
+}
+
+html[data-opx-theme="light"] .opx-crm-msg {
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(42, 99, 201, 0.07), transparent 65%),
+    var(--opx-glass);
+  box-shadow: inset 0 1px 0 #fff, 0 22px 46px -30px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-crm-denied {
+  background: var(--opx-card-2);
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+html[data-opx-theme="light"] .opx-crm .opx-cd--list .opx-cd-bar {
+  background:
+    radial-gradient(120% 160% at 0% 0%, rgba(42, 99, 201, 0.06), transparent 55%),
+    radial-gradient(90% 160% at 100% 100%, rgba(14, 139, 128, 0.05), transparent 60%),
+    var(--opx-glass);
+}
+
+html[data-opx-theme="light"] .opx-crm .opx-cd--list .opx-cd-card__ic {
+  background: linear-gradient(145deg, rgba(42, 99, 201, 0.16), rgba(42, 99, 201, 0.05));
+  box-shadow: inset 0 1px 0 #fff, 0 8px 18px -12px rgba(42, 99, 201, 0.55);
+}
+
+html[data-opx-theme="light"] .opx-crm .opx-cd--list .opx-cd-search {
+  box-shadow: inset 0 1px 2px rgba(20, 50, 90, 0.07);
+}
+
+html[data-opx-theme="light"] .opx-crm .opx-cd--list .opx-cd-search:focus-within {
+  box-shadow: var(--opx-ring);
+}
+
+html[data-opx-theme="light"] .opx-crm .opx-cd--list .opx-jr-row {
+  background: var(--opx-card-2);
+  box-shadow: inset 0 1px 0 #fff, 0 16px 34px -26px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-crm .opx-cd--list .opx-jr-row:hover {
+  background:
+    linear-gradient(180deg, rgba(14, 139, 128, 0.05), transparent 70%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 #fff, 0 20px 40px -24px rgba(14, 139, 128, 0.45);
+}
+
+html[data-opx-theme="light"] .opx-crm .opx-cd--list .opx-jr-row__go {
+  background: rgba(20, 50, 90, 0.06);
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+html[data-opx-theme="light"] .opx-crm .opx-cd--list .opx-jr-row:hover .opx-jr-row__go {
+  border-color: #0e8b80;
+  background: linear-gradient(135deg, #0e8b80, #12a497);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 8px 18px -10px rgba(14, 139, 128, 0.7);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opx-crm__tab,
+  .opx-crm .opx-cd--list .opx-jr-row,
+  .opx-crm .opx-cd--list .opx-jr-row__go,
+  .opx-crm .opx-cd--list .opx-jr-row__go svg {
+    animation: none;
+    transition: none;
+  }
+
+  .opx-crm__tab:active,
+  .opx-crm .opx-cd--list .opx-jr-row:hover,
+  .opx-crm .opx-cd--list .opx-jr-row:active,
+  .opx-crm .opx-cd--list .opx-jr-row:hover .opx-jr-row__go svg {
+    transform: none;
+  }
+}
+
+html[data-opx-motion="off"] .opx-crm__tab,
+html[data-opx-motion="off"] .opx-crm .opx-cd--list .opx-jr-row,
+html[data-opx-motion="off"] .opx-crm .opx-cd--list .opx-jr-row__go,
+html[data-opx-motion="off"] .opx-crm .opx-cd--list .opx-jr-row__go svg {
+  animation: none;
+  transition: none;
+}
+
+html[data-opx-motion="off"] .opx-crm__tab:active,
+html[data-opx-motion="off"] .opx-crm .opx-cd--list .opx-jr-row:hover,
+html[data-opx-motion="off"] .opx-crm .opx-cd--list .opx-jr-row:active,
+html[data-opx-motion="off"] .opx-crm .opx-cd--list .opx-jr-row:hover .opx-jr-row__go svg {
+  transform: none;
+}
+
+/* Focus rings always win over the light-theme shadows above. */
+html[data-opx-theme="light"] .opx-crm__tab:focus-visible,
+html[data-opx-theme="light"] .opx-crm .opx-cd--list .opx-jr-row:focus-visible {
+  outline: none;
+  box-shadow: var(--opx-ring);
+}

@@ -160,7 +160,7 @@ export default function CallDetail({ id, onClose }: { id: string; onClose: () =>
   };
 
   return (
-    <Sheet label={title} head={head} onClose={onClose}>
+    <Sheet label={title} head={head} onClose={onClose} className="opx-mtg-sheet">
       <div className="opx-pscroll">
         {cur?.err ? (
           <Note tone="bad">

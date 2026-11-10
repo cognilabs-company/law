@@ -2832,3 +2832,1027 @@ html[data-opx-motion="off"] .opx-nl .opx-ld-cust__ok {
     transform: none;
   }
 }
+
+/* ───────────────────────────────────────────────────────────────────────
+   «Umumiy» and «Lidlar» polish: the same blocks in the same places and
+   sizes, a richer surface. Layered cards with a soft top highlight,
+   gradient tiles and count badges with a gentle glow, a glossy process
+   strip, clearer hover/focus/active/selected states, thin scrollbars and
+   empty columns with an icon. Every rule is scoped to the section roots
+   (.opx-ld / .opx-ov), so the «New lead» sheet (.opx-nl, portaled) keeps
+   its own look. Light theme and motion settings matched below.
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* Retry banner. */
+:is(.opx-ld, .opx-ov) .opx-ld-warn {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 70%),
+    color-mix(in srgb, var(--opx-hot) 9%, transparent);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 12px 28px -22px color-mix(in srgb, var(--opx-hot) 70%, transparent);
+}
+
+:is(.opx-ld, .opx-ov) .opx-ld-warn button {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  transition: background 0.2s, border-color 0.2s, transform 0.3s var(--opx-spring);
+}
+
+:is(.opx-ld, .opx-ov) .opx-ld-warn button:hover {
+  border-color: color-mix(in srgb, var(--opx-hot) 45%, transparent);
+  background: var(--opx-glass-3);
+}
+
+:is(.opx-ld, .opx-ov) .opx-ld-warn button:active {
+  transform: scale(0.97);
+}
+
+:is(.opx-ld, .opx-ov) .opx-ld-warn button:focus-visible {
+  outline: none;
+  box-shadow: var(--opx-ring);
+}
+
+/* «New lead» launcher (the button only; the sheet is untouched). */
+:is(.opx-ld, .opx-ov) .opx-ld-newbtn:not(.opx-pbtn--main) {
+  --pb-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent), var(--opx-glass-2);
+  --pb-shadow: inset 0 1px 0 var(--opx-hi);
+  --pb-bd-h: color-mix(in srgb, var(--opx-aqua) 45%, transparent);
+  --pb-shadow-h: inset 0 1px 0 var(--opx-hi), 0 10px 22px -14px color-mix(in srgb, var(--opx-aqua) 80%, transparent);
+}
+
+:is(.opx-ld, .opx-ov) .opx-ld-newbtn svg {
+  transition: transform 0.35s var(--opx-spring);
+}
+
+:is(.opx-ld, .opx-ov) .opx-ld-newbtn:hover svg {
+  transform: rotate(90deg);
+}
+
+/* Lidlar top row: filter tabs, search, view switch. */
+.opx-ld .opx-ld-tabs {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 70%),
+    var(--opx-glass);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 14px 30px -26px rgba(0, 0, 0, 0.75);
+}
+
+.opx-ld .opx-ld-tab {
+  transition: background 0.2s, color 0.2s, box-shadow 0.3s, transform 0.3s var(--opx-spring);
+}
+
+.opx-ld .opx-ld-tab:hover:not([aria-pressed="true"]) {
+  background: var(--opx-glass-3);
+}
+
+.opx-ld .opx-ld-tab:active {
+  transform: scale(0.97);
+}
+
+.opx-ld .opx-ld-tab[aria-pressed="true"] {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 60%),
+    var(--opx-grad);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+}
+
+.opx-ld .opx-ld-tab[aria-pressed="true"]:focus-visible {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), var(--opx-ring);
+}
+
+.opx-ld .opx-ld-tab b {
+  border: 1px solid var(--opx-line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent), var(--opx-chip);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-ld .opx-ld-tab[data-tone="hot"] b {
+  border-color: color-mix(in srgb, var(--opx-hot) 40%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--opx-hot) 30%, transparent), color-mix(in srgb, var(--opx-hot) 14%, transparent));
+}
+
+.opx-ld .opx-ld-tab[aria-pressed="true"] b {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.16));
+  color: #fff;
+}
+
+.opx-ld .opx-ld-bar__search {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.opx-ld .opx-ld-bar__search:focus-within {
+  box-shadow: var(--opx-ring);
+}
+
+.opx-ld .opx-ld-seg {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.opx-ld .opx-ld-seg button {
+  transition: background 0.2s, color 0.2s, box-shadow 0.3s, transform 0.3s var(--opx-spring);
+}
+
+.opx-ld .opx-ld-seg button:not(.is-on):hover {
+  background: var(--opx-glass-3);
+}
+
+.opx-ld .opx-ld-seg button:active {
+  transform: scale(0.95);
+}
+
+.opx-ld .opx-ld-seg button.is-on {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 70%),
+    linear-gradient(135deg, color-mix(in srgb, var(--opx-ice) 26%, transparent), color-mix(in srgb, var(--opx-aqua) 10%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), inset 0 0 0 1px color-mix(in srgb, var(--opx-ice) 45%, transparent), 0 8px 18px -12px var(--opx-ice);
+}
+
+/* Filter chips, saved views and the «more filters» panel. */
+.opx-ld .opx-ld-chip {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent), var(--opx-glass-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.3s, transform 0.3s var(--opx-spring);
+}
+
+.opx-ld .opx-ld-chip.is-ghost {
+  background: none;
+  box-shadow: none;
+}
+
+.opx-ld .opx-ld-chip:hover {
+  background: var(--opx-glass-3);
+}
+
+.opx-ld .opx-ld-chip:active {
+  transform: scale(0.97);
+}
+
+.opx-ld .opx-ld-chip:focus-visible {
+  box-shadow: var(--opx-ring);
+}
+
+.opx-ld .opx-ld-chip[aria-pressed="true"],
+.opx-ld .opx-ld-chip[aria-expanded="true"] {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--opx-aqua) 22%, transparent), color-mix(in srgb, var(--opx-aqua) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 18px -12px color-mix(in srgb, var(--opx-aqua) 80%, transparent);
+}
+
+.opx-ld .opx-ld-chip[data-tone="hot"][aria-pressed="true"] {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--opx-hot) 20%, transparent), color-mix(in srgb, var(--opx-hot) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 18px -12px color-mix(in srgb, var(--opx-hot) 80%, transparent);
+}
+
+.opx-ld .opx-ld-chip b,
+.opx-ld .opx-ld-filterbtn b {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--opx-aqua) 100%, #fff 18%), var(--opx-aqua));
+  color: var(--opx-base);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 10px -6px var(--opx-aqua);
+}
+
+.opx-ld .opx-ld-more {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%),
+    var(--opx-glass);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 18px 40px -32px rgba(0, 0, 0, 0.75);
+}
+
+.opx-ld .opx-ld-in input {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.opx-ld .opx-ld-in input:focus {
+  box-shadow: var(--opx-ring);
+}
+
+.opx-ld .opx-ld-view {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent), var(--opx-glass-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  transition: border-color 0.2s, box-shadow 0.3s;
+}
+
+.opx-ld .opx-ld-view:hover {
+  border-color: color-mix(in srgb, var(--opx-aqua) 40%, transparent);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 18px -12px color-mix(in srgb, var(--opx-aqua) 70%, transparent);
+}
+
+.opx-ld .opx-ld-view > .opx-ld-view__x:hover {
+  color: var(--opx-hot);
+}
+
+/* Board: a glossy process strip, layered columns of cards. */
+.opx-ld .opx-ld-board::-webkit-scrollbar,
+.opx-ld .opx-ld-col__body::-webkit-scrollbar,
+.opx-ld .opx-ld-tablewrap::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.opx-ld .opx-ld-board::-webkit-scrollbar-thumb,
+.opx-ld .opx-ld-col__body::-webkit-scrollbar-thumb,
+.opx-ld .opx-ld-tablewrap::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--opx-line-2) padding-box;
+}
+
+.opx-ld .opx-ld-board::-webkit-scrollbar-track,
+.opx-ld .opx-ld-col__body::-webkit-scrollbar-track,
+.opx-ld .opx-ld-tablewrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.opx-ld .opx-ld-col__head {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.09), transparent 55%),
+    linear-gradient(90deg, color-mix(in srgb, var(--sc) 40%, var(--opx-base-2)), color-mix(in srgb, var(--sc) 28%, var(--opx-base-2)));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -10px 18px -14px rgba(0, 0, 0, 0.4);
+}
+
+.opx-ld .opx-ld-col__name b {
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+}
+
+.opx-ld .opx-ld-col__name em {
+  border: 1px solid color-mix(in srgb, var(--sc) 40%, transparent);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.32));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 0 12px -4px color-mix(in srgb, var(--sc) 70%, transparent);
+}
+
+.opx-ld .opx-ld-col[data-over] .opx-ld-col__body {
+  background: color-mix(in srgb, var(--sc) 6%, transparent);
+}
+
+.opx-ld .opx-ld-col__empty {
+  align-content: center;
+  gap: 8px;
+  background:
+    radial-gradient(90% 80% at 50% 0%, color-mix(in srgb, var(--sc) 7%, transparent), transparent 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent);
+  border-color: color-mix(in srgb, var(--sc) 22%, var(--opx-line-2));
+}
+
+.opx-ld .opx-ld-col__empty::before {
+  content: "";
+  width: 32px;
+  height: 32px;
+  border-radius: 11px;
+  border: 1px solid color-mix(in srgb, var(--sc) 30%, transparent);
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238394ab' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 12h-6l-2 3h-4l-2-3H2'/%3E%3Cpath d='M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z'/%3E%3C/svg%3E") center / 16px no-repeat,
+    linear-gradient(145deg, color-mix(in srgb, var(--sc) 20%, transparent), color-mix(in srgb, var(--sc) 5%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 18px -12px color-mix(in srgb, var(--sc) 80%, transparent);
+}
+
+.opx-ld .opx-ld-col__more {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent), var(--opx-glass-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  transition: border-color 0.2s, color 0.2s, background 0.2s, transform 0.3s var(--opx-spring);
+}
+
+.opx-ld .opx-ld-col__more:hover:not(:disabled) {
+  background: var(--opx-glass-3);
+}
+
+.opx-ld .opx-ld-col__more:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.opx-ld .opx-ld-col__more:focus-visible {
+  outline: none;
+  box-shadow: var(--opx-ring);
+}
+
+/* Lead cards. */
+.opx-ld .opx-ld-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 55%),
+    var(--opx-glass-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 16px -12px rgba(0, 0, 0, 0.7);
+}
+
+.opx-ld .opx-ld-card:hover {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--sc) 8%, transparent), transparent 60%),
+    var(--opx-glass-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 18px -12px color-mix(in srgb, var(--sc) 75%, transparent);
+}
+
+.opx-ld .opx-ld-card:focus-visible {
+  box-shadow: inset 0 1px 0 var(--opx-hi), var(--opx-ring);
+}
+
+.opx-ld .opx-ld-card[data-overdue] {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 55%),
+    color-mix(in srgb, var(--opx-hot) 10%, var(--opx-glass-2));
+  box-shadow: inset 5px 0 0 var(--opx-hot), inset 0 1px 0 var(--opx-hi), 0 8px 16px -12px color-mix(in srgb, var(--opx-hot) 55%, transparent);
+}
+
+.opx-ld .opx-ld-card[data-overdue]:hover {
+  box-shadow: inset 5px 0 0 var(--opx-hot), inset 0 1px 0 var(--opx-hi), 0 10px 18px -12px color-mix(in srgb, var(--opx-hot) 75%, transparent);
+}
+
+.opx-ld .opx-ld-card[data-moving] {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--opx-ice) 45%, transparent);
+}
+
+.opx-ld .opx-ld-card[data-free] {
+  border-color: color-mix(in srgb, var(--opx-aqua) 40%, transparent);
+}
+
+.opx-ld .opx-ld-card[data-free] .opx-ld-claim {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 55%),
+    linear-gradient(120deg, #18a99d, #23c3b4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+  transition: filter 0.2s, box-shadow 0.3s, transform 0.3s var(--opx-spring);
+}
+
+.opx-ld .opx-ld-card[data-free] .opx-ld-claim:hover:not(:disabled) {
+  filter: brightness(1.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.36), inset 0 0 18px -6px rgba(255, 255, 255, 0.4);
+}
+
+.opx-ld .opx-ld-card[data-free] .opx-ld-claim:active:not(:disabled) {
+  transform: none;
+  filter: brightness(0.96);
+}
+
+.opx-ld .opx-ld-card[data-free] .opx-ld-claim:focus-visible {
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.55);
+}
+
+.opx-ld .opx-ld-card__flag,
+.opx-ld .opx-ld-card__dup,
+.opx-ld .opx-ld-card__moving {
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, currentColor 20%, transparent), color-mix(in srgb, currentColor 9%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-ld .opx-ld-card__flag .opx-i,
+.opx-ld .opx-ld-card__dup .opx-i {
+  flex: none;
+}
+
+.opx-ld .opx-ld-card__more {
+  background: transparent;
+}
+
+.opx-ld .opx-ld-card__more:hover,
+.opx-ld .opx-ld-card__more[aria-expanded="true"] {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent), var(--opx-glass-3);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-ld .opx-ld-card__more:focus-visible {
+  box-shadow: var(--opx-ring);
+}
+
+.opx-ld .opx-ld-score,
+.opx-ld .opx-ld-src,
+.opx-ld .opx-ld-stage {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-ld .opx-ld-score {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tone) 20%, transparent), color-mix(in srgb, var(--tone) 8%, transparent));
+}
+
+.opx-ld .opx-ld-stage {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--sc) 20%, transparent), color-mix(in srgb, var(--sc) 9%, transparent));
+}
+
+.opx-ld .opx-ld-stage i,
+.opx-ld .opx-ld-menu button i {
+  box-shadow: 0 0 8px color-mix(in srgb, var(--sc) 80%, transparent);
+}
+
+/* Card move menu. */
+.opx-ld .opx-ld-menu {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 40%),
+    var(--opx-solid);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 18px 40px -22px rgba(0, 0, 0, 0.8);
+}
+
+.opx-ld .opx-ld-menu button {
+  transition: background 0.15s, color 0.15s;
+}
+
+.opx-ld .opx-ld-menu button:hover,
+.opx-ld .opx-ld-menu button:focus-visible {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--sc, var(--opx-ice)) 12%, transparent), transparent 80%),
+    var(--opx-glass-3);
+}
+
+.opx-ld .opx-ld-menu button:hover .opx-i {
+  color: var(--opx-ink);
+}
+
+/* Table view. */
+.opx-ld .opx-ld-tablewrap {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 120px),
+    var(--opx-card);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 22px 50px -38px rgba(0, 0, 0, 0.8);
+}
+
+.opx-ld .opx-ld-table th {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent);
+  letter-spacing: 0.01em;
+}
+
+.opx-ld .opx-ld-table tbody tr:hover,
+.opx-ld .opx-ld-table tbody tr[data-active] {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--opx-ice) 7%, transparent), transparent 70%), var(--opx-glass-3);
+}
+
+.opx-ld .opx-ld-table tbody tr[data-active] {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--opx-aqua) 10%, transparent), transparent 70%), var(--opx-glass-3);
+}
+
+.opx-ld .opx-ld-op i {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 24%, transparent), color-mix(in srgb, var(--opx-ice) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 14px -9px color-mix(in srgb, var(--opx-ice) 80%, transparent);
+}
+
+.opx-ld .opx-ld-op.is-none i {
+  background: none;
+  box-shadow: none;
+}
+
+.opx-ld .opx-ld-claim:not([data-done]) {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--opx-aqua) 22%, transparent), color-mix(in srgb, var(--opx-aqua) 9%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-ld .opx-ld-table .opx-ld-claim:hover:not(:disabled, [data-done]) {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--opx-aqua) 32%, transparent), color-mix(in srgb, var(--opx-aqua) 14%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 14px -8px color-mix(in srgb, var(--opx-aqua) 85%, transparent);
+}
+
+.opx-ld .opx-ld-table .opx-ld-claim:focus-visible {
+  box-shadow: var(--opx-ring);
+}
+
+/* Empty and «nothing found» states. */
+:is(.opx-ld, .opx-ov) .opx-ld-empty {
+  background:
+    radial-gradient(70% 90% at 50% 0%, color-mix(in srgb, var(--opx-aqua) 7%, transparent), transparent 70%),
+    var(--opx-glass);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+:is(.opx-ld, .opx-ov) .opx-ld-empty.is-flat {
+  background: none;
+  box-shadow: none;
+}
+
+:is(.opx-ld, .opx-ov) .opx-ld-empty__ic {
+  border-radius: 17px;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-aqua) 26%, transparent), color-mix(in srgb, var(--opx-ice) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 12px 26px -12px color-mix(in srgb, var(--opx-aqua) 80%, transparent);
+}
+
+/* Overview: hero, agenda header, agenda rows. */
+.opx-ov .opx-ov-hero {
+  background:
+    radial-gradient(60% 160% at 0% 50%, color-mix(in srgb, var(--opx-ice) 18%, transparent), transparent 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 60%),
+    linear-gradient(110deg, color-mix(in srgb, var(--opx-aqua) 18%, var(--opx-glass)), color-mix(in srgb, var(--opx-ice) 14%, var(--opx-glass)));
+  box-shadow:
+    inset 0 1px 0 var(--opx-hi),
+    inset 0 0 0 1px color-mix(in srgb, var(--opx-aqua) 34%, transparent),
+    0 30px 60px -36px color-mix(in srgb, var(--opx-aqua) 60%, transparent);
+}
+
+.opx-ov .opx-ov-hero__ic {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -10px 20px -10px rgba(0, 0, 0, 0.3),
+    0 14px 30px -12px rgba(47, 116, 236, 0.85);
+}
+
+.opx-ov .opx-ov-hero__calm .opx-ov-hero__ic {
+  background: linear-gradient(135deg, #18a99d, #23c3b4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -10px 20px -10px rgba(0, 0, 0, 0.25),
+    0 14px 30px -12px color-mix(in srgb, var(--opx-aqua) 85%, transparent);
+}
+
+.opx-ov .opx-ov-hero__ic b {
+  background: linear-gradient(180deg, #1b2c44, var(--opx-solid));
+  box-shadow: 0 0 0 2px var(--opx-aqua), 0 6px 16px -6px color-mix(in srgb, var(--opx-aqua) 85%, transparent);
+}
+
+.opx-ov .opx-ov-hero__btn.opx-pbtn--main {
+  --pb-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 55%), linear-gradient(120deg, #18a99d, #23c3b4);
+  --pb-bg-h: linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 55%), linear-gradient(120deg, #22bcae, #36d8c8);
+  --pb-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 18px 40px -22px color-mix(in srgb, var(--opx-aqua) 90%, transparent);
+  --pb-shadow-h: inset 0 1px 0 rgba(255, 255, 255, 0.34), 0 22px 46px -20px color-mix(in srgb, var(--opx-aqua) 95%, transparent);
+}
+
+.opx-ov .opx-ov-hero__btn svg {
+  transition: transform 0.35s var(--opx-spring);
+}
+
+.opx-ov .opx-ov-hero__btn:hover svg {
+  transform: translateX(4px);
+}
+
+.opx-ov .opx-ov-h > .opx-i {
+  box-sizing: content-box;
+  padding: 4px;
+  border-radius: 8px;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 22%, transparent), color-mix(in srgb, var(--opx-ice) 6%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 14px -8px color-mix(in srgb, var(--opx-ice) 80%, transparent);
+}
+
+.opx-ov .opx-ov-all {
+  border: 1px solid transparent;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.3s;
+}
+
+.opx-ov .opx-ov-all:hover {
+  border-color: color-mix(in srgb, var(--opx-aqua) 30%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--opx-aqua) 16%, transparent), color-mix(in srgb, var(--opx-aqua) 6%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-ov .opx-ov-row {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 16px 34px -28px rgba(0, 0, 0, 0.75);
+  transition: border-color 0.25s, background 0.25s, box-shadow 0.3s, transform 0.35s var(--opx-spring);
+}
+
+.opx-ov .opx-ov-row[data-tone="bad"] {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--opx-hot) 8%, transparent), transparent 45%),
+    var(--opx-card-2);
+  box-shadow: inset 5px 0 0 var(--opx-hot), inset 0 1px 0 var(--opx-hi), 0 16px 34px -28px color-mix(in srgb, var(--opx-hot) 70%, transparent);
+}
+
+.opx-ov .opx-ov-row:hover {
+  border-color: color-mix(in srgb, var(--tone) 40%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--tone) 6%, transparent), transparent 70%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 20px 40px -26px color-mix(in srgb, var(--tone) 65%, transparent);
+  transform: translateY(-1px);
+}
+
+.opx-ov .opx-ov-row[data-tone="bad"]:hover {
+  border-color: color-mix(in srgb, var(--opx-hot) 60%, transparent);
+  box-shadow: inset 5px 0 0 var(--opx-hot), inset 0 1px 0 var(--opx-hi), 0 20px 40px -26px color-mix(in srgb, var(--opx-hot) 70%, transparent);
+}
+
+.opx-ov .opx-ov-row:active {
+  transform: translateY(0) scale(0.995);
+}
+
+.opx-ov .opx-ov-row:focus-visible {
+  box-shadow: inset 0 1px 0 var(--opx-hi), var(--opx-ring);
+}
+
+.opx-ov .opx-ov-time {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--tone) 22%, transparent), color-mix(in srgb, var(--tone) 6%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 18px -12px color-mix(in srgb, var(--tone) 80%, transparent);
+}
+
+.opx-ov .opx-ov-row[data-tone="bad"] .opx-ov-when::before,
+.opx-ov .opx-ov-row[data-tone="soon"] .opx-ov-when::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin: 0 7px 2px 0;
+  border-radius: 50%;
+  background: var(--tone);
+  box-shadow: 0 0 8px var(--tone);
+  vertical-align: middle;
+}
+
+.opx-ov .opx-ov-row[data-tone="soon"] .opx-ov-when {
+  color: var(--opx-warn);
+}
+
+.opx-ov .opx-ov-go {
+  border: 1px solid var(--opx-line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent), var(--opx-chip);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  transition: background 0.25s, color 0.2s, border-color 0.2s, box-shadow 0.3s;
+}
+
+.opx-ov .opx-ov-go svg {
+  transition: transform 0.35s var(--opx-spring);
+}
+
+.opx-ov .opx-ov-row:hover .opx-ov-go {
+  border-color: color-mix(in srgb, var(--opx-aqua) 45%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-aqua) 26%, transparent), color-mix(in srgb, var(--opx-aqua) 8%, transparent));
+  color: var(--opx-aqua);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 18px -10px color-mix(in srgb, var(--opx-aqua) 85%, transparent);
+}
+
+.opx-ov .opx-ov-row:hover .opx-ov-go svg {
+  transform: translateX(2px);
+}
+
+/* Light theme: white highlights, bluish soft shadows, solid teal accents. */
+html[data-opx-theme="light"] :is(.opx-ld, .opx-ov) .opx-ld-warn {
+  background: color-mix(in srgb, var(--opx-hot) 7%, #fff);
+  box-shadow: inset 0 1px 0 #fff, 0 12px 28px -22px rgba(191, 47, 74, 0.45);
+}
+
+html[data-opx-theme="light"] :is(.opx-ld, .opx-ov) .opx-ld-warn button,
+html[data-opx-theme="light"] .opx-ld .opx-ld-chip,
+html[data-opx-theme="light"] .opx-ld .opx-ld-view,
+html[data-opx-theme="light"] .opx-ld .opx-ld-col__more {
+  background: var(--opx-glass-3);
+  box-shadow: inset 0 1px 0 #fff, 0 4px 10px -8px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-chip.is-ghost {
+  background: none;
+  box-shadow: none;
+}
+
+html[data-opx-theme="light"] :is(.opx-ld, .opx-ov) .opx-ld-newbtn:not(.opx-pbtn--main) {
+  --pb-bg: var(--opx-glass-3);
+  --pb-shadow: inset 0 1px 0 #fff, 0 6px 14px -10px rgba(30, 70, 140, 0.35);
+  --pb-shadow-h: inset 0 1px 0 #fff, 0 10px 22px -14px rgba(14, 139, 128, 0.55);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-tabs {
+  background: var(--opx-glass);
+  box-shadow: inset 0 1px 0 #fff, 0 12px 28px -22px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-tab b {
+  border-color: rgba(42, 99, 201, 0.2);
+  background: linear-gradient(180deg, rgba(42, 99, 201, 0.14), rgba(42, 99, 201, 0.06));
+  color: #1f4f9e;
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-tab[data-tone="hot"] b {
+  border-color: rgba(191, 47, 74, 0.25);
+  background: linear-gradient(180deg, rgba(191, 47, 74, 0.16), rgba(191, 47, 74, 0.06));
+  color: var(--opx-hot);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-tab[aria-pressed="true"] b {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.26);
+  color: #fff;
+  box-shadow: none;
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-tab[aria-pressed="true"] {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 8px 18px -12px rgba(31, 95, 196, 0.6);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-bar__search,
+html[data-opx-theme="light"] .opx-ld .opx-ld-seg,
+html[data-opx-theme="light"] .opx-ld .opx-ld-in input {
+  box-shadow: inset 0 1px 2px rgba(20, 50, 90, 0.07);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-bar__search:focus-within,
+html[data-opx-theme="light"] .opx-ld .opx-ld-in input:focus {
+  box-shadow: var(--opx-ring);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-seg button.is-on {
+  background: linear-gradient(135deg, rgba(42, 99, 201, 0.14), rgba(14, 139, 128, 0.05));
+  box-shadow: inset 0 1px 0 #fff, inset 0 0 0 1px rgba(42, 99, 201, 0.38), 0 6px 14px -10px rgba(42, 99, 201, 0.55);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-chip[aria-pressed="true"],
+html[data-opx-theme="light"] .opx-ld .opx-ld-chip[aria-expanded="true"] {
+  background: linear-gradient(135deg, rgba(14, 139, 128, 0.14), rgba(14, 139, 128, 0.05));
+  box-shadow: inset 0 1px 0 #fff, 0 8px 18px -12px rgba(14, 139, 128, 0.55);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-chip[data-tone="hot"][aria-pressed="true"] {
+  background: linear-gradient(135deg, rgba(191, 47, 74, 0.12), rgba(191, 47, 74, 0.04));
+  box-shadow: inset 0 1px 0 #fff, 0 8px 18px -12px rgba(191, 47, 74, 0.5);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-chip b,
+html[data-opx-theme="light"] .opx-ld .opx-ld-filterbtn b {
+  background: linear-gradient(135deg, #0e8b80, #12a497);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 10px -6px rgba(14, 139, 128, 0.7);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-more {
+  background: var(--opx-glass);
+  box-shadow: inset 0 1px 0 #fff, 0 16px 34px -26px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-col__head {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.45), transparent 60%),
+    linear-gradient(90deg, color-mix(in srgb, var(--sc) 34%, var(--opx-base-2)), color-mix(in srgb, var(--sc) 24%, var(--opx-base-2)));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-col__name b {
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-col__name em {
+  border-color: color-mix(in srgb, var(--sc) 30%, transparent);
+  background: linear-gradient(180deg, #fff, rgba(255, 255, 255, 0.78));
+  color: color-mix(in srgb, var(--sc) 75%, var(--opx-ink));
+  box-shadow: 0 2px 6px -3px color-mix(in srgb, var(--sc) 60%, transparent);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-col__empty {
+  background:
+    radial-gradient(90% 80% at 50% 0%, color-mix(in srgb, var(--sc) 6%, transparent), transparent 70%),
+    rgba(255, 255, 255, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-col__empty::before {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235b6a80' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 12h-6l-2 3h-4l-2-3H2'/%3E%3Cpath d='M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z'/%3E%3C/svg%3E") center / 16px no-repeat,
+    linear-gradient(145deg, color-mix(in srgb, var(--sc) 14%, #fff), #fff);
+  box-shadow: inset 0 1px 0 #fff, 0 6px 14px -10px color-mix(in srgb, var(--sc) 60%, transparent);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-card {
+  background: var(--opx-glass-3);
+  box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(20, 50, 90, 0.06), 0 8px 16px -12px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-card:hover {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--sc) 5%, transparent), transparent 60%),
+    #fff;
+  box-shadow: inset 0 1px 0 #fff, 0 10px 18px -12px color-mix(in srgb, var(--sc) 50%, rgba(30, 70, 140, 0.4));
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-card:focus-visible {
+  box-shadow: var(--opx-ring);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-card[data-overdue] {
+  background: color-mix(in srgb, var(--opx-hot) 7%, #fff);
+  box-shadow: inset 5px 0 0 var(--opx-hot), inset 0 1px 0 #fff, 0 8px 16px -12px rgba(191, 47, 74, 0.4);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-card[data-overdue]:hover {
+  box-shadow: inset 5px 0 0 var(--opx-hot), inset 0 1px 0 #fff, 0 10px 18px -12px rgba(191, 47, 74, 0.55);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-card[data-free] .opx-ld-claim {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent 55%),
+    linear-gradient(120deg, #0e8b80, #12a497);
+  color: #fff;
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-card__flag,
+html[data-opx-theme="light"] .opx-ld .opx-ld-card__dup,
+html[data-opx-theme="light"] .opx-ld .opx-ld-card__moving,
+html[data-opx-theme="light"] .opx-ld .opx-ld-score,
+html[data-opx-theme="light"] .opx-ld .opx-ld-src,
+html[data-opx-theme="light"] .opx-ld .opx-ld-stage,
+html[data-opx-theme="light"] .opx-ld .opx-ld-op i {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-op.is-none i {
+  box-shadow: none;
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-card__more:hover,
+html[data-opx-theme="light"] .opx-ld .opx-ld-card__more[aria-expanded="true"] {
+  background: rgba(20, 50, 90, 0.06);
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-menu {
+  background: var(--opx-solid);
+  box-shadow: inset 0 1px 0 #fff, 0 18px 40px -22px rgba(30, 70, 140, 0.45);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-tablewrap {
+  background: var(--opx-card);
+  box-shadow: inset 0 1px 0 #fff, 0 20px 44px -32px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-table th {
+  background: linear-gradient(180deg, rgba(42, 99, 201, 0.04), transparent);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-table tbody tr:hover {
+  background: linear-gradient(90deg, rgba(42, 99, 201, 0.06), transparent 70%), rgba(255, 255, 255, 0.7);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-table tbody tr[data-active] {
+  background: linear-gradient(90deg, rgba(14, 139, 128, 0.08), transparent 70%), rgba(255, 255, 255, 0.7);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-claim:not([data-done]) {
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-claim[data-done] {
+  background: #0e8b80;
+  color: #fff;
+}
+
+html[data-opx-theme="light"] :is(.opx-ld, .opx-ov) .opx-ld-empty {
+  background:
+    radial-gradient(70% 90% at 50% 0%, rgba(14, 139, 128, 0.06), transparent 70%),
+    var(--opx-glass);
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+html[data-opx-theme="light"] :is(.opx-ld, .opx-ov) .opx-ld-empty.is-flat {
+  background: none;
+  box-shadow: none;
+}
+
+html[data-opx-theme="light"] :is(.opx-ld, .opx-ov) .opx-ld-empty__ic {
+  background: linear-gradient(145deg, rgba(14, 139, 128, 0.16), rgba(14, 139, 128, 0.05));
+  box-shadow: inset 0 1px 0 #fff, 0 10px 22px -14px rgba(14, 139, 128, 0.55);
+}
+
+html[data-opx-theme="light"] .opx-ov .opx-ov-hero {
+  background:
+    radial-gradient(60% 160% at 0% 50%, rgba(42, 99, 201, 0.1), transparent 70%),
+    linear-gradient(110deg, color-mix(in srgb, var(--opx-aqua) 12%, var(--opx-glass-2)), color-mix(in srgb, var(--opx-ice) 10%, var(--opx-glass-2)));
+  box-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 0 0 1px color-mix(in srgb, var(--opx-aqua) 28%, transparent),
+    0 26px 50px -34px rgba(14, 139, 128, 0.5);
+}
+
+html[data-opx-theme="light"] .opx-ov .opx-ov-hero__ic {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -10px 20px -10px rgba(0, 0, 0, 0.2),
+    0 14px 28px -14px rgba(31, 95, 196, 0.6);
+}
+
+html[data-opx-theme="light"] .opx-ov .opx-ov-hero__calm .opx-ov-hero__ic {
+  background: linear-gradient(135deg, #0e8b80, #12a497);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 14px 28px -14px rgba(14, 139, 128, 0.6);
+}
+
+html[data-opx-theme="light"] .opx-ov .opx-ov-hero__ic b {
+  background: #fff;
+  box-shadow: 0 0 0 2px var(--opx-aqua), 0 6px 14px -6px rgba(14, 139, 128, 0.5);
+}
+
+html[data-opx-theme="light"] .opx-ov .opx-ov-hero__btn.opx-pbtn--main {
+  --pb-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent 55%), linear-gradient(120deg, #0e8b80, #12a497);
+  --pb-bg-h: linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 55%), linear-gradient(120deg, #0a7a70, #0e9285);
+  --pb-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 18px 36px -22px rgba(14, 139, 128, 0.7);
+  --pb-shadow-h: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 20px 40px -20px rgba(14, 139, 128, 0.8);
+}
+
+html[data-opx-theme="light"] .opx-ov .opx-ov-h > .opx-i {
+  background: linear-gradient(145deg, rgba(42, 99, 201, 0.14), rgba(42, 99, 201, 0.04));
+  box-shadow: inset 0 1px 0 #fff, 0 6px 14px -10px rgba(42, 99, 201, 0.5);
+}
+
+html[data-opx-theme="light"] .opx-ov .opx-ov-all:hover {
+  background: rgba(14, 139, 128, 0.08);
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+html[data-opx-theme="light"] .opx-ov .opx-ov-row {
+  background: var(--opx-card-2);
+  box-shadow: inset 0 1px 0 #fff, 0 16px 34px -26px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-ov .opx-ov-row[data-tone="bad"] {
+  background:
+    linear-gradient(90deg, rgba(191, 47, 74, 0.06), transparent 45%),
+    var(--opx-card-2);
+  box-shadow: inset 5px 0 0 var(--opx-hot), inset 0 1px 0 #fff, 0 16px 34px -26px rgba(191, 47, 74, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-ov .opx-ov-row:hover {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--tone) 5%, transparent), transparent 70%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 #fff, 0 20px 40px -24px color-mix(in srgb, var(--tone) 45%, transparent);
+}
+
+html[data-opx-theme="light"] .opx-ov .opx-ov-row[data-tone="bad"]:hover {
+  box-shadow: inset 5px 0 0 var(--opx-hot), inset 0 1px 0 #fff, 0 20px 40px -24px rgba(191, 47, 74, 0.45);
+}
+
+html[data-opx-theme="light"] .opx-ov .opx-ov-row:focus-visible {
+  box-shadow: var(--opx-ring);
+}
+
+html[data-opx-theme="light"] .opx-ov .opx-ov-time {
+  box-shadow: inset 0 1px 0 #fff, 0 8px 16px -12px color-mix(in srgb, var(--tone) 55%, transparent);
+}
+
+html[data-opx-theme="light"] .opx-ov .opx-ov-go {
+  background: rgba(20, 50, 90, 0.06);
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+html[data-opx-theme="light"] .opx-ov .opx-ov-row:hover .opx-ov-go {
+  border-color: #0e8b80;
+  background: linear-gradient(135deg, #0e8b80, #12a497);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 8px 18px -10px rgba(14, 139, 128, 0.7);
+}
+
+/* Motion: no lifts, spins or slides when the user asks for calm. */
+@media (prefers-reduced-motion: reduce) {
+  :is(.opx-ld, .opx-ov) .opx-ld-warn button,
+  :is(.opx-ld, .opx-ov) .opx-ld-newbtn svg,
+  .opx-ld .opx-ld-tab,
+  .opx-ld .opx-ld-seg button,
+  .opx-ld .opx-ld-chip,
+  .opx-ld .opx-ld-view,
+  .opx-ld .opx-ld-col__more,
+  .opx-ld .opx-ld-card,
+  .opx-ld .opx-ld-card[data-free] .opx-ld-claim,
+  .opx-ld .opx-ld-menu button,
+  .opx-ov .opx-ov-hero__btn svg,
+  .opx-ov .opx-ov-all,
+  .opx-ov .opx-ov-row,
+  .opx-ov .opx-ov-go,
+  .opx-ov .opx-ov-go svg {
+    transition: none;
+  }
+
+  :is(.opx-ld, .opx-ov) .opx-ld-warn button:active,
+  :is(.opx-ld, .opx-ov) .opx-ld-newbtn:hover svg,
+  .opx-ld .opx-ld-tab:active,
+  .opx-ld .opx-ld-seg button:active,
+  .opx-ld .opx-ld-chip:active,
+  .opx-ld .opx-ld-col__more:active:not(:disabled),
+  .opx-ld .opx-ld-card:hover,
+  .opx-ov .opx-ov-hero__btn:hover svg,
+  .opx-ov .opx-ov-row:hover,
+  .opx-ov .opx-ov-row:active,
+  .opx-ov .opx-ov-row:hover .opx-ov-go svg {
+    transform: none;
+  }
+}
+
+html[data-opx-motion="off"] :is(.opx-ld, .opx-ov) .opx-ld-warn button,
+html[data-opx-motion="off"] :is(.opx-ld, .opx-ov) .opx-ld-newbtn svg,
+html[data-opx-motion="off"] .opx-ld .opx-ld-tab,
+html[data-opx-motion="off"] .opx-ld .opx-ld-seg button,
+html[data-opx-motion="off"] .opx-ld .opx-ld-chip,
+html[data-opx-motion="off"] .opx-ld .opx-ld-view,
+html[data-opx-motion="off"] .opx-ld .opx-ld-col__more,
+html[data-opx-motion="off"] .opx-ld .opx-ld-card,
+html[data-opx-motion="off"] .opx-ld .opx-ld-card[data-free] .opx-ld-claim,
+html[data-opx-motion="off"] .opx-ld .opx-ld-menu button,
+html[data-opx-motion="off"] .opx-ov .opx-ov-hero__btn svg,
+html[data-opx-motion="off"] .opx-ov .opx-ov-all,
+html[data-opx-motion="off"] .opx-ov .opx-ov-row,
+html[data-opx-motion="off"] .opx-ov .opx-ov-go,
+html[data-opx-motion="off"] .opx-ov .opx-ov-go svg {
+  transition: none;
+}
+
+html[data-opx-motion="off"] :is(.opx-ld, .opx-ov) .opx-ld-warn button:active,
+html[data-opx-motion="off"] :is(.opx-ld, .opx-ov) .opx-ld-newbtn:hover svg,
+html[data-opx-motion="off"] .opx-ld .opx-ld-tab:active,
+html[data-opx-motion="off"] .opx-ld .opx-ld-seg button:active,
+html[data-opx-motion="off"] .opx-ld .opx-ld-chip:active,
+html[data-opx-motion="off"] .opx-ld .opx-ld-col__more:active:not(:disabled),
+html[data-opx-motion="off"] .opx-ld .opx-ld-card:hover,
+html[data-opx-motion="off"] .opx-ov .opx-ov-hero__btn:hover svg,
+html[data-opx-motion="off"] .opx-ov .opx-ov-row:hover,
+html[data-opx-motion="off"] .opx-ov .opx-ov-row:active,
+html[data-opx-motion="off"] .opx-ov .opx-ov-row:hover .opx-ov-go svg {
+  transform: none;
+}
+
+/* Focus rings always win over the layered shadows above. */
+.opx-ld .opx-ld-seg button:focus-visible,
+.opx-ld .opx-ld-tab[aria-pressed="true"]:focus-visible,
+html[data-opx-theme="light"] .opx-ld .opx-ld-seg button:focus-visible,
+html[data-opx-theme="light"] .opx-ld .opx-ld-tab:focus-visible,
+html[data-opx-theme="light"] .opx-ld .opx-ld-chip:focus-visible,
+html[data-opx-theme="light"] .opx-ld .opx-ld-col__more:focus-visible,
+html[data-opx-theme="light"] .opx-ld .opx-ld-view > button:focus-visible,
+html[data-opx-theme="light"] .opx-ld .opx-ld-claim:focus-visible,
+html[data-opx-theme="light"] :is(.opx-ld, .opx-ov) .opx-ld-warn button:focus-visible {
+  outline: none;
+  box-shadow: var(--opx-ring);
+}
+
+html[data-opx-theme="light"] .opx-ld .opx-ld-card[data-free] .opx-ld-claim:focus-visible {
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.6);
+}

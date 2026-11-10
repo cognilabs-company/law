@@ -1509,3 +1509,981 @@ html[data-opx-theme="light"] .opx-mtg-join.is-live {
   flex: 1 1 170px;
   min-width: 150px;
 }
+
+/* ───────────────────────────────────────────────────────────────────────
+   «Uchrashuvlar» polish: the same blocks in the same places and sizes, a
+   richer surface. Layered panels and cards, gradient icon tiles with a
+   gentle glow, a glowing timeline rail and dots, gradient count badges,
+   chips and pills with depth, clearer hover/focus/active/selected states,
+   softer form fields, a polished people menu and the call detail sheet
+   (scoped via .opx-mtg-sheet on its Sheet). Light theme matched below;
+   motion respects reduced motion and the «motion off» setting.
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* Header: title, scope tabs, CTA and the live bar. */
+.opx-mtg-head h2 {
+  background: linear-gradient(180deg, var(--opx-ink) 35%, color-mix(in srgb, var(--opx-ink) 70%, var(--opx-ice)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.opx-mtg-tabs {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 60%),
+    var(--opx-glass);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 14px 34px -26px rgba(0, 0, 0, 0.75);
+}
+
+.opx-mtg-tabs button {
+  transition: background 0.25s, color 0.2s, box-shadow 0.3s, transform 0.3s var(--opx-spring);
+}
+
+.opx-mtg-tabs button:hover:not(.is-on) {
+  background: var(--opx-glass-2);
+}
+
+.opx-mtg-tabs button:active {
+  transform: scale(0.97);
+}
+
+.opx-mtg-tabs button.is-on {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 0 0 1px rgba(127, 178, 255, 0.45), 0 12px 28px -14px rgba(47, 116, 236, 0.95);
+}
+
+.opx-mtg-tabs button.is-on:focus-visible {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), var(--opx-ring);
+}
+
+.opx-mtg-tabs b {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  transition: background 0.25s, color 0.2s;
+}
+
+.opx-mtg-tabs button:hover:not(.is-on) b {
+  background: color-mix(in srgb, var(--opx-ice) 18%, transparent);
+  color: var(--opx-ink);
+}
+
+.opx-mtg-tabs button.is-on b {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.16));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 10px -6px rgba(0, 0, 0, 0.5);
+}
+
+/* The live pulse stays visible on the coloured active tab. */
+.opx-mtg-tabs button.is-on .opx-mtg-pulse {
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25);
+  animation: none;
+}
+
+.opx-mtg-cta {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 16px 36px -16px rgba(47, 116, 236, 0.95);
+}
+
+.opx-mtg-cta:hover {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 20px 42px -16px rgba(47, 116, 236, 1);
+  transform: translateY(-1px);
+}
+
+.opx-mtg-cta:active {
+  transform: scale(0.97);
+}
+
+.opx-mtg-cta:focus-visible {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 0 2px var(--opx-base), 0 0 0 5px color-mix(in srgb, var(--opx-aqua) 70%, transparent);
+}
+
+.opx-mtg-livebar {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--opx-aqua) 20%, transparent), color-mix(in srgb, var(--opx-aqua) 6%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 26px -16px color-mix(in srgb, var(--opx-aqua) 85%, transparent);
+  transition: border-color 0.2s, box-shadow 0.3s, transform 0.35s var(--opx-spring);
+}
+
+.opx-mtg-livebar:hover {
+  border-color: color-mix(in srgb, var(--opx-aqua) 70%, transparent);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 14px 30px -14px color-mix(in srgb, var(--opx-aqua) 95%, transparent);
+  transform: translateY(-1px);
+}
+
+.opx-mtg-livebar:active {
+  transform: scale(0.97);
+}
+
+.opx-mtg-livebar .opx-i {
+  transition: transform 0.3s var(--opx-spring);
+}
+
+.opx-mtg-livebar:hover .opx-i {
+  transform: translateX(2px);
+}
+
+.opx-mtg-livebar b {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #18a99d, #23c3b4);
+  color: #032623;
+  font-size: 12px;
+  box-shadow: 0 4px 12px -6px rgba(60, 220, 200, 0.9);
+}
+
+/* Panels: a faint top light and an accent glow in the corner. */
+.opx-mtg-panel,
+.opx-mtg-box {
+  background:
+    radial-gradient(120% 60% at 0% 0%, color-mix(in srgb, var(--opx-ice) 6%, transparent), transparent 60%),
+    var(--opx-card);
+}
+
+.opx-mtg-quick {
+  background:
+    radial-gradient(120% 70% at 0% 0%, color-mix(in srgb, var(--opx-aqua) 7%, transparent), transparent 60%),
+    var(--opx-card);
+}
+
+.opx-mtg-box__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 26%, transparent), color-mix(in srgb, var(--opx-ice) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 24px -12px color-mix(in srgb, var(--opx-ice) 85%, transparent);
+}
+
+.opx-mtg-box__ic--bolt {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-aqua) 26%, transparent), color-mix(in srgb, var(--opx-aqua) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 24px -12px color-mix(in srgb, var(--opx-aqua) 85%, transparent);
+}
+
+.opx-mtg-count {
+  border-color: rgba(127, 178, 255, 0.4);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--opx-ice) 34%, transparent), color-mix(in srgb, var(--opx-ice) 12%, transparent));
+  color: var(--opx-ink);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 14px -8px color-mix(in srgb, var(--opx-ice) 90%, transparent);
+}
+
+.opx-mtg-sum > span {
+  border-color: color-mix(in srgb, var(--tone) 26%, var(--opx-line-2));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tone) 8%, transparent), transparent), var(--opx-glass-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 14px -10px color-mix(in srgb, var(--tone) 80%, transparent);
+}
+
+.opx-mtg-sum b {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--tone) 30%, transparent), color-mix(in srgb, var(--tone) 12%, transparent));
+}
+
+/* Square icon buttons (refresh, details, clear dates). */
+.opx-mtg-icon {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  transition: color 0.2s, background 0.2s, border-color 0.2s, box-shadow 0.3s, transform 0.3s var(--opx-spring);
+}
+
+.opx-mtg-icon:hover:not(:disabled) {
+  color: var(--opx-ice);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -12px color-mix(in srgb, var(--opx-ice) 85%, transparent);
+  transform: translateY(-1px);
+}
+
+.opx-mtg-icon:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+/* Skeleton, empty and error states. */
+.opx-mtg-skel .opx-shim {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-mtg-state {
+  border-color: color-mix(in srgb, var(--opx-ice) 22%, var(--opx-line-2));
+  background:
+    radial-gradient(60% 70% at 50% 0%, color-mix(in srgb, var(--opx-ice) 7%, transparent), transparent 70%),
+    color-mix(in srgb, var(--opx-card-2) 60%, transparent);
+}
+
+.opx-mtg-state__ic {
+  border: 1px solid color-mix(in srgb, var(--opx-ice) 28%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 28%, transparent), color-mix(in srgb, var(--opx-ice) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 14px 30px -14px color-mix(in srgb, var(--opx-ice) 90%, transparent);
+}
+
+.opx-mtg-state.is-bad {
+  background:
+    radial-gradient(60% 70% at 50% 0%, color-mix(in srgb, var(--opx-hot) 10%, transparent), transparent 70%),
+    color-mix(in srgb, var(--opx-hot) 6%, transparent);
+}
+
+.opx-mtg-state.is-bad .opx-mtg-state__ic {
+  border-color: color-mix(in srgb, var(--opx-hot) 32%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-hot) 26%, transparent), color-mix(in srgb, var(--opx-hot) 7%, transparent));
+  color: var(--opx-hot);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 14px 30px -14px color-mix(in srgb, var(--opx-hot) 85%, transparent);
+}
+
+/* Timeline: a glowing rail, glowing dots and layered time boxes. */
+.opx-mtg-tl::before {
+  background: linear-gradient(var(--opx-line-2), color-mix(in srgb, var(--opx-ice) 70%, transparent) 30%, color-mix(in srgb, var(--opx-aqua) 55%, transparent) 70%, var(--opx-line-2));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--opx-ice) 35%, transparent);
+}
+
+.opx-mtg-dot {
+  box-shadow: 0 0 0 3px var(--opx-base), 0 0 12px color-mix(in srgb, var(--opx-ice) 70%, transparent);
+}
+
+.opx-mtg-item[data-state="done"] .opx-mtg-dot,
+.opx-mtg-item[data-state="out"] .opx-mtg-dot {
+  box-shadow: 0 0 0 3px var(--opx-base);
+}
+
+.opx-mtg-item[data-state="next"] .opx-mtg-dot {
+  background: radial-gradient(circle, var(--opx-ice) 0 30%, var(--opx-base) 34%);
+}
+
+.opx-mtg-rail {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 55%),
+    var(--opx-glass-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 12px 26px -22px rgba(0, 0, 0, 0.8);
+}
+
+.opx-mtg-item[data-state="next"] .opx-mtg-rail {
+  border-color: rgba(127, 178, 255, 0.34);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--opx-ice) 10%, transparent), transparent 70%),
+    var(--opx-glass-2);
+}
+
+.opx-mtg-item[data-state="live"] .opx-mtg-rail {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--opx-aqua) 22%, transparent), color-mix(in srgb, var(--opx-aqua) 6%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 0 0 1px color-mix(in srgb, var(--opx-aqua) 25%, transparent), 0 12px 30px -16px color-mix(in srgb, var(--opx-aqua) 90%, transparent);
+}
+
+/* Meeting cards: layered surface, a tone edge, hover lift. */
+.opx-mtg-card {
+  --tone: var(--opx-ice);
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 45%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 18px 40px -32px rgba(0, 0, 0, 0.7);
+}
+
+.opx-mtg-card::after {
+  content: "";
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, var(--tone), color-mix(in srgb, var(--tone) 15%, transparent));
+  opacity: 0;
+  transition: opacity 0.25s;
+  pointer-events: none;
+}
+
+.opx-mtg-item[data-state="next"] .opx-mtg-card::after {
+  opacity: 0.85;
+}
+
+.opx-mtg-item[data-state="live"] .opx-mtg-card {
+  --tone: var(--opx-aqua);
+}
+
+.opx-mtg-item[data-state="live"] .opx-mtg-card::after {
+  opacity: 0.95;
+}
+
+.opx-mtg-card:hover {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--opx-ice) 5%, transparent), transparent 55%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 20px 44px -28px rgba(41, 120, 255, 0.6);
+  transform: translateY(-1px);
+}
+
+.opx-mtg-card:hover::after {
+  opacity: 0.85;
+}
+
+.opx-mtg-item[data-state="live"] .opx-mtg-card:hover {
+  background: linear-gradient(120deg, color-mix(in srgb, var(--opx-aqua) 12%, transparent), transparent 60%), var(--opx-card-2);
+}
+
+.opx-mtg-card__foot {
+  border-top-color: transparent;
+  border-image: linear-gradient(90deg, var(--opx-line-2), var(--opx-line) 60%, transparent) 1;
+}
+
+.opx-mtg-chip {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent),
+    var(--opx-glass-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-mtg-chip--soft {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--opx-ice) 18%, transparent), color-mix(in srgb, var(--opx-ice) 6%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 14px -10px color-mix(in srgb, var(--opx-ice) 80%, transparent);
+}
+
+.opx-mtg-av {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 28%, transparent), color-mix(in srgb, var(--opx-ice) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 14px -10px color-mix(in srgb, var(--opx-ice) 85%, transparent);
+}
+
+.opx-mtg-join {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 12px 26px -16px rgba(47, 116, 236, 0.9);
+}
+
+.opx-mtg-join:hover:not(:disabled) {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.34), 0 16px 32px -14px rgba(47, 116, 236, 1);
+  transform: translateY(-1px);
+}
+
+.opx-mtg-join.is-live {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 16px 38px -14px rgba(47, 116, 236, 0.95), 0 0 0 1px rgba(127, 178, 255, 0.35);
+}
+
+.opx-mtg-join.is-live:hover:not(:disabled) {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.36), 0 20px 44px -14px rgba(47, 116, 236, 1), 0 0 0 1px rgba(127, 178, 255, 0.5);
+}
+
+.opx-mtg-join:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.opx-mtg-join:disabled {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent),
+    var(--opx-glass-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-mtg-done {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent),
+    var(--opx-glass-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-mtg-done[data-tone="warn"],
+.opx-mtg-done[data-tone="hot"] {
+  --tone: var(--opx-warn);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--tone) 14%, transparent), color-mix(in srgb, var(--tone) 4%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 14px -10px color-mix(in srgb, var(--tone) 85%, transparent);
+}
+
+.opx-mtg-done[data-tone="hot"] {
+  --tone: var(--opx-hot);
+}
+
+/* Status pills in the list and the detail sheet: a little depth. */
+.opx-mtg .opx-pill,
+.opx-mtg-sheet .opx-pill {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--tone) 20%, transparent), color-mix(in srgb, var(--tone) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 14px -10px color-mix(in srgb, var(--tone) 90%, transparent);
+}
+
+/* Forms: new meeting and quick start fields. */
+.opx-mtg-form .opx-field > input,
+.opx-mtg-pick__box,
+.opx-mtg-tel,
+.opx-mtg-in {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+  transition: border-color 0.2s, box-shadow 0.25s, background 0.2s;
+}
+
+.opx-mtg-form .opx-field > input:hover:not(:focus),
+.opx-mtg-pick__box:hover:not(:focus-within),
+.opx-mtg-tel:hover:not(:focus-within),
+.opx-mtg-in:hover:not(:focus-within) {
+  border-color: color-mix(in srgb, var(--opx-ice) 35%, transparent);
+}
+
+.opx-mtg-form .opx-field > input:focus,
+.opx-mtg-pick__box:focus-within,
+.opx-mtg-tel:focus-within,
+.opx-mtg-in:focus-within {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18), var(--opx-ring);
+}
+
+.opx-field.has-error .opx-mtg-pick__box,
+.opx-field.has-error .opx-mtg-tel {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18), 0 0 0 3px color-mix(in srgb, var(--opx-hot) 14%, transparent);
+}
+
+.opx-mtg-pick__box .opx-i,
+.opx-mtg-in > .opx-i,
+.opx-mtg-in > svg {
+  transition: color 0.2s;
+}
+
+.opx-mtg-pick__box:focus-within .opx-i,
+.opx-mtg-in:focus-within > .opx-i,
+.opx-mtg-in:focus-within > svg {
+  color: var(--opx-aqua);
+}
+
+.opx-mtg-form .opx-choice__row {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.opx-mtg-form .opx-choice__opt {
+  transition: background 0.2s, color 0.2s, box-shadow 0.3s, transform 0.3s var(--opx-spring);
+}
+
+.opx-mtg-form .opx-choice__opt:not(.is-on):hover {
+  background: var(--opx-glass-3);
+}
+
+.opx-mtg-form .opx-choice__opt:active {
+  transform: scale(0.97);
+}
+
+.opx-mtg-form .opx-choice__opt.is-on {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 0 0 1px rgba(94, 230, 208, 0.6), 0 10px 26px -14px rgba(60, 220, 200, 0.9);
+}
+
+.opx-mtg-form__foot .opx-pbtn--main {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 12px 26px -16px rgba(60, 220, 200, 0.95);
+}
+
+.opx-mtg-go {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 18px 40px -18px rgba(47, 116, 236, 0.95);
+}
+
+.opx-mtg-go:hover:not(:disabled) {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 22px 44px -16px rgba(47, 116, 236, 1);
+  transform: translateY(-1px);
+}
+
+.opx-mtg-go:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.opx-mtg-how summary {
+  transition: color 0.2s;
+}
+
+.opx-mtg-how ol li::marker {
+  color: var(--opx-aqua);
+  font-weight: 800;
+}
+
+/* People picker: menu, options and chosen chips. */
+.opx-mtg-pick__menu {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 40%),
+    var(--opx-solid);
+}
+
+.opx-mtg-pick__menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.opx-mtg-pick__menu::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background: var(--opx-line-2);
+}
+
+.opx-mtg-pick__menu li {
+  transition: background 0.15s, box-shadow 0.2s;
+}
+
+.opx-mtg-pick__menu li:hover:not(.is-cur) {
+  background: var(--opx-glass-2);
+}
+
+.opx-mtg-pick__menu li.is-cur {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--opx-ice) 16%, transparent), color-mix(in srgb, var(--opx-ice) 5%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), inset 0 0 0 1px color-mix(in srgb, var(--opx-ice) 22%, transparent);
+}
+
+.opx-mtg-pick__menu li[aria-selected="true"] .opx-mtg-av {
+  border-color: color-mix(in srgb, var(--opx-aqua) 45%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-aqua) 28%, transparent), color-mix(in srgb, var(--opx-aqua) 8%, transparent));
+  color: var(--opx-aqua);
+}
+
+.opx-mtg-pick__menu em {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--opx-ice) 22%, transparent), color-mix(in srgb, var(--opx-ice) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-mtg-chips li {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent),
+    var(--opx-glass-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 18px -14px rgba(0, 0, 0, 0.7);
+  transition: border-color 0.2s;
+}
+
+.opx-mtg-chips li:hover {
+  border-color: color-mix(in srgb, var(--opx-ice) 35%, transparent);
+}
+
+.opx-mtg-chips button {
+  transition: background 0.2s, color 0.2s, transform 0.3s var(--opx-spring);
+}
+
+.opx-mtg-chips button:active {
+  transform: scale(0.9);
+}
+
+/* All meetings: layered rows with a tone edge and gradient icon tiles. */
+.opx-mtg-row {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 50%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 14px 30px -26px rgba(0, 0, 0, 0.7);
+}
+
+button.opx-mtg-row:hover {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--opx-ice) 5%, transparent), transparent 60%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 18px 38px -24px rgba(41, 120, 255, 0.6);
+  transform: translateY(-1px);
+}
+
+button.opx-mtg-row:active {
+  transform: scale(0.99);
+}
+
+.opx-mtg-row__ic {
+  border: 1px solid color-mix(in srgb, var(--opx-ice) 24%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 24%, transparent), color-mix(in srgb, var(--opx-ice) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -12px color-mix(in srgb, var(--opx-ice) 85%, transparent);
+  transition: transform 0.35s var(--opx-spring);
+}
+
+.opx-mtg-row__ic.is-live {
+  border-color: color-mix(in srgb, var(--opx-aqua) 45%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-aqua) 26%, transparent), color-mix(in srgb, var(--opx-aqua) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -10px color-mix(in srgb, var(--opx-aqua) 90%, transparent);
+}
+
+button.opx-mtg-row:hover .opx-mtg-row__ic {
+  transform: scale(1.05);
+}
+
+.opx-mtg-row:has(.opx-mtg-row__ic.is-live)::after {
+  content: "";
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, var(--opx-aqua), color-mix(in srgb, var(--opx-aqua) 15%, transparent));
+  pointer-events: none;
+}
+
+.opx-mtg-filters .opx-mtg-in--search {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent),
+    var(--opx-glass-2);
+}
+
+/* Call detail sheet (scoped on its Sheet). */
+.opx-mtg-sheet .opx-phead__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 26%, transparent), color-mix(in srgb, var(--opx-ice) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 24px -12px color-mix(in srgb, var(--opx-ice) 85%, transparent);
+}
+
+.opx-mtg-sheet .opx-phead__tag {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--opx-ice) 18%, transparent), color-mix(in srgb, var(--opx-ice) 6%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-mtg-sheet .opx-facts,
+.opx-mtg-sheet .opx-psec {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 50%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 16px 36px -30px rgba(0, 0, 0, 0.7);
+  transition: border-color 0.25s;
+}
+
+.opx-mtg-sheet .opx-psec:hover {
+  border-color: var(--opx-line-2);
+}
+
+.opx-mtg-sheet .opx-facts__ic {
+  border: 1px solid color-mix(in srgb, var(--opx-ice) 26%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 22%, transparent), color-mix(in srgb, var(--opx-ice) 6%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 18px -12px color-mix(in srgb, var(--opx-ice) 80%, transparent);
+}
+
+.opx-mtg-sheet .opx-psec h3 b {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--opx-ice) 30%, transparent), color-mix(in srgb, var(--opx-ice) 10%, transparent));
+  color: var(--opx-ink);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-mtg-sheet .opx-pscroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.opx-mtg-sheet .opx-pscroll::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background: var(--opx-line-2);
+}
+
+.opx-mtg-sheet .opx-mtg-dl > div,
+.opx-mtg-sheet .opx-mtg-ppl li {
+  margin-inline: -8px;
+  padding-inline: 8px;
+  border-radius: 10px;
+  transition: background 0.2s;
+}
+
+.opx-mtg-sheet .opx-mtg-dl > div:hover,
+.opx-mtg-sheet .opx-mtg-ppl li:hover {
+  background: var(--opx-glass-2);
+}
+
+.opx-mtg-sheet .opx-mtg-dl > div:hover + div,
+.opx-mtg-sheet .opx-mtg-ppl li:hover + li {
+  border-top-color: transparent;
+}
+
+.opx-mtg-sheet .opx-pbtn--call {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 10px 24px -14px rgba(60, 220, 200, 0.9);
+}
+
+/* ── Light theme ───────────────────────────────────────────────────── */
+html[data-opx-theme="light"] .opx-mtg-tabs {
+  background:
+    linear-gradient(180deg, #fff, transparent 70%),
+    var(--opx-glass);
+  box-shadow: inset 0 1px 0 #fff, 0 12px 28px -22px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-mtg-tabs button.is-on {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 14px 30px -16px rgba(31, 95, 196, 0.7);
+}
+
+html[data-opx-theme="light"] .opx-mtg-tabs button:hover:not(.is-on) b {
+  background: rgba(42, 99, 201, 0.14);
+}
+
+html[data-opx-theme="light"] .opx-mtg-cta,
+html[data-opx-theme="light"] .opx-mtg-go,
+html[data-opx-theme="light"] .opx-mtg-join,
+html[data-opx-theme="light"] .opx-mtg-join.is-live {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 14px 30px -16px rgba(31, 95, 196, 0.7);
+}
+
+html[data-opx-theme="light"] .opx-mtg-cta:hover,
+html[data-opx-theme="light"] .opx-mtg-go:hover:not(:disabled),
+html[data-opx-theme="light"] .opx-mtg-join:hover:not(:disabled) {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 18px 34px -16px rgba(31, 95, 196, 0.85);
+}
+
+html[data-opx-theme="light"] .opx-mtg-join:disabled {
+  background: linear-gradient(180deg, #fff, rgba(255, 255, 255, 0.7));
+  box-shadow: inset 0 1px 0 #fff, 0 8px 18px -16px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-mtg-livebar {
+  background: linear-gradient(135deg, rgba(14, 139, 128, 0.16), rgba(14, 139, 128, 0.04));
+  box-shadow: inset 0 1px 0 #fff, 0 10px 22px -14px rgba(14, 139, 128, 0.55);
+}
+
+html[data-opx-theme="light"] .opx-mtg-livebar b {
+  background: linear-gradient(135deg, #0e8b80, #14a396);
+  color: #fff;
+  box-shadow: 0 4px 10px -6px rgba(14, 139, 128, 0.8);
+}
+
+html[data-opx-theme="light"] .opx-mtg-panel,
+html[data-opx-theme="light"] .opx-mtg-box {
+  background:
+    radial-gradient(120% 60% at 0% 0%, rgba(42, 99, 201, 0.06), transparent 60%),
+    var(--opx-card);
+}
+
+html[data-opx-theme="light"] .opx-mtg-quick {
+  background:
+    radial-gradient(120% 70% at 0% 0%, rgba(14, 139, 128, 0.07), transparent 60%),
+    var(--opx-card);
+}
+
+html[data-opx-theme="light"] .opx-mtg-box__ic,
+html[data-opx-theme="light"] .opx-mtg-row__ic,
+html[data-opx-theme="light"] .opx-mtg-state__ic,
+html[data-opx-theme="light"] .opx-mtg-sheet .opx-phead__ic,
+html[data-opx-theme="light"] .opx-mtg-sheet .opx-facts__ic {
+  border-color: rgba(42, 99, 201, 0.22);
+  background: linear-gradient(145deg, rgba(42, 99, 201, 0.16), rgba(42, 99, 201, 0.04));
+  box-shadow: inset 0 1px 0 #fff, 0 10px 22px -14px rgba(42, 99, 201, 0.5);
+}
+
+html[data-opx-theme="light"] .opx-mtg-box__ic--bolt,
+html[data-opx-theme="light"] .opx-mtg-row__ic.is-live {
+  border-color: rgba(14, 139, 128, 0.3);
+  background: linear-gradient(145deg, rgba(14, 139, 128, 0.18), rgba(14, 139, 128, 0.04));
+  box-shadow: inset 0 1px 0 #fff, 0 10px 22px -14px rgba(14, 139, 128, 0.55);
+}
+
+html[data-opx-theme="light"] .opx-mtg-state.is-bad .opx-mtg-state__ic {
+  border-color: rgba(191, 47, 74, 0.26);
+  background: linear-gradient(145deg, rgba(191, 47, 74, 0.14), rgba(191, 47, 74, 0.04));
+  box-shadow: inset 0 1px 0 #fff, 0 10px 22px -14px rgba(191, 47, 74, 0.45);
+}
+
+html[data-opx-theme="light"] .opx-mtg-count {
+  border-color: transparent;
+  background: linear-gradient(135deg, #2a63c9, #3b7be0);
+  color: #fff;
+  box-shadow: 0 6px 14px -8px rgba(42, 99, 201, 0.75);
+}
+
+html[data-opx-theme="light"] .opx-mtg-sheet .opx-psec h3 b {
+  background: linear-gradient(135deg, #2a63c9, #3b7be0);
+  color: #fff;
+  box-shadow: 0 4px 10px -6px rgba(42, 99, 201, 0.75);
+}
+
+html[data-opx-theme="light"] .opx-mtg-sum > span,
+html[data-opx-theme="light"] .opx-mtg-chip,
+html[data-opx-theme="light"] .opx-mtg-done,
+html[data-opx-theme="light"] .opx-mtg-chips li,
+html[data-opx-theme="light"] .opx-mtg-icon {
+  background-color: #fff;
+  box-shadow: inset 0 1px 0 #fff, 0 6px 14px -12px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-mtg-chip--soft {
+  background: linear-gradient(135deg, rgba(42, 99, 201, 0.14), rgba(42, 99, 201, 0.05));
+}
+
+html[data-opx-theme="light"] .opx-mtg-icon:hover:not(:disabled) {
+  box-shadow: inset 0 1px 0 #fff, 0 10px 20px -12px rgba(42, 99, 201, 0.45);
+}
+
+html[data-opx-theme="light"] .opx-mtg-av {
+  background: linear-gradient(145deg, rgba(42, 99, 201, 0.16), rgba(42, 99, 201, 0.05));
+  box-shadow: inset 0 1px 0 #fff, 0 6px 14px -10px rgba(42, 99, 201, 0.45);
+}
+
+html[data-opx-theme="light"] .opx-mtg-tl::before {
+  box-shadow: 0 0 8px rgba(42, 99, 201, 0.18);
+}
+
+html[data-opx-theme="light"] .opx-mtg-dot {
+  box-shadow: 0 0 0 3px var(--opx-base), 0 0 10px rgba(42, 99, 201, 0.4);
+}
+
+html[data-opx-theme="light"] .opx-mtg-item[data-state="done"] .opx-mtg-dot,
+html[data-opx-theme="light"] .opx-mtg-item[data-state="out"] .opx-mtg-dot {
+  box-shadow: 0 0 0 3px var(--opx-base);
+}
+
+html[data-opx-theme="light"] .opx-mtg-rail {
+  background: linear-gradient(180deg, #fff, rgba(255, 255, 255, 0.7));
+  box-shadow: inset 0 1px 0 #fff, 0 10px 24px -20px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-mtg-item[data-state="next"] .opx-mtg-rail {
+  background: linear-gradient(180deg, rgba(42, 99, 201, 0.08), #fff 80%);
+}
+
+html[data-opx-theme="light"] .opx-mtg-item[data-state="live"] .opx-mtg-rail {
+  background: linear-gradient(160deg, rgba(14, 139, 128, 0.16), rgba(14, 139, 128, 0.04));
+  box-shadow: inset 0 1px 0 #fff, 0 0 0 1px rgba(14, 139, 128, 0.2), 0 12px 26px -16px rgba(14, 139, 128, 0.55);
+}
+
+html[data-opx-theme="light"] .opx-mtg-card,
+html[data-opx-theme="light"] .opx-mtg-row {
+  background: linear-gradient(180deg, #fff, transparent 60%), var(--opx-card-2);
+  box-shadow: inset 0 1px 0 #fff, 0 14px 30px -26px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-mtg-card:hover,
+html[data-opx-theme="light"] button.opx-mtg-row:hover {
+  background: linear-gradient(180deg, rgba(42, 99, 201, 0.05), transparent 60%), #fff;
+  box-shadow: inset 0 1px 0 #fff, 0 18px 36px -22px rgba(30, 70, 140, 0.45);
+}
+
+html[data-opx-theme="light"] .opx-mtg-item[data-state="live"] .opx-mtg-card {
+  background: linear-gradient(120deg, rgba(14, 139, 128, 0.09), transparent 60%), #fff;
+}
+
+html[data-opx-theme="light"] .opx-mtg-state {
+  background:
+    radial-gradient(60% 70% at 50% 0%, rgba(42, 99, 201, 0.06), transparent 70%),
+    rgba(255, 255, 255, 0.5);
+}
+
+html[data-opx-theme="light"] .opx-mtg-state.is-bad {
+  background:
+    radial-gradient(60% 70% at 50% 0%, rgba(191, 47, 74, 0.08), transparent 70%),
+    rgba(191, 47, 74, 0.04);
+}
+
+html[data-opx-theme="light"] .opx-mtg-form .opx-field > input,
+html[data-opx-theme="light"] .opx-mtg-pick__box,
+html[data-opx-theme="light"] .opx-mtg-tel,
+html[data-opx-theme="light"] .opx-mtg-in,
+html[data-opx-theme="light"] .opx-mtg-form .opx-choice__row {
+  box-shadow: inset 0 1px 2px rgba(20, 50, 90, 0.07);
+}
+
+html[data-opx-theme="light"] .opx-mtg-form .opx-field > input:focus,
+html[data-opx-theme="light"] .opx-mtg-pick__box:focus-within,
+html[data-opx-theme="light"] .opx-mtg-tel:focus-within,
+html[data-opx-theme="light"] .opx-mtg-in:focus-within {
+  box-shadow: inset 0 1px 2px rgba(20, 50, 90, 0.07), var(--opx-ring);
+}
+
+html[data-opx-theme="light"] .opx-field.has-error .opx-mtg-pick__box,
+html[data-opx-theme="light"] .opx-field.has-error .opx-mtg-tel {
+  box-shadow: inset 0 1px 2px rgba(20, 50, 90, 0.07), 0 0 0 3px rgba(191, 47, 74, 0.12);
+}
+
+html[data-opx-theme="light"] .opx-mtg-filters .opx-mtg-in--search {
+  background: #fff;
+}
+
+html[data-opx-theme="light"] .opx-mtg-form .opx-choice__opt.is-on:not(.is-danger) {
+  background: linear-gradient(135deg, #0e8b80, #14a396);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 10px 22px -12px rgba(14, 139, 128, 0.7);
+}
+
+html[data-opx-theme="light"] .opx-mtg-form__foot .opx-pbtn--main,
+html[data-opx-theme="light"] .opx-mtg-sheet .opx-pbtn--call {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 12px 24px -14px rgba(14, 139, 128, 0.7);
+}
+
+html[data-opx-theme="light"] .opx-mtg-pick__menu {
+  background: linear-gradient(180deg, #fff, rgba(255, 255, 255, 0.96));
+}
+
+html[data-opx-theme="light"] .opx-mtg-pick__menu li:hover:not(.is-cur) {
+  background: rgba(42, 99, 201, 0.05);
+}
+
+html[data-opx-theme="light"] .opx-mtg-pick__menu li.is-cur {
+  background: linear-gradient(135deg, rgba(42, 99, 201, 0.12), rgba(42, 99, 201, 0.04));
+  box-shadow: inset 0 0 0 1px rgba(42, 99, 201, 0.18);
+}
+
+html[data-opx-theme="light"] .opx-mtg .opx-pill,
+html[data-opx-theme="light"] .opx-mtg-sheet .opx-pill {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--tone) 16%, #fff), color-mix(in srgb, var(--tone) 5%, #fff));
+  box-shadow: inset 0 1px 0 #fff, 0 6px 14px -10px color-mix(in srgb, var(--tone) 70%, transparent);
+}
+
+html[data-opx-theme="light"] .opx-mtg-sheet .opx-facts,
+html[data-opx-theme="light"] .opx-mtg-sheet .opx-psec {
+  background: linear-gradient(180deg, #fff, transparent 60%), var(--opx-card-2);
+  box-shadow: inset 0 1px 0 #fff, 0 14px 30px -26px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-mtg-sheet .opx-phead__tag {
+  background: linear-gradient(135deg, rgba(42, 99, 201, 0.14), rgba(42, 99, 201, 0.04));
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+html[data-opx-theme="light"] .opx-mtg-sheet .opx-mtg-dl > div:hover,
+html[data-opx-theme="light"] .opx-mtg-sheet .opx-mtg-ppl li:hover {
+  background: rgba(42, 99, 201, 0.05);
+}
+
+/* ── Motion ────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .opx-mtg-tabs button,
+  .opx-mtg-tabs b,
+  .opx-mtg-cta,
+  .opx-mtg-livebar,
+  .opx-mtg-livebar .opx-i,
+  .opx-mtg-icon,
+  .opx-mtg-card,
+  .opx-mtg-card::after,
+  .opx-mtg-join,
+  .opx-mtg-go,
+  .opx-mtg-row,
+  .opx-mtg-row__ic,
+  .opx-mtg-row__go,
+  .opx-mtg-chips li,
+  .opx-mtg-chips button,
+  .opx-mtg-pick__menu li,
+  .opx-mtg-form .opx-choice__opt,
+  .opx-mtg-sheet .opx-psec,
+  .opx-mtg-sheet .opx-mtg-dl > div,
+  .opx-mtg-sheet .opx-mtg-ppl li {
+    transition: none;
+  }
+
+  .opx-mtg-tabs button:active,
+  .opx-mtg-cta:hover,
+  .opx-mtg-cta:active,
+  .opx-mtg-livebar:hover,
+  .opx-mtg-livebar:active,
+  .opx-mtg-livebar:hover .opx-i,
+  .opx-mtg-icon:hover:not(:disabled),
+  .opx-mtg-icon:active:not(:disabled),
+  .opx-mtg-card:hover,
+  .opx-mtg-join:hover:not(:disabled),
+  .opx-mtg-join:active:not(:disabled),
+  .opx-mtg-go:hover:not(:disabled),
+  .opx-mtg-go:active:not(:disabled),
+  button.opx-mtg-row:hover,
+  button.opx-mtg-row:active,
+  button.opx-mtg-row:hover .opx-mtg-row__ic,
+  button.opx-mtg-row:hover .opx-mtg-row__go,
+  .opx-mtg-chips button:active,
+  .opx-mtg-form .opx-choice__opt:active {
+    transform: none;
+  }
+}
+
+html[data-opx-motion="off"] .opx-mtg-tabs button,
+html[data-opx-motion="off"] .opx-mtg-tabs b,
+html[data-opx-motion="off"] .opx-mtg-cta,
+html[data-opx-motion="off"] .opx-mtg-livebar,
+html[data-opx-motion="off"] .opx-mtg-livebar .opx-i,
+html[data-opx-motion="off"] .opx-mtg-icon,
+html[data-opx-motion="off"] .opx-mtg-card,
+html[data-opx-motion="off"] .opx-mtg-card::after,
+html[data-opx-motion="off"] .opx-mtg-join,
+html[data-opx-motion="off"] .opx-mtg-go,
+html[data-opx-motion="off"] .opx-mtg-row,
+html[data-opx-motion="off"] .opx-mtg-row__ic,
+html[data-opx-motion="off"] .opx-mtg-row__go,
+html[data-opx-motion="off"] .opx-mtg-chips li,
+html[data-opx-motion="off"] .opx-mtg-chips button,
+html[data-opx-motion="off"] .opx-mtg-pick__menu li,
+html[data-opx-motion="off"] .opx-mtg-form .opx-choice__opt,
+html[data-opx-motion="off"] .opx-mtg-sheet .opx-psec,
+html[data-opx-motion="off"] .opx-mtg-sheet .opx-mtg-dl > div,
+html[data-opx-motion="off"] .opx-mtg-sheet .opx-mtg-ppl li {
+  transition: none;
+}
+
+html[data-opx-motion="off"] .opx-mtg-tabs button:active,
+html[data-opx-motion="off"] .opx-mtg-cta:hover,
+html[data-opx-motion="off"] .opx-mtg-cta:active,
+html[data-opx-motion="off"] .opx-mtg-livebar:hover,
+html[data-opx-motion="off"] .opx-mtg-livebar:active,
+html[data-opx-motion="off"] .opx-mtg-livebar:hover .opx-i,
+html[data-opx-motion="off"] .opx-mtg-icon:hover:not(:disabled),
+html[data-opx-motion="off"] .opx-mtg-icon:active:not(:disabled),
+html[data-opx-motion="off"] .opx-mtg-card:hover,
+html[data-opx-motion="off"] .opx-mtg-join:hover:not(:disabled),
+html[data-opx-motion="off"] .opx-mtg-join:active:not(:disabled),
+html[data-opx-motion="off"] .opx-mtg-go:hover:not(:disabled),
+html[data-opx-motion="off"] .opx-mtg-go:active:not(:disabled),
+html[data-opx-motion="off"] button.opx-mtg-row:hover,
+html[data-opx-motion="off"] button.opx-mtg-row:active,
+html[data-opx-motion="off"] button.opx-mtg-row:hover .opx-mtg-row__ic,
+html[data-opx-motion="off"] button.opx-mtg-row:hover .opx-mtg-row__go,
+html[data-opx-motion="off"] .opx-mtg-chips button:active,
+html[data-opx-motion="off"] .opx-mtg-form .opx-choice__opt:active {
+  transform: none;
+}

@@ -16300,7 +16300,8 @@
         "scheduled": "Scheduled",
         "ended": "Ended",
         "cancelled": "Cancelled",
-        "expired": "Expired"
+        "expired": "Expired",
+        "missed": "Missed"
       },
       "ccStart": "Video meeting",
       "ccStartWith": "Video meeting with {name}",

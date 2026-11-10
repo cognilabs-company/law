@@ -1235,3 +1235,604 @@
     white-space: normal;
   }
 }
+
+/* ───────────────────────────────────────────────────────────────────────
+   «Qo'ng'iroqlar», «Mening natijam», «Shablonlar» and «SMS» polish: the
+   same blocks in the same places and sizes, a richer surface. Layered
+   cards with a soft top highlight, gradient icon tiles with a gentle
+   glow, gradient count badges and pills with depth, clearer hover/focus/
+   active/selected states and empty states with a glowing tile. Scoped to
+   the section root (.opx-cm). Light theme and motion settings below.
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* Top bar, segmented switches, icon buttons, search. */
+.opx-cm .opx-cm-bar {
+  background:
+    radial-gradient(120% 160% at 0% 0%, rgba(127, 178, 255, 0.08), transparent 55%),
+    radial-gradient(90% 160% at 100% 100%, rgba(94, 230, 208, 0.05), transparent 60%),
+    var(--opx-glass);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 16px 40px -30px rgba(0, 0, 0, 0.75);
+}
+
+.opx-cm .opx-cm-seg {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.opx-cm .opx-cm-seg button {
+  transition: background 0.2s, color 0.2s, box-shadow 0.3s, transform 0.3s var(--opx-spring);
+}
+
+.opx-cm .opx-cm-seg button:not(.is-on):hover {
+  background: var(--opx-glass-3);
+}
+
+.opx-cm .opx-cm-seg button:active {
+  transform: scale(0.97);
+}
+
+.opx-cm .opx-cm-seg button.is-on {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 70%),
+    linear-gradient(135deg, color-mix(in srgb, var(--opx-ice) 26%, transparent), color-mix(in srgb, var(--opx-aqua) 10%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), inset 0 0 0 1px color-mix(in srgb, var(--opx-ice) 45%, transparent);
+}
+
+.opx-cm .opx-cm-icon {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent), var(--opx-glass-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  transition: color 0.2s, background 0.2s, border-color 0.2s, box-shadow 0.3s, transform 0.3s var(--opx-spring);
+}
+
+.opx-cm .opx-cm-icon:hover {
+  border-color: color-mix(in srgb, var(--opx-aqua) 40%, transparent);
+  color: var(--opx-aqua);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -12px color-mix(in srgb, var(--opx-aqua) 70%, transparent);
+}
+
+.opx-cm .opx-cm-icon:active {
+  transform: scale(0.94);
+}
+
+.opx-cm .opx-cm-search {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.opx-cm .opx-cm-search:focus-within {
+  box-shadow: var(--opx-ring);
+}
+
+.opx-cm .opx-cm-tel__ic {
+  border: 1px solid var(--opx-line);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.06), transparent), var(--opx-glass-3);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-cm .opx-cm-tel[data-on] .opx-cm-tel__ic {
+  border-color: color-mix(in srgb, var(--opx-aqua) 30%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-aqua) 24%, transparent), color-mix(in srgb, var(--opx-aqua) 6%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 16px -10px color-mix(in srgb, var(--opx-aqua) 80%, transparent);
+}
+
+/* Pills: a soft gradient with a top highlight. */
+.opx-cm .opx-pill {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tone) 20%, transparent), color-mix(in srgb, var(--tone) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 4px 12px -8px color-mix(in srgb, var(--tone) 80%, transparent);
+}
+
+/* KPI tiles. */
+.opx-cm .opx-cm-kpi {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%),
+    var(--opx-card);
+  transition: border-color 0.25s, box-shadow 0.3s;
+}
+
+.opx-cm .opx-cm-kpi[data-tone="ok"],
+.opx-cm .opx-cm-kpi[data-tone="warn"],
+.opx-cm .opx-cm-kpi[data-tone="hot"] {
+  background:
+    radial-gradient(90% 120% at 0% 0%, color-mix(in srgb, var(--tone) 16%, transparent), transparent 65%),
+    var(--opx-card);
+}
+
+.opx-cm .opx-cm-kpi:hover {
+  border-color: color-mix(in srgb, var(--tone) 40%, transparent);
+}
+
+.opx-cm .opx-cm-kpi__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--tone) 26%, transparent), color-mix(in srgb, var(--tone) 6%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 22px -12px color-mix(in srgb, var(--tone) 85%, transparent);
+}
+
+/* Cards, their heads, count badges, the live dot. */
+.opx-cm .opx-cm-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 120px),
+    var(--opx-card);
+}
+
+.opx-cm .opx-cm-card__ic,
+.opx-cm-tpl .opx-cm-card__ic {
+  border: 1px solid color-mix(in srgb, var(--opx-ice) 26%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 24%, transparent), color-mix(in srgb, var(--opx-aqua) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 18px -10px color-mix(in srgb, var(--opx-ice) 80%, transparent);
+}
+
+.opx-cm .opx-cm-count {
+  border: 1px solid color-mix(in srgb, var(--opx-ice) 28%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--opx-ice) 22%, transparent), color-mix(in srgb, var(--opx-ice) 8%, transparent));
+  color: var(--opx-ink);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 4px 12px -8px color-mix(in srgb, var(--opx-ice) 80%, transparent);
+}
+
+.opx-cm .opx-cm-livedot {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--opx-ink-3) 18%, transparent);
+}
+
+.opx-cm .opx-cm-livedot[data-on] {
+  background: radial-gradient(circle at 35% 35%, color-mix(in srgb, var(--opx-aqua) 70%, #fff), var(--opx-aqua) 70%);
+}
+
+/* List rows (live calls, recent, SMS links) and due rows. */
+.opx-cm .opx-cm-row,
+.opx-cm .opx-cm-due li {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%),
+    var(--opx-glass-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 22px -18px rgba(0, 0, 0, 0.7);
+  transition: border-color 0.25s, background 0.25s, box-shadow 0.3s, transform 0.35s var(--opx-spring);
+}
+
+.opx-cm .opx-cm-row:hover {
+  border-color: color-mix(in srgb, var(--opx-ice) 42%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--opx-ice) 7%, transparent), transparent 70%),
+    var(--opx-glass-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 14px 28px -18px color-mix(in srgb, var(--opx-ice) 60%, transparent);
+  transform: translateY(-1px);
+}
+
+.opx-cm .opx-cm-row:active {
+  transform: translateY(0) scale(0.995);
+}
+
+.opx-cm .opx-cm-row:focus-visible {
+  box-shadow: inset 0 1px 0 var(--opx-hi), var(--opx-ring);
+}
+
+.opx-cm .opx-cm-due li:hover {
+  border-color: var(--opx-line-2);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 70%),
+    var(--opx-glass-2);
+}
+
+.opx-cm .opx-cm-due li:has([data-tone="hot"]) {
+  border-color: color-mix(in srgb, var(--opx-hot) 30%, var(--opx-line));
+}
+
+.opx-cm .opx-cm-row__ic {
+  border: 1px solid color-mix(in srgb, var(--tone) 26%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--tone) 24%, transparent), color-mix(in srgb, var(--tone) 6%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 16px -10px color-mix(in srgb, var(--tone) 80%, transparent);
+}
+
+.opx-cm .opx-cm-dial {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--opx-aqua) 20%, transparent), color-mix(in srgb, var(--opx-aqua) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.3s, transform 0.3s var(--opx-spring);
+}
+
+.opx-cm .opx-cm-dial:hover {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--opx-aqua) 30%, transparent), color-mix(in srgb, var(--opx-aqua) 12%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 18px -10px color-mix(in srgb, var(--opx-aqua) 85%, transparent);
+}
+
+.opx-cm .opx-cm-dial:active {
+  transform: scale(0.97);
+}
+
+.opx-cm .opx-cm-dial:focus-visible {
+  box-shadow: var(--opx-ring);
+}
+
+.opx-cm .opx-cm-dial.is-none {
+  background: none;
+  box-shadow: none;
+}
+
+.opx-cm .opx-cm-log li {
+  transition: background 0.2s;
+}
+
+/* Empty and failed states: a glowing icon tile, one calm line. */
+.opx-cm .opx-cm-empty {
+  border-radius: 18px;
+  background: radial-gradient(60% 80% at 50% 0%, color-mix(in srgb, var(--opx-ice) 7%, transparent), transparent 70%);
+}
+
+.opx-cm .opx-cm-empty__ic {
+  border: 1px solid color-mix(in srgb, var(--opx-ice) 28%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 26%, transparent), color-mix(in srgb, var(--opx-aqua) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 14px 30px -14px color-mix(in srgb, var(--opx-ice) 85%, transparent);
+}
+
+.opx-cm .opx-cm-fail .opx-cm-empty__ic {
+  border-color: color-mix(in srgb, var(--opx-hot) 30%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-hot) 24%, transparent), color-mix(in srgb, var(--opx-hot) 6%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 14px 30px -14px color-mix(in srgb, var(--opx-hot) 80%, transparent);
+}
+
+.opx-cm .opx-cm-fail {
+  background: radial-gradient(60% 80% at 50% 0%, color-mix(in srgb, var(--opx-hot) 7%, transparent), transparent 70%);
+}
+
+/* «Mening natijam». */
+.opx-cm .opx-cm-hero__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 26%, transparent), color-mix(in srgb, var(--opx-aqua) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 12px 26px -12px color-mix(in srgb, var(--opx-ice) 85%, transparent);
+}
+
+.opx-cm .opx-cm-hero h3 {
+  background: linear-gradient(180deg, var(--opx-ink) 35%, color-mix(in srgb, var(--opx-ink) 70%, var(--opx-ice)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.opx-cm .opx-cm-stack {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.opx-cm .opx-cm-stack > span {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 55%),
+    color-mix(in srgb, var(--c) 58%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 75%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.opx-cm .opx-cm-stack b {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.opx-cm .opx-cm-legend i {
+  box-shadow: 0 0 8px color-mix(in srgb, var(--c) 70%, transparent);
+}
+
+.opx-cm .opx-cm-legend a:hover {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--c) 10%, transparent), transparent 80%),
+    var(--opx-glass-3);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-cm .opx-cm-stats > div,
+.opx-cm .opx-cm-meter {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%),
+    var(--opx-glass-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-cm .opx-cm-stats > div[data-tone] {
+  background:
+    radial-gradient(100% 120% at 0% 0%, color-mix(in srgb, var(--tone) 10%, transparent), transparent 70%),
+    var(--opx-glass-2);
+}
+
+.opx-cm .opx-cm-meter > i {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.opx-cm .opx-cm-meter > i > span {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.25), transparent 60%),
+    linear-gradient(90deg, var(--opx-teal), var(--opx-aqua));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--opx-aqua) 60%, transparent);
+}
+
+/* «Shablonlar». */
+.opx-cm .opx-cm-tpl {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 100px),
+    var(--opx-card);
+  transition: border-color 0.25s, box-shadow 0.3s, transform 0.35s var(--opx-spring);
+}
+
+.opx-cm .opx-cm-tpl:hover {
+  border-color: color-mix(in srgb, var(--opx-ice) 42%, transparent);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 26px 50px -30px color-mix(in srgb, var(--opx-ice) 55%, transparent);
+}
+
+.opx-cm-full {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 80px),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+/* «SMS». */
+.opx-cm .opx-cm-sms {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%),
+    var(--opx-glass-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 12px 26px -20px rgba(0, 0, 0, 0.7);
+  transition: border-color 0.25s, box-shadow 0.3s;
+}
+
+.opx-cm .opx-cm-sms:hover {
+  border-color: var(--opx-line-2);
+}
+
+.opx-cm .opx-cm-sms[data-s="draft"],
+.opx-cm .opx-cm-sms[data-s="scheduled"] {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--opx-ice) 70%, transparent), inset 0 1px 0 var(--opx-hi), 0 12px 26px -20px rgba(0, 0, 0, 0.7);
+}
+
+.opx-cm .opx-cm-sms[data-s="provider_configuration_required"],
+.opx-cm .opx-cm-sms[data-s="failed"] {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--opx-hot) 6%, transparent), transparent 60%),
+    var(--opx-glass-2);
+}
+
+/* Light theme: white highlights, bluish soft shadows, tinted badges. */
+html[data-opx-theme="light"] .opx-cm .opx-cm-bar {
+  background:
+    radial-gradient(120% 160% at 0% 0%, rgba(42, 99, 201, 0.06), transparent 55%),
+    radial-gradient(90% 160% at 100% 100%, rgba(14, 139, 128, 0.05), transparent 60%),
+    var(--opx-glass);
+  box-shadow: inset 0 1px 0 #fff, 0 14px 32px -24px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-seg,
+html[data-opx-theme="light"] .opx-cm .opx-cm-search,
+html[data-opx-theme="light"] .opx-cm .opx-cm-stack,
+html[data-opx-theme="light"] .opx-cm .opx-cm-meter > i {
+  box-shadow: inset 0 1px 2px rgba(20, 50, 90, 0.07);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-search:focus-within {
+  box-shadow: var(--opx-ring);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-seg button.is-on {
+  background: linear-gradient(135deg, rgba(42, 99, 201, 0.14), rgba(14, 139, 128, 0.05));
+  box-shadow: inset 0 1px 0 #fff, inset 0 0 0 1px rgba(42, 99, 201, 0.38);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-icon {
+  background: var(--opx-glass-3);
+  box-shadow: inset 0 1px 0 #fff, 0 4px 10px -8px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-icon:hover {
+  box-shadow: inset 0 1px 0 #fff, 0 8px 18px -12px rgba(14, 139, 128, 0.55);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-tel__ic {
+  background: rgba(20, 50, 90, 0.06);
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-tel[data-on] .opx-cm-tel__ic {
+  background: linear-gradient(145deg, rgba(14, 139, 128, 0.16), rgba(14, 139, 128, 0.05));
+  box-shadow: inset 0 1px 0 #fff, 0 6px 14px -10px rgba(14, 139, 128, 0.5);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-pill {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tone) 14%, #fff), color-mix(in srgb, var(--tone) 7%, #fff));
+  box-shadow: inset 0 1px 0 #fff, 0 3px 8px -6px color-mix(in srgb, var(--tone) 60%, transparent);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-kpi {
+  background: var(--opx-card);
+  box-shadow: inset 0 1px 0 #fff, 0 18px 40px -28px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-kpi[data-tone="ok"],
+html[data-opx-theme="light"] .opx-cm .opx-cm-kpi[data-tone="warn"],
+html[data-opx-theme="light"] .opx-cm .opx-cm-kpi[data-tone="hot"] {
+  background:
+    radial-gradient(90% 120% at 0% 0%, color-mix(in srgb, var(--tone) 10%, transparent), transparent 65%),
+    var(--opx-card);
+  box-shadow: inset 0 1px 0 #fff, 0 22px 44px -30px color-mix(in srgb, var(--tone) 55%, transparent);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-kpi__ic,
+html[data-opx-theme="light"] .opx-cm .opx-cm-row__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--tone) 16%, #fff), color-mix(in srgb, var(--tone) 5%, #fff));
+  box-shadow: inset 0 1px 0 #fff, 0 8px 18px -12px color-mix(in srgb, var(--tone) 55%, transparent);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-card {
+  background: var(--opx-card);
+  box-shadow: inset 0 1px 0 #fff, 0 20px 44px -30px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-card__ic,
+html[data-opx-theme="light"] .opx-cm-tpl .opx-cm-card__ic,
+html[data-opx-theme="light"] .opx-cm .opx-cm-hero__ic,
+html[data-opx-theme="light"] .opx-cm .opx-cm-empty__ic {
+  background: linear-gradient(145deg, rgba(42, 99, 201, 0.15), rgba(42, 99, 201, 0.04));
+  box-shadow: inset 0 1px 0 #fff, 0 10px 22px -14px rgba(42, 99, 201, 0.5);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-fail .opx-cm-empty__ic {
+  background: linear-gradient(145deg, rgba(191, 47, 74, 0.14), rgba(191, 47, 74, 0.04));
+  box-shadow: inset 0 1px 0 #fff, 0 10px 22px -14px rgba(191, 47, 74, 0.5);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-count {
+  border-color: rgba(42, 99, 201, 0.2);
+  background: linear-gradient(180deg, rgba(42, 99, 201, 0.14), rgba(42, 99, 201, 0.05));
+  color: #1f4f9e;
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-livedot[data-on] {
+  background: #0e8b80;
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-row,
+html[data-opx-theme="light"] .opx-cm .opx-cm-due li,
+html[data-opx-theme="light"] .opx-cm .opx-cm-sms {
+  background: var(--opx-glass-3);
+  box-shadow: inset 0 1px 0 #fff, 0 10px 22px -18px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-row:hover {
+  background:
+    linear-gradient(180deg, rgba(42, 99, 201, 0.05), transparent 70%),
+    #fff;
+  box-shadow: inset 0 1px 0 #fff, 0 14px 28px -18px rgba(42, 99, 201, 0.45);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-row:focus-visible,
+html[data-opx-theme="light"] .opx-cm .opx-cm-dial:focus-visible,
+html[data-opx-theme="light"] .opx-cm .opx-cm-seg button:focus-visible,
+html[data-opx-theme="light"] .opx-cm .opx-cm-icon:focus-visible,
+html[data-opx-theme="light"] .opx-cm .opx-cm-legend a:focus-visible {
+  box-shadow: var(--opx-ring);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-due li:hover {
+  background: #fff;
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-sms[data-s="draft"],
+html[data-opx-theme="light"] .opx-cm .opx-cm-sms[data-s="scheduled"] {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--opx-ice) 70%, transparent), inset 0 1px 0 #fff, 0 10px 22px -18px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-sms[data-s="provider_configuration_required"],
+html[data-opx-theme="light"] .opx-cm .opx-cm-sms[data-s="failed"] {
+  background: color-mix(in srgb, var(--opx-hot) 4%, #fff);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-dial {
+  background: linear-gradient(180deg, rgba(14, 139, 128, 0.12), rgba(14, 139, 128, 0.05));
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-dial:hover {
+  border-color: #0e8b80;
+  background: linear-gradient(135deg, #0e8b80, #12a497);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 8px 18px -10px rgba(14, 139, 128, 0.7);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-dial:hover .opx-i {
+  color: #fff;
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-dial.is-none {
+  background: none;
+  box-shadow: none;
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-stack > span {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 55%),
+    color-mix(in srgb, var(--c) 58%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 75%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-stack b {
+  text-shadow: none;
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-legend a:hover {
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-stats > div,
+html[data-opx-theme="light"] .opx-cm .opx-cm-meter {
+  background: var(--opx-glass-3);
+  box-shadow: inset 0 1px 0 #fff, 0 8px 18px -14px rgba(30, 70, 140, 0.3);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-stats > div[data-tone] {
+  background:
+    radial-gradient(100% 120% at 0% 0%, color-mix(in srgb, var(--tone) 8%, transparent), transparent 70%),
+    var(--opx-glass-3);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-meter > i > span {
+  background: linear-gradient(90deg, #0e8077, #12a497);
+  box-shadow: none;
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-tpl {
+  background: var(--opx-card);
+}
+
+html[data-opx-theme="light"] .opx-cm .opx-cm-tpl:hover {
+  box-shadow: inset 0 1px 0 #fff, 0 24px 46px -28px rgba(42, 99, 201, 0.4);
+}
+
+html[data-opx-theme="light"] .opx-cm-full {
+  background: var(--opx-card-2);
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+/* Motion: no lifts or presses when the user asks for calm. */
+@media (prefers-reduced-motion: reduce) {
+  .opx-cm .opx-cm-seg button,
+  .opx-cm .opx-cm-icon,
+  .opx-cm .opx-cm-kpi,
+  .opx-cm .opx-cm-row,
+  .opx-cm .opx-cm-due li,
+  .opx-cm .opx-cm-dial,
+  .opx-cm .opx-cm-log li,
+  .opx-cm .opx-cm-tpl,
+  .opx-cm .opx-cm-sms {
+    transition: none;
+  }
+
+  .opx-cm .opx-cm-seg button:active,
+  .opx-cm .opx-cm-icon:active,
+  .opx-cm .opx-cm-row:hover,
+  .opx-cm .opx-cm-row:active,
+  .opx-cm .opx-cm-dial:active,
+  .opx-cm .opx-cm-tpl:hover {
+    transform: none;
+  }
+
+  .opx-cm .opx-cm-icon:hover .opx-i {
+    animation: none;
+  }
+}
+
+html[data-opx-motion="off"] .opx-cm .opx-cm-seg button,
+html[data-opx-motion="off"] .opx-cm .opx-cm-icon,
+html[data-opx-motion="off"] .opx-cm .opx-cm-kpi,
+html[data-opx-motion="off"] .opx-cm .opx-cm-row,
+html[data-opx-motion="off"] .opx-cm .opx-cm-due li,
+html[data-opx-motion="off"] .opx-cm .opx-cm-dial,
+html[data-opx-motion="off"] .opx-cm .opx-cm-log li,
+html[data-opx-motion="off"] .opx-cm .opx-cm-tpl,
+html[data-opx-motion="off"] .opx-cm .opx-cm-sms {
+  transition: none;
+}
+
+html[data-opx-motion="off"] .opx-cm .opx-cm-seg button:active,
+html[data-opx-motion="off"] .opx-cm .opx-cm-icon:active,
+html[data-opx-motion="off"] .opx-cm .opx-cm-row:hover,
+html[data-opx-motion="off"] .opx-cm .opx-cm-row:active,
+html[data-opx-motion="off"] .opx-cm .opx-cm-dial:active,
+html[data-opx-motion="off"] .opx-cm .opx-cm-tpl:hover {
+  transform: none;
+}
+
+html[data-opx-motion="off"] .opx-cm .opx-cm-icon:hover .opx-i {
+  animation: none;
+}
+
+/* Focus rings always win over the layered shadows above. */
+.opx-cm .opx-cm-seg button:focus-visible,
+.opx-cm .opx-cm-icon:focus-visible,
+.opx-cm .opx-cm-legend a:focus-visible {
+  outline: none;
+  box-shadow: var(--opx-ring);
+}

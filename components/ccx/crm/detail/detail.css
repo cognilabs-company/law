@@ -3767,3 +3767,967 @@ html[data-opx] .opx-cd-comp__side .crm-dt {
   background: color-mix(in srgb, var(--opx-aqua) 18%, transparent);
 }
 /* ── end audit group C ── */
+
+/* ───────────────────────────────────────────────────────────────────────
+   Lead / customer detail polish (2026-11-10): the same blocks in the same
+   places and sizes, a richer surface. Layered cards with a top light,
+   gradient icon tiles with a gentle glow, pills and counts with depth,
+   clear hover / focus / pressed / selected states, layered list rows
+   (timeline, calls, SMS, AI, orders, sheets), thin scrollbars and softer
+   empty states. Only backgrounds, borders, shadows and colours change —
+   no sizes, paddings or grids. Large cards never get a transform (they
+   hold popovers and the sticky "do this now" bar). Light theme matched
+   below; motion respects reduced motion and data-opx-motion="off".
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* Cards: layered surface with a top light and a soft depth shadow. */
+.opx-cd-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 42%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 22px 48px -34px rgba(0, 0, 0, 0.75);
+  transition: border-color 0.25s, box-shadow 0.3s;
+}
+
+.opx-cd-card:hover {
+  border-color: var(--opx-line-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 24px 54px -32px rgba(41, 120, 255, 0.45);
+}
+
+.opx-cd-card[data-tone="warn"] {
+  background:
+    radial-gradient(110% 80% at 0% 0%, color-mix(in srgb, var(--opx-warn) 13%, transparent), transparent 62%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 42%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 22px 48px -32px color-mix(in srgb, var(--opx-warn) 55%, transparent);
+}
+
+.opx-cd-card[data-tone="warn"]:hover {
+  border-color: color-mix(in srgb, var(--opx-warn) 58%, transparent);
+}
+
+.opx-cd-card.opx-cd-live {
+  background:
+    radial-gradient(110% 70% at 0% 0%, color-mix(in srgb, var(--opx-aqua) 10%, transparent), transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 42%),
+    var(--opx-card-2);
+}
+
+/* Header icon tiles: gradient with a gentle glow. */
+.opx-cd-card__ic,
+.opx-cd-empty__ic,
+.opx-cd-cycles__ic,
+.opx-cd-orders__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 26%, transparent), color-mix(in srgb, var(--opx-ice) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), inset 0 0 0 1px color-mix(in srgb, var(--opx-ice) 22%, transparent), 0 8px 20px -12px color-mix(in srgb, var(--opx-ice) 85%, transparent);
+}
+
+.opx-cd-card[data-tone="warn"] .opx-cd-card__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-warn) 28%, transparent), color-mix(in srgb, var(--opx-warn) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), inset 0 0 0 1px color-mix(in srgb, var(--opx-warn) 26%, transparent), 0 8px 20px -12px color-mix(in srgb, var(--opx-warn) 85%, transparent);
+}
+
+.opx-cd-shead__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 26%, transparent), color-mix(in srgb, var(--opx-aqua) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 24px -14px color-mix(in srgb, var(--opx-ice) 85%, transparent);
+}
+
+.opx-cd-card__h h3 {
+  color: var(--opx-ink);
+}
+
+/* Empty states: a soft spotlight behind the icon tile. */
+.opx-cd-empty {
+  background: radial-gradient(70% 60% at 50% 0%, color-mix(in srgb, var(--opx-ice) 7%, transparent), transparent 70%);
+}
+
+/* Pills, counts and the "when" badge: a little depth. */
+.opx-cd-pill {
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 14px -10px color-mix(in srgb, var(--tone) 90%, transparent);
+}
+
+.opx-cd-count {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 22%, transparent), color-mix(in srgb, var(--opx-ice) 8%, transparent));
+  color: var(--opx-ink);
+  box-shadow: inset 0 1px 0 var(--opx-hi), inset 0 0 0 1px color-mix(in srgb, var(--opx-ice) 22%, transparent);
+}
+
+.opx-cd-tab .opx-cd-count {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ink-3) 22%, transparent), color-mix(in srgb, var(--opx-ink-3) 10%, transparent));
+}
+
+.opx-cd-tab.is-on .opx-cd-count {
+  background: linear-gradient(135deg, #18a99d, #23c3b4);
+  color: #032623;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 12px -6px rgba(60, 220, 200, 0.9);
+}
+
+.opx-cd-next__when {
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 18px -12px color-mix(in srgb, var(--tone, var(--opx-aqua)) 90%, transparent);
+}
+
+.opx-cd-tag {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+/* Avatars: a top light and a soft lift. */
+.opx-cd-av {
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 22px -16px color-mix(in srgb, var(--opx-ice) 80%, transparent);
+}
+
+.opx-cd-chead .opx-cd-av--xl {
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 0 0 4px color-mix(in srgb, var(--opx-ice) 7%, transparent), 0 18px 40px -20px color-mix(in srgb, var(--opx-ice) 85%, transparent);
+}
+
+/* Icon buttons, links and the back link. */
+.opx-cd-ibtn:hover {
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 18px -12px color-mix(in srgb, var(--opx-ice) 75%, transparent);
+}
+
+.opx-cd-ibtn[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--opx-aqua) 40%, transparent);
+  background: var(--opx-teal-soft);
+  color: var(--opx-ink);
+}
+
+.opx-cd-link {
+  transition: background 0.2s, color 0.2s;
+}
+
+.opx-cd-back {
+  transition: background 0.2s, box-shadow 0.25s;
+}
+
+.opx-cd-back:hover {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-jr-toggle {
+  border-radius: 8px;
+  transition: color 0.2s;
+}
+
+.opx-jr-toggle:focus-visible,
+.opx-cd-runs button:focus-visible,
+.opx-cd-act__more summary:focus-visible,
+.opx-cd-slash > button:focus-visible,
+.opx-cd-look__list > button:focus-visible,
+.opx-jr-pop__sub > button:focus-visible {
+  outline: none;
+  box-shadow: var(--opx-ring);
+}
+
+/* Pressed feedback on small controls. */
+.opx-cd-chip:active,
+.opx-cd-seg button:active,
+.opx-cd-comp__types button:active,
+.opx-cd-runs button:active,
+.opx-cd-pick:active,
+.opx-cd-tab:active {
+  transform: scale(0.97);
+}
+
+/* ── Lead header: a soft top light, the "do this now" shape with depth ── */
+.opx-cd-head {
+  background:
+    radial-gradient(120% 60% at 50% -20%, rgba(127, 178, 255, 0.08), transparent 60%),
+    var(--opx-glass);
+}
+
+.opx-jr-head__title {
+  letter-spacing: -0.01em;
+}
+
+.opx-jr-do {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--opx-aqua) 34%, transparent), inset 0 1px 0 var(--opx-hi), 0 22px 46px -30px color-mix(in srgb, var(--opx-aqua) 70%, transparent);
+}
+
+.opx-jr-do[data-tone="call"] {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--opx-ice) 40%, transparent), inset 0 1px 0 var(--opx-hi), 0 22px 46px -30px color-mix(in srgb, var(--opx-ice) 75%, transparent);
+}
+
+.opx-jr-do--wait {
+  box-shadow: none;
+}
+
+.opx-jr-do__ic {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 0 0 5px color-mix(in srgb, var(--opx-ice) 10%, transparent), 0 16px 34px -16px color-mix(in srgb, var(--opx-aqua) 90%, transparent);
+}
+
+.opx-jr-do__btn.opx-pbtn {
+  transition: box-shadow 0.3s, filter 0.2s, transform 0.3s var(--opx-spring);
+}
+
+.opx-jr-do__btn.opx-pbtn:hover:not(:disabled) {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 16px 34px -18px color-mix(in srgb, var(--opx-aqua) 95%, transparent);
+}
+
+.opx-jr-do__btn.opx-pbtn:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.opx-jr-do__btn.opx-pbtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--opx-base), 0 0 0 5px color-mix(in srgb, var(--opx-aqua) 70%, transparent);
+}
+
+/* The overflow menu (jr-pop) and every dropdown: layered, thin scrollbar. */
+.opx-cd-pop,
+.opx-cd-look__pop,
+.opx-cd-slash {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 40%),
+    var(--opx-solid);
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--opx-ink-3) 45%, transparent) transparent;
+}
+
+.opx-cd-look__list,
+.opx-cd-comp__text,
+.opx-cd .opx-cd-input {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--opx-ink-3) 45%, transparent) transparent;
+}
+
+.opx-cd-pop > button,
+.opx-jr-pop__sub > button,
+.opx-cd-slash > button,
+.opx-cd-look__list > button {
+  transition: background 0.15s, color 0.15s;
+}
+
+.opx-cd-pop > button .opx-i,
+.opx-cd-look__list > button .opx-i {
+  flex: none;
+}
+
+.opx-cd-look__list > button[data-active],
+.opx-cd-slash > button[aria-selected="true"] {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--opx-ice) 14%, transparent), color-mix(in srgb, var(--opx-ice) 4%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--opx-ice) 22%, transparent);
+}
+
+.opx-jr-pop__sub {
+  border-left-color: color-mix(in srgb, var(--opx-aqua) 30%, var(--opx-line-2));
+}
+
+/* ── Customer box (lead): name + phone ── */
+.opx-jr-who__txt a {
+  transition: color 0.2s;
+}
+
+/* ── Inputs, search, lookups and segmented controls ── */
+.opx-cd-input,
+.opx-cd-search,
+.opx-cd-look__btn {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.opx-cd-input:hover:not(:focus),
+.opx-cd-search:hover:not(:focus-within),
+.opx-cd-look__btn:hover {
+  border-color: color-mix(in srgb, var(--opx-ice) 35%, var(--opx-line-2));
+}
+
+.opx-cd-input:focus,
+.opx-cd-search:focus-within,
+.opx-cd-look[data-open] .opx-cd-look__btn,
+.opx-cd-look__btn:focus-visible {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18), var(--opx-ring);
+}
+
+.opx-cd-seg,
+.opx-cd-comp__types {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.16);
+}
+
+.opx-cd-seg button[aria-pressed="true"] {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 24%, transparent), color-mix(in srgb, var(--opx-ice) 9%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), inset 0 0 0 1px color-mix(in srgb, var(--opx-ice) 45%, transparent), 0 8px 18px -12px color-mix(in srgb, var(--opx-ice) 80%, transparent);
+}
+
+.opx-cd-comp__types button[aria-pressed="true"] {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-aqua) 22%, transparent), color-mix(in srgb, var(--opx-aqua) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 18px -10px color-mix(in srgb, var(--opx-aqua) 75%, transparent);
+}
+
+.opx-cd-chip {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-cd-chip:hover {
+  background: var(--opx-glass-3);
+}
+
+.opx-cd-chip[aria-pressed="true"] {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-aqua) 22%, transparent), color-mix(in srgb, var(--opx-aqua) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 18px -12px color-mix(in srgb, var(--opx-aqua) 80%, transparent);
+}
+
+/* ── Activity: composer, timeline, cycles ── */
+.opx-cd-comp {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 45%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 14px 32px -26px rgba(0, 0, 0, 0.7);
+  transition: border-color 0.25s, box-shadow 0.3s;
+}
+
+.opx-cd-comp:focus-within {
+  border-color: color-mix(in srgb, var(--opx-aqua) 28%, var(--opx-line));
+}
+
+.opx-cd-comp__kind .opx-i {
+  color: var(--opx-ice);
+}
+
+.opx-cd-act__day {
+  letter-spacing: 0.01em;
+}
+
+.opx-cd-act__day::after {
+  background: linear-gradient(90deg, var(--opx-line-2), transparent);
+}
+
+.opx-cd-act::before {
+  background: linear-gradient(180deg, var(--opx-line-2), var(--opx-line));
+}
+
+.opx-cd-act__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 24%, transparent), color-mix(in srgb, var(--opx-ice) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -13px color-mix(in srgb, var(--opx-ice) 85%, transparent);
+}
+
+.opx-cd-act[data-t="call_note"] .opx-cd-act__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-aqua) 24%, transparent), color-mix(in srgb, var(--opx-aqua) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -13px color-mix(in srgb, var(--opx-aqua) 85%, transparent);
+}
+
+.opx-cd-act[data-t="follow_up"] .opx-cd-act__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-warn) 24%, transparent), color-mix(in srgb, var(--opx-warn) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -13px color-mix(in srgb, var(--opx-warn) 85%, transparent);
+}
+
+.opx-cd-act[data-t="system"] .opx-cd-act__ic {
+  background: linear-gradient(145deg, var(--opx-glass-3), var(--opx-glass-2));
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-cd-act__more summary {
+  border-radius: 6px;
+  transition: color 0.2s;
+}
+
+.opx-cd-act__more summary:hover {
+  color: var(--opx-aqua);
+}
+
+/* Layered list rows: cycles, calls, orders, SMS, AI suggestions, blocks. */
+.opx-cd-cycles li,
+.opx-cd-calllog li,
+.opx-cd-orders li,
+.opx-cd-sms,
+.opx-cd-sug,
+.opx-cd-meter,
+.opx-cd-blk,
+.opx-cd-move,
+.opx-cd-cmp__side,
+.opx-cd-diff li,
+.opx-cd-fixedwho,
+.opx-cd-draft {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 45%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 14px 30px -26px rgba(0, 0, 0, 0.7);
+}
+
+.opx-cd-cycles li,
+.opx-cd-calllog li,
+.opx-cd-orders li,
+.opx-cd-sms {
+  transition: border-color 0.2s, box-shadow 0.3s, transform 0.3s var(--opx-spring);
+}
+
+.opx-cd-cycles li:hover,
+.opx-cd-calllog li:hover,
+.opx-cd-orders li:hover,
+.opx-cd-sms:hover {
+  border-color: color-mix(in srgb, var(--opx-ice) 32%, var(--opx-line));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 18px 36px -24px rgba(41, 120, 255, 0.5);
+  transform: translateY(-1px);
+}
+
+.opx-cd-cycles li[data-current] {
+  background:
+    radial-gradient(100% 80% at 0% 0%, color-mix(in srgb, var(--opx-ice) 10%, transparent), transparent 60%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 0 0 1px color-mix(in srgb, var(--opx-ice) 18%, transparent), 0 16px 34px -24px color-mix(in srgb, var(--opx-ice) 75%, transparent);
+}
+
+.opx-cd-calllog__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-aqua) 26%, transparent), color-mix(in srgb, var(--opx-aqua) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -12px color-mix(in srgb, var(--opx-aqua) 85%, transparent);
+}
+
+.opx-cd-calllog li[data-s="no_answer"] .opx-cd-calllog__ic,
+.opx-cd-calllog li[data-s="failed"] .opx-cd-calllog__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-hot) 24%, transparent), color-mix(in srgb, var(--opx-hot) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -12px color-mix(in srgb, var(--opx-hot) 80%, transparent);
+}
+
+.opx-cd-calllog li[data-s="cancelled"] .opx-cd-calllog__ic {
+  background: linear-gradient(145deg, var(--opx-glass-3), var(--opx-glass-2));
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-cd-telline,
+.opx-cd-live__ai,
+.opx-cd-trust,
+.opx-cd-consent,
+.opx-cd-warnbox,
+.opx-cd-fail,
+.opx-cd-ask,
+.opx-cd-order {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-cd-tscript li,
+.opx-cd-assist li,
+.opx-cd-cand {
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 18px -14px rgba(0, 0, 0, 0.6);
+}
+
+.opx-cd-tscript li[data-who="operator"] {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 22%, transparent), color-mix(in srgb, var(--opx-ice) 9%, transparent));
+}
+
+.opx-cd-livedot {
+  background: radial-gradient(circle at 35% 35%, color-mix(in srgb, var(--opx-aqua) 50%, #ffffff), var(--opx-aqua) 60%);
+}
+
+/* AI panel: meters with a gradient fill, the selected suggestion glows. */
+.opx-cd-meter__bar {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.opx-cd-meter__bar i {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--opx-aqua) 55%, var(--opx-ice)), var(--opx-aqua));
+  box-shadow: 0 0 10px -2px color-mix(in srgb, var(--opx-aqua) 70%, transparent);
+}
+
+.opx-cd-meter[data-hot] .opx-cd-meter__bar i {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--opx-warn) 60%, #ffffff), var(--opx-warn));
+  box-shadow: 0 0 10px -2px color-mix(in srgb, var(--opx-warn) 70%, transparent);
+}
+
+.opx-cd-sug {
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.3s;
+}
+
+.opx-cd-sug:hover:not([data-on]) {
+  border-color: color-mix(in srgb, var(--opx-ice) 30%, var(--opx-line));
+}
+
+.opx-cd-sug[data-on] {
+  background:
+    radial-gradient(100% 80% at 0% 0%, color-mix(in srgb, var(--opx-aqua) 13%, transparent), transparent 62%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 0 0 1px color-mix(in srgb, var(--opx-aqua) 22%, transparent), 0 18px 40px -26px color-mix(in srgb, var(--opx-aqua) 80%, transparent);
+}
+
+.opx-cd-sug__chips span {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-cd-runs button {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  transition: border-color 0.2s, background 0.2s, color 0.2s, box-shadow 0.3s;
+}
+
+.opx-cd-runs button:hover {
+  border-color: color-mix(in srgb, var(--opx-ice) 40%, transparent);
+  background: var(--opx-glass-3);
+  color: var(--opx-ink);
+}
+
+.opx-cd-runs button[aria-current] {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 20%, transparent), color-mix(in srgb, var(--opx-ice) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 18px -12px color-mix(in srgb, var(--opx-ice) 80%, transparent);
+}
+
+.opx-cd-runs button > i {
+  box-shadow: 0 0 6px currentColor;
+  color: var(--opx-ice);
+}
+
+.opx-cd-runs button[data-s="completed"] > i {
+  color: var(--opx-aqua);
+}
+
+.opx-cd-runs button[data-s="failed"] > i {
+  color: var(--opx-hot);
+}
+
+/* Status history rail: a glowing current dot, softer line. */
+.opx-cd-rail::before {
+  background: linear-gradient(var(--opx-aqua), color-mix(in srgb, var(--opx-ice) 30%, var(--opx-line-2)) 40%, var(--opx-line));
+}
+
+.opx-cd-rail li::before {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-cd-rail li[data-first]::before {
+  background: radial-gradient(circle at 35% 35%, color-mix(in srgb, var(--opx-aqua) 45%, #ffffff), var(--opx-aqua) 65%);
+  box-shadow: 0 0 0 4px var(--opx-teal-soft), 0 0 12px color-mix(in srgb, var(--opx-aqua) 60%, transparent);
+}
+
+/* Convert to order / draft. */
+.opx-cd-draft[data-done] {
+  background:
+    radial-gradient(100% 80% at 0% 0%, color-mix(in srgb, var(--opx-aqua) 10%, transparent), transparent 62%),
+    var(--opx-card-2);
+}
+
+.opx-cd-draft__mark {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-cd-conv__sum b {
+  color: var(--opx-ink);
+}
+
+/* ── Sheets: pick lists, compare, diff ── */
+.opx-cd-pick {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 50%),
+    var(--opx-glass-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.3s, transform 0.25s var(--opx-spring);
+}
+
+.opx-cd-pick:hover {
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 12px 26px -18px color-mix(in srgb, var(--opx-ice) 75%, transparent);
+}
+
+.opx-cd-pick[aria-checked="true"] {
+  background:
+    radial-gradient(100% 90% at 0% 0%, color-mix(in srgb, var(--opx-aqua) 16%, transparent), transparent 65%),
+    var(--opx-glass-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 0 0 1px color-mix(in srgb, var(--opx-aqua) 22%, transparent), 0 14px 30px -20px color-mix(in srgb, var(--opx-aqua) 80%, transparent);
+}
+
+.opx-cd-cmp__side[data-mark="keep"] {
+  background:
+    radial-gradient(100% 70% at 0% 0%, color-mix(in srgb, var(--opx-aqua) 11%, transparent), transparent 62%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 16px 34px -24px color-mix(in srgb, var(--opx-aqua) 70%, transparent);
+}
+
+.opx-cd-cmp__side[data-mark="drop"] {
+  background:
+    radial-gradient(100% 70% at 0% 0%, color-mix(in srgb, var(--opx-hot) 8%, transparent), transparent 62%),
+    var(--opx-card-2);
+}
+
+/* ── Customer page ── */
+.opx-cd-chead__id h2 {
+  color: var(--opx-ink);
+}
+
+.opx-cd-cchips li {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 55%),
+    var(--opx-glass-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 18px -14px rgba(0, 0, 0, 0.55);
+  transition: border-color 0.2s, box-shadow 0.3s;
+}
+
+.opx-cd-cchips li:hover {
+  border-color: color-mix(in srgb, var(--opx-ice) 40%, transparent);
+}
+
+.opx-cd-cchips li[data-primary] {
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--opx-aqua) 12%, transparent), transparent 70%),
+    var(--opx-glass-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -14px color-mix(in srgb, var(--opx-aqua) 75%, transparent);
+}
+
+/* KPI tiles: layered with a tinted corner glow per tile; numbers in a soft gradient. */
+.opx-cd-tiles > div {
+  --tile: var(--opx-ice);
+  overflow: hidden;
+  background:
+    radial-gradient(90% 90% at 100% 0%, color-mix(in srgb, var(--tile) 13%, transparent), transparent 62%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 45%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 22px 46px -34px rgba(0, 0, 0, 0.75);
+  transition: border-color 0.25s, box-shadow 0.3s;
+}
+
+.opx-cd-tiles > div:nth-child(2) {
+  --tile: var(--opx-aqua);
+}
+
+.opx-cd-tiles > div:nth-child(3) {
+  --tile: var(--opx-warn);
+}
+
+.opx-cd-tiles > div:nth-child(4) {
+  --tile: color-mix(in srgb, var(--opx-ice) 50%, var(--opx-aqua));
+}
+
+.opx-cd-tiles > div::after {
+  content: "";
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, var(--tile), color-mix(in srgb, var(--tile) 10%, transparent));
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.opx-cd-tiles > div:hover {
+  border-color: color-mix(in srgb, var(--tile) 35%, var(--opx-line));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 22px 46px -30px color-mix(in srgb, var(--tile) 60%, transparent);
+}
+
+.opx-cd-tiles dd {
+  background: linear-gradient(180deg, var(--opx-ink) 40%, color-mix(in srgb, var(--opx-ink) 65%, var(--tile)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Customer tabs: hover tint already; soft top light on the selected one. */
+.opx-cd-tab.is-on {
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--opx-aqua) 7%, transparent));
+}
+
+/* Lead cards (customer → Lidlar): layered, a tone edge on hover. */
+.opx-cd-lcard {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 45%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 14px 30px -24px rgba(0, 0, 0, 0.7);
+  transition: border-color 0.2s, transform 0.35s var(--opx-spring), background 0.2s, box-shadow 0.3s;
+}
+
+.opx-cd-lcard:hover {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--opx-ice) 6%, transparent), transparent 55%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 20px 42px -26px rgba(41, 120, 255, 0.55);
+}
+
+.opx-cd-lcard:active {
+  transform: scale(0.99);
+}
+
+.opx-cd-lcard[data-past] {
+  background: var(--opx-glass-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-cd-subh .opx-cd-count {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ink-3) 22%, transparent), color-mix(in srgb, var(--opx-ink-3) 10%, transparent));
+  color: var(--opx-ink-2);
+}
+
+/* Contacts: a soft row hover so the row actions read as belonging to it. */
+/* The hover tint bleeds 6px past the row with a spread shadow, so the
+   row itself keeps its exact box. */
+.opx-cd-contact {
+  border-radius: 8px;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.opx-cd-contact:hover {
+  background: color-mix(in srgb, var(--opx-ice) 6%, transparent);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--opx-ice) 6%, transparent);
+}
+
+.opx-cd-contact__ic {
+  color: var(--opx-ice);
+}
+
+.opx-cd-star {
+  filter: drop-shadow(0 0 4px color-mix(in srgb, #f3c45a 55%, transparent));
+}
+
+.opx-cd-linkstate .opx-i {
+  flex: none;
+}
+
+/* ── Light theme ── */
+html[data-opx-theme="light"] .opx-cd-card {
+  box-shadow: inset 0 1px 0 #fff, 0 16px 36px -26px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-cd-card:hover {
+  box-shadow: inset 0 1px 0 #fff, 0 20px 42px -26px rgba(30, 80, 160, 0.42);
+}
+
+html[data-opx-theme="light"] .opx-cd-card[data-tone="warn"] {
+  box-shadow: inset 0 1px 0 #fff, 0 18px 38px -26px rgba(156, 97, 0, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-cd-head {
+  background:
+    radial-gradient(120% 60% at 50% -20%, rgba(42, 99, 201, 0.06), transparent 60%),
+    var(--opx-glass);
+}
+
+html[data-opx-theme="light"] .opx-cd-card__ic,
+html[data-opx-theme="light"] .opx-cd-empty__ic,
+html[data-opx-theme="light"] .opx-cd-cycles__ic,
+html[data-opx-theme="light"] .opx-cd-orders__ic,
+html[data-opx-theme="light"] .opx-cd-shead__ic,
+html[data-opx-theme="light"] .opx-cd-act__ic {
+  background: linear-gradient(145deg, rgba(42, 99, 201, 0.16), rgba(42, 99, 201, 0.05));
+  box-shadow: inset 0 1px 0 #fff, inset 0 0 0 1px rgba(42, 99, 201, 0.14), 0 8px 18px -12px rgba(42, 99, 201, 0.5);
+}
+
+html[data-opx-theme="light"] .opx-cd-card[data-tone="warn"] .opx-cd-card__ic,
+html[data-opx-theme="light"] .opx-cd-act[data-t="follow_up"] .opx-cd-act__ic {
+  background: linear-gradient(145deg, rgba(156, 97, 0, 0.16), rgba(156, 97, 0, 0.05));
+  box-shadow: inset 0 1px 0 #fff, inset 0 0 0 1px rgba(156, 97, 0, 0.16), 0 8px 18px -12px rgba(156, 97, 0, 0.45);
+}
+
+html[data-opx-theme="light"] .opx-cd-act[data-t="call_note"] .opx-cd-act__ic,
+html[data-opx-theme="light"] .opx-cd-calllog__ic {
+  background: linear-gradient(145deg, rgba(14, 139, 128, 0.16), rgba(14, 139, 128, 0.05));
+  box-shadow: inset 0 1px 0 #fff, inset 0 0 0 1px rgba(14, 139, 128, 0.16), 0 8px 18px -12px rgba(14, 139, 128, 0.5);
+}
+
+html[data-opx-theme="light"] .opx-cd-calllog li[data-s="no_answer"] .opx-cd-calllog__ic,
+html[data-opx-theme="light"] .opx-cd-calllog li[data-s="failed"] .opx-cd-calllog__ic {
+  background: linear-gradient(145deg, rgba(191, 47, 74, 0.14), rgba(191, 47, 74, 0.04));
+  box-shadow: inset 0 1px 0 #fff, inset 0 0 0 1px rgba(191, 47, 74, 0.14);
+}
+
+html[data-opx-theme="light"] .opx-cd-act[data-t="system"] .opx-cd-act__ic,
+html[data-opx-theme="light"] .opx-cd-calllog li[data-s="cancelled"] .opx-cd-calllog__ic {
+  background: linear-gradient(145deg, #ffffff, rgba(20, 50, 90, 0.06));
+  box-shadow: inset 0 1px 0 #fff, inset 0 0 0 1px rgba(20, 50, 90, 0.1);
+}
+
+/* Counts were white-on-white in light mode: give them a tinted chip. */
+html[data-opx-theme="light"] .opx-cd-count {
+  background: linear-gradient(145deg, rgba(42, 99, 201, 0.14), rgba(42, 99, 201, 0.06));
+  color: #1d3c8f;
+  box-shadow: inset 0 1px 0 #fff, inset 0 0 0 1px rgba(42, 99, 201, 0.16);
+}
+
+html[data-opx-theme="light"] .opx-cd-tab .opx-cd-count,
+html[data-opx-theme="light"] .opx-cd-subh .opx-cd-count {
+  background: linear-gradient(145deg, rgba(20, 50, 90, 0.1), rgba(20, 50, 90, 0.05));
+  color: var(--opx-ink-2);
+  box-shadow: inset 0 1px 0 #fff, inset 0 0 0 1px rgba(20, 50, 90, 0.1);
+}
+
+html[data-opx-theme="light"] .opx-cd-tab.is-on .opx-cd-count {
+  background: linear-gradient(120deg, #0e8b80, #12a497);
+  color: #ffffff;
+  box-shadow: 0 4px 12px -6px rgba(14, 139, 128, 0.7);
+}
+
+html[data-opx-theme="light"] .opx-cd-pill,
+html[data-opx-theme="light"] .opx-cd-next__when {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 6px 14px -10px color-mix(in srgb, var(--tone, var(--opx-aqua)) 70%, transparent);
+}
+
+html[data-opx-theme="light"] .opx-cd-av {
+  box-shadow: inset 0 1px 0 #fff, 0 10px 22px -16px rgba(30, 70, 140, 0.45);
+}
+
+html[data-opx-theme="light"] .opx-cd-chead .opx-cd-av--xl {
+  box-shadow: inset 0 1px 0 #fff, 0 0 0 4px rgba(42, 99, 201, 0.06), 0 18px 40px -22px rgba(30, 70, 140, 0.5);
+}
+
+html[data-opx-theme="light"] .opx-jr-do {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--opx-aqua) 30%, transparent), inset 0 1px 0 #fff, 0 20px 42px -30px rgba(14, 139, 128, 0.55);
+}
+
+html[data-opx-theme="light"] .opx-jr-do[data-tone="call"] {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--opx-ice) 34%, transparent), inset 0 1px 0 #fff, 0 20px 42px -30px rgba(30, 80, 160, 0.5);
+}
+
+html[data-opx-theme="light"] .opx-jr-do__ic {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 0 5px rgba(42, 99, 201, 0.08), 0 14px 30px -16px rgba(30, 80, 160, 0.55);
+}
+
+html[data-opx-theme="light"] .opx-jr-do__btn.opx-pbtn:hover:not(:disabled) {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 16px 32px -18px rgba(14, 139, 128, 0.7);
+}
+
+html[data-opx-theme="light"] .opx-cd-pop,
+html[data-opx-theme="light"] .opx-cd-look__pop,
+html[data-opx-theme="light"] .opx-cd-slash {
+  background: var(--opx-solid);
+}
+
+html[data-opx-theme="light"] .opx-cd-input,
+html[data-opx-theme="light"] .opx-cd-search,
+html[data-opx-theme="light"] .opx-cd-look__btn,
+html[data-opx-theme="light"] .opx-cd-seg,
+html[data-opx-theme="light"] .opx-cd-comp__types {
+  box-shadow: inset 0 1px 2px rgba(20, 50, 90, 0.08);
+}
+
+html[data-opx-theme="light"] .opx-cd-input:focus,
+html[data-opx-theme="light"] .opx-cd-search:focus-within,
+html[data-opx-theme="light"] .opx-cd-look[data-open] .opx-cd-look__btn,
+html[data-opx-theme="light"] .opx-cd-look__btn:focus-visible {
+  box-shadow: inset 0 1px 2px rgba(20, 50, 90, 0.08), var(--opx-ring);
+}
+
+html[data-opx-theme="light"] .opx-cd-comp,
+html[data-opx-theme="light"] .opx-cd-cycles li,
+html[data-opx-theme="light"] .opx-cd-calllog li,
+html[data-opx-theme="light"] .opx-cd-orders li,
+html[data-opx-theme="light"] .opx-cd-sms,
+html[data-opx-theme="light"] .opx-cd-sug,
+html[data-opx-theme="light"] .opx-cd-meter,
+html[data-opx-theme="light"] .opx-cd-blk,
+html[data-opx-theme="light"] .opx-cd-move,
+html[data-opx-theme="light"] .opx-cd-cmp__side,
+html[data-opx-theme="light"] .opx-cd-diff li,
+html[data-opx-theme="light"] .opx-cd-fixedwho,
+html[data-opx-theme="light"] .opx-cd-draft,
+html[data-opx-theme="light"] .opx-cd-lcard {
+  box-shadow: inset 0 1px 0 #fff, 0 12px 26px -22px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-cd-cycles li:hover,
+html[data-opx-theme="light"] .opx-cd-calllog li:hover,
+html[data-opx-theme="light"] .opx-cd-orders li:hover,
+html[data-opx-theme="light"] .opx-cd-sms:hover,
+html[data-opx-theme="light"] .opx-cd-lcard:hover {
+  box-shadow: inset 0 1px 0 #fff, 0 18px 36px -24px rgba(30, 80, 160, 0.42);
+}
+
+html[data-opx-theme="light"] .opx-cd-cycles li[data-current],
+html[data-opx-theme="light"] .opx-cd-sug[data-on],
+html[data-opx-theme="light"] .opx-cd-pick[aria-checked="true"],
+html[data-opx-theme="light"] .opx-cd-cmp__side[data-mark="keep"] {
+  box-shadow: inset 0 1px 0 #fff, 0 0 0 1px color-mix(in srgb, var(--opx-aqua) 22%, transparent), 0 14px 30px -22px rgba(14, 139, 128, 0.45);
+}
+
+html[data-opx-theme="light"] .opx-cd-tscript li,
+html[data-opx-theme="light"] .opx-cd-assist li,
+html[data-opx-theme="light"] .opx-cd-cand {
+  background: rgba(20, 50, 90, 0.05);
+  box-shadow: inset 0 1px 0 #fff, inset 0 0 0 1px rgba(20, 50, 90, 0.07);
+}
+
+html[data-opx-theme="light"] .opx-cd-tscript li[data-who="operator"] {
+  background: linear-gradient(145deg, rgba(42, 99, 201, 0.13), rgba(42, 99, 201, 0.05));
+}
+
+html[data-opx-theme="light"] .opx-cd-meter__bar {
+  background: rgba(20, 50, 90, 0.08);
+  box-shadow: inset 0 1px 2px rgba(20, 50, 90, 0.12);
+}
+
+html[data-opx-theme="light"] .opx-cd-meter__bar i {
+  background: linear-gradient(90deg, #12a497, #0e8b80);
+}
+
+html[data-opx-theme="light"] .opx-cd-meter[data-hot] .opx-cd-meter__bar i {
+  background: linear-gradient(90deg, #c98a1a, #9c6100);
+}
+
+html[data-opx-theme="light"] .opx-cd-cchips li {
+  box-shadow: inset 0 1px 0 #fff, 0 8px 18px -14px rgba(30, 70, 140, 0.3);
+}
+
+html[data-opx-theme="light"] .opx-cd-cchips li[data-primary] {
+  box-shadow: inset 0 1px 0 #fff, 0 8px 18px -14px rgba(14, 139, 128, 0.45);
+}
+
+html[data-opx-theme="light"] .opx-cd-tiles > div {
+  box-shadow: inset 0 1px 0 #fff, 0 16px 34px -26px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-cd-tiles > div:hover {
+  box-shadow: inset 0 1px 0 #fff, 0 20px 40px -26px rgba(30, 80, 160, 0.42);
+}
+
+html[data-opx-theme="light"] .opx-cd-pick:hover {
+  box-shadow: inset 0 1px 0 #fff, 0 12px 26px -18px rgba(30, 80, 160, 0.38);
+}
+
+html[data-opx-theme="light"] .opx-cd-ibtn:hover {
+  box-shadow: inset 0 1px 0 #fff, 0 8px 18px -12px rgba(30, 80, 160, 0.4);
+}
+
+html[data-opx-theme="light"] .opx-cd-seg button[aria-pressed="true"] {
+  box-shadow: inset 0 1px 0 #fff, inset 0 0 0 1px rgba(42, 99, 201, 0.35), 0 8px 18px -12px rgba(30, 80, 160, 0.45);
+}
+
+html[data-opx-theme="light"] .opx-cd-comp__types button[aria-pressed="true"],
+html[data-opx-theme="light"] .opx-cd-chip[aria-pressed="true"] {
+  box-shadow: inset 0 1px 0 #fff, 0 8px 18px -12px rgba(14, 139, 128, 0.5);
+}
+
+html[data-opx-theme="light"] .opx-jr-do__btn.opx-pbtn:focus-visible {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 5px rgba(14, 139, 128, 0.55);
+}
+
+/* ── Motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .opx-cd-card,
+  .opx-cd-comp,
+  .opx-cd-cycles li,
+  .opx-cd-calllog li,
+  .opx-cd-orders li,
+  .opx-cd-sms,
+  .opx-cd-sug,
+  .opx-cd-pick,
+  .opx-cd-runs button,
+  .opx-cd-cchips li,
+  .opx-cd-tiles > div,
+  .opx-cd-lcard,
+  .opx-cd-contact,
+  .opx-cd-link,
+  .opx-cd-back,
+  .opx-jr-toggle,
+  .opx-jr-do__btn.opx-pbtn,
+  .opx-cd-pop > button,
+  .opx-cd-slash > button,
+  .opx-cd-look__list > button {
+    transition: none;
+  }
+
+  .opx-cd-cycles li:hover,
+  .opx-cd-calllog li:hover,
+  .opx-cd-orders li:hover,
+  .opx-cd-sms:hover,
+  .opx-cd-lcard:hover,
+  .opx-cd-lcard:active,
+  .opx-cd-chip:active,
+  .opx-cd-seg button:active,
+  .opx-cd-comp__types button:active,
+  .opx-cd-runs button:active,
+  .opx-cd-pick:active,
+  .opx-cd-tab:active,
+  .opx-jr-do__btn.opx-pbtn:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+html[data-opx-motion="off"] :is(.opx-cd-card, .opx-cd-comp, .opx-cd-cycles li, .opx-cd-calllog li, .opx-cd-orders li, .opx-cd-sms, .opx-cd-sug, .opx-cd-pick, .opx-cd-runs button, .opx-cd-cchips li, .opx-cd-tiles > div, .opx-cd-lcard, .opx-cd-contact, .opx-cd-link, .opx-cd-back, .opx-jr-toggle, .opx-jr-do__btn.opx-pbtn, .opx-cd-pop > button, .opx-cd-slash > button, .opx-cd-look__list > button) {
+  transition: none;
+}
+
+html[data-opx-motion="off"] :is(.opx-cd-cycles li, .opx-cd-calllog li, .opx-cd-orders li, .opx-cd-sms, .opx-cd-lcard):hover,
+html[data-opx-motion="off"] :is(.opx-cd-lcard, .opx-cd-chip, .opx-cd-seg button, .opx-cd-comp__types button, .opx-cd-runs button, .opx-cd-pick, .opx-cd-tab):active,
+html[data-opx-motion="off"] .opx-jr-do__btn.opx-pbtn:active:not(:disabled) {
+  transform: none;
+}
+/* ── end lead / customer detail polish ── */

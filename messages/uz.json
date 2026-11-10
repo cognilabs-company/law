@@ -16306,7 +16306,8 @@
         "scheduled": "Rejalashtirilgan",
         "ended": "Tugagan",
         "cancelled": "Bekor qilingan",
-        "expired": "Muddati o'tgan"
+        "expired": "Muddati o'tgan",
+        "missed": "Javobsiz qolgan"
       },
       "ccStart": "Video uchrashuv",
       "ccStartWith": "{name} bilan video uchrashuv",
