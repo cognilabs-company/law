@@ -2,7 +2,10 @@
    reference/design-lexgo-1920/1a_mijoz_boshqaruv.png. Uses the shell's
    --lx-* tokens (components/portal/shell/shell1920.css). */
 
-.cx{display:grid;gap:24px;min-width:0}
+/* one column as wide as the page, whatever a row inside would like (the AI
+   card's one-line question row must scroll, not widen the page) */
+.cx{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;min-width:0}
+.cx > *{min-width:0}
 .cx-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,507px);gap:24px;align-items:stretch}
 .cx-side{display:grid;gap:24px;grid-template-rows:1fr auto;min-width:0}
 .cx-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:22px}
@@ -121,36 +124,63 @@ html[data-theme="dark"] .cx-skel{background:linear-gradient(90deg,#18253E,#1E2D4
 .cx-ai__link svg{width:16px;height:16px}
 .cx-ai__link:hover{text-decoration:underline}
 .cx-ai__lead{margin:0 0 18px;font-size:.98rem;line-height:1.5;color:var(--lx-gray);max-width:76ch}
-/* field + action */
-.cx-ai__f{display:flex;gap:12px}
-/* A textarea sized to its text (one line where the hint fits, two where it
-   wraps); without field-sizing support it keeps its two rows. */
+/* The composer: one box holding the question and the send button, the same
+   shape on every screen. The box is always at least two lines tall, so the
+   long hint fits on a laptop and the card keeps one height at any zoom (a
+   one-line field next to a button grew to two lines at 100-125% zoom and the
+   button stayed short beside it). The button sits inside, bottom-right. */
+.cx-ai__f{
+  display:flex;align-items:flex-end;gap:12px;
+  padding:8px 8px 8px 18px;border:1px solid var(--lx-line);border-radius:18px;background:var(--lx-card);
+  transition:border-color .15s,box-shadow .15s;
+}
+.cx-ai__f:focus-within{border-color:var(--lx-blue);box-shadow:0 0 0 3px rgba(22,104,240,.12)}
 .cx-ai__q{
-  flex:1;min-width:0;min-height:58px;max-height:180px;padding:16px 20px;resize:none;
+  flex:1;min-width:0;align-self:stretch;min-height:66px;max-height:180px;padding:10px 0;resize:none;
   field-sizing:content;font-family:inherit;line-height:1.45;
-  border:1px solid var(--lx-line);border-radius:14px;background:var(--lx-card);
-  font-size:.98rem;color:var(--lx-ink);outline:0;
+  border:0;border-radius:0;background:none;
+  font-size:.98rem;color:var(--lx-ink);outline:0;box-shadow:none;
 }
 .cx-ai__q::placeholder{color:var(--lx-gray2)}
-.cx-ai__q:focus{border-color:var(--lx-blue);box-shadow:0 0 0 3px rgba(22,104,240,.12)}
 .cx-ai__go{
-  flex:none;height:58px;align-self:flex-start;padding:0 26px;border:0;border-radius:14px;cursor:pointer;
-  background:var(--lx-navy);color:#fff;font-size:.98rem;font-weight:600;
+  flex:none;height:50px;padding:0 22px;border:0;border-radius:13px;cursor:pointer;
+  background:var(--lx-navy);color:#fff;font-size:.96rem;font-weight:600;
   display:inline-flex;align-items:center;gap:10px;white-space:nowrap;transition:background .15s;
 }
 html[data-theme="dark"] .cx-ai__go{background:var(--lx-blue)}
 .cx-ai__go:hover{background:#16243C}
 html[data-theme="dark"] .cx-ai__go:hover{background:var(--lx-blue-h)}
 .cx-ai__go svg{width:18px;height:18px}
-/* starter questions */
-.cx-ai__chips{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:18px}
-.cx-ai__chipsL{font-size:.88rem;font-weight:500;color:var(--lx-gray);white-space:nowrap}
+/* starter questions: always one row — they used to wrap into a second row
+   with one chip left on its own, at some zooms and not others. Past the
+   edge the row scrolls, and the right edge fades to say so. */
+.cx-ai__chips{
+  display:flex;align-items:center;gap:10px;flex-wrap:nowrap;margin-top:16px;
+  overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain;
+  -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 36px),transparent);
+  mask-image:linear-gradient(to right,#000 calc(100% - 36px),transparent);
+  padding-right:36px;
+}
+.cx-ai__chips::-webkit-scrollbar{display:none}
+.cx-ai__chipsL{flex:none;font-size:.88rem;font-weight:500;color:var(--lx-gray);white-space:nowrap}
 .cx-ai__chip{
+  flex:none;white-space:nowrap;
   border:1px solid var(--lx-line);background:var(--lx-card);color:var(--lx-ink);
   font-size:.88rem;font-weight:500;padding:9px 16px;border-radius:999px;cursor:pointer;
   transition:border-color .15s,background .15s;
 }
 .cx-ai__chip:hover{border-color:var(--lx-blue);background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
+/* below ~1200px of room the label goes, so a 13-14" laptop shows the four
+   questions whole instead of the last one cut by the fade */
+@container cx (max-width:1199px){
+  .cx-ai__chipsL{display:none}
+}
+/* a narrow card: the button goes under the question, still inside the box */
+@container cx (max-width:599px){
+  .cx-ai__f{flex-direction:column;align-items:stretch;padding:8px 8px 8px 14px}
+  .cx-ai__q{min-height:88px}
+  .cx-ai__go{justify-content:center;height:48px;margin-left:-6px}
+}
 
 /* services
    Arch cards (reference/design-lexgo-1920/1a_mijoz_boshqaruv.png): a dome top,
@@ -316,10 +346,6 @@ html[data-theme="dark"] .cx-gift{background:#0B1830;box-shadow:inset 0 0 0 1px v
 @media (max-width:900px){
   .cx-find{grid-template-columns:minmax(0,1fr)}
   .cx-ai{padding:22px 20px 20px}
-  .cx-ai__f{flex-direction:column}
-  /* flex:1 in a column means a zero basis: the field collapsed to a sliver */
-  .cx-ai__q{flex:none;width:100%}
-  .cx-ai__go{height:52px;justify-content:center;align-self:stretch}
   .cx-head{flex-direction:column;align-items:stretch}
   .cx-head__btn{align-self:flex-start}
 }
@@ -331,8 +357,7 @@ html[data-theme="dark"] .cx-gift{background:#0B1830;box-shadow:inset 0 0 0 1px v
   .cx-ai__badge{font-size:1.16rem}
   .cx-ai__free + .cx-ai__link{margin-left:0}
   .cx-ai__lead{font-size:.9rem;margin-bottom:14px}
-  .cx-ai__q{min-height:50px;padding:13px 15px;font-size:.92rem}
-  .cx-ai__go{height:48px}
+  .cx-ai__q{font-size:.92rem}
   .cx-ai__chips{gap:8px;margin-top:14px}
   .cx-ai__chipsL{display:none}
   .cx-ai__chip{font-size:.82rem;padding:8px 13px}
