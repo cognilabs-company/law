@@ -12,6 +12,7 @@ import { LEGAL_AREAS, areaByKey, inArea } from "@/lib/legalAreas";
 import { matchesSearch } from "@/lib/searchText";
 import { regionKeyOf, regionLabel, personName } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
+import { useFitPlaceholder } from "@/lib/useFitPlaceholder";
 import { initials } from "@/lib/lawyers";
 import Select from "@/components/Select";
 import CheckBox from "@/components/CheckBox";
@@ -26,10 +27,13 @@ const REGIONS = ["tashkent", "samarkand", "fergana", "bukhara", "namangan", "and
 const KINDS = ["all", "advokat", "yurist"] as const;
 const PAGE = 10;
 
-export default function ClientSpecialists({ initialQuery = "", initialArea = "", initialRegion = "", initialType = "" }: { initialQuery?: string; initialArea?: string; initialRegion?: string; initialType?: string }) {
+// onlyIds: the marketplace banner's AI search above this list — while it is
+// on, only those specialists are shown, in its order (null = no search).
+export default function ClientSpecialists({ initialQuery = "", initialArea = "", initialRegion = "", initialType = "", onlyIds = null }: { initialQuery?: string; initialArea?: string; initialRegion?: string; initialType?: string; onlyIds?: string[] | null }) {
   const t = useTranslations("lxSpec");
   const tc = useTranslations("lxClient");
   const te = useTranslations("enums");
+  const [qPh, qRef] = useFitPlaceholder([t("searchPh"), t("searchPhShort")]);
   const tm = useTranslations("marketplace");
   const res = useResource<MarketSeller>(async () => (await listMarketplace({ sort: "recommended" })).items, []);
 
@@ -42,7 +46,9 @@ export default function ClientSpecialists({ initialQuery = "", initialArea = "",
   const [buy, setBuy] = useState<{ seller: MarketSeller; service: MarketService | null } | null>(null);
 
   const list = useMemo(() => {
-    return res.data.filter((s) => {
+    const rank = onlyIds ? new Map(onlyIds.map((id, i) => [id, i])) : null;
+    const out = res.data.filter((s) => {
+      if (rank && !rank.has(s.userId)) return false;
       if (kind !== "all" && s.sellerType !== kind) return false;
       if (region && regionKeyOf(te, s.region) !== region) return false;
       const texts = [...s.specializations, ...s.serviceTitles, ...s.services.map((x) => `${x.title} ${x.categoryTitle}`), ...s.categories.map((c) => `${c.title} ${c.slug}`)];
@@ -50,7 +56,8 @@ export default function ClientSpecialists({ initialQuery = "", initialArea = "",
       if (q.trim() && !matchesSearch([s.name, s.bio, ...texts].join(" "), q)) return false;
       return true;
     });
-  }, [res.data, kind, region, areas, q, te]);
+    return rank ? out.sort((a, b) => (rank.get(a.userId) ?? 0) - (rank.get(b.userId) ?? 0)) : out;
+  }, [res.data, kind, region, areas, q, te, onlyIds]);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -75,7 +82,7 @@ export default function ClientSpecialists({ initialQuery = "", initialArea = "",
       <form className="lx-card sp-bar" role="search" onSubmit={submit}>
         <label className="sp-bar__q">
           <Search aria-hidden="true" />
-          <input type="search" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t("searchPh")} aria-label={t("searchPh")} />
+          <input ref={qRef} type="search" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={qPh} aria-label={t("searchPh")} />
         </label>
         <div className="sp-bar__sel">
           <Layers aria-hidden="true" />

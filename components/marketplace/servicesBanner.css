@@ -1,0 +1,63 @@
+/* "Xizmatlar bo'yicha" banner (components/marketplace/ServicesBanner.tsx).
+   The same dark family as the marketplace banner, at about a third of its
+   height: text and search on the left, three facts on the right. */
+.mksb{
+  container:mksb / inline-size;
+  position:relative;overflow:hidden;isolation:isolate;border-radius:24px;
+  background:var(--grad-dark);color:#fff;
+}
+/* the grid sits on the inner box: a query container cannot restyle itself */
+.mksb__in{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:24px 32px;padding:26px 30px}
+.mksb__glow{
+  position:absolute;inset:-60% -20%;z-index:-1;pointer-events:none;
+  background:radial-gradient(30% 50% at 18% 20%,rgba(0,207,232,.32),transparent 70%),radial-gradient(28% 60% at 86% 80%,rgba(92,168,255,.3),transparent 70%);
+}
+.mksb__main{display:grid;gap:10px;min-width:0}
+.mksb__kick{
+  justify-self:start;display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;
+  background:rgba(255,255,255,.12);box-shadow:inset 0 0 0 1px rgba(255,255,255,.22);
+  font-size:.74rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+}
+.mksb__kick svg{width:15px;height:15px}
+.mksb__t{margin:0;font-family:var(--fd);font-size:clamp(1.3rem,1.9vw,1.75rem);line-height:1.15;letter-spacing:-.025em;font-weight:800}
+.mksb__l{margin:0;max-width:62ch;font-size:.94rem;line-height:1.5;color:rgba(255,255,255,.78)}
+.mksb__search{
+  display:flex;align-items:center;gap:10px;margin-top:4px;max-width:620px;
+  padding:6px 6px 6px 16px;border-radius:999px;background:rgba(255,255,255,.97);color:#0A1526;
+  box-shadow:0 18px 40px -20px rgba(0,0,0,.6);
+}
+.mksb__search:focus-within{box-shadow:0 0 0 3px rgba(92,168,255,.55),0 18px 40px -20px rgba(0,0,0,.6)}
+.mksb__search > svg{width:19px;height:19px;color:#5D6E84;flex:none}
+.mksb__search input{flex:1;min-width:0;height:42px;border:0;outline:0;background:none;font:inherit;font-size:.95rem;color:#0A1526}
+.mksb__search input::placeholder{color:#5D6E84}
+.mksb__search input::-webkit-search-cancel-button{display:none}
+.mksb__x{width:32px;height:32px;border-radius:50%;border:0;background:#EEF3FA;color:#4F5F75;display:grid;place-items:center;cursor:pointer;flex:none}
+.mksb__x svg{width:14px;height:14px}
+.mksb__go{
+  height:42px;padding:0 18px;border:0;border-radius:999px;background:#1668F0;color:#fff;cursor:pointer;flex:none;
+  display:inline-flex;align-items:center;gap:8px;font:inherit;font-weight:600;font-size:.92rem;transition:background .15s;
+}
+.mksb__go:hover{background:#0F57D6}
+.mksb__go svg{width:16px;height:16px}
+.mksb__stats{margin:0;display:grid;grid-template-columns:repeat(3,minmax(0,auto));gap:10px}
+.mksb__stats > div{
+  display:grid;gap:2px;align-content:center;padding:12px 16px;border-radius:16px;min-width:116px;
+  background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);
+}
+.mksb__stats dd{order:-1;margin:0;font-family:var(--fd);font-size:1.3rem;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+.mksb__stats dt{font-size:.76rem;color:rgba(255,255,255,.72)}
+/* narrower: the facts go under the text, then the find button keeps its icon only */
+@container mksb (max-width:860px){
+  .mksb__in{grid-template-columns:minmax(0,1fr)}
+  .mksb__stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .mksb__stats > div{min-width:0}
+}
+@container mksb (max-width:480px){
+  .mksb__in{padding:20px 18px}
+  .mksb__go span{display:none}
+  .mksb__go{width:42px;padding:0;justify-content:center}
+  .mksb__stats{gap:8px}
+  .mksb__stats > div{padding:10px}
+  .mksb__stats dd{font-size:1.02rem}
+  .mksb__stats dt{font-size:.7rem}
+}

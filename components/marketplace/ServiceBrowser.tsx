@@ -27,6 +27,8 @@ export default function ServiceBrowser({
   loading,
   onPick,
   bought,
+  query,
+  embedded = false,
 }: {
   services: readonly ServiceOption[];
   categories: readonly { value: string; label: string }[];
@@ -35,11 +37,16 @@ export default function ServiceBrowser({
   onPick: (serviceId: string) => void;
   // Services this client already bought (open orders): the card opens the order.
   bought?: ReadonlyMap<string, BoughtOrder>;
+  // Under the services banner the search lives in the banner: it hands the
+  // text in, and this view drops its own title, lead and search box.
+  query?: string;
+  embedded?: boolean;
 }): ReactElement {
   const t = useTranslations("marketplace.byService");
   const router = useRouter();
   const locale = useLocale();
-  const [q, setQ] = useState("");
+  const [ownQ, setQ] = useState("");
+  const q = query ?? ownQ;
   const [cat, setCat] = useState("");
 
   const cards = useMemo<Card[]>(() => {
@@ -68,16 +75,18 @@ export default function ServiceBrowser({
 
   return (
     <section className="mksv" aria-label={t("title")} data-ai-target="marketplace:services" data-ai-id="marketplace.by-service">
-      <header className="mksv__h">
-        <div>
-          <h2>{t("title")}</h2>
-          <p>{t("lead")}</p>
-        </div>
-        <label className="mksv__search">
-          <IconSearch aria-hidden="true" />
-          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("search")} aria-label={t("search")} />
-        </label>
-      </header>
+      {embedded ? null : (
+        <header className="mksv__h">
+          <div>
+            <h2>{t("title")}</h2>
+            <p>{t("lead")}</p>
+          </div>
+          <label className="mksv__search">
+            <IconSearch aria-hidden="true" />
+            <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("search")} aria-label={t("search")} />
+          </label>
+        </header>
+      )}
       {usedCats.length > 1 ? (
         <div className="mksv__cats" role="group" aria-label={t("categories")}>
           <button type="button" aria-pressed={!cat} onClick={() => setCat("")}>

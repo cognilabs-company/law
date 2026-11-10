@@ -11,12 +11,14 @@
 .mknb-msg__acts{display:flex;flex-wrap:wrap;gap:8px}
 .mknb-msg__acts .btn svg{width:16px;height:16px}
 
+/* On a phone the three tabs share the width equally, the icon above the
+   name and the name free to take two lines — cut to "Mutaxassi…" and
+   "Xizmatlar …" they no longer said which view was which. */
 @media (max-width:560px){
-  .mknb-mode{max-width:none}
-  .mknb-mode{grid-template-columns:repeat(3,minmax(0,auto))}
-  .mknb-mode__b{gap:6px;padding:8px 10px;font-size:.84rem;white-space:nowrap}
-  .mknb-mode__b svg{width:16px;height:16px}
-  .mknb-mode__b span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .mknb-mode{max-width:none;grid-template-columns:repeat(3,minmax(0,1fr));border-radius:18px}
+  .mknb-mode__b{flex-direction:column;gap:3px;padding:7px 6px;border-radius:14px;font-size:.78rem;line-height:1.2;white-space:normal;text-align:center}
+  .mknb-mode__b svg{width:17px;height:17px}
+  .mknb-mode__b span{min-width:0;overflow-wrap:anywhere}
 }
 
 @media (prefers-reduced-motion:reduce){
