@@ -112,15 +112,10 @@ export default function SellerRow({
       <span className="mmrow__who">
         <span className="mmrow__title">
           <span className="mmrow__name">{name}</span>
+          {verified ? <VerifiedBadge label={false} interactive={false} name={name} /> : null}
         </span>
         <span className="mmrow__sub">
           {type ? <span>{sellerTypeLabel(tm, type)}</span> : null}
-          {/* the dashboard's green "Tasdiqlangan" beside the role (.cx-exp__role) */}
-          {verified ? (
-            <span className="mmrow__ok">
-              <VerifiedBadge interactive={false} name={name} />
-            </span>
-          ) : null}
           {rating > 0 ? (
             <span className="mmrow__rate">
               <IconStarRate aria-hidden="true" />

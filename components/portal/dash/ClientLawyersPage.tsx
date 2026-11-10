@@ -1,28 +1,28 @@
 "use client";
 
+import { useState } from "react";
 import MarketDirectory from "@/components/marketplace/MarketDirectory";
+import { MarketModeSwitch } from "@/components/marketplace/NearbySellers";
+import { modeOf, writeNearbyParams, DEFAULT_NEARBY_RADIUS, type NearbyMode } from "@/lib/services/marketDiscovery";
 import ClientSpecialists from "./ClientSpecialists";
 
-// "Advokat va yuristlar": one page, three views behind the tabs, each with
-// its banner on top and the tabs under it —
-//   Mutaxassislar bo'yicha  the marketplace banner, then the LexGo 1920
-//                           specialist list (1b), narrowed by the banner's
-//                           AI search;
-//   Xizmatlar bo'yicha      a compact services banner, then the services;
-//   Xaritada                no banner, the map is the page.
-// ?mode=services|nearby (with ?radius, ?service) opens the other views; ?q,
-// ?area, ?region and ?type go to the specialist list's own search bar.
+// "Advokat va yuristlar": the by-specialist view is the Tezkor Himoya 1920 page (1b);
+// the by-service browser and the nearby map stay the marketplace's own, one
+// switch away, with ?mode= in the address as before.
 export default function ClientLawyersPage(props: { q: string; area: string; region: string; type: string; mode: string; radius: string; service: string }) {
+  const [mode, setMode] = useState<NearbyMode>(() => modeOf(props.mode));
+  const go = (m: NearbyMode) => {
+    setMode(m);
+    const next = writeNearbyParams(window.location.href, { mode: m, radius: DEFAULT_NEARBY_RADIUS, serviceId: "" });
+    window.history.replaceState(window.history.state, "", next);
+  };
+  if (mode !== "all") {
+    return <MarketDirectory key={mode} variant="portal" initialQuery={props.q} initialSellerType={props.type} initialMode={mode} initialRadius={props.radius} initialNearbyService={props.service} onLeave={() => go("all")} />;
+  }
   return (
-    <MarketDirectory
-      variant="portal"
-      initialSellerType={props.type}
-      initialMode={props.mode === "map" ? "nearby" : props.mode}
-      initialRadius={props.radius}
-      initialNearbyService={props.service}
-      renderSpecialists={({ matchedIds }) => (
-        <ClientSpecialists initialQuery={props.q} initialArea={props.area} initialRegion={props.region} initialType={props.type} onlyIds={matchedIds} />
-      )}
-    />
+    <>
+      <MarketModeSwitch mode="all" onChange={go} />
+      <ClientSpecialists initialQuery={props.q} initialArea={props.area} initialRegion={props.region} initialType={props.type} />
+    </>
   );
 }

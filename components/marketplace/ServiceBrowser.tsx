@@ -1,10 +1,9 @@
 "use client";
 
 import "./serviceBrowser.css";
-import { useMemo, useState, type CSSProperties, type ReactElement, type ReactNode } from "react";
+import { useMemo, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { IconArrowRight, IconBriefcase, IconCheck, IconSearch, IconStarRate, IconUsers } from "@/components/icons";
-import { categoryArt } from "./categoryArt";
 import { useRouter } from "@/i18n/navigation";
 import type { BoughtOrder } from "@/lib/useBoughtServices";
 import { fmtRating } from "@/lib/date";
@@ -21,12 +20,6 @@ type Card = ServiceOption & { sellers: number; rating: number };
 
 const HUES = ["blue", "violet", "teal", "amber", "rose", "green"] as const;
 
-// In the cabinet the card's text sits under its picture plate in a padded
-// body; elsewhere the card keeps its old one-box layout.
-function Body({ lx, children }: { lx: boolean; children: ReactNode }) {
-  return lx ? <span className="mksv__body">{children}</span> : <>{children}</>;
-}
-
 export default function ServiceBrowser({
   services,
   categories,
@@ -34,10 +27,6 @@ export default function ServiceBrowser({
   loading,
   onPick,
   bought,
-  query,
-  embedded = false,
-  lx = false,
-  onClearQuery,
 }: {
   services: readonly ServiceOption[];
   categories: readonly { value: string; label: string }[];
@@ -46,23 +35,11 @@ export default function ServiceBrowser({
   onPick: (serviceId: string) => void;
   // Services this client already bought (open orders): the card opens the order.
   bought?: ReadonlyMap<string, BoughtOrder>;
-  // Under the services banner the search lives in the banner: it hands the
-  // text in, and this view drops its own title, lead and search box.
-  query?: string;
-  embedded?: boolean;
-  // The client cabinet's look (the dashboard's picture cards): each card
-  // carries its category's drawing on a light plate, and an empty result
-  // says what to do next.
-  lx?: boolean;
-  // Clears the banner's search (it lives in the banner, not here).
-  onClearQuery?: () => void;
 }): ReactElement {
   const t = useTranslations("marketplace.byService");
-  const td = useTranslations("lxDir");
   const router = useRouter();
   const locale = useLocale();
-  const [ownQ, setQ] = useState("");
-  const q = query ?? ownQ;
+  const [q, setQ] = useState("");
   const [cat, setCat] = useState("");
 
   const cards = useMemo<Card[]>(() => {
@@ -91,18 +68,16 @@ export default function ServiceBrowser({
 
   return (
     <section className="mksv" aria-label={t("title")} data-ai-target="marketplace:services" data-ai-id="marketplace.by-service">
-      {embedded ? null : (
-        <header className="mksv__h">
-          <div>
-            <h2>{t("title")}</h2>
-            <p>{t("lead")}</p>
-          </div>
-          <label className="mksv__search">
-            <IconSearch aria-hidden="true" />
-            <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("search")} aria-label={t("search")} />
-          </label>
-        </header>
-      )}
+      <header className="mksv__h">
+        <div>
+          <h2>{t("title")}</h2>
+          <p>{t("lead")}</p>
+        </div>
+        <label className="mksv__search">
+          <IconSearch aria-hidden="true" />
+          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("search")} aria-label={t("search")} />
+        </label>
+      </header>
       {usedCats.length > 1 ? (
         <div className="mksv__cats" role="group" aria-label={t("categories")}>
           <button type="button" aria-pressed={!cat} onClick={() => setCat("")}>
@@ -122,31 +97,7 @@ export default function ServiceBrowser({
           ))}
         </div>
       ) : !shown.length ? (
-        lx ? (
-          <div className="mksv__empty mksv__none cx-empty" role="status">
-            <span className="cx-empty__ic" aria-hidden="true">
-              <IconSearch />
-            </span>
-            <b>{needle || cat ? t("noMatch") : t("empty")}</b>
-            {needle || cat ? <p>{td("svcNoneText")}</p> : null}
-            {needle || cat ? (
-              <button
-                type="button"
-                className="btn btn--line btn--sm"
-                onClick={() => {
-                  setCat("");
-                  setQ("");
-                  onClearQuery?.();
-                }}
-                data-ai-id="marketplace.by-service.clear"
-              >
-                {td("svcNoneClear")}
-              </button>
-            ) : null}
-          </div>
-        ) : (
-          <p className="mksv__empty">{needle || cat ? t("noMatch") : t("empty")}</p>
-        )
+        <p className="mksv__empty">{needle || cat ? t("noMatch") : t("empty")}</p>
       ) : (
         <ul className="mksv__grid">
           {shown.map((c) => {
@@ -167,48 +118,39 @@ export default function ServiceBrowser({
                   data-ai-type="button"
                   data-ai-label={c.label}
                 >
-                  {lx ? (
-                    <span
-                      className="mksv__art"
-                      style={{ "--img": `url(${categoryArt([catLabel.get(c.categoryId) ?? "", c.categoryId], c.label)})` } as CSSProperties}
-                      aria-hidden="true"
-                    />
-                  ) : null}
-                  <Body lx={lx}>
-                    <span className="mksv__top">
-                      <span className="mksv__ic" aria-hidden="true">
-                        <IconBriefcase />
-                      </span>
-                      {catLabel.get(c.categoryId) ? <span className="mksv__cat">{catLabel.get(c.categoryId)}</span> : null}
+                  <span className="mksv__top">
+                    <span className="mksv__ic" aria-hidden="true">
+                      <IconBriefcase />
                     </span>
-                    <b className="mksv__title">{c.label}</b>
-                    <span className="mksv__meta">
+                    {catLabel.get(c.categoryId) ? <span className="mksv__cat">{catLabel.get(c.categoryId)}</span> : null}
+                  </span>
+                  <b className="mksv__title">{c.label}</b>
+                  <span className="mksv__meta">
+                    <span>
+                      <IconUsers aria-hidden="true" />
+                      {off ? t("noSellers") : t("sellers", { n: c.sellers })}
+                    </span>
+                    {c.rating > 0 ? (
                       <span>
-                        <IconUsers aria-hidden="true" />
-                        {off ? t("noSellers") : t("sellers", { n: c.sellers })}
+                        <IconStarRate aria-hidden="true" />
+                        {fmtRating(c.rating, locale)}
                       </span>
-                      {c.rating > 0 ? (
-                        <span>
-                          <IconStarRate aria-hidden="true" />
-                          {fmtRating(c.rating, locale)}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className="mksv__foot">
-                      <span className="mksv__price">{c.basePrice > 0 ? t("price", { price: fmtUzs(c.basePrice) }) : " "}</span>
-                      {mine ? (
-                        <span className="mksv__bought">
-                          <IconCheck aria-hidden="true" />
-                          {t("bought")}
-                        </span>
-                      ) : !off ? (
-                        <span className="mksv__go">
-                          <span className="mksv__goT">{t("find")}</span>
-                          <IconArrowRight aria-hidden="true" />
-                        </span>
-                      ) : null}
-                    </span>
-                  </Body>
+                    ) : null}
+                  </span>
+                  <span className="mksv__foot">
+                    <span className="mksv__price">{c.basePrice > 0 ? t("price", { price: fmtUzs(c.basePrice) }) : " "}</span>
+                    {mine ? (
+                      <span className="mksv__bought">
+                        <IconCheck aria-hidden="true" />
+                        {t("bought")}
+                      </span>
+                    ) : !off ? (
+                      <span className="mksv__go">
+                        {t("find")}
+                        <IconArrowRight aria-hidden="true" />
+                      </span>
+                    ) : null}
+                  </span>
                 </button>
               </li>
             );

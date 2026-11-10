@@ -49,7 +49,7 @@ test("by service: the full purchase form goes to the backend's matcher, without 
   await expect(card).not.toContainText("250");
   await card.click();
   const dialog = page.getByRole("dialog", { name: "Xizmatni sotib olish" });
-  await expect(dialog.getByText("LexGo eng mos mutaxassisni tanlaydi")).toBeVisible();
+  await expect(dialog.getByText("Tezkor Himoya eng mos mutaxassisni tanlaydi")).toBeVisible();
   await expect(dialog.getByText("Hudud")).toHaveCount(0);
   const note = dialog.getByRole("textbox").first();
   // A contact typed into the note is taken out at once.
@@ -58,7 +58,7 @@ test("by service: the full purchase form goes to the backend's matcher, without 
   await note.fill("Ajrashish bo'yicha maslahat kerak, bolalar masalasi bor");
   await dialog.getByText("1 soat ichida").click();
   await page.screenshot({ path: "/tmp/claude-1000/-home-abdurahmon-Desktop-law/1b23aff7-656c-46a8-a16f-81213b23ff98/scratchpad/shots/by-service-form.png" });
-  await dialog.getByRole("button", { name: "LexGo mutaxassis tanlasin" }).click();
+  await dialog.getByRole("button", { name: "Tezkor Himoya mutaxassis tanlasin" }).click();
   await expect(dialog.getByText("To'lov kutilmoqda")).toBeVisible();
   await expect(dialog).not.toContainText("10%");
   expect(sent).toMatchObject({ service_id: "v1", source: "marketplace", payment_provider: "telegram_manual", currency: "UZS", details: { problem: "Ajrashish bo'yicha maslahat kerak, bolalar masalasi bor", note: "Ajrashish bo'yicha maslahat kerak, bolalar masalasi bor", contact_speed: "within_1_hour", preferred_channel: "chat", selected_option_ids: [] } });
@@ -75,9 +75,6 @@ test("by service: 'I'll choose myself' shows that service's specialists", async 
   await expect(page.getByRole("button", { name: "Mutaxassislar bo'yicha" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByText("Dilnoza Karimova").first()).toBeVisible();
   await expect(page.getByText("Akmal Yusupov").first()).toBeVisible();
-  // The cabinet draws its own specialist list under the marketplace banner;
-  // the picked service narrows it and says so.
-  await expect(page.locator(".mk-slotnote")).toContainText("Ajrashish bo'yicha maslahat");
-  await expect(page.locator(".mk-slot")).not.toContainText("Nodira Rashidova");
+  await expect(page.locator(".mk-grid")).not.toContainText("Nodira Rashidova");
   expect(mock.calls.some((c) => c.method === "POST" && c.path === "/orders")).toBe(false);
 });

@@ -113,11 +113,8 @@
     grid-column: 1 / -1;
     justify-content: stretch;
   }
-  /* sized by their own labels: when the two do not fit side by side each
-     takes the full row, instead of both squeezing to half and cutting
-     "Advokatlar guruhi" at the edges */
   .sxo-entry__btn {
-    flex: 1 1 auto;
+    flex: 1 1 160px;
   }
   .sxo-entry__login {
     grid-column: 1 / -1;
