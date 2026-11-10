@@ -1994,6 +1994,9 @@ export default function SecureChat({
                 const body = media && raw === METADATA_ONLY ? "" : raw;
                 const imageOnly = media && !body && !quoted && isImageAttachment(m.file) && m.messageType !== "voice";
                 const who = m.sender ? senderName(m.sender) : "";
+                // Only a call link ("Video qo'ng'iroq boshlandi"): drawn as one
+                // compact line, not a pill inside the bubble.
+                const callOnly = !media && !quoted && !!body && body !== METADATA_ONLY && body.replace(CALL_LINK_RE, "").trim() === "";
                 return (
                   <Fragment key={`w-${m.id || i}`}>
                     {sep}
@@ -2014,7 +2017,7 @@ export default function SecureChat({
                           </div>
                         ) : null}
                         <div
-                          className={`mxm__bub${imageOnly ? " mxm__bub--img" : ""}${m.failed ? " mxm__bub--failed" : ""}${m.pending ? " mxm__bub--pending" : ""}`}
+                          className={`mxm__bub${imageOnly ? " mxm__bub--img" : ""}${callOnly ? " mxm__bub--call" : ""}${m.failed ? " mxm__bub--failed" : ""}${m.pending ? " mxm__bub--pending" : ""}`}
                           onClick={(e) => {
                             if ((e.target as HTMLElement).closest("button,a,audio,input")) return;
                             setActFor((cur) => (cur === m.id ? "" : m.id));

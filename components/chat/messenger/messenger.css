@@ -885,3 +885,14 @@ html[data-theme="dark"] .mxm__bub { box-shadow: none }
 }
 .vnote__rate:hover, .vnote__rate[data-on] { opacity: 1; background: color-mix(in srgb, currentColor 18%, transparent) }
 .mxm--me .vnote__rate { color: #fff }
+
+/* A call notice ("Video qo'ng'iroq boshlandi"): the words and the camera in
+   the bubble's own colour, the time on the same line — it used to be a
+   white pill inside the blue bubble with the time hanging above it. */
+.mxm__bub .sbub__callnote { display: inline-flex; align-items: center; gap: 8px; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: inherit; font-size: inherit; font-weight: 600 }
+.mxm__bub .sbub__callnote svg { width: 16px; height: 16px; flex: none }
+.mxm--them .mxm__bub .sbub__callnote svg { color: var(--mx-acc) }
+.mxm__bub--call { display: inline-flex; align-items: center; gap: 12px; padding: 9px 14px }
+.mxm__bub--call .mxm__text { display: inline-flex; min-width: 0 }
+/* the time never breaks ("20:4 / 6" on a phone); the words wrap instead */
+.mxm__bub--call .mxm__meta { float: none; flex: none; margin: 1px 0 0; white-space: nowrap }

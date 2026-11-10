@@ -690,8 +690,10 @@ export default function UrgentAdvocatePanel() {
                     in a white circle, then the name, the sentence, the facts
                     and how the work is delivered — all of it at rest, so
                     nothing waits behind a hover. */}
-                <span className="uacard__art" style={artStyle(art)} aria-hidden />
-                <b className="uacard__t">{name}</b>
+                <span className="uacard__top">
+                  <span className="uacard__art" style={artStyle(art)} aria-hidden />
+                  <b className="uacard__t">{name}</b>
+                </span>
                 {lead ? <span className="uacard__d">{lead}</span> : null}
                 <span className="uacard__f">
                   {/* Only channels the order form can actually send. The
@@ -711,7 +713,10 @@ export default function UrgentAdvocatePanel() {
                 {/* How the work is delivered, on the card's foot. No prices —
                     those belong to the order form, once there is something to
                     price. */}
-                <span className="uacard__how">{how}</span>
+                <span className="uacard__foot">
+                  <span className="uacard__how">{how}</span>
+                  <span className="uacard__go" aria-hidden><IconArrowRight /></span>
+                </span>
               </button>
             );
           })}
@@ -740,13 +745,18 @@ export default function UrgentAdvocatePanel() {
             data-ai-id="urgent_advokat.service.documents"
             data-ai-type="card"
           >
-            <span className="uacard__art" style={artStyle("Huquqiy_hujjatlar")} aria-hidden />
-            <b className="uacard__t">{t("docs.title")}</b>
+            <span className="uacard__top">
+              <span className="uacard__art" style={artStyle("Huquqiy_hujjatlar")} aria-hidden />
+              <b className="uacard__t">{t("docs.title")}</b>
+            </span>
             <span className="uacard__d">{t("docs.lead")}</span>
             <span className="uacard__f">
               <em className="uacard__kinds" title={`${tnd("scratchTitle")} · ${tnd("reviewTitle")}`}><IconLayers />{t("kindsN", { n: 2 })}</em>
             </span>
-            <span className="uacard__how">{t("deliveryPool")}</span>
+            <span className="uacard__foot">
+              <span className="uacard__how">{t("deliveryPool")}</span>
+              <span className="uacard__go" aria-hidden><IconArrowRight /></span>
+            </span>
           </button>
         </div>
       )}
@@ -803,23 +813,25 @@ export default function UrgentAdvocatePanel() {
                   setOpenId(r.id);
                 }}
               >
-                <span className="ua__rowart" style={artStyle(ART[r.serviceKind])} aria-hidden />
+                <div className="ua__rowh">
+                  <span className="ua__rowart" style={artStyle(ART[r.serviceKind])} aria-hidden />
+                  <div className="ua__rowtt">
+                    <b className="ua__rowt">{kind}</b>
+                    <span className="ua__rowmeta">
+                      {r.workId ? <em className="ua__wid" title={t("workId")}>{r.workId}</em> : null}
+                      {r.createdAt ? <span>{dateTimeFull(r.createdAt, locale)}</span> : null}
+                      {r.viaOperator || opIds.includes(r.id) ? (
+                        <em className="ua__op"><IconHeadset aria-hidden="true" />{t("byOperator")}</em>
+                      ) : null}
+                    </span>
+                  </div>
+                  <em className={`creq__badge ua__st ua__st--${r.status || "open"}`}>{statusLabel(tcm, r.status)}</em>
+                </div>
                 <div className="ua__rowm">
-                  {/* The name and the work id used to be two adjacent text
-                      runs in one <b>, and .ua__wid is nowrap, so the last
-                      word of the name and the 21-character id were a single
-                      unbreakable run: 29 of 40 rows overflowed .ua__rowm by
-                      up to 57px at 400px. As flex items they are two boxes
-                      and the id drops to its own line when the name needs
-                      the width. */}
-                  <b className="ua__rowt">
-                    {kind}
-                    {r.workId ? <em className="ua__wid" title={t("workId")}>{r.workId}</em> : null}
-                    {r.viaOperator || opIds.includes(r.id) ? (
-                      <em className="ua__op"><IconHeadset aria-hidden="true" />{t("byOperator")}</em>
-                    ) : null}
-                  </b>
-                  <span data-ai-private>{[r.need, r.createdAt ? dateTimeFull(r.createdAt, locale) : ""].filter(Boolean).join(" · ")}</span>
+                  {/* What the client wrote, then the facts of the meeting.
+                      The work id sits in the meta line under the name, where
+                      it can wrap on its own instead of pushing the name. */}
+                  {r.need ? <span className="ua__need" data-ai-private>{r.need}</span> : null}
                   {r.scheduledAt ? (
                     <span className="ua__when"><IconClock />{t("scheduled", { when: dateTimeFull(r.scheduledAt, locale) })}</span>
                   ) : null}
@@ -856,7 +868,6 @@ export default function UrgentAdvocatePanel() {
                 {/* The row itself opens the detail, so anything clickable in
                     here must keep its own click to itself. */}
                 <div className="ua__rowr" onClick={(e) => e.stopPropagation()}>
-                  <em className={`creq__badge ua__st ua__st--${r.status || "open"}`}>{statusLabel(tcm, r.status)}</em>
                   {r.secureChatRoomId ? (
                     <Link href="/portal/client/messages" className="btn btn--line btn--sm" data-ai-id={aiId("urgent_advokat.request", r.id, "chat")}><IconChat />{t("openChat")}</Link>
                   ) : null}

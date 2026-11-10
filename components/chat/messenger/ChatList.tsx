@@ -188,6 +188,8 @@ export function ChatList({
           const st = (r.status || "").toLowerCase();
           const closed = st && st !== "active" && st !== "open";
           const on = r.id === activeId;
+          const role = peer.role ? roleLabel(peer.role, ts) : "";
+          const metaBits = [role, rec ? service : ""].filter(Boolean);
           return (
             <li key={r.id}>
               <Link
@@ -206,12 +208,11 @@ export function ChatList({
                   {peer.group ? <Users /> : initialsOf(peer.name) || <Lock />}
                 </span>
                 <span className="mx-row__m">
+                  {/* the name and the time on one line; who the person is
+                      goes to the grey meta line under the message */}
                   <span className="mx-row__top">
-                    {/* first in the line so it can sit top-right while the
-                        name and role wrap beside it */}
-                    <time className="mx-row__t" dateTime={at || undefined}>{listTime(at, locale, ts)}</time>
                     <b className="mx-row__n">{name}</b>
-                    {peer.role ? <span className="mx-row__role">{roleLabel(peer.role, ts)}</span> : null}
+                    <time className="mx-row__t" dateTime={at || undefined}>{listTime(at, locale, ts)}</time>
                   </span>
                   <span className="mx-row__bot">
                     <span className="mx-row__p">
@@ -230,14 +231,14 @@ export function ChatList({
                       <span className="mx-badge" aria-label={t("unreadCount", { n: unread })}>{unread > 99 ? "99+" : unread}</span>
                     ) : null}
                   </span>
-                  {rec || closed ? (
+                  {metaBits.length || rec?.workId || closed ? (
                     <span className="mx-row__tags">
-                      {/* the work's service and number, as the dashboard's grey meta line */}
-                      {rec && (service || rec.workId) ? (
+                      {/* who it is, the work's service and number, as the dashboard's grey meta line */}
+                      {metaBits.length || rec?.workId ? (
                         <span className="mx-row__meta">
-                          {service}
-                          {service && rec.workId ? " · " : null}
-                          {rec.workId ? <span className="mx-row__wid" title={t("workId")}>{breakName(`#${rec.workId}`)}</span> : null}
+                          {metaBits.join(" · ")}
+                          {metaBits.length && rec?.workId ? " · " : null}
+                          {rec?.workId ? <span className="mx-row__wid" title={t("workId")}>{breakName(`#${rec.workId}`)}</span> : null}
                         </span>
                       ) : null}
                       {closed ? <span className={`mx-tag mx-tag--done cx-pill ${toneOf(st)}`}>{statusLabel(tc, r.status)}</span> : null}

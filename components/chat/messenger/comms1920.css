@@ -171,13 +171,14 @@ html[data-theme="dark"] :is(.portal.lx,.mx--standalone) .mx-chip.on{background:v
 :is(.portal.lx,.mx--standalone) .mx-row{align-items:flex-start;gap:12px;padding:12px;border-radius:16px}
 :is(.portal.lx,.mx--standalone) .mx-row:hover{background:var(--lx-chip)}
 /* the open one: chip ground and a blue hairline, as the reference's open row */
-:is(.portal.lx,.mx--standalone) :is(.mx-row--on,.mx-row--on:hover){background:var(--lx-chip);box-shadow:inset 0 0 0 1.5px var(--lx-blue)}
+:is(.portal.lx,.mx--standalone) :is(.mx-row--on,.mx-row--on:hover){background:var(--lx-blue-tint);box-shadow:none}
+html[data-theme="dark"] :is(.portal.lx,.mx--standalone) :is(.mx-row--on,.mx-row--on:hover){background:#1B2E52}
 :is(.portal.lx,.mx--standalone) .mx-row--on::before{display:none}
 :is(.portal.lx,.mx--standalone) .mx-row__m{gap:4px;padding-top:1px}
 /* name and role wrap; the time sits top-right beside them */
-:is(.portal.lx,.mx--standalone) .mx-row__top{display:block;line-height:1.3}
-:is(.portal.lx,.mx--standalone) .mx-row__t{float:right;margin:2px 0 0 10px;font:500 .76rem/1.2 var(--fb);color:var(--lx-gray2)}
-:is(.portal.lx,.mx--standalone) .mx-row__n{display:inline;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;font:600 .95rem/1.3 var(--fb);color:var(--lx-ink)}
+:is(.portal.lx,.mx--standalone) .mx-row__top{display:flex;align-items:baseline;gap:10px;line-height:1.3}
+:is(.portal.lx,.mx--standalone) .mx-row__t{float:none;flex:none;margin:0 0 0 auto;font:500 .76rem/1.2 var(--fb);color:var(--lx-gray2)}
+:is(.portal.lx,.mx--standalone) .mx-row__n{display:block;flex:1;min-width:0;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;font:600 .95rem/1.3 var(--fb);color:var(--lx-ink)}
 :is(.portal.lx,.mx--standalone) .mx-row__role{display:inline;margin-left:6px;text-transform:none;letter-spacing:0;font:500 .78rem/1.3 var(--fb);color:var(--lx-gray2);white-space:nowrap}
 :is(.portal.lx,.mx--standalone) .mx-row__bot{align-items:flex-start;gap:8px}
 :is(.portal.lx,.mx--standalone) .mx-row__p{display:block;font:400 .86rem/1.45 var(--fb);color:var(--lx-gray);overflow-wrap:anywhere}

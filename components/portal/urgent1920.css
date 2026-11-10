@@ -46,73 +46,93 @@
 .portal.lx .ua__headbtn svg{width:16px;height:16px}
 .ua__headn{min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:var(--lx-chip);color:var(--lx-ink);font-size:.76rem;font-weight:700;display:inline-grid;place-items:center}
 
-/* ── the services: the dashboard's arches ────────────────── */
-.portal.lx .ua__grid{display:flex;flex-wrap:nowrap;justify-content:center;align-items:stretch;gap:18px}
-.portal.lx .ua__grid > .uacard{flex:1 1 0;min-width:0}
+/* ── the services: compact cards ──────────────────────────
+   Smaller than the dashboard's arches, which stood ~400px tall here: a
+   white card with the drawing on a light plate beside the name, the
+   sentence, the facts as one quiet line of icon + word (no dark pills),
+   and the foot with how the work is delivered and the round arrow. */
+.portal.lx .ua__grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
 .portal.lx .uacard{
-  position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;gap:0;
-  padding:22px 18px 20px;cursor:pointer;color:#fff;
-  background:var(--lx-navy);border:0;box-shadow:none;
-  border-radius:50% 50% 18px 18px / 100px 100px 18px 18px;
-  transition:transform .18s,box-shadow .18s,filter .18s;
+  position:relative;display:flex;flex-direction:column;align-items:stretch;text-align:left;gap:10px;
+  padding:18px 18px 16px;cursor:pointer;color:var(--lx-ink);min-width:0;
+  background:var(--lx-card);border:1px solid var(--lx-line);border-radius:18px;box-shadow:none;
+  transition:border-color .15s,transform .15s,box-shadow .15s;
 }
-html[data-theme="dark"] .portal.lx .uacard{background:#16243C;box-shadow:inset 0 0 0 1px var(--lx-navy-line)}
-.portal.lx .uacard:hover{transform:translateY(-4px);box-shadow:0 22px 38px -24px rgba(10,21,38,.55);filter:brightness(1.07);border-color:transparent}
-html[data-theme="dark"] .portal.lx .uacard:hover{box-shadow:inset 0 0 0 1px var(--lx-navy-line),0 22px 38px -24px rgba(0,0,0,.7)}
+.portal.lx .uacard:hover{border-color:#C7D6EC;transform:translateY(-2px);box-shadow:0 14px 28px -20px rgba(10,21,38,.35)}
+html[data-theme="dark"] .portal.lx .uacard:hover{border-color:#3A4E75}
 .portal.lx .uacard:focus-visible{outline:3px solid var(--lx-blue);outline-offset:3px}
 /* the service the client last configured, seen behind the dialog */
-.portal.lx .uacard.on{box-shadow:0 0 0 3px var(--lx-bg),0 0 0 5px var(--lx-blue)}
+.portal.lx .uacard.on{border-color:var(--lx-blue);box-shadow:0 0 0 1px var(--lx-blue)}
+.uacard__top{display:flex;align-items:center;gap:12px;min-width:0}
+/* the black line drawing keeps a light plate in both themes */
 .uacard__art{
-  width:92px;height:92px;flex:none;border-radius:50%;margin-bottom:16px;
-  background:var(--art) center/62% no-repeat,#fff;transition:background-size .2s ease;
+  width:52px;height:52px;flex:none;border-radius:50%;margin:0;
+  background:var(--art) center/64% no-repeat,#EEF4FD;transition:background-size .2s ease;
 }
-.portal.lx .uacard:hover .uacard__art{background-size:68%,auto}
-.portal.lx .uacard__t{font-size:.98rem;font-weight:600;line-height:1.35;letter-spacing:-.005em;color:#fff}
-.portal.lx .uacard__d{display:block;margin-top:6px;font-size:.81rem;line-height:1.45;color:rgba(255,255,255,.74);overflow:visible;-webkit-line-clamp:unset;line-clamp:unset}
-.portal.lx .uacard__f{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:12px}
-.portal.lx .uacard__f em{display:inline-flex;align-items:center;gap:5px;font-style:normal;font-size:.72rem;font-weight:600;
-  padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.1);color:#fff;white-space:nowrap}
-.portal.lx .uacard__f em svg{width:12px;height:12px;flex:none}
-.portal.lx .uacard__f em.uacard__now{background:rgba(251,193,94,.16);color:#FBC15E}
-.portal.lx .uacard__f em.uacard__kinds{background:rgba(110,168,255,.18);color:#BFD7FF}
-.portal.lx .uacard .uacard__lock{margin-top:8px;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;
-  font-size:.72rem;font-weight:600;background:rgba(251,193,94,.16);color:#FBC15E}
-.portal.lx .uacard .uacard__lock svg{width:12px;height:12px;flex:none}
-/* how the work is delivered, on the card's floor */
-.portal.lx .uacard .uacard__how{margin-top:auto;width:100%;padding-top:12px;border-top:1px solid rgba(255,255,255,.12);
-  font-size:.76rem;line-height:1.45;color:rgba(255,255,255,.62)}
-.portal.lx .uacard > :has(+ .uacard__how){margin-bottom:14px}
-/* the document card is one of the services, not a violet exception */
-.portal.lx .uacard--docs:hover{border-color:transparent}
+.portal.lx .uacard:hover .uacard__art{background-size:70%,auto}
+.portal.lx .uacard__t{font-size:.96rem;font-weight:600;line-height:1.3;letter-spacing:-.005em;color:var(--lx-ink);min-width:0}
+.portal.lx .uacard__d{display:block;margin:0;font-size:.8rem;line-height:1.5;color:var(--lx-gray);overflow:visible;-webkit-line-clamp:unset;line-clamp:unset}
+/* the facts: icon + word, in the card's own ink, a dot between them */
+.portal.lx .uacard__f{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;margin:0}
+.portal.lx .uacard__f:empty{display:none}
+.portal.lx .uacard__f em{display:inline-flex;align-items:center;gap:5px;font-style:normal;font-size:.76rem;font-weight:600;
+  padding:0;border-radius:0;background:none;color:var(--lx-ink);white-space:nowrap}
+.portal.lx .uacard__f em svg{width:14px;height:14px;flex:none;color:var(--lx-blue)}
+.portal.lx .uacard__f em.uacard__now,.portal.lx .uacard__f em.uacard__now svg{color:var(--lx-warn)}
+.portal.lx .uacard__f em.uacard__kinds{background:none;color:var(--lx-ink)}
+.portal.lx .uacard .uacard__lock{margin:0;display:inline-flex;align-items:center;gap:5px;padding:0;border-radius:0;
+  font-size:.74rem;font-weight:600;background:none;color:var(--lx-warn)}
+.portal.lx .uacard .uacard__lock svg{width:13px;height:13px;flex:none}
+/* the foot: how the work is delivered, and the round arrow that turns blue */
+.uacard__foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:12px;border-top:1px solid var(--lx-line-2)}
+.portal.lx .uacard .uacard__how{margin:0;width:auto;padding:0;border:0;font-size:.76rem;line-height:1.4;color:var(--lx-gray)}
+.portal.lx .uacard .uacard__go{position:static;width:32px;height:32px;border-radius:50%;background:var(--lx-chip);color:var(--lx-ink);display:grid;place-items:center;flex:none;transition:background .15s,color .15s}
+.portal.lx .uacard .uacard__go svg{width:15px;height:15px}
+.portal.lx .uacard:hover .uacard__go,.portal.lx .uacard.on .uacard__go{background:var(--lx-blue);color:#fff}
+.portal.lx .uacard > :has(+ .uacard__how){margin-bottom:0}
+.portal.lx .uacard--docs:hover{border-color:#C7D6EC}
 
-/* ── "Mening so'rovlarim", as "Jarayondagi ishlar" ───────── */
+/* ── "Mening so'rovlarim": cards, as "Jarayondagi ishlar" ───
+   Two to a row: the picture, the name with its work id and date, and the
+   status on top; what the client wrote and the meeting facts; the buttons
+   in one row at the foot (they used to stack in a column on the right). */
 .portal.lx .ua__mine{padding:28px 24px;scroll-margin-top:16px}
 .portal.lx .ua__mineh{margin-bottom:20px}
 .ua__minet{margin:0;display:flex;align-items:center;gap:10px;font-family:var(--fd);font-size:1.18rem;font-weight:700;letter-spacing:-.015em;color:var(--lx-ink)}
 .ua__minen{min-width:26px;height:26px;padding:0 8px;border-radius:999px;background:var(--lx-chip);color:var(--lx-ink);font-size:.8rem;font-weight:700;display:inline-grid;place-items:center}
-.portal.lx .ua__list{gap:14px}
-.portal.lx .ua__row{background:var(--lx-chip);border-radius:16px;padding:16px 18px;gap:14px;align-items:flex-start;box-shadow:none}
+.portal.lx .ua__list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:0;padding:0;list-style:none}
+.portal.lx .ua__row{display:flex;flex-direction:column;align-items:stretch;gap:10px;min-width:0;
+  background:var(--lx-chip);border-radius:16px;padding:16px 18px;box-shadow:none;cursor:pointer}
 .portal.lx .ua__row--tap:hover{background:#ECF2FB;box-shadow:inset 0 0 0 1px #C7D6EC}
 html[data-theme="dark"] .portal.lx .ua__row--tap:hover{background:#1C2B47;box-shadow:inset 0 0 0 1px #2E4268}
 .portal.lx .ua__row--on{box-shadow:inset 0 0 0 1.5px var(--lx-blue)}
+.ua__rowh{display:flex;align-items:flex-start;gap:12px;min-width:0}
 .ua__rowart{
-  width:52px;height:52px;flex:none;border-radius:50%;
+  width:44px;height:44px;flex:none;border-radius:50%;
   background:var(--art) center/64% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line);
 }
 html[data-theme="dark"] .ua__rowart{box-shadow:none}
-.portal.lx .ua__rowm{gap:4px;padding-top:2px}
-.portal.lx .ua__rowm b.ua__rowt{font-size:.98rem;font-weight:600;line-height:1.35;color:var(--lx-ink)}
+.ua__rowtt{display:grid;gap:4px;flex:1;min-width:0}
+.portal.lx .ua__rowt{font-size:.96rem;font-weight:600;line-height:1.3;color:var(--lx-ink);overflow-wrap:anywhere}
+.ua__rowmeta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:.78rem;color:var(--lx-gray)}
+.portal.lx .ua__rowh .ua__st{margin-left:auto;flex:none}
+.portal.lx .ua__rowm{display:grid;gap:6px;padding:0;min-width:0}
 .portal.lx .ua__rowm > span{font-size:.82rem;color:var(--lx-gray)}
-.portal.lx .ua__rowm .ua__when{color:var(--lx-ink);font-weight:500}
+.portal.lx .ua__rowm .ua__need{color:var(--lx-ink);line-height:1.45;overflow-wrap:anywhere}
+.portal.lx .ua__rowm .ua__when{display:flex;align-items:center;gap:6px;color:var(--lx-ink);font-weight:500}
+.portal.lx .ua__rowm .ua__when svg{width:14px;height:14px;flex:none;color:var(--lx-blue)}
 /* the work id, as the dashboard's grey chip */
-.portal.lx .ua__wid{padding:2px 9px;border-radius:999px;background:var(--lx-card);color:var(--lx-gray);font-size:.7rem;font-weight:600;
-  box-shadow:inset 0 0 0 1px var(--lx-line)}
-/* "Operator yaratgan": a blue-tint pill, not a violet one */
-.portal.lx .ua__op{background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
-.portal.lx .ua__rowr{gap:8px}
-/* the row is chip-coloured, so its buttons are the white ones (.cx-iconbtn) */
-.portal.lx .ua__rowr .btn--soft{background:var(--lx-card);border:1px solid var(--lx-line)}
-.portal.lx .ua__rowr .btn--soft:hover{border-color:#C7D6EC;background:var(--lx-card)}
+.portal.lx .ua__wid{font-style:normal;padding:2px 9px;border-radius:999px;background:var(--lx-card);color:var(--lx-gray);font-size:.7rem;font-weight:600;
+  box-shadow:inset 0 0 0 1px var(--lx-line);white-space:nowrap}
+/* "Operator yaratgan": a blue-tint pill */
+.portal.lx .ua__op{font-style:normal;display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;font-size:.7rem;font-weight:600;background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
+.portal.lx .ua__op svg{width:12px;height:12px}
+/* the buttons, one row at the foot */
+.portal.lx .ua__rowr{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;margin-top:auto;padding-top:4px}
+.portal.lx .ua__rowr:empty{display:none}
+/* the row is chip-coloured, so its buttons are the white ones */
+.portal.lx .ua__rowr .btn--soft,.portal.lx .ua__rowr .btn--line{background:var(--lx-card);border:1px solid var(--lx-line)}
+.portal.lx .ua__rowr .btn--soft:hover,.portal.lx .ua__rowr .btn--line:hover{border-color:#C7D6EC;background:var(--lx-card)}
 /* status pills in the dashboard's .cx-pill shape and tones */
 .portal.lx .ua__st{display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;font-size:.74rem;font-weight:600;white-space:nowrap;
   background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
@@ -174,23 +194,22 @@ html[data-theme="dark"] :is(.uakind__art,.uaform__art,.uagate__art){box-shadow:n
 .uamore .urate__left{border-radius:999px;background:var(--lx-warn-bg, #FFF3D6);color:var(--lx-warn, #9A5B00)}
 
 /* ── by the width the page actually gets ─────────────────── */
-/* Five arches stay in a row down to ~170px each; narrower, three over two
-   with the short row centred, then two by two. */
-@container ua (max-width:1059px){
-  .portal.lx .ua__grid{flex-wrap:wrap}
-  .portal.lx .ua__grid > .uacard{flex:0 1 calc((100% - 36px) / 3)}
-  .portal.lx .uacard{padding:20px 14px 18px}
-  .uacard__art{width:80px;height:80px;margin-bottom:14px}
-}
 @container ua (max-width:1139px){
   .portal.lx .ua__hero{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"art main" "meta meta"}
   .portal.lx .ua__meta{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
+/* four cards in a row while each keeps ~230px; then two by two */
+@container ua (max-width:979px){
+  .portal.lx .ua__grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+/* the requests: two to a row while each keeps ~380px */
+@container ua (max-width:799px){
+  .portal.lx .ua__list{grid-template-columns:minmax(0,1fr)}
+}
 @container ua (max-width:699px){
   .portal.lx .ua__head{flex-direction:column;align-items:stretch}
   .portal.lx .ua__headbtn{align-self:flex-start}
-  .portal.lx .ua__grid{gap:14px}
-  .portal.lx .ua__grid > .uacard{flex:0 1 calc((100% - 14px) / 2)}
+  .portal.lx .ua__grid{gap:12px}
   .portal.lx .ua__hero{padding:20px}
   .ua__art{width:72px;height:72px}
 }
@@ -198,19 +217,14 @@ html[data-theme="dark"] :is(.uakind__art,.uaform__art,.uagate__art){box-shadow:n
   .portal.lx .ua__meta{grid-template-columns:minmax(0,1fr)}
   .portal.lx .ua__meta div{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
   .portal.lx .ua__meta dd{text-align:right}
-  .portal.lx .uacard{padding:16px 10px 16px;border-radius:50% 50% 14px 14px / 72px 72px 14px 14px}
-  .uacard__art{width:64px;height:64px;margin-bottom:12px}
-  .portal.lx .uacard__t{font-size:.88rem}
-  .portal.lx .uacard__d{font-size:.76rem}
+  .portal.lx .ua__grid{grid-template-columns:minmax(0,1fr)}
   .portal.lx .ua__mine{padding:18px 14px}
-  .portal.lx .ua__row{padding:14px 12px;gap:10px}
+  .portal.lx .ua__row{padding:14px 12px}
   .ua__rowart{width:40px;height:40px}
-  /* a 21-character work id must not push the row wider than a phone */
+  /* the status goes under the name, so the name keeps the row's width */
+  .ua__rowh{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:12px;row-gap:8px}
+  .portal.lx .ua__rowh .ua__st{grid-column:2;margin-left:0;justify-self:start}
   .portal.lx .ua__wid,.portal.lx .ua__op{white-space:normal;overflow-wrap:anywhere;min-width:0;max-width:100%}
-  .portal.lx .ua__rowm b.ua__rowt{min-width:0}
-}
-@container ua (max-width:359px){
-  .portal.lx .ua__grid > .uacard{flex:1 1 100%}
 }
 @media (max-width:560px){
   .uakind .uakind__c{column-gap:12px;padding:14px}
