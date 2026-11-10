@@ -690,10 +690,8 @@ export default function UrgentAdvocatePanel() {
                     in a white circle, then the name, the sentence, the facts
                     and how the work is delivered — all of it at rest, so
                     nothing waits behind a hover. */}
-                <span className="uacard__top">
-                  <span className="uacard__art" style={artStyle(art)} aria-hidden />
-                  <b className="uacard__t">{name}</b>
-                </span>
+                <span className="uacard__art" style={artStyle(art)} aria-hidden />
+                <b className="uacard__t">{name}</b>
                 {lead ? <span className="uacard__d">{lead}</span> : null}
                 <span className="uacard__f">
                   {/* Only channels the order form can actually send. The
@@ -713,10 +711,7 @@ export default function UrgentAdvocatePanel() {
                 {/* How the work is delivered, on the card's foot. No prices —
                     those belong to the order form, once there is something to
                     price. */}
-                <span className="uacard__foot">
-                  <span className="uacard__how">{how}</span>
-                  <span className="uacard__go" aria-hidden><IconArrowRight /></span>
-                </span>
+                <span className="uacard__how">{how}</span>
               </button>
             );
           })}
@@ -745,18 +740,13 @@ export default function UrgentAdvocatePanel() {
             data-ai-id="urgent_advokat.service.documents"
             data-ai-type="card"
           >
-            <span className="uacard__top">
-              <span className="uacard__art" style={artStyle("Huquqiy_hujjatlar")} aria-hidden />
-              <b className="uacard__t">{t("docs.title")}</b>
-            </span>
+            <span className="uacard__art" style={artStyle("Huquqiy_hujjatlar")} aria-hidden />
+            <b className="uacard__t">{t("docs.title")}</b>
             <span className="uacard__d">{t("docs.lead")}</span>
             <span className="uacard__f">
               <em className="uacard__kinds" title={`${tnd("scratchTitle")} · ${tnd("reviewTitle")}`}><IconLayers />{t("kindsN", { n: 2 })}</em>
             </span>
-            <span className="uacard__foot">
-              <span className="uacard__how">{t("deliveryPool")}</span>
-              <span className="uacard__go" aria-hidden><IconArrowRight /></span>
-            </span>
+            <span className="uacard__how">{t("deliveryPool")}</span>
           </button>
         </div>
       )}

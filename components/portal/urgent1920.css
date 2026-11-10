@@ -46,51 +46,50 @@
 .portal.lx .ua__headbtn svg{width:16px;height:16px}
 .ua__headn{min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:var(--lx-chip);color:var(--lx-ink);font-size:.76rem;font-weight:700;display:inline-grid;place-items:center}
 
-/* ── the services: compact cards ──────────────────────────
-   Smaller than the dashboard's arches, which stood ~400px tall here: a
-   white card with the drawing on a light plate beside the name, the
-   sentence, the facts as one quiet line of icon + word (no dark pills),
-   and the foot with how the work is delivered and the round arrow. */
-.portal.lx .ua__grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+/* ── the services: the dashboard's arches, a size smaller ──
+   Navy, a dome top, the black line drawing in a white circle, the name and
+   its sentence, the facts and how the work is delivered — as before, at
+   ~300px instead of ~400px. The facts are one line of icon + word in the
+   arch's own light ink (a light-blue icon, "Darhol" in amber) instead of
+   the dark pills that sat on it. */
+.portal.lx .ua__grid{display:flex;flex-wrap:nowrap;justify-content:center;align-items:stretch;gap:16px}
+.portal.lx .ua__grid > .uacard{flex:1 1 0;min-width:0}
 .portal.lx .uacard{
-  position:relative;display:flex;flex-direction:column;align-items:stretch;text-align:left;gap:10px;
-  padding:18px 18px 16px;cursor:pointer;color:var(--lx-ink);min-width:0;
-  background:var(--lx-card);border:1px solid var(--lx-line);border-radius:18px;box-shadow:none;
-  transition:border-color .15s,transform .15s,box-shadow .15s;
+  position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;gap:0;
+  padding:18px 16px 16px;cursor:pointer;color:#fff;
+  background:var(--lx-navy);border:0;box-shadow:none;
+  border-radius:50% 50% 16px 16px / 76px 76px 16px 16px;
+  transition:transform .18s,box-shadow .18s,filter .18s;
 }
-.portal.lx .uacard:hover{border-color:#C7D6EC;transform:translateY(-2px);box-shadow:0 14px 28px -20px rgba(10,21,38,.35)}
-html[data-theme="dark"] .portal.lx .uacard:hover{border-color:#3A4E75}
+html[data-theme="dark"] .portal.lx .uacard{background:#16243C;box-shadow:inset 0 0 0 1px var(--lx-navy-line)}
+.portal.lx .uacard:hover{transform:translateY(-4px);box-shadow:0 22px 38px -24px rgba(10,21,38,.55);filter:brightness(1.07);border-color:transparent}
+html[data-theme="dark"] .portal.lx .uacard:hover{box-shadow:inset 0 0 0 1px var(--lx-navy-line),0 22px 38px -24px rgba(0,0,0,.7)}
 .portal.lx .uacard:focus-visible{outline:3px solid var(--lx-blue);outline-offset:3px}
 /* the service the client last configured, seen behind the dialog */
-.portal.lx .uacard.on{border-color:var(--lx-blue);box-shadow:0 0 0 1px var(--lx-blue)}
-.uacard__top{display:flex;align-items:center;gap:12px;min-width:0}
-/* the black line drawing keeps a light plate in both themes */
+.portal.lx .uacard.on{box-shadow:0 0 0 3px var(--lx-bg),0 0 0 5px var(--lx-blue)}
 .uacard__art{
-  width:52px;height:52px;flex:none;border-radius:50%;margin:0;
-  background:var(--art) center/64% no-repeat,#EEF4FD;transition:background-size .2s ease;
+  width:68px;height:68px;flex:none;border-radius:50%;margin-bottom:12px;
+  background:var(--art) center/62% no-repeat,#fff;transition:background-size .2s ease;
 }
-.portal.lx .uacard:hover .uacard__art{background-size:70%,auto}
-.portal.lx .uacard__t{font-size:.96rem;font-weight:600;line-height:1.3;letter-spacing:-.005em;color:var(--lx-ink);min-width:0}
-.portal.lx .uacard__d{display:block;margin:0;font-size:.8rem;line-height:1.5;color:var(--lx-gray);overflow:visible;-webkit-line-clamp:unset;line-clamp:unset}
-/* the facts: icon + word, in the card's own ink, a dot between them */
-.portal.lx .uacard__f{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;margin:0}
+.portal.lx .uacard:hover .uacard__art{background-size:68%,auto}
+.portal.lx .uacard__t{font-size:.92rem;font-weight:600;line-height:1.3;letter-spacing:-.005em;color:#fff}
+.portal.lx .uacard__d{display:block;margin-top:5px;font-size:.78rem;line-height:1.45;color:rgba(255,255,255,.72);overflow:visible;-webkit-line-clamp:unset;line-clamp:unset}
+/* the facts: icon + word, no pills */
+.portal.lx .uacard__f{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 12px;margin-top:10px}
 .portal.lx .uacard__f:empty{display:none}
-.portal.lx .uacard__f em{display:inline-flex;align-items:center;gap:5px;font-style:normal;font-size:.76rem;font-weight:600;
-  padding:0;border-radius:0;background:none;color:var(--lx-ink);white-space:nowrap}
-.portal.lx .uacard__f em svg{width:14px;height:14px;flex:none;color:var(--lx-blue)}
-.portal.lx .uacard__f em.uacard__now,.portal.lx .uacard__f em.uacard__now svg{color:var(--lx-warn)}
-.portal.lx .uacard__f em.uacard__kinds{background:none;color:var(--lx-ink)}
-.portal.lx .uacard .uacard__lock{margin:0;display:inline-flex;align-items:center;gap:5px;padding:0;border-radius:0;
-  font-size:.74rem;font-weight:600;background:none;color:var(--lx-warn)}
+.portal.lx .uacard__f em{display:inline-flex;align-items:center;gap:5px;font-style:normal;font-size:.74rem;font-weight:600;
+  padding:0;border-radius:0;background:none;color:rgba(255,255,255,.9);white-space:nowrap}
+.portal.lx .uacard__f em svg{width:14px;height:14px;flex:none;color:#7FB2FF}
+.portal.lx .uacard__f em.uacard__now,.portal.lx .uacard__f em.uacard__now svg{color:#FBC15E}
+.portal.lx .uacard__f em.uacard__kinds{background:none;color:rgba(255,255,255,.9)}
+.portal.lx .uacard .uacard__lock{margin-top:8px;display:inline-flex;align-items:center;gap:5px;padding:0;border-radius:0;
+  font-size:.72rem;font-weight:600;background:none;color:#FBC15E}
 .portal.lx .uacard .uacard__lock svg{width:13px;height:13px;flex:none}
-/* the foot: how the work is delivered, and the round arrow that turns blue */
-.uacard__foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:12px;border-top:1px solid var(--lx-line-2)}
-.portal.lx .uacard .uacard__how{margin:0;width:auto;padding:0;border:0;font-size:.76rem;line-height:1.4;color:var(--lx-gray)}
-.portal.lx .uacard .uacard__go{position:static;width:32px;height:32px;border-radius:50%;background:var(--lx-chip);color:var(--lx-ink);display:grid;place-items:center;flex:none;transition:background .15s,color .15s}
-.portal.lx .uacard .uacard__go svg{width:15px;height:15px}
-.portal.lx .uacard:hover .uacard__go,.portal.lx .uacard.on .uacard__go{background:var(--lx-blue);color:#fff}
-.portal.lx .uacard > :has(+ .uacard__how){margin-bottom:0}
-.portal.lx .uacard--docs:hover{border-color:#C7D6EC}
+/* how the work is delivered, on the card's floor */
+.portal.lx .uacard .uacard__how{margin-top:auto;width:100%;padding-top:10px;border-top:1px solid rgba(255,255,255,.12);
+  font-size:.74rem;line-height:1.45;color:rgba(255,255,255,.62)}
+.portal.lx .uacard > :has(+ .uacard__how){margin-bottom:12px}
+.portal.lx .uacard--docs:hover{border-color:transparent}
 
 /* ── "Mening so'rovlarim": cards, as "Jarayondagi ishlar" ───
    Two to a row: the picture, the name with its work id and date, and the
@@ -198,9 +197,10 @@ html[data-theme="dark"] :is(.uakind__art,.uaform__art,.uagate__art){box-shadow:n
   .portal.lx .ua__hero{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"art main" "meta meta"}
   .portal.lx .ua__meta{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
-/* four cards in a row while each keeps ~230px; then two by two */
+/* four arches in a row while each keeps ~220px; then two by two */
 @container ua (max-width:979px){
-  .portal.lx .ua__grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .portal.lx .ua__grid{flex-wrap:wrap}
+  .portal.lx .ua__grid > .uacard{flex:0 1 calc((100% - 16px) / 2)}
 }
 /* the requests: two to a row while each keeps ~380px */
 @container ua (max-width:799px){
@@ -210,6 +210,7 @@ html[data-theme="dark"] :is(.uakind__art,.uaform__art,.uagate__art){box-shadow:n
   .portal.lx .ua__head{flex-direction:column;align-items:stretch}
   .portal.lx .ua__headbtn{align-self:flex-start}
   .portal.lx .ua__grid{gap:12px}
+  .portal.lx .ua__grid > .uacard{flex:0 1 calc((100% - 12px) / 2)}
   .portal.lx .ua__hero{padding:20px}
   .ua__art{width:72px;height:72px}
 }
@@ -217,7 +218,11 @@ html[data-theme="dark"] :is(.uakind__art,.uaform__art,.uagate__art){box-shadow:n
   .portal.lx .ua__meta{grid-template-columns:minmax(0,1fr)}
   .portal.lx .ua__meta div{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
   .portal.lx .ua__meta dd{text-align:right}
-  .portal.lx .ua__grid{grid-template-columns:minmax(0,1fr)}
+  .portal.lx .uacard{padding:16px 10px 14px;border-radius:50% 50% 14px 14px / 64px 64px 14px 14px}
+  .uacard__art{width:56px;height:56px;margin-bottom:10px}
+  .portal.lx .uacard__t{font-size:.86rem}
+  .portal.lx .uacard__d{font-size:.74rem}
+  .portal.lx .uacard__f{gap:4px 10px}
   .portal.lx .ua__mine{padding:18px 14px}
   .portal.lx .ua__row{padding:14px 12px}
   .ua__rowart{width:40px;height:40px}
@@ -225,6 +230,9 @@ html[data-theme="dark"] :is(.uakind__art,.uaform__art,.uagate__art){box-shadow:n
   .ua__rowh{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:12px;row-gap:8px}
   .portal.lx .ua__rowh .ua__st{grid-column:2;margin-left:0;justify-self:start}
   .portal.lx .ua__wid,.portal.lx .ua__op{white-space:normal;overflow-wrap:anywhere;min-width:0;max-width:100%}
+}
+@container ua (max-width:359px){
+  .portal.lx .ua__grid > .uacard{flex:1 1 100%}
 }
 @media (max-width:560px){
   .uakind .uakind__c{column-gap:12px;padding:14px}
