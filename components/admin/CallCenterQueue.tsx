@@ -198,6 +198,8 @@ export default function CallCenterQueue({ onCount }: { onCount?: (n: number) => 
                         leadCategoryLabel(tp, item.title) || t("untitled")
                       ) : !GENERIC_TITLE.has(item.title.trim().toLowerCase()) ? (
                         item.title
+                      ) : item.clientName ? (
+                        item.clientName
                       ) : item.clientUserId ? (
                         <PersonName id={item.clientUserId} />
                       ) : (

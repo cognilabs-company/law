@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { getCallAnalyticsFull, isCallsEmpty, trimSeries, isFiltered, todayIso, type CallAnalyticsFull } from "@/lib/services/dash";
+import { callsShown, getCallAnalyticsFull, trimSeries, isFiltered, todayIso, type CallAnalyticsFull } from "@/lib/services/dash";
 import { demoCalls } from "@/lib/demoStats";
 import { useResourceOne } from "@/lib/useResource";
 import { Skeleton } from "@/components/portal/DataState";
@@ -27,7 +27,7 @@ export default function AdminCallAnalytics() {
   const res = useResourceOne(() => getCallAnalyticsFull(filter), [fkey]);
   const [drill, setDrill] = useState<Drill | null>(null);
   const loaded = res.status !== "loading";
-  const demo = demoForced || (loaded && (!res.data || isCallsEmpty(res.data)));
+  const { demo, empty } = callsShown(demoForced, res.data ?? null, loaded && res.status !== "error");
   const a = useMemo(() => (demo ? demoCalls(todayIso()) : res.data ?? EMPTY), [demo, res.data]);
   const byDay = trimSeries(a.byDay, filter);
   const answerRate = a.total ? Math.round((a.answered / a.total) * 100) : 0;
@@ -45,7 +45,8 @@ export default function AdminCallAnalytics() {
     <div className="ppanel">
       <div className="ppanel__h"><b>{t("title")}</b></div>
       <DashFilterBar value={filter} onChange={setFilter} demoForced={demoForced} onDemoForced={setDemoForced} note={isFiltered(filter) ? td("filter.regionNote") : undefined} compact />
-      {demo && loaded ? <p className="bhnote" role="status"><IconInfo />{demoForced ? td("demo.forced") : td("demo.banner")}</p> : null}
+      {demo && loaded ? <p className="bhnote" role="status"><IconInfo />{td("demo.forced")}</p> : null}
+      {empty ? <p className="bhnote" role="status"><IconInfo />{t("emptyNote")}</p> : null}
       {!loaded ? (
         <Skeleton rows={3} />
       ) : (

@@ -4165,11 +4165,66 @@ export type QueueItem = {
   requestedLawyerCount?: number;
   operatorUserId?: string;
   claimedByUserId?: string;
+  // Who to call. The row has no fixed top-level client fields: a lead keeps
+  // its contact in `details` (like every legacy lead), an order in its
+  // nested client/details, an urgent request in `client`. queuePerson()
+  // reads all of them so a card never says "no client" while the row knows.
+  clientName?: string;
+  clientPhone?: string;
 };
+
+const QUEUE_NEST = ["client", "customer", "user", "contact", "details", "payload", "lead", "order"] as const;
+const PERSON_KEYS = new Set<string>(["client", "customer", "user", "contact"]);
+const firstStr = (...vals: unknown[]): string => {
+  for (const v of vals) {
+    const s = typeof v === "string" || typeof v === "number" ? String(v).trim() : "";
+    if (s) return s;
+  }
+  return "";
+};
+const fullNameOf = (d: Dict): string =>
+  firstStr(d.full_name, d.client_name, d.customer_name, d.contact_name, d.name, [asStr(d.first_name).trim(), asStr(d.last_name).trim()].filter(Boolean).join(" "));
+
+// Client of a /call-center/queue row: id, name and phone from the row itself
+// or any nested dict it carries (two levels: details.client, order.client …).
+// The row's own `name`/`title`/`id` describe the job, so at the top level
+// only explicit client_* keys count; nested person dicts may use plain ones.
+export function queuePerson(row: unknown): { userId: string; name: string; phone: string } {
+  const d = asDict(row);
+  // details/payload hold a lead's own contact (name, phone); a nested lead or
+  // order dict names a job, so only its client_* keys are read.
+  // Only a client/user dict's own `id` is a LexGo user id (a CRM customer's
+  // id is not).
+  const layers: { dict: Dict; person: boolean; contact: boolean; ownId: boolean }[] = [];
+  const add = (k: string, v: unknown) => {
+    const dict = asDict(v);
+    if (!Object.keys(dict).length) return false;
+    layers.push({ dict, person: PERSON_KEYS.has(k), contact: PERSON_KEYS.has(k) || k === "details" || k === "payload", ownId: k === "client" || k === "user" });
+    return true;
+  };
+  for (const k of QUEUE_NEST) {
+    if (!add(k, d[k])) continue;
+    const inner = asDict(d[k]);
+    for (const k2 of QUEUE_NEST) add(k2, inner[k2]);
+  }
+  const gate = phoneGateOf(layers.filter((l) => l.person).map((l) => l.dict), [d, ...layers.map((l) => l.dict)]);
+  let userId = firstStr(d.client_user_id, d.customer_user_id);
+  let name = firstStr(d.client_name, d.customer_name, d.contact_name, d.client_full_name);
+  let phone = firstStr(d.client_phone, d.customer_phone, d.contact_phone);
+  for (const { dict: l, contact, ownId } of layers) {
+    userId ||= firstStr(l.client_user_id, l.customer_user_id, contact ? l.user_id : "", ownId ? l.id : "");
+    name ||= contact ? fullNameOf(l) : firstStr(l.client_name, l.customer_name, l.contact_name);
+    phone ||= firstStr(l.client_phone, l.customer_phone, l.contact_phone, contact ? l.phone : "", contact ? l.phone_number : "");
+  }
+  return { userId, name: personName(name), phone: gatedPhone(gate, phone) };
+}
 export async function getCallCenterQueue(status?: string): Promise<QueueItem[]> {
   const qs = status ? `?status=${encodeURIComponent(status)}` : "";
-  return listFrom(await http(`/call-center/queue${qs}`), "items", "data", "queue").map((x) => {
+  return listFrom(await http(`/call-center/queue${qs}`), "items", "data", "queue").map(normQueueItem);
+}
+export function normQueueItem(x: unknown): QueueItem {
     const d = asDict(x);
+    const who = queuePerson(d);
     return {
       id: asStr(d.id),
       type: asStr(d.type),
@@ -4178,7 +4233,9 @@ export async function getCallCenterQueue(status?: string): Promise<QueueItem[]> 
       score: asStr(d.score),
       urgency: asStr(d.urgency),
       region: asStr(d.region),
-      clientUserId: asStr(d.client_user_id) || undefined,
+      clientUserId: who.userId || undefined,
+      clientName: who.name || undefined,
+      clientPhone: who.phone || undefined,
       slaMinutes: asNum(d.sla_minutes, 60),
       ageMinutes: asNum(d.age_minutes),
       slaBreached: Boolean(d.sla_breached),
@@ -4193,7 +4250,6 @@ export async function getCallCenterQueue(status?: string): Promise<QueueItem[]> 
       operatorUserId: asStr(d.operator_user_id) || undefined,
       claimedByUserId: asStr(d.claimed_by_user_id) || undefined,
     };
-  });
 }
 // Hand an unassigned order to the next ranked seller (orders.manage).
 export async function assignNextSeller(orderId: string): Promise<void> {
@@ -6164,7 +6220,7 @@ export async function listCcCalls(clientUserId?: string): Promise<CcCall[]> {
   return listFrom(await http(`/call-center/calls${qs}`), "items", "data", "calls").map((x) => {
     const d = asDict(x); const p = asDict(d.payload);
     return {
-      id: asStr(d.id),
+      id: asStr(d.id ?? d.call_id ?? d.record_id ?? p.call_id),
       direction: asStr(d.record_type ?? p.direction, "incoming"),
       phone: asStr(p.phone) || asStr(d.title),
       status: asStr(d.status, "completed"),
@@ -7065,7 +7121,7 @@ export async function listInvitedCalls(): Promise<InvitedCall[]> {
 
 // Search any platform user (staff/callcenter) to invite to a meeting, or for
 // any admin "pick a user" field instead of typing an id by hand.
-export type UserSearchResult = { id: string; name: string; phone: string; role: string; lexgoId: string; accountStatus: string };
+export type UserSearchResult = { id: string; name: string; phone: string; role: string; lexgoId: string; accountStatus: string; avatarUrl: string };
 export async function searchUsers(q: string, opts?: { role?: string; limit?: number }): Promise<UserSearchResult[]> {
   const query = q.trim();
   if (!query) return [];
@@ -7082,6 +7138,7 @@ export async function searchUsers(q: string, opts?: { role?: string; limit?: num
       role: asStr(d.role ?? d.seller_type),
       lexgoId: asStr(d.lexgo_id ?? d.lexgoId),
       accountStatus: asStr(d.account_status ?? u.account_status),
+      avatarUrl: absUrl(asStr(d.avatar_url ?? d.photo_url ?? u.avatar_url ?? u.photo_url)),
     };
   });
 }

@@ -45,7 +45,7 @@ export default function QueuesBoard({ lanes, calls, canLeads, onDrill, onRetry, 
   const failed = rows.filter((r) => r.lane.status === "failed");
   const empty = rows.filter((r) => r.lane.status !== "failed" && !r.lane.jobs.length);
   const first = [...busy].sort((a, b) => (b.lane.oldest?.ageMin ?? 0) - (a.lane.oldest?.ageMin ?? 0))[0];
-  const oldest = first?.lane.jobs[0];
+  const oldest = first?.lane.oldest ?? first?.lane.jobs[0];
 
   return (
     <div className="opx-board2">

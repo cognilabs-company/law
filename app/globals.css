@@ -21156,3 +21156,25 @@ html[data-theme="dark"] .mk-bought,html[data-theme="dark"] .mk-side__bought{colo
 .hrmf-swatch{width:28px;height:28px;padding:0;border:0;border-radius:50%;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
 .hrmf-swatch.on{outline:2px solid var(--ink);outline-offset:2px}
 .hrmf-swatch:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+/* Notifications: people picker (search → avatar, name, role, phone). */
+.nrcp__av{flex:none;display:grid;place-items:center;width:32px;height:32px;border-radius:50%;overflow:hidden;background:var(--b50);color:var(--b600);font-size:.72rem;font-weight:800}
+.nrcp__av img{width:100%;height:100%;object-fit:cover}
+.nrcp__av svg{width:16px;height:16px}
+.npick{display:grid;gap:10px;min-width:0}
+.npick__search{display:flex;align-items:center;gap:8px;min-width:0;padding:0 14px;border-radius:14px;background:var(--dk-surface-2, #F7FAFE);color:var(--gray2);cursor:text}
+.npick__search:focus-within{box-shadow:inset 0 0 0 1.5px var(--b400);background:var(--dk-surface, #fff)}
+.npick__search svg{flex:none;width:18px;height:18px}
+.npick__search input{flex:1;min-width:0;border:0;background:transparent;padding:13px 0;font-size:.95rem;color:var(--ink);outline:none}
+.npick__chips{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
+.npick__chips li{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:3px 4px 3px 3px;border-radius:999px;background:var(--b50);color:var(--ink);font-size:.84rem;font-weight:600}
+.npick__chips li .nrcp__av{width:24px;height:24px;font-size:.62rem}
+.npick__chips li span:not(.nrcp__av){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.npick__chips button{flex:none;display:grid;place-items:center;width:24px;height:24px;border:0;border-radius:50%;background:transparent;color:var(--gray);cursor:pointer}
+.npick__chips button:hover{background:var(--dk-surface-2, #fff);color:var(--ink)}
+.npick__chips button:focus-visible{outline:2px solid var(--b400);outline-offset:1px}
+.npick__chips button svg{width:14px;height:14px}
+.npick__note{margin:0}
+.npick button.nrcp__row{width:100%;border:0;background:transparent;text-align:left;font:inherit}
+.npick button.nrcp__row:hover{background:var(--dk-surface-2, var(--b50))}
+.npick button.nrcp__row.on{background:var(--b50)}
+.npick button.nrcp__row:focus-visible{outline:2px solid var(--b400);outline-offset:-2px}

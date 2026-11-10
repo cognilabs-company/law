@@ -51,6 +51,8 @@ export type QJob = {
   detail: string;
   category?: string;
   serviceKind?: string;
+  // /call-center/queue row type (lead, order …) for the "queue" lane.
+  rowType?: string;
   whyCode?: string;
   amount?: number;
   who: string;

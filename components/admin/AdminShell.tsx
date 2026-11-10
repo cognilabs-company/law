@@ -54,6 +54,8 @@ import { startCcShift } from "@/lib/callcenter/ccOperator";
 import { useCcOpen } from "@/lib/callcenter/useCcOpen";
 import { CCX_HOME, CCX_NAV_HREF, CCX_PROFILE_HREF, ccxRouteFor } from "@/lib/ccx/routes";
 import { policyLanding, useRoleNav } from "@/components/RoleNavHost";
+import { useRaSupervisor } from "@/lib/remoteAssist/useRaSupervisor";
+import { isDutyDesk } from "@/lib/ccx/duty";
 import { navPath } from "@/lib/roleNav";
 import CcxViewLoading from "../ccx/ViewLoading";
 
@@ -292,7 +294,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   // a workspace the access check then leaves, /admin/meetings ↔
   // /admin/call-center?view=meetings for ever.
   const ccOperator = !isFullAdmin && isCallCenterUser(session) && !roleNav.hides(CCX_HOME) && !hiddenForRoles(CCX_HOME, roles);
-  const ccOpen = useCcOpen(ccOperator);
+  const ccOpen = useCcOpen(ccOperator, isDutyDesk(roles, roleNav.state.policy?.roleProfile));
   useEffect(() => {
     if (ccOperator) startCcShift();
   }, [ccOperator]);
@@ -314,6 +316,10 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   // Meetings: anyone who may start calls (meetings.manage, or a call-center
   // role on a session stored before permissions were saved) — call-center
   // operators run video meetings from here.
+  // Remote assistance: listed only when its page will open, i.e. the same
+  // backend capabilities the page checks (GET /remote-assistance/meta).
+  const raPerm = isSuper || ["remote_assist.supervise", "remote_assist.view_audit"].some((p) => perms.includes(p));
+  const raOk = useRaSupervisor(Boolean(session) && raPerm && !hiddenForRoles("/admin/remote-assistance", roles));
   const canSee = (n: NavItem) =>
     !hiddenForRoles(n.href, roles) &&
     (n.key === "profile"
@@ -332,7 +338,9 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         ? isSuper
       : n.key === "studio"
         ? studioUser
-        : n.key === "meetings" && canMakeCalls(session)
+        : n.key === "remoteAssist"
+        ? raPerm && raOk === true
+      : n.key === "meetings" && canMakeCalls(session)
         ? true
         : n.perm
           ? isSuper || (Array.isArray(n.perm) ? n.perm : [n.perm]).some((p) => perms.includes(p))

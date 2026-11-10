@@ -37,7 +37,7 @@ export function useJobText() {
       return tc.has(`reason.${r}`) ? tc(`reason.${r}`) : "";
     };
     const title = (j: NowJob) => {
-      if (j.kind === "lead") return leadCategoryLabel(tp, j.title) || t("untitled");
+      if (j.kind === "lead") return leadCategoryLabel(tp, j.title) || kind(j);
       if (j.cockpit) return j.title || reason(j) || kind(j);
       return isGenericTitle(j.title) ? kind(j) : j.title;
     };

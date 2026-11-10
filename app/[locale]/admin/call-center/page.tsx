@@ -23,6 +23,7 @@ import MarketWatcher from "@/components/marketplace/MarketWatcher";
 import { lazyView } from "@/components/ccx/lazyView";
 import { useRoleNav } from "@/components/RoleNavHost";
 import { can } from "@/lib/permissions";
+import { isDutyDesk } from "@/lib/ccx/duty";
 
 const NOW = lazyView(() => import("@/components/ccx/now/CcxNow"));
 const QUEUES = lazyView(() => import("@/components/ccx/queues/CcxQueues"));
@@ -163,9 +164,7 @@ function AdminCallCenterPage() {
   // urgent queue here (LEXGO_CALLCENTER_URGENT_WORK_ACCESS_2026_11_03): CRM,
   // operator chats, client lookup and the general queues stay closed, so its
   // workspace opens on urgent work and any other view falls back to it.
-  const duty =
-    roleNav.state.policy?.roleProfile === "navbatchi_yurist" ||
-    (roles.includes("call_center_lawyer") && !["superadmin", "admin", "manager"].some((r) => roles.includes(r)));
+  const duty = isDutyDesk(roles, roleNav.state.policy?.roleProfile);
   if (duty) return <DutyView view={params.get("view") ?? ""} />;
   const tab = params.get("tab") ?? "";
   if (tab === "urgent") return <CcxUrgent />;

@@ -21,6 +21,9 @@ import { Skeleton } from "@/components/portal/DataState";
 import { DeliveryChips } from "@/components/portal/NotificationsPanel";
 import { IconBell, IconCheck, IconSend, IconUsers } from "@/components/icons";
 import { useCan } from "@/lib/useCan";
+import { useAuth, sessionRoles } from "@/lib/auth";
+import PeoplePicker, { PersonAvatar, type PickedPerson } from "@/components/admin/notifications/PeoplePicker";
+import { canBroadcastNotifications } from "@/lib/notifyAccess";
 import { isForbidden } from "@/lib/http";
 
 // Role tabs feed GET /admin/users?role=… (backend UserRole values).
@@ -44,16 +47,21 @@ export default function AdminNotifications() {
   const tcp = useTranslations("common.person");
   const uid = useId();
   const canDo = useCan();
-  // Sending is this page's own notifications.manage. The recipient picker
-  // lists people from GET /admin/users (users.manage): without that code
-  // the list, its role filter and select-all are not offered — recipients
-  // are entered by hand or the message goes out as a role broadcast.
+  // Sending is this page's own notifications.manage. The recipient list
+  // with role filter and select-all reads GET /admin/users (users.manage);
+  // without that code people are found with the search picker (GET
+  // /users/search). Nobody types an id.
   const canListUsers = canDo("users.manage");
+  // A whole-role broadcast is admin work (or an explicit broadcast
+  // permission): a duty lawyer only writes to people it picks.
+  const { session } = useAuth();
+  const canBroadcast = canBroadcastNotifications(sessionRoles(session), session?.permissions ?? []);
   // A 403 on send (permission revoked mid-session) keeps its message and
   // takes the send button off the form.
   const [sendDenied, setSendDenied] = useState(false);
 
-  const [mode, setMode] = useState<SendMode>("individual");
+  const [modePick, setMode] = useState<SendMode>("individual");
+  const mode: SendMode = canBroadcast ? modePick : "individual";
   useAiReveal("notifications:recipients", () => setMode("individual"));
   useAiReveal("notifications:broadcast-role", () => setMode("broadcast"));
   const [broadcastRole, setBroadcastRole] = useState<Exclude<RoleTab, "all">>("client");
@@ -73,8 +81,7 @@ export default function AdminNotifications() {
     [roleTab, qLive, canListUsers],
   );
   // Selection survives role switches so one send can mix roles.
-  const [selected, setSelected] = useState<Map<string, AdminUser>>(() => new Map());
-  const [manualId, setManualId] = useState("");
+  const [selected, setSelected] = useState<Map<string, PickedPerson>>(() => new Map());
 
   const [category, setCategory] = useState<NotifCategory>("system");
   const [channel, setChannel] = useState<string>("push");
@@ -94,7 +101,7 @@ export default function AdminNotifications() {
   });
   useAiSelection("admin_notifications_role", mode === "individual" && roleTab !== "all" ? roleTab : "");
 
-  function toggle(u: AdminUser) {
+  function toggle(u: PickedPerson) {
     setSelected((m) => {
       const next = new Map(m);
       if (next.has(u.id)) next.delete(u.id);
@@ -111,7 +118,7 @@ export default function AdminNotifications() {
   }
   const roleLabel = (r: string) => (tn.has(`roles.${r}`) ? tn(`roles.${r}`) : t.has(`roleBadges.${r}`) ? t(`roleBadges.${r}`) : humanizeSlug(r));
   // A person by name, phone or LexGo ID — never the bare user id.
-  const userTitle = (u: AdminUser) => u.name || u.phone || (u.lexgoId ? `LexGo ID ${u.lexgoId}` : "") || tcp("unknown");
+  const userTitle = (u: PickedPerson) => u.name || u.phone || (u.lexgoId ? `LexGo ID ${u.lexgoId}` : "") || tcp("unknown");
 
   async function send(e: FormEvent) {
     e.preventDefault();
@@ -125,6 +132,7 @@ export default function AdminNotifications() {
     // radius than hand-picked recipients, so it gets its own confirmation
     // instead of firing on the same single click.
     if (mode === "broadcast") {
+      if (!canBroadcast) return;
       const roleName = tn(`roles.${broadcastRole}`);
       askRef.current = true;
       const ok = await confirmDialog({
@@ -160,8 +168,6 @@ export default function AdminNotifications() {
     }
 
     const recipients: Recipient[] = [...selected.values()].map((u) => ({ id: u.id, name: userTitle(u) }));
-    const manual = manualId.trim();
-    if (manual && !recipients.some((r) => r.id === manual)) recipients.push({ id: manual, name: manual });
     if (!recipients.length) {
       setBad((b) => ({ ...b, recipients: true }));
       document.getElementById(`${uid}-recipients`)?.scrollIntoView({ block: "nearest" });
@@ -209,7 +215,6 @@ export default function AdminNotifications() {
       setTitle("");
       setBody("");
       setSelected(new Map());
-      setManualId("");
     }
   }
 
@@ -217,23 +222,24 @@ export default function AdminNotifications() {
   const chOpts = CHANNELS.map((c) => ({ value: c, label: t(`notifications.${c}`) }));
   const broadcastRoleOpts = BROADCAST_ROLES.map((r) => ({ value: r, label: tn(`roles.${r}`) }));
   const pct = progress ? Math.round((progress.done / Math.max(1, progress.total)) * 100) : 0;
-  const noRecipients = Boolean(bad.recipients) && !selected.size && !manualId.trim();
+  const noRecipients = Boolean(bad.recipients) && !selected.size;
   const recErrId = `${uid}-recipients-err`;
-  const manualInput = <input value={manualId} onChange={(e) => setManualId(e.target.value)} placeholder={tn("manualIdPh")} aria-label={tn("manualId")} aria-invalid={noRecipients || undefined} aria-describedby={noRecipients ? recErrId : undefined} />;
 
   return (
     <div className="ppanel" style={{ maxWidth: 760 }}>
       <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconBell /></span>{t("notifications.title")}</b></div>
       <p className="ppanel__note">{t("notifications.lead")}</p>
 
-      <ScrollCue className="segs segs--sm" role="tablist" aria-label={tn("mode")} style={{ marginBottom: 14 }} data-ai-target="notifications:mode">
-        <button type="button" role="tab" className="seg" aria-selected={mode === "individual"} onClick={() => setMode("individual")}>
-          {tn("modeIndividual")}
-        </button>
-        <button type="button" role="tab" className="seg" aria-selected={mode === "broadcast"} onClick={() => setMode("broadcast")}>
-          {tn("modeBroadcast")}
-        </button>
-      </ScrollCue>
+      {canBroadcast ? (
+        <ScrollCue className="segs segs--sm" role="tablist" aria-label={tn("mode")} style={{ marginBottom: 14 }} data-ai-target="notifications:mode">
+          <button type="button" role="tab" className="seg" aria-selected={mode === "individual"} onClick={() => setMode("individual")}>
+            {tn("modeIndividual")}
+          </button>
+          <button type="button" role="tab" className="seg" aria-selected={mode === "broadcast"} onClick={() => setMode("broadcast")}>
+            {tn("modeBroadcast")}
+          </button>
+        </ScrollCue>
+      ) : null}
 
       {mode === "broadcast" ? (
         <section className="nrcp" aria-label={tn("broadcastRole")} data-ai-target="notifications:broadcast-role">
@@ -245,7 +251,7 @@ export default function AdminNotifications() {
       /* Recipients: role tabs → searchable checkbox list (GET /admin/users?role=). */
       <section id={`${uid}-recipients`} className="nrcp" aria-label={tn("recipients")} data-ai-target="notifications:recipients">
         <div className="nrcp__lbl">{tn("recipients")}</div>
-        <p className="nrcp__hint">{tn("recipientsHint")}</p>
+        <p className="nrcp__hint">{canListUsers ? tn("recipientsHint") : tn("pickerLead")}</p>
         {canListUsers ? (
         <>
         <FilterBar
@@ -279,6 +285,7 @@ export default function AdminNotifications() {
                 <label key={u.id} className={`nrcp__row${on ? " on" : ""}`}>
                   <input type="checkbox" checked={on} onChange={() => toggle(u)} />
                   <span className="nrcp__cb" aria-hidden><IconCheck /></span>
+                  <PersonAvatar p={u} />
                   <span className="nrcp__m">
                     <b>{userTitle(u)}</b>
                     <small>{[u.phone, u.lexgoId].filter(Boolean).join(" · ")}</small>
@@ -295,20 +302,7 @@ export default function AdminNotifications() {
         </div>
         </>
         ) : null}
-        {/* Always available, not only once the list above fails to load —
-            the person you need may be outside the roles this list covers,
-            or you may already know their id. */}
-        {canListUsers ? (
-          <details className="nrcp__manual">
-            <summary>{tn("manualId")}</summary>
-            {manualInput}
-          </details>
-        ) : (
-          <div className="nrcp__manual">
-            <b style={{ display: "block", fontSize: ".82rem", fontWeight: 600 }}>{tn("manualId")}</b>
-            {manualInput}
-          </div>
-        )}
+        {canListUsers ? null : <PeoplePicker selected={selected} onToggle={toggle} roleLabel={roleLabel} title={userTitle} describedBy={noRecipients ? recErrId : undefined} />}
         <FieldError id={recErrId} msg={noRecipients ? tn("noRecipients") : null} />
       </section>
       )}

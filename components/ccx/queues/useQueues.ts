@@ -10,6 +10,7 @@ import { listAchievementQueue } from "@/lib/services/achievements";
 import { listLicenseQueue } from "@/lib/services/advocatePractice";
 import { listCcPayouts, listPayoutRecoveries, payoutActionable } from "@/lib/services/payouts";
 import { isAborted, isForbidden, logApiError } from "@/lib/http";
+import { withQueuePeople } from "@/lib/ccx/queuePeople";
 import { useClock, useLiveRefresh } from "../useLive";
 import { shortId, type QJob, type QKey, type QLane } from "./model";
 
@@ -40,7 +41,10 @@ function fromQueue(items: QueueItem[], queue: "queue" | "urgent", me: string): G
         title: q.type === "lead" ? "" : q.title,
         category: q.type === "lead" ? q.title : undefined,
         serviceKind: q.serviceKind,
+        rowType: q.type,
+        who: q.clientName ?? "",
         whoId: q.clientUserId ?? "",
+        phone: q.clientPhone ?? "",
         at: q.createdAt,
         baseAgeMin: q.ageMinutes,
         slaMin: q.slaMinutes,
@@ -167,7 +171,7 @@ export function useQueues(me: string, review: boolean): { state: QState; now: nu
     ctl.current = c;
     const keys = (Object.keys(LOADERS) as (keyof typeof LOADERS)[]).filter((k) => review || !REVIEW_LANES.has(k));
     const restP = Promise.allSettled(keys.map((k) => LOADERS[k](c.signal)));
-    const [queue, calls] = await Promise.allSettled([getCallCenterQueue(), listCcCalls()]);
+    const [queue, calls] = await Promise.allSettled([getCallCenterQueue().then(withQueuePeople), listCcCalls()]);
     const rest = await restP;
     if (n !== seq.current) return;
     const lanes: Partial<Record<QKey, QLane>> = {};

@@ -203,7 +203,7 @@ export function crmCustomerDetailOf(v: unknown): CrmCustomerDetail {
     ...crmCustomerOf(d),
     notes: asStr(d.notes),
     contacts: asArr(d.contacts).map(crmContactOf).filter((c) => c.id),
-    leads: asArr(d.leads).map(crmLeadOf).filter((l) => l.id),
+    leads: customerLeadsOf(d),
     orders: asArr(d.orders).map((x) => {
       const o = asDict(x);
       return { id: asStr(o.id), workId: asStr(o.work_id), serviceId: asStr(o.service_id), serviceTitle: asStr(o.service_title), status: asStr(o.status), paymentStatus: asStr(o.payment_status), createdAt: asStr(o.created_at) };
@@ -215,6 +215,25 @@ export function crmCustomerDetailOf(v: unknown): CrmCustomerDetail {
     reused: d.reused === true,
     linking: linkingOf(d),
   };
+}
+
+// The customer's leads: a plain list, a page ({ items }) or a split into
+// active/past lists. Counted leads with none of these come from
+// customerLeads() (GET /crm/leads?customer_id=…).
+export function customerLeadsOf(d: Dict): CrmLead[] {
+  const page = asDict(d.leads);
+  const lists = [asArr(d.leads), asArr(page.items), asArr(d.active_leads), asArr(d.recent_leads), asArr(d.past_leads), asArr(d.closed_leads), asArr(d.lead_items)];
+  const seen = new Set<string>();
+  const out: CrmLead[] = [];
+  for (const list of lists) {
+    for (const x of list) {
+      const l = crmLeadOf(x);
+      if (!l.id || seen.has(l.id)) continue;
+      seen.add(l.id);
+      out.push(l);
+    }
+  }
+  return out;
 }
 
 function linkingOf(d: Dict): CrmLinking {
@@ -288,6 +307,17 @@ export async function listCrmCustomers(q: CustomerQuery = {}, signal?: AbortSign
 }
 export async function getCrmCustomer(id: string, signal?: AbortSignal): Promise<CrmCustomerDetail> {
   return crmCustomerDetailOf(await http(`/crm/customers/${enc(id)}`, { signal }));
+}
+// The customer page: when the card counts leads but lists none, the leads
+// list for this customer fills the Leads tab so it matches the counters.
+export async function getCrmCustomerPage(id: string, signal?: AbortSignal): Promise<CrmCustomerDetail> {
+  const c = await getCrmCustomer(id, signal);
+  if (c.leads.length || !(c.leadCount || c.activeLeadCount)) return c;
+  const leads = await customerLeads(id, signal).catch((e) => {
+    if (signal?.aborted) throw e;
+    return [] as CrmLead[];
+  });
+  return leads.length ? { ...c, leads } : c;
 }
 
 export type ContactInput = { type: string; value: string; label?: string; primary?: boolean; verified?: boolean };
@@ -485,6 +515,14 @@ export async function listCrmLeads(q: LeadQuery = {}, signal?: AbortSignal): Pro
   const counts: Record<string, number> = {};
   for (const [k, v] of Object.entries(c)) counts[k] = int(v);
   return { items: asArr(d.items).map(crmLeadOf).filter((l) => l.id), total: int(d.total), limit: int(d.limit, 50), offset: int(d.offset), counts };
+}
+// Leads of one customer when the customer card counted them but did not
+// list them (2026-11-10: "active leads 2" over an empty Leads tab). The
+// filter is asked of the backend and checked here as well, so another
+// customer's lead never shows even if the filter is ignored.
+export async function customerLeads(customerId: string, signal?: AbortSignal): Promise<CrmLead[]> {
+  const d = asDict(await http(`/crm/leads${qs({ customer_id: customerId, limit: 100, offset: 0 })}`, { signal }));
+  return asArr(d.items).map(crmLeadOf).filter((l) => l.id && (l.customerId || l.customer?.id) === customerId);
 }
 export async function getCrmLead(id: string, signal?: AbortSignal): Promise<CrmLead> {
   return crmLeadOf(await http(`/crm/leads/${enc(id)}`, { signal }));
@@ -944,20 +982,37 @@ const countsOf = (v: unknown): Record<string, number> => {
   for (const [k, x] of Object.entries(asDict(v))) out[k] = int(x);
   return out;
 };
+// "My results" KPIs (won, closed, conversion). The top-level won/closed count
+// leads by their current stage, so a lead won and later reopened drops out,
+// while the cycle history next to them still shows that win: on 2026-11-10
+// the page said "won 0, 0%" beside "won 1, 100%". A result once won stays
+// won, so whenever the backend sends cycle metrics both cards read them
+// (applied in crmMetricsOf, so every page showing CrmMetrics agrees).
+export function resultKpisOf(m: Pick<CrmMetrics, "won" | "closed" | "conversion" | "cycles">): { won: number; closed: number; conversion: number } {
+  const c = m.cycles;
+  if (!c.total) return { won: m.won, closed: m.closed, conversion: m.conversion };
+  const closed = c.won + c.rejected;
+  const conversion = closed ? Math.round((c.won / closed) * 1000) / 10 : 0;
+  return { won: c.won, closed, conversion };
+}
 // Revenue is never read from this answer: operators never see it (§8).
 export function crmMetricsOf(v: unknown): CrmMetrics {
   const d = asDict(v);
+  const raw = cycleMetricsOf(d.cycle_metrics);
+  const kpi = resultKpisOf({ won: int(d.won), closed: int(d.closed), conversion: num(d.conversion_percent) ?? 0, cycles: raw });
+  // The cycle card's conversion is the same figure the KPI shows.
+  const cycles = raw.total ? { ...raw, conversion: kpi.conversion } : raw;
   return {
     operator: crmPersonOf(d.operator),
     total: int(d.total),
     active: int(d.active),
-    won: int(d.won),
-    closed: int(d.closed),
-    conversion: num(d.conversion_percent) ?? 0,
+    won: kpi.won,
+    closed: kpi.closed,
+    conversion: kpi.conversion,
     firstResponseMin: num(d.average_first_response_minutes),
     overdue: int(d.overdue_next_actions),
     statusCounts: countsOf(d.status_counts),
-    cycles: cycleMetricsOf(d.cycle_metrics),
+    cycles,
   };
 }
 export async function getMyCrmMetrics(range: { from?: string; to?: string } = {}, signal?: AbortSignal): Promise<CrmMetrics> {

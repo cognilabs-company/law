@@ -13,17 +13,20 @@ export function useQText() {
   const tw = useTranslations("callCenter.escalations.why");
   const tk = useTranslations("portal.client.urgent");
   const te = useTranslations("enums");
+  const tn = useTranslations("admin.ccx.now");
 
   return useMemo(() => {
     const queue = (q: QKey) => t(`q.${q}`);
+    // A queue row's own kind ("Murojaat", "Buyurtma") rather than the lane name.
+    const rowKind = (j: QJob) => (j.rowType && tn.has(`kind.${j.rowType}`) ? tn(`kind.${j.rowType}`) : queue(j.queue));
     const title = (j: QJob) => {
-      if (j.category !== undefined) return leadCategoryLabel(tp, j.category) || t("untitled");
+      if (j.category !== undefined) return leadCategoryLabel(tp, j.category) || rowKind(j);
       if (j.queue === "urgent") return j.serviceKind && tk.has(`kinds.${j.serviceKind}`) ? tk(`kinds.${j.serviceKind}`) : queue("urgent");
       const why = j.whyCode && tw.has(j.whyCode) ? tw(j.whyCode) : "";
       const money = j.amount ? `${fmtUzs(j.amount)} ${te("currency")}` : "";
       const head = j.title && !isGenericTitle(j.title) ? j.title : "";
-      return [head, why, money].filter(Boolean).join(" · ") || queue(j.queue);
+      return [head, why, money].filter(Boolean).join(" · ") || rowKind(j);
     };
     return { queue, title };
-  }, [t, tp, tw, tk, te]);
+  }, [t, tp, tw, tk, te, tn]);
 }

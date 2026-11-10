@@ -5,6 +5,15 @@
   }
 }
 
+/* Call rows slide in without fading: a list whose entrance animation is held
+   (hidden or throttled tab, paused timeline) must still show every counted
+   call instead of rows stuck at opacity 0. */
+@keyframes opx-cl-slide {
+  from {
+    transform: translateY(8px);
+  }
+}
+
 @keyframes opx-cl-flash {
   0%,
   60% {
@@ -1137,7 +1146,7 @@
   gap: 12px;
   padding: 8px 6px 8px 0;
   border-radius: 12px;
-  animation: opx-rise 0.45s var(--opx-ease) both;
+  animation: opx-cl-slide 0.45s var(--opx-ease) backwards;
 }
 
 .opx-cl [data-kind] {
@@ -1299,7 +1308,7 @@
   border-top: 1px solid var(--opx-line);
   border-radius: 12px;
   transition: background 0.2s;
-  animation: opx-rise 0.4s var(--opx-ease) both;
+  animation: opx-cl-slide 0.4s var(--opx-ease) backwards;
 }
 
 .opx-cl-log__row:first-child {

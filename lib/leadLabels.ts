@@ -32,8 +32,11 @@ export type PersonLike = { name: string; phone: string; lexgoId?: string };
 export const personLabel = (p: PersonLike | undefined): string => (p ? operatorName(p) : "");
 
 // Lead category ("family", "court", "housing") → label; unknown keys humanized.
+// The backend's placeholder titles ("Lead", "Order") are not categories:
+// they come back empty so callers show their own translated fallback.
+const PLACEHOLDER_CATEGORIES = new Set(["lead", "leads", "order", "buyurtma", "заказ", "лид"]);
 export function leadCategoryLabel(t: T, category: string): string {
-  if (!category) return "";
+  if (!category || PLACEHOLDER_CATEGORIES.has(category.trim().toLowerCase())) return "";
   return t.has(`categories.${category}`) ? t(`categories.${category}`) : humanizeSlug(category);
 }
 

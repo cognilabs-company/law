@@ -996,3 +996,10 @@ html[data-opx-theme="light"] .opx-pbtn--blue {
     border-left: 0;
   }
 }
+
+.opx-pfail {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  padding: 4px 0;
+}

@@ -4,7 +4,7 @@ import "@/components/remoteAssist/remoteAssist.css";
 import "./raAdmin.css";
 import { useCallback, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { RA_EMPTY_META, emergencyRevokeRemoteAssist, listRaSessions, loadRaMeta, raAudit, raErrorCode, raMonitoring, type RaAudit, type RaMeta, type RaMonitoring, type RaSession } from "@/lib/services/remoteAssist";
+import { RA_EMPTY_META, emergencyRevokeRemoteAssist, listRaSessions, loadRaMeta, raAudit, raErrorCode, raMonitoring, raSupervisorOk, type RaAudit, type RaMeta, type RaMonitoring, type RaSession } from "@/lib/services/remoteAssist";
 import { errorText } from "@/lib/errorText";
 import { toast } from "@/lib/toast";
 import { isForbidden, parseServerTime } from "@/lib/http";
@@ -55,12 +55,11 @@ export default function RemoteAssistAdmin() {
   useEffect(() => {
     void loadRaMeta().then(setMeta);
   }, []);
-  const canSupervise = meta.capabilities.supervise === true;
   // A 403 on a revoke (capability withdrawn mid-session) takes every
   // revoke button away; the dialog keeps its message.
   const [revokeDenied, setRevokeDenied] = useState(false);
   const canRevoke = meta.capabilities.emergency_revoke === true && !revokeDenied;
-  const allowed = !meta.loaded || canSupervise || canRevoke;
+  const allowed = !meta.loaded || raSupervisorOk(meta);
 
   useEffect(() => {
     if (!allowed) return;

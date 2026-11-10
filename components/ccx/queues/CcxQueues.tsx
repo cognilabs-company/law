@@ -1,7 +1,7 @@
 "use client";
 
 import "./queues.css";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
@@ -61,6 +61,15 @@ export default function CcxQueues() {
   const [famPick, setFamPick] = useState<FamKey>(() => (fromTab ? familyOf(fromTab) : "work"));
   const [lanePick, setLanePick] = useState<QKey | "">(() => fromTab ?? "");
   const [open, setOpen] = useState<QView | null>(null);
+  // Every "open" does what clicking the job does: a decision lane opens its
+  // side panel, a call job (lead, order, urgent) opens on its own page.
+  const openJob = useCallback(
+    (job: QView) => {
+      if (opensPanel(job)) setOpen(job);
+      else router.push(openHref(job));
+    },
+    [router],
+  );
   const [newest, setNewest] = useState(false);
 
   const lanes = useMemo(() => (state.status === "ready" ? laneViews(state.lanes, state.at, now, filter) : {}), [state, now, filter]);
@@ -198,7 +207,7 @@ export default function CcxQueues() {
       ) : null}
 
       {mode === "board" ? (
-        <QueuesBoard lanes={lanes} calls={state.calls} canLeads={canLeads} onDrill={drill} onRetry={reload} onOpen={setOpen} />
+        <QueuesBoard lanes={lanes} calls={state.calls} canLeads={canLeads} onDrill={drill} onRetry={reload} onOpen={openJob} />
       ) : (
         <div className="opx-fam">
           <div className="opx-fam__cards" role="group" aria-label={t("famAria")}>
@@ -284,7 +293,7 @@ export default function CcxQueues() {
               ) : jobs.length ? (
                 <div className="opx-fam__grid" key={`${lane?.queue}-${filter}-${newest}`}>
                   {jobs.map((j, i) => (
-                    <JobCard key={j.key} job={j} i={i} onOpen={setOpen} />
+                    <JobCard key={j.key} job={j} i={i} onOpen={openJob} />
                   ))}
                 </div>
               ) : (

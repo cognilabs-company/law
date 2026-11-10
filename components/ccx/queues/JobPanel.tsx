@@ -1,18 +1,22 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useState, type ComponentType } from "react";
+import { Component, useCallback, useState, type ComponentType, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { notify } from "@/lib/toast";
 import Sheet from "../panel/Sheet";
-import { Loading, PanelHead } from "../panel/bits";
+import { Loading, Note, PanelHead } from "../panel/bits";
 import { QueueIcon } from "./parts";
 import type { QKey, QView } from "./model";
 import type { DecideProps } from "./decide/types";
 
 type AnyDecide = ComponentType<DecideProps<never>>;
 
-const wait = () => <Loading label="" />;
+function Wait() {
+  const t = useTranslations("admin.ccx.panel");
+  return <Loading label={t("loading")} />;
+}
+const wait = () => <Wait />;
 
 const MODULES: Partial<Record<QKey, AnyDecide>> = {
   escalations: dynamic(() => import("./decide/EscalationDecide"), { ssr: false, loading: wait }) as AnyDecide,
@@ -28,6 +32,34 @@ const MODULES: Partial<Record<QKey, AnyDecide>> = {
 };
 
 export const hasPanel = (q: QKey) => Boolean(MODULES[q]);
+
+// A panel whose code or data fails to load says so and offers a retry
+// instead of leaving the sheet blank.
+class PanelGuard extends Component<{ fallback: (retry: () => void) => ReactNode; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    return this.state.failed ? this.props.fallback(() => this.setState({ failed: false })) : this.props.children;
+  }
+}
+
+function PanelFailed({ retry }: { retry?: () => void }) {
+  const t = useTranslations("admin.ccx.panel");
+  return (
+    <div className="opx-pfail" role="alert">
+      <Note tone="bad">
+        <b>{t("failed")}</b> {t("failedLead")}
+      </Note>
+      {retry ? (
+        <button type="button" className="opx-qbtn" onClick={retry}>
+          {t("retry")}
+        </button>
+      ) : null}
+    </div>
+  );
+}
 
 export default function JobPanel({ job, onClose, onChanged }: { job: QView; onClose: () => void; onChanged: () => void }) {
   const t = useTranslations("admin.ccx.queues");
@@ -51,7 +83,13 @@ export default function JobPanel({ job, onClose, onChanged }: { job: QView; onCl
       dirty={dirty}
       wide={job.queue === "experience" || job.queue === "achievements" || job.queue === "licenses"}
     >
-      {Module ? <Module job={job} item={job.raw as never} onDone={done} onClose={onClose} onDirty={setDirty} /> : null}
+      {!Module || job.raw == null ? (
+        <PanelFailed />
+      ) : (
+        <PanelGuard fallback={(retry) => <PanelFailed retry={retry} />}>
+          <Module job={job} item={job.raw as never} onDone={done} onClose={onClose} onDirty={setDirty} />
+        </PanelGuard>
+      )}
     </Sheet>
   );
 }

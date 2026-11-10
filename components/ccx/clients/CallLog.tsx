@@ -177,11 +177,11 @@ export default function CallLog({ reloadKey, loggedPhone, onOpen }: { reloadKey:
       ) : (
         <>
           <ul className="opx-cl-log__rows">
-            {pager.visible.map((c) => {
+            {pager.visible.map((c, i) => {
               const kind = callKind(c);
               const meta = [text.dir(c), text.result(c.result), fmtDuration(c.durationSec, locale), shortDateTime(c.createdAt, locale)].filter(Boolean).join(" · ");
               return (
-                <li key={c.id} id={`opx-cl-log-${c.id}`} data-kind={kind} className={`opx-cl-log__row${c.id === freshId ? " is-fresh" : ""}`}>
+                <li key={c.id || `row-${i}`} id={c.id ? `opx-cl-log-${c.id}` : undefined} data-kind={kind} className={`opx-cl-log__row${c.id === freshId ? " is-fresh" : ""}`}>
                   <span className="opx-cl-tl__ic" aria-hidden="true">
                     <CallIcon kind={kind} size={17} />
                   </span>

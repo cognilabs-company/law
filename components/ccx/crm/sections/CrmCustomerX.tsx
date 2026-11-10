@@ -12,7 +12,7 @@ import {
   activeContacts,
   archiveCrmContact,
   crmCan,
-  getCrmCustomer,
+  getCrmCustomerPage,
   getCustomerTimeline,
   isCrmDenied,
   isFinalStatus,
@@ -66,7 +66,7 @@ function Profile({ meta, customerId }: { meta: CrmMeta; customerId: string }) {
   const load = useCallback(
     async (signal?: AbortSignal) => {
       try {
-        setC(await getCrmCustomer(customerId, signal));
+        setC(await getCrmCustomerPage(customerId, signal));
         setErr(null);
       } catch (e) {
         if (!isAborted(e)) {

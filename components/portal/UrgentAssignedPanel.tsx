@@ -1,5 +1,6 @@
 "use client";
 
+import { urgentStage } from "@/lib/urgentStage";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
@@ -164,11 +165,6 @@ const KIND_ICON: Record<string, typeof IconVideo> = {
 
 type State = { status: "loading" | "ready" | "error" | "missing"; items: UrgentRequest[] };
 
-function urgentStage(r: UrgentRequest): "active" | "completed" | "cancelled" {
-  if (r.status === "completed") return "completed";
-  if (r.status === "cancelled" || r.status === "expired") return "cancelled";
-  return "active";
-}
 
 export default function UrgentAssignedPanel() {
   const t = useTranslations("portal.seller.urgent");

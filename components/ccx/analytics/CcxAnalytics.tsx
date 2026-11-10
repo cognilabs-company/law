@@ -4,7 +4,7 @@ import "../panel/panel.css";
 import "./analytics.css";
 import { useMemo, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { EMPTY_FILTER, getCallAnalyticsFull, isCallsEmpty, isFiltered, todayIso, trimSeries, type DashFilter } from "@/lib/services/dash";
+import { EMPTY_FILTER, callsShown, getCallAnalyticsFull, isFiltered, todayIso, trimSeries, type DashFilter } from "@/lib/services/dash";
 import { demoCalls, useDemoForced } from "@/lib/demoStats";
 import { useResourceOne } from "@/lib/useResource";
 import { fmtInt } from "@/lib/date";
@@ -52,7 +52,9 @@ export default function CcxAnalytics() {
   const busy = res.status === "loading";
   const viewData = view?.data ?? null;
   const failed = !demoForced && view?.status === "error";
-  const demo = demoForced || (loaded && !failed && (!viewData || isCallsEmpty(viewData)));
+  // Sample numbers only when the demo switch is on; otherwise real data, and
+  // a plain "no calls yet" when there are none.
+  const { demo, empty } = callsShown(demoForced, viewData, loaded && !failed);
   const a = useMemo(() => (demo ? demoCalls(todayIso()) : viewData ?? EMPTY_CALLS), [demo, viewData]);
   const byDay = trimSeries(a.byDay, filter);
   const r = rates(a);
@@ -106,7 +108,8 @@ export default function CcxAnalytics() {
       </header>
 
       {isFiltered(filter) ? <p className="opx-an-note">{tx("filterNote")}</p> : null}
-      {demo && loaded ? <Note tone="info">{demoForced ? td("demo.forced") : tx("demoBanner")}</Note> : null}
+      {demo && loaded ? <Note tone="info">{td("demo.forced")}</Note> : null}
+      {empty ? <Note tone="info">{tx("emptyNote")}</Note> : null}
 
       {failed ? (
         <div className={`opx-an-fail${busy ? " is-busy" : ""}`} role="alert">

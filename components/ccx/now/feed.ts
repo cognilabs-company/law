@@ -44,7 +44,7 @@ export function jobsOf(queue: QueueItem[], cockpit: CockpitItem[], fetchedAt: nu
       code: "",
       title: q.title,
       clientUserId: q.clientUserId ?? "",
-      clientName: "",
+      clientName: q.clientName ?? "",
       ageMin: age,
       slaMin: q.slaMinutes,
       leftMin: left,

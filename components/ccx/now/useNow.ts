@@ -5,6 +5,8 @@ import { getCallCenterQueue, getCcClientCard, getCcUrgentRequest, listCcCalls, t
 import { getCockpit, type CockpitItem } from "@/lib/services/cockpit";
 import { getCrmCustomer, getCrmLead, getLeadHistory, getLeadTimeline, type CrmActivity, type CrmLead } from "@/lib/services/crm";
 import { isAborted, isForbidden, logApiError } from "@/lib/http";
+import { withQueuePeople } from "@/lib/ccx/queuePeople";
+import { NOW_COCKPIT_LIMIT } from "@/lib/callcenter/useCcOpen";
 import { useClock, useLiveRefresh } from "../useLive";
 import type { NowJob } from "./feed";
 
@@ -21,7 +23,7 @@ export function useNowFeed(): { state: NowLoad; now: number; reload: () => void 
   const [now, setNow] = useState(0);
 
   const load = useCallback(async () => {
-    const [q, c] = await Promise.allSettled([getCallCenterQueue(), getCockpit(8)]);
+    const [q, c] = await Promise.allSettled([getCallCenterQueue().then(withQueuePeople), getCockpit(NOW_COCKPIT_LIMIT)]);
     if (q.status === "rejected" && !quiet(q.reason)) logApiError("ccx-now-queue", q.reason);
     if (c.status === "rejected" && !quiet(c.reason)) logApiError("ccx-now-cockpit", c.reason);
     if (q.status === "rejected" && c.status === "rejected") {
@@ -129,7 +131,7 @@ export function whoOf(job: NowJob, detail: JobDetail | null, client: ClientInfo 
   return {
     userId: job.clientUserId || lead?.clientUserId || urgent?.clientUserId || "",
     name: lead?.customer?.name || urgent?.clientName || job.clientName || card?.name || "",
-    phone: lead?.customer?.phone || urgentPhone || card?.phone || "",
+    phone: lead?.customer?.phone || urgentPhone || job.queue?.clientPhone || card?.phone || "",
     phoneHidden: urgent && urgent.clientPhoneVisible === false ? urgent.clientPhoneHiddenReason || "hidden" : "",
     lexgoId: card?.lexgoId || urgent?.client?.lexgoId || lead?.customer?.publicId || "",
   };

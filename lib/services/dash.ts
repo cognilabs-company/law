@@ -236,16 +236,37 @@ export function isCeoEmpty(d: CeoDashboard): boolean {
 // ── Call analytics (GET /calls/analytics) ─────────────────────────
 export type CallAnalyticsFull = CallAnalytics & { fetchedAt: string };
 export async function getCallAnalyticsFull(f?: DashFilter): Promise<CallAnalyticsFull> {
-  const d = asDict(await http(`/calls/analytics${dashQuery(f)}`));
+  return callAnalyticsOf(await http(`/calls/analytics${dashQuery(f)}`));
+}
+// Every call is either answered or not: the missed count is what is left of
+// the total, so the tiles, the shares and the bar always add up. The live
+// backend sent total 18, answered 4, missed 0 (2026-11-10); a missed count
+// above the remainder (total < answered + missed) raises the total instead.
+export function callCountsOf(total: number, answered: number, missed: number): { total: number; answered: number; missed: number } {
+  const t = Math.max(0, total);
+  const a = Math.max(0, answered);
+  const m = Math.max(0, missed);
+  const sum = Math.max(t, a + m);
+  return { total: sum, answered: a, missed: sum - a };
+}
+export function callAnalyticsOf(raw: unknown): CallAnalyticsFull {
+  const d = asDict(raw);
+  const counts = callCountsOf(asNum(d.total ?? d.total_calls), asNum(d.answered ?? d.answered_calls), asNum(d.missed ?? d.missed_calls));
   return {
     fetchedAt: todayIso(),
-    total: asNum(d.total ?? d.total_calls),
-    answered: asNum(d.answered ?? d.answered_calls),
-    missed: asNum(d.missed ?? d.missed_calls),
+    ...counts,
     avgDurationSec: asNum(d.avg_duration_sec ?? d.avg_duration),
     byDay: asArr(d.by_day ?? d.daily).map((x) => { const r = asDict(x); return { label: asStr(r.label ?? r.date), value: asNum(r.value ?? r.count) }; }),
     topAgents: asArr(d.top_agents ?? d.agents).map((x) => { const r = asDict(x); return { name: asStr(r.name), calls: asNum(r.calls ?? r.count) }; }),
   };
+}
+// What the call analytics pages show: sample numbers only while the demo
+// switch is on (2026-11-10: 330 sample calls were shown with it off because
+// the account had no calls yet); otherwise the real answer, flagged empty
+// when there is nothing in it.
+export function callsShown(demoForced: boolean, data: CallAnalyticsFull | null, loaded: boolean): { demo: boolean; empty: boolean } {
+  if (demoForced) return { demo: true, empty: false };
+  return { demo: false, empty: loaded && (!data || isCallsEmpty(data)) };
 }
 export const isCallsEmpty = (d: CallAnalytics) => !d.total && !d.answered && !d.missed && d.byDay.every((p) => !p.value) && !d.topAgents.length;
 

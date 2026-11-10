@@ -326,6 +326,11 @@ export function loadRaMeta(): Promise<RaMeta> {
   return metaReq;
 }
 
+// The supervisor page (/admin/remote-assistance) opens for exactly these
+// capabilities; its menu entry uses the same test so it is never offered to
+// someone the page would then turn away (2026-11-10, operator №2).
+export const raSupervisorOk = (meta: RaMeta): boolean => meta.capabilities.supervise === true || meta.capabilities.emergency_revoke === true;
+
 export function forgetRaMeta(): void {
   metaCache = null;
   metaReq = null;

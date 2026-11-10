@@ -415,7 +415,10 @@ export function taskErrorOf(e: unknown): TaskError {
   const message = asStr(detail.message) || errDetail(e);
   const kind: TaskErrorKind =
     e.status === 0 ? "network" : e.status === 401 ? "auth" : e.status === 403 ? "forbidden" : e.status === 404 ? "missing" : e.status === 409 ? "conflict" : e.status === 422 ? "invalid" : e.status === 503 ? "unavailable" : "other";
-  return { kind, code, message, fields: e.fieldErrors };
+  // A refusal is always shown in the user's language from our own text
+  // (teamTasks.denied / err.forbidden): the backend's sentence is Uzbek only
+  // and named the module in English ("Bu task amali uchun ruxsat yo'q").
+  return { kind, code, message: kind === "forbidden" ? "" : message, fields: e.fieldErrors };
 }
 
 export const TASK_EVENT_PREFIX = "tasks.";

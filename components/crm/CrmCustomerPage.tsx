@@ -17,6 +17,7 @@ import {
   archiveCrmContact,
   crmCan,
   getCrmCustomer,
+  getCrmCustomerPage,
   getCustomerTimeline,
   isCrmDenied,
   listCrmCustomers,
@@ -69,7 +70,7 @@ function Profile({ api, customerId }: { api: CrmApi; customerId: string }): Reac
   const load = useCallback(
     async (signal?: AbortSignal) => {
       try {
-        setC(await getCrmCustomer(customerId, signal));
+        setC(await getCrmCustomerPage(customerId, signal));
         setErr(null);
       } catch (e) {
         if (!isAborted(e)) {
