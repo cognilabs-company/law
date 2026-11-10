@@ -13,7 +13,7 @@ import { useClientInfo, useJobDetail, useNowFeed, whoOf } from "./useNow";
 import { useJobText } from "./text";
 import NowFocus from "./NowFocus";
 import NowClient from "./NowClient";
-import { CcxEmblem, IcArrowLeft, IcArrowRight, IcNext, IcQueues, IcRefresh, JobIcon } from "../icons";
+import { CcxEmblem, IcArrowLeft, IcArrowRight, IcClock, IcNext, IcQueues, IcRefresh, JobIcon } from "../icons";
 
 function JobCard({ job, onPick, i }: { job: NowJob; onPick: () => void; i: number }) {
   const t = useTranslations("admin.ccx.now");
@@ -42,7 +42,10 @@ function JobCard({ job, onPick, i }: { job: NowJob; onPick: () => void; i: numbe
       <span className="opx-job__body">
         <span className="opx-job__top">
           <b>{job.code || kind}</b>
-          <i className="opx-job__age opx-num">{fmtAgeMin(job.ageMin, locale)}</i>
+          <i className="opx-job__age opx-num">
+            <IcClock size={12} />
+            {fmtAgeMin(job.ageMin, locale)}
+          </i>
         </span>
         <span className="opx-job__who">{who}</span>
         {sub ? <small>{sub}</small> : null}
@@ -85,6 +88,10 @@ export default function CcxNow() {
   const [later, setLater] = useState<string[]>([]);
   const [rev, setRev] = useState(0);
   const rail = useRef<HTMLDivElement>(null);
+  // Which ends of the strip still hide cards: drives the edge fades and the arrows.
+  const [edge, setEdge] = useState<"none" | "start" | "end" | "both">("none");
+  // The refresh icon spins from the click until fresh data lands (or 6 s pass).
+  const [spinFrom, setSpinFrom] = useState(0);
 
   const jobs = useMemo(() => (state.status === "ready" ? rankJobs(jobsOf(state.feed.queue, state.feed.cockpit, state.feed.at, now), later) : []), [state, now, later]);
   const found = jobs.find((j) => j.key === pick);
@@ -132,6 +139,39 @@ export default function CcxNow() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [prefs.keys, next]);
+
+  const feedAt = state.status === "ready" ? state.feed.at : 0;
+  const spinning = spinFrom > 0 && feedAt < spinFrom;
+  useEffect(() => {
+    if (!spinFrom || feedAt >= spinFrom) return;
+    const id = window.setTimeout(() => setSpinFrom(0), 6000);
+    return () => window.clearTimeout(id);
+  }, [spinFrom, feedAt]);
+
+  const restCount = rest.length;
+  useEffect(() => {
+    const el = rail.current;
+    if (!el) return;
+    const measure = () => {
+      const max = el.scrollWidth - el.clientWidth;
+      const start = el.scrollLeft > 4;
+      const end = max - el.scrollLeft > 4;
+      setEdge(start && end ? "both" : start ? "start" : end ? "end" : "none");
+    };
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", measure);
+      ro.disconnect();
+    };
+  }, [restCount]);
+
+  const refresh = () => {
+    setSpinFrom(Date.now());
+    reload();
+  };
 
   const slide = (d: number) => {
     const el = rail.current;
@@ -219,7 +259,7 @@ export default function CcxNow() {
             <b className="opx-num">{rest.length}</b>
           </h2>
           <span className="opx-next__sync">
-            <button type="button" onClick={reload} aria-label={t("refresh")} title={t("refresh")}>
+            <button type="button" onClick={refresh} className={spinning ? "is-spinning" : undefined} aria-busy={spinning} aria-label={spinning ? t("refreshing") : t("refresh")} title={spinning ? t("refreshing") : t("refresh")}>
               <IcRefresh size={16} />
             </button>
           </span>
@@ -229,10 +269,10 @@ export default function CcxNow() {
           </Link>
           {rest.length > 2 ? (
             <span className="opx-next__nav">
-              <button type="button" onClick={() => slide(-1)} aria-label={t("scrollBack")}>
+              <button type="button" onClick={() => slide(-1)} aria-label={t("scrollBack")} disabled={edge === "none" || edge === "end"}>
                 <IcArrowLeft size={16} />
               </button>
-              <button type="button" onClick={() => slide(1)} aria-label={t("scrollOn")}>
+              <button type="button" onClick={() => slide(1)} aria-label={t("scrollOn")} disabled={edge === "none" || edge === "start"}>
                 <IcArrowRight size={16} />
               </button>
             </span>
@@ -243,7 +283,7 @@ export default function CcxNow() {
           </button>
         </header>
         {rest.length ? (
-          <div className="opx-next__rail" ref={rail}>
+          <div className="opx-next__rail" ref={rail} data-edge={edge}>
             {rest.map((j, i) => (
               <JobCard key={j.key} job={j} i={i} onPick={() => setPick(j.key)} />
             ))}

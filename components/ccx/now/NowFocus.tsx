@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
@@ -96,6 +96,7 @@ export default function NowFocus({
   const [logBusy, setLogBusy] = useState(false);
   const [logDirty, setLogDirty] = useState(false);
   const [more, setMore] = useState(false);
+  const ringId = `opx-wait-grad-${useId().replace(/:/g, "")}`;
   const crm = useCrmMeta().meta;
   const canDo = useCan();
   // Jobs whose action answered 403: that action leaves the card.
@@ -209,30 +210,38 @@ export default function NowFocus({
   ) : sellerSide && sellerId ? (
     <PersonName id={sellerId} fallback={t("unknownSeller")} />
   ) : sellerSide ? (
-    t("unknownSeller")
+    <span className="opx-focus__none">{t("unknownSeller")}</span>
   ) : (
-    t("unknownClient")
+    <span className="opx-focus__none">{t("unknownClient")}</span>
   );
 
   const callEl = dial ? (
     <a className="opx-act opx-act--call" href={`tel:${dial}`} data-key="c" onClick={() => setLogging(true)}>
-      <IcPhone size={21} />
+      <span className="opx-act__disc" aria-hidden="true">
+        <IcPhone size={21} />
+      </span>
       <span>{t("act.call")}</span>
     </a>
   ) : (
     <button type="button" className="opx-act opx-act--call" data-key="c" onClick={() => setLogging(true)}>
-      <IcPhone size={21} />
+      <span className="opx-act__disc" aria-hidden="true">
+        <IcPhone size={21} />
+      </span>
       <span>{t("act.logCall")}</span>
     </button>
   );
   const resolveEl = !resolve ? null : "href" in resolve ? (
       <Link className="opx-act opx-act--done" href={resolve.href} data-key="e">
-        <IcArrowRight size={21} />
+        <span className="opx-act__disc" aria-hidden="true">
+          <IcArrowRight size={21} />
+        </span>
         <span>{resolve.label}</span>
       </Link>
     ) : (
       <button type="button" className="opx-act opx-act--done" data-key="e" onClick={() => void run()} disabled={running} aria-busy={running}>
-        <IcCheck size={21} />
+        <span className="opx-act__disc" aria-hidden="true">
+          <IcCheck size={21} />
+        </span>
         <span>{running ? t("act.working") : resolve.label}</span>
       </button>
     );
@@ -266,10 +275,18 @@ export default function NowFocus({
           <div className="opx-wait" data-tone={tone} role="img" aria-label={t("waitAria", { time: age })}>
             <span className="opx-wait__ring" aria-hidden="true">
               <svg className="opx-wait__svg" viewBox="0 0 48 48" width="48" height="48" style={{ width: 48, height: 48 }}>
+                <defs>
+                  <linearGradient id={ringId} x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" className="opx-wait__stop0" />
+                    <stop offset="1" className="opx-wait__stop1" />
+                  </linearGradient>
+                </defs>
                 <circle cx="24" cy="24" r="21" className="opx-wait__track" />
-                <circle cx="24" cy="24" r="21" className="opx-wait__bar" strokeDasharray={RING} strokeDashoffset={RING * (1 - frac)} />
+                <circle cx="24" cy="24" r="21" className="opx-wait__bar" stroke={`url(#${ringId})`} strokeDasharray={RING} strokeDashoffset={RING * (1 - frac)} />
               </svg>
-              <IcClock size={20} />
+              <span className="opx-wait__core">
+                <IcClock size={22} strokeWidth={2} />
+              </span>
             </span>
             <span className="opx-wait__txt">
               <b className="opx-num">{age}</b>
@@ -295,8 +312,9 @@ export default function NowFocus({
         </div>
 
         <button type="button" className="opx-focus__more" aria-expanded={more} aria-controls="opx-focus-more" onClick={() => setMore((o) => !o)}>
-          {t("more")}
-          <IcChevron size={15} />
+          <IcLayers size={15} />
+          <span>{t("more")}</span>
+          <IcChevron size={15} className="opx-focus__chev" />
         </button>
         <Disclosure id="opx-focus-more" open={more}>
           <Root className="opx-focus__extra">

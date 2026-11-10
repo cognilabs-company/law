@@ -1834,3 +1834,751 @@ html[data-opx-theme="light"] .opx-focus::after {
 .opx-now {
   height: auto;
 }
+
+/* ───────────────────────────────────────────────────────────────────────
+   Hozir polish: the same blocks in the same places, a richer surface.
+   Focus card (depth, urgency glow, chip, ring, the call pill, ghost
+   buttons) and the «Navbatda» strip (badge, one button family, tinted
+   cards with an urgency edge, edge fades, a thin scrollbar).
+   ─────────────────────────────────────────────────────────────────────── */
+
+@keyframes opx-ring-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 6px -1px color-mix(in srgb, var(--tone) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 16px 1px color-mix(in srgb, var(--tone) 75%, transparent);
+  }
+}
+
+@keyframes opx-core-pulse {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 30%, transparent), 0 0 0 0 color-mix(in srgb, var(--tone) 0%, transparent);
+  }
+  50% {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 45%, transparent), 0 0 14px 1px color-mix(in srgb, var(--tone) 35%, transparent);
+  }
+}
+
+/* Focus card: layered surface, a soft top highlight, a glow tied to urgency. */
+.opx-focus {
+  gap: 0;
+  padding: 26px 30px 22px;
+  background:
+    radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.06), transparent 60%),
+    linear-gradient(180deg, color-mix(in srgb, var(--tone) 7%, transparent), transparent 42%),
+    var(--opx-card);
+  box-shadow:
+    inset 0 1px 0 var(--opx-hi),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 44px 90px -56px rgba(41, 120, 255, 0.65),
+    0 30px 70px -50px color-mix(in srgb, var(--tone) 70%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--tone) 14%, transparent);
+}
+
+.opx-focus::before {
+  background: linear-gradient(140deg, color-mix(in srgb, var(--tone) 70%, transparent), rgba(127, 178, 255, 0.1) 34%, rgba(94, 230, 208, 0.06) 64%, rgba(94, 230, 208, 0.5));
+}
+
+html[data-opx-theme="light"] .opx-focus {
+  background:
+    radial-gradient(120% 70% at 50% -20%, rgba(255, 255, 255, 0.9), transparent 60%),
+    linear-gradient(180deg, color-mix(in srgb, var(--tone) 6%, transparent), transparent 42%),
+    var(--opx-card);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 40px 80px -52px rgba(30, 80, 160, 0.42),
+    0 26px 60px -48px color-mix(in srgb, var(--tone) 60%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--tone) 16%, transparent);
+}
+
+html[data-opx-theme="light"] .opx-focus::before {
+  background: linear-gradient(140deg, color-mix(in srgb, var(--tone) 55%, transparent), rgba(42, 99, 201, 0.08) 34%, rgba(14, 139, 128, 0.05) 64%, rgba(14, 139, 128, 0.35));
+}
+
+/* Title, sub-line and actions sit in one even rhythm. */
+.opx-focus__body {
+  gap: 0;
+}
+
+.opx-focus__id {
+  gap: 10px;
+}
+
+.opx-focus__code {
+  font-size: clamp(30px, 2.7vw, 40px);
+  letter-spacing: -0.025em;
+  background: linear-gradient(180deg, var(--opx-ink) 30%, color-mix(in srgb, var(--opx-ink) 72%, var(--opx-ice)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0 22px rgba(127, 178, 255, 0.22));
+}
+
+html[data-opx-theme="light"] .opx-focus__code {
+  filter: none;
+}
+
+.opx-focus__code .opx-focus__none {
+  color: var(--opx-ink-3);
+  -webkit-text-fill-color: var(--opx-ink-3);
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  text-shadow: none;
+}
+
+.opx-focus__need {
+  position: relative;
+  margin: 14px 0 22px;
+  padding-left: 14px;
+}
+
+.opx-focus__need::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 0;
+  width: 3px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--tone), color-mix(in srgb, var(--tone) 15%, transparent));
+}
+
+.opx-focus__need b {
+  color: var(--opx-ink-2);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+}
+
+.opx-focus__need p {
+  color: var(--opx-ink-2);
+  line-height: 1.5;
+}
+
+.opx-focus .opx-jr {
+  margin: 0 0 20px;
+}
+
+/* Kind chip: the icon in its own tinted tile. */
+.opx-tag {
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px 0 4px;
+  border-radius: 11px;
+  border-color: rgba(127, 178, 255, 0.26);
+  background: linear-gradient(135deg, rgba(127, 178, 255, 0.18), rgba(127, 178, 255, 0.06));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 16px -10px rgba(41, 120, 255, 0.6);
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
+}
+
+.opx-tag .opx-i {
+  box-sizing: content-box;
+  padding: 3px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--opx-ice) 20%, transparent);
+}
+
+.opx-tag--hot {
+  padding: 0 12px;
+  box-shadow: 0 6px 16px -10px color-mix(in srgb, var(--opx-hot) 80%, transparent);
+}
+
+html[data-opx-theme="light"] .opx-tag {
+  border-color: rgba(42, 99, 201, 0.2);
+  background: linear-gradient(135deg, rgba(42, 99, 201, 0.12), rgba(42, 99, 201, 0.04));
+  box-shadow: inset 0 1px 0 #fff, 0 6px 16px -12px rgba(42, 99, 201, 0.5);
+}
+
+/* Timer ring badge: a gradient arc that fills with the wait, a centred clock. */
+.opx-wait {
+  gap: 12px;
+  padding: 6px 20px 6px 6px;
+  border-color: color-mix(in srgb, var(--tone) 40%, transparent);
+  background:
+    radial-gradient(80% 120% at 0% 50%, color-mix(in srgb, var(--tone) 16%, transparent), transparent 70%),
+    color-mix(in srgb, var(--tone) 6%, var(--opx-glass-2));
+  box-shadow:
+    inset 0 1px 0 var(--opx-hi),
+    0 0 0 4px color-mix(in srgb, var(--tone) 6%, transparent),
+    0 12px 30px -14px color-mix(in srgb, var(--tone) 70%, transparent);
+}
+
+.opx-wait__ring {
+  width: 50px;
+  height: 50px;
+}
+
+.opx-wait__svg {
+  width: 50px !important;
+  height: 50px !important;
+}
+
+.opx-wait__track {
+  stroke: color-mix(in srgb, var(--tone) 16%, transparent);
+  stroke-width: 3.5;
+}
+
+.opx-wait__ring {
+  border-radius: 50%;
+}
+
+.opx-wait__bar {
+  stroke-width: 3.5;
+  filter: none;
+}
+
+.opx-wait__stop0 {
+  stop-color: color-mix(in srgb, var(--tone) 55%, #ffffff);
+}
+
+.opx-wait__stop1 {
+  stop-color: var(--tone);
+}
+
+html[data-opx-theme="light"] .opx-wait__stop0 {
+  stop-color: color-mix(in srgb, var(--tone) 60%, #ffffff);
+}
+
+.opx-wait[data-tone="hot"] .opx-wait__ring {
+  animation: opx-ring-glow 2.4s ease-in-out infinite;
+}
+
+.opx-wait__core {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--tone) 26%, transparent), color-mix(in srgb, var(--tone) 9%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 30%, transparent);
+  color: var(--tone);
+}
+
+.opx-wait[data-tone="hot"] .opx-wait__core {
+  animation: opx-core-pulse 2.4s ease-in-out infinite;
+}
+
+/* The old blink faded the clock to a ghost; it stays legible now. */
+.opx-wait[data-tone="hot"] .opx-wait__ring .opx-i {
+  animation: none;
+}
+
+.opx-wait__core .opx-i {
+  display: block;
+}
+
+.opx-wait__txt b {
+  font-size: 21px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* The primary pill: teal gradient, an icon disc, sheen, press and focus. */
+.opx-focus .opx-acts {
+  gap: 10px;
+  margin-top: 0;
+}
+
+.opx-focus .opx-acts > .opx-act:first-child {
+  isolation: isolate;
+  gap: 14px;
+  min-height: 80px;
+  border: 1px solid rgba(160, 255, 240, 0.35);
+  background: linear-gradient(110deg, #12968b 0%, #1db3a5 38%, #2fcfbf 72%, #5ee6d0 100%);
+  color: #04221f;
+  letter-spacing: -0.01em;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    inset 0 -10px 24px -14px rgba(0, 40, 36, 0.5),
+    0 22px 46px -22px rgba(48, 214, 194, 0.85),
+    0 0 0 1px rgba(94, 230, 208, 0.08);
+  transition: transform 0.35s var(--opx-spring), box-shadow 0.3s, filter 0.25s;
+}
+
+.opx-focus .opx-acts > .opx-act:first-child::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.34) 50%, transparent 65%);
+  transform: translateX(-120%);
+  transition: transform 0.9s var(--opx-ease);
+  pointer-events: none;
+}
+
+.opx-focus .opx-acts > .opx-act:first-child:hover {
+  background: linear-gradient(110deg, #12968b 0%, #1db3a5 38%, #2fcfbf 72%, #5ee6d0 100%);
+  filter: brightness(1.06) saturate(1.05);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -10px 24px -14px rgba(0, 40, 36, 0.45),
+    0 26px 56px -20px rgba(48, 214, 194, 1),
+    0 0 0 1px rgba(94, 230, 208, 0.16);
+}
+
+.opx-focus .opx-acts > .opx-act:first-child:hover::after {
+  transform: translateX(120%);
+}
+
+.opx-focus .opx-acts > .opx-act:first-child:active {
+  transform: translateY(1px) scale(0.99);
+  filter: brightness(0.96);
+  box-shadow:
+    inset 0 2px 8px rgba(0, 40, 36, 0.35),
+    0 12px 26px -18px rgba(48, 214, 194, 0.9);
+}
+
+.opx-focus .opx-acts > .opx-act:first-child:focus-visible {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    0 0 0 3px var(--opx-base),
+    0 0 0 6px var(--opx-aqua),
+    0 22px 46px -22px rgba(48, 214, 194, 0.85);
+}
+
+.opx-act__disc {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 6px 14px -8px rgba(0, 40, 36, 0.6);
+  transition: transform 0.35s var(--opx-spring);
+}
+
+.opx-focus .opx-acts > .opx-act:first-child:hover .opx-act__disc {
+  transform: rotate(-12deg) scale(1.06);
+}
+
+.opx-focus .opx-acts > .opx-act:first-child .opx-act__disc svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* A secondary action keeps its icon plain. */
+.opx-focus .opx-acts > .opx-act:not(:first-child) .opx-act__disc {
+  display: contents;
+}
+
+html[data-opx-theme="light"] .opx-focus .opx-acts > .opx-act:first-child {
+  border-color: rgba(14, 139, 128, 0.25);
+  background: linear-gradient(110deg, #0e8b80 0%, #14a597 40%, #26c2b2 76%, #4fdcc8 100%);
+  color: #022a26;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -10px 24px -14px rgba(0, 50, 45, 0.35),
+    0 20px 40px -22px rgba(14, 139, 128, 0.75);
+}
+
+html[data-opx-theme="light"] .opx-focus .opx-acts > .opx-act:first-child:hover {
+  background: linear-gradient(110deg, #0e8b80 0%, #14a597 40%, #26c2b2 76%, #4fdcc8 100%);
+}
+
+/* «Keyinroq» and the other quiet actions: real ghost buttons. */
+.opx-focus .opx-acts > .opx-act:not(:first-child) {
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 16px 0 12px;
+  border: 1px solid var(--opx-line);
+  background: color-mix(in srgb, var(--opx-glass-2) 70%, transparent);
+  color: var(--opx-ink-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  font-size: 13.5px;
+  font-weight: 750;
+}
+
+.opx-focus .opx-acts > .opx-act--later {
+  border-color: var(--opx-line);
+  background: color-mix(in srgb, var(--opx-glass-2) 70%, transparent);
+  color: var(--opx-ink-2);
+}
+
+.opx-focus .opx-acts > .opx-act:not(:first-child) .opx-i {
+  width: 18px !important;
+  height: 18px !important;
+  color: var(--opx-ice);
+}
+
+.opx-focus .opx-acts > .opx-act:not(:first-child):hover {
+  border-color: var(--opx-line-2);
+  background: var(--opx-glass-3);
+  color: var(--opx-ink);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 22px -16px rgba(41, 120, 255, 0.7);
+  transform: translateY(-1px);
+}
+
+.opx-focus .opx-acts > .opx-act:not(:first-child):active {
+  transform: translateY(0) scale(0.97);
+}
+
+.opx-focus .opx-acts > .opx-act:not(:first-child):focus-visible {
+  box-shadow: var(--opx-ring);
+}
+
+.opx-focus .opx-acts > .opx-act:not(:first-child):disabled {
+  opacity: 0.45;
+  box-shadow: none;
+  transform: none;
+}
+
+/* «Batafsil»: a ghost pill with its own icon. */
+.opx-focus__more {
+  align-self: flex-start;
+  gap: 7px;
+  min-height: 34px;
+  margin-top: 14px;
+  padding: 0 12px 0 10px;
+  border: 1px solid var(--opx-line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--opx-glass-2) 60%, transparent);
+  color: var(--opx-ink-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  transition: color 0.2s, background 0.2s, border-color 0.2s, box-shadow 0.25s;
+}
+
+.opx-focus__more .opx-i {
+  color: var(--opx-ice);
+}
+
+.opx-focus__more .opx-focus__chev {
+  color: var(--opx-ink-3);
+  transition: transform 0.35s var(--opx-spring);
+}
+
+.opx-focus__more:hover {
+  border-color: var(--opx-line-2);
+  background: var(--opx-glass-3);
+  color: var(--opx-ink);
+}
+
+.opx-focus__more[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--opx-ice) 40%, transparent);
+  background: var(--opx-blue-soft);
+  color: var(--opx-ink);
+}
+
+.opx-focus__more[aria-expanded="true"] svg {
+  transform: none;
+}
+
+.opx-focus__more[aria-expanded="true"] .opx-focus__chev {
+  transform: rotate(180deg);
+}
+
+.opx-focus__more:focus-visible {
+  outline: none;
+  box-shadow: var(--opx-ring);
+}
+
+/* «Navbatda» strip. */
+.opx-next {
+  padding: 16px 18px 12px;
+  background:
+    radial-gradient(70% 120% at 0% 0%, rgba(127, 178, 255, 0.07), transparent 60%),
+    var(--opx-glass);
+}
+
+html[data-opx-theme="light"] .opx-next {
+  background:
+    radial-gradient(70% 120% at 0% 0%, rgba(42, 99, 201, 0.05), transparent 60%),
+    var(--opx-glass);
+}
+
+.opx-next__head {
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.opx-next__head h2 {
+  gap: 9px;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+
+.opx-next__head h2 b {
+  min-width: 26px;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid color-mix(in srgb, var(--opx-ice) 34%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--opx-ice) 24%, transparent), color-mix(in srgb, var(--opx-ice) 8%, transparent));
+  color: var(--opx-ink);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 4px 12px -6px rgba(41, 120, 255, 0.6);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* One button family: refresh, «Barcha navbatlar», the arrows, «Keyingi ish». */
+.opx-next__sync button,
+.opx-next__nav button,
+.opx-next__all,
+.opx-next__go {
+  height: 36px;
+  border: 1px solid var(--opx-line);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--opx-glass-2) 70%, transparent);
+  color: var(--opx-ink-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  transition: color 0.2s, background 0.2s, border-color 0.2s, box-shadow 0.25s, transform 0.3s var(--opx-spring), opacity 0.2s;
+}
+
+.opx-next__sync button,
+.opx-next__nav button {
+  width: 36px;
+}
+
+.opx-next__all {
+  padding: 0 13px 0 11px;
+}
+
+.opx-next__all .opx-i {
+  color: var(--opx-ice);
+}
+
+.opx-next__sync button:hover,
+.opx-next__nav button:hover:not(:disabled),
+.opx-next__all:hover {
+  border-color: var(--opx-line-2);
+  background: var(--opx-glass-3);
+  color: var(--opx-ink);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 20px -14px rgba(41, 120, 255, 0.7);
+}
+
+.opx-next__nav button:active:not(:disabled),
+.opx-next__sync button:active,
+.opx-next__all:active {
+  transform: scale(0.95);
+}
+
+.opx-next__nav button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+  box-shadow: none;
+}
+
+.opx-next__sync button.is-spinning {
+  border-color: color-mix(in srgb, var(--opx-aqua) 40%, transparent);
+  color: var(--opx-aqua);
+}
+
+.opx-next__sync button.is-spinning .opx-i {
+  animation: opx-spin 0.85s linear infinite;
+}
+
+.opx-next__go {
+  height: 36px;
+  padding: 0 14px 0 12px;
+  border-color: color-mix(in srgb, var(--opx-ice) 42%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--opx-ice) 26%, transparent), color-mix(in srgb, var(--opx-ice) 10%, transparent));
+  color: var(--opx-ink);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 22px -14px rgba(41, 120, 255, 0.8);
+  font-size: 13.5px;
+}
+
+.opx-next__go:hover:not(:disabled) {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--opx-ice) 34%, transparent), color-mix(in srgb, var(--opx-ice) 14%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 14px 28px -14px rgba(41, 120, 255, 0.95);
+}
+
+.opx-next__go:disabled {
+  box-shadow: none;
+}
+
+/* The strip: room for the hover lift, a thin scrollbar, fades at hidden ends. */
+.opx-next__rail {
+  --fade: 56px;
+  margin: 0 -4px;
+  padding: 8px 4px 14px;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--opx-ice) 30%, transparent) transparent;
+}
+
+.opx-next__rail::-webkit-scrollbar {
+  height: 6px;
+}
+
+.opx-next__rail::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.opx-next__rail::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--opx-ice) 28%, transparent);
+}
+
+.opx-next__rail::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--opx-ice) 45%, transparent);
+}
+
+.opx-next__rail[data-edge="end"] {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - var(--fade)), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - var(--fade)), transparent);
+}
+
+.opx-next__rail[data-edge="start"] {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--fade));
+  mask-image: linear-gradient(90deg, transparent, #000 var(--fade));
+}
+
+.opx-next__rail[data-edge="both"] {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--fade), #000 calc(100% - var(--fade)), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 var(--fade), #000 calc(100% - var(--fade)), transparent);
+}
+
+@media (min-width: 961px) {
+  .opx-next__rail {
+    margin-right: -4px;
+    padding-right: 4px;
+  }
+}
+
+/* Queue cards: depth, an urgency edge, a tinted tile, the age pill with a clock. */
+.opx-job[data-tone="ok"] {
+  --tone: var(--opx-ice);
+}
+
+.opx-job {
+  position: relative;
+  overflow: hidden;
+  padding: 12px 12px 12px 14px;
+  border-color: var(--opx-line);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--tone) 7%, transparent), transparent 55%),
+    var(--opx-glass-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 24px -20px rgba(0, 0, 0, 0.8);
+}
+
+.opx-job::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--tone);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--tone) 70%, transparent);
+  opacity: 0.85;
+  transition: top 0.3s var(--opx-ease), bottom 0.3s var(--opx-ease), opacity 0.2s;
+}
+
+.opx-job[data-tone="ok"]::before {
+  opacity: 0.4;
+  box-shadow: none;
+}
+
+.opx-job:hover {
+  border-color: color-mix(in srgb, var(--tone) 42%, transparent);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--tone) 12%, transparent), transparent 60%),
+    var(--opx-glass-3);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 18px 30px -20px color-mix(in srgb, var(--tone) 85%, transparent);
+  transform: translateY(-3px);
+}
+
+.opx-job:hover::before {
+  top: 0;
+  bottom: 0;
+  opacity: 1;
+}
+
+.opx-job:active {
+  transform: translateY(-1px) scale(0.985);
+}
+
+.opx-job:focus-visible {
+  border-color: color-mix(in srgb, var(--tone) 60%, transparent);
+  box-shadow: var(--opx-ring), 0 18px 30px -20px color-mix(in srgb, var(--tone) 85%, transparent);
+}
+
+html[data-opx-theme="light"] .opx-job {
+  box-shadow: inset 0 1px 0 #fff, 0 10px 22px -18px rgba(30, 60, 110, 0.4);
+}
+
+html[data-opx-theme="light"] .opx-job:hover {
+  box-shadow: inset 0 1px 0 #fff, 0 18px 30px -20px color-mix(in srgb, var(--tone) 70%, transparent);
+}
+
+.opx-job__ic {
+  border-color: color-mix(in srgb, var(--tone) 30%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--tone) 24%, transparent), color-mix(in srgb, var(--tone) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  transition: transform 0.35s var(--opx-spring);
+}
+
+.opx-job:hover .opx-job__ic {
+  transform: scale(1.06) rotate(-4deg);
+}
+
+.opx-job__age {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 2px 6px;
+  border: 1px solid color-mix(in srgb, var(--tone) 28%, transparent);
+  background: color-mix(in srgb, var(--tone) 13%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.opx-job__age .opx-i {
+  flex: none;
+}
+
+.opx-job__none,
+.opx-job__who .opx-job__none {
+  color: var(--opx-ink-3);
+  font-style: italic;
+  font-weight: 600;
+}
+
+@media (max-width: 760px) {
+  .opx-focus {
+    padding: 18px 16px 16px;
+  }
+
+  .opx-focus__head {
+    gap: 14px;
+  }
+
+  .opx-focus__code {
+    font-size: 26px;
+  }
+
+  .opx-focus__need {
+    margin: 12px 0 18px;
+  }
+
+  .opx-wait {
+    padding: 5px 16px 5px 5px;
+  }
+
+  .opx-wait__txt b {
+    font-size: 19px;
+  }
+
+  .opx-focus .opx-acts > .opx-act:first-child {
+    min-height: 64px;
+    gap: 12px;
+  }
+
+  .opx-act__disc {
+    width: 38px;
+    height: 38px;
+  }
+
+  .opx-next {
+    padding: 14px 14px 10px;
+  }
+
+  .opx-next__rail {
+    --fade: 28px;
+  }
+}
