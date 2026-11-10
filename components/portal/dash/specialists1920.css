@@ -62,26 +62,49 @@ html[data-theme="dark"] .sp-card__av{background:var(--lx-blue)}
 .sp-side__act{margin-top:auto;display:grid;gap:10px;padding-top:6px}
 .sp-side__act .btn{height:48px}
 .sp-more{justify-self:center}
-@media (max-width:1440px){
-  .sp-card{grid-template-columns:160px minmax(0,1fr)}
-  .sp-card__side{grid-column:1 / -1;border-left:0;padding-left:0;border-top:1px solid var(--lx-line);padding-top:14px}
-  .sp-side__act{grid-template-columns:1fr 1fr}
+/* Responsive by the room the list actually gets, not the window: the
+   sidebar and the areas column come off first, so on a 13-14" MacBook a card
+   had ~700px for three columns and squeezed the name, the "Tasdiqlangan"
+   badge and the facts into each other. `.sp` sizes the page parts, `.sp-results`
+   the cards. */
+.sp{container:sp / inline-size}
+.sp-results{container:spr / inline-size}
+@container sp (max-width:1199px){
+  .sp-body{grid-template-columns:minmax(230px,280px) minmax(0,1fr);gap:18px}
 }
-@media (max-width:1100px){
+@container sp (max-width:899px){
   .sp-bar{grid-template-columns:1fr 1fr}
   .sp-bar__q{grid-column:1 / -1}
   .sp-bar__go{grid-column:1 / -1}
-  .sp-body{grid-template-columns:1fr}
+  .sp-body{grid-template-columns:minmax(0,1fr)}
   .sp-areas{position:static}
   .sp-areas ul{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
-@media (max-width:640px){
-  .sp-bar{grid-template-columns:1fr}
-  .sp-areas ul{grid-template-columns:1fr}
-  .sp-card{grid-template-columns:1fr}
+@container sp (max-width:599px){
+  .sp-bar{grid-template-columns:minmax(0,1fr)}
+  .sp-areas ul{grid-template-columns:minmax(0,1fr)}
+}
+/* card: photo | details | services while the details keep ~380px; then the
+   services go under the details; on a phone everything stacks */
+@container spr (max-width:979px){
+  .sp-card{grid-template-columns:150px minmax(0,1fr)}
+  .sp-card__ph{min-height:200px}
+  .sp-card__side{grid-column:1 / -1;border-left:0;padding-left:0;border-top:1px solid var(--lx-line);padding-top:14px}
+  .sp-side__act{grid-template-columns:1fr 1fr}
+}
+@container spr (max-width:579px){
+  .sp-card{grid-template-columns:minmax(0,1fr)}
   .sp-card__ph{min-height:120px}
-  .sp-facts{grid-template-columns:1fr}
-  .sp-side__act{grid-template-columns:1fr}
+  .sp-facts{grid-template-columns:minmax(0,1fr)}
+  .sp-side__act{grid-template-columns:minmax(0,1fr)}
+  .sp-results__h{gap:8px}
   .sp-kind{width:100%}
   .sp-kind button{flex:1}
 }
+@container spr (max-width:439px){
+  .sp-card{padding:16px!important;gap:14px}
+  .sp-card__name{font-size:1.25rem}
+}
+/* the name and the verified badge wrap rather than overlap */
+.sp-card__role{flex-wrap:wrap;row-gap:6px}
+.sp-card__name{overflow-wrap:anywhere}

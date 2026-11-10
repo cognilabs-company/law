@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { categoryPathLabel, descendantIds, flattenCategoryTree, getCategoryTree, type CategoryRow } from "@/lib/services/categoryTree";
 import { Link } from "@/i18n/navigation";
@@ -23,6 +23,8 @@ import { DEFAULT_NEARBY_RADIUS, modeOf, radiusOf, writeNearbyParams, type Nearby
 import type { NearbyRadius } from "@/lib/services/marketRuntime";
 import NearbySellers, { MarketModeSwitch, type NearbyServiceOption } from "./NearbySellers";
 import ServiceBrowser from "./ServiceBrowser";
+import ServicesBanner from "./ServicesBanner";
+import "./directory.css";
 import PurchaseDialog from "./PurchaseDialog";
 import SecondOpinionEntry from "./order/SecondOpinionEntry";
 import { categoryName, categoryTitleName } from "@/lib/categoryNames";
@@ -99,6 +101,7 @@ export default function MarketDirectory({
   initialNearbyService,
   preview,
   onLeave,
+  renderSpecialists,
 }: {
   variant: "public" | "portal";
   initialArea?: string;
@@ -111,6 +114,11 @@ export default function MarketDirectory({
   // The cabinet's "Advokat va yuristlar" draws the by-specialist list itself
   // (LexGo 1920 design); its mode switch hands that mode back to it.
   onLeave?: () => void;
+  // …or, given this, the directory keeps the "all" view — the marketplace
+  // banner, the second-opinion entry and the tabs — and draws the given list
+  // under them. `matchedIds`: the banner search's result, best first, while a
+  // search is on (null otherwise), for the list to narrow itself to.
+  renderSpecialists?: (ctx: { matchedIds: string[] | null }) => ReactNode;
 }) {
   const t = useTranslations("marketplace");
   const te = useTranslations("enums");
@@ -133,6 +141,9 @@ export default function MarketDirectory({
   const typedRef = useRef(false);
 
   const [q, setQ] = useState(initialQuery);
+  // The services banner's search, read by the service cards under it.
+  const [svcQ, setSvcQ] = useState("");
+  const svcRef = useRef<HTMLDivElement>(null);
   const [region, setRegion] = useState("");
   const [spec, setSpec] = useState<string | null>(null);
   const [category, setCategory] = useState("");
@@ -465,6 +476,31 @@ export default function MarketDirectory({
     return { sellers: filtering ? list.length : total || items.length, services: ids.size, min };
   }, [list, filtering, items.length, total]);
 
+  // The services banner's facts: services someone actually offers, the
+  // lowest price among them, and how many practice areas they cover.
+  const svcStats = useMemo(() => {
+    const priceOf = new Map<string, number>();
+    for (const s of shownItems) {
+      for (const x of s.services) {
+        const p = x.price || x.selectedPrice || x.basePrice || 0;
+        const cur = priceOf.get(x.id);
+        if (cur === undefined || (p > 0 && (cur === 0 || p < cur))) priceOf.set(x.id, p);
+      }
+    }
+    const offered = allServices.filter((x) => priceOf.has(x.value));
+    const pool = offered.length ? offered : allServices;
+    let min = 0;
+    for (const x of pool) {
+      const p = priceOf.get(x.value) || x.basePrice;
+      if (p > 0 && (!min || p < min)) min = p;
+    }
+    return { services: pool.length, min, areas: new Set(pool.map((x) => x.categoryId).filter(Boolean)).size };
+  }, [shownItems, allServices]);
+  // The list under the banner narrows to the banner search's result, and to
+  // a service picked in the services view ("Mutaxassisni o'zim tanlayman").
+  const matchedIds = useMemo(() => ((query && !aiThinking) || service ? list.map((s) => s.userId) : null), [query, aiThinking, service, list]);
+  const serviceLabel = service ? allServices.find((x) => x.value === service)?.label ?? "" : "";
+
   useEffect(() => {
     if (!typedRef.current || !q.trim()) return;
     const id = window.setTimeout(() => {
@@ -629,8 +665,10 @@ export default function MarketDirectory({
         <PromotionSurfaces part="banner" banners={shownBanners} sponsored={[]} base={base} />
       </div>
 
-      {/* On the map tab the map is the page: the hero would push it below the fold. */}
-      <div className="mk-hero" hidden={mode === "nearby" || undefined}>
+      {/* The marketplace banner belongs to the by-specialist view. The
+          services view has its own, smaller one; on the map the map is the
+          page and a banner would push it below the fold. */}
+      <div className="mk-hero" hidden={mode !== "all" || undefined}>
         <div className="mk-hero__glow" aria-hidden="true" />
         <div className="mk-hero__in">
           <span className="mk-kick">
@@ -768,12 +806,28 @@ export default function MarketDirectory({
         <HeroShowcase items={shownItems} promos={shownBanners} base={base} locale={locale} />
       </div>
 
-      {!isPreview && mode !== "nearby" ? <SecondOpinionEntry aiId="marketplace.second-opinion" /> : null}
+      {mode === "services" ? (
+        <ServicesBanner
+          query={svcQ}
+          onQuery={setSvcQ}
+          onFind={() => {
+            const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            svcRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+          }}
+          stats={svcStats}
+          loading={status === "loading"}
+        />
+      ) : null}
+
+      {!isPreview && mode === "all" ? <SecondOpinionEntry aiId="marketplace.second-opinion" /> : null}
 
       {!isPreview ? <MarketModeSwitch mode={mode} onChange={(m) => (m === "all" && onLeave ? onLeave() : switchMode(m))} /> : null}
 
       {mode === "services" ? (
+        <div ref={svcRef} className="mk-svcwrap">
         <ServiceBrowser
+          embedded
+          query={svcQ}
           bought={bought}
           services={allServices}
           categories={categories}
@@ -792,6 +846,7 @@ export default function MarketDirectory({
             else showServiceSellers(id);
           }}
         />
+        </div>
       ) : mode === "nearby" ? (
         <NearbySellers
           base={base}
@@ -806,6 +861,23 @@ export default function MarketDirectory({
             syncUrl("nearby", s);
           }}
         />
+      ) : renderSpecialists ? (
+        <>
+          <PromotionSurfaces part="sponsored" sponsored={shownSponsored} base={base} searchKey={promoSearchKey} />
+          <div ref={resultsRef} className="mk-slot">
+            {service ? (
+              <div className="mk-slotnote" role="status">
+                <span>
+                  {t("filters.service")}: <b>{serviceLabel || "—"}</b>
+                </span>
+                <button type="button" onClick={() => setService("")} aria-label={t("filters.reset")} data-ai-id="marketplace.service-filter.clear">
+                  <IconClose />
+                </button>
+              </div>
+            ) : null}
+            {renderSpecialists({ matchedIds })}
+          </div>
+        </>
       ) : (
         <>
           <FilterBar

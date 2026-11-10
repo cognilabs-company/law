@@ -75,6 +75,9 @@ test("by service: 'I'll choose myself' shows that service's specialists", async 
   await expect(page.getByRole("button", { name: "Mutaxassislar bo'yicha" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByText("Dilnoza Karimova").first()).toBeVisible();
   await expect(page.getByText("Akmal Yusupov").first()).toBeVisible();
-  await expect(page.locator(".mk-grid")).not.toContainText("Nodira Rashidova");
+  // The cabinet draws its own specialist list under the marketplace banner;
+  // the picked service narrows it and says so.
+  await expect(page.locator(".mk-slotnote")).toContainText("Ajrashish bo'yicha maslahat");
+  await expect(page.locator(".mk-slot")).not.toContainText("Nodira Rashidova");
   expect(mock.calls.some((c) => c.method === "POST" && c.path === "/orders")).toBe(false);
 });

@@ -123,15 +123,18 @@ html[data-theme="dark"] .cx-skel{background:linear-gradient(90deg,#18253E,#1E2D4
 .cx-ai__lead{margin:0 0 18px;font-size:.98rem;line-height:1.5;color:var(--lx-gray);max-width:76ch}
 /* field + action */
 .cx-ai__f{display:flex;gap:12px}
+/* A textarea sized to its text (one line where the hint fits, two where it
+   wraps); without field-sizing support it keeps its two rows. */
 .cx-ai__q{
-  flex:1;min-width:0;height:58px;padding:0 20px;
+  flex:1;min-width:0;min-height:58px;max-height:180px;padding:16px 20px;resize:none;
+  field-sizing:content;font-family:inherit;line-height:1.45;
   border:1px solid var(--lx-line);border-radius:14px;background:var(--lx-card);
   font-size:.98rem;color:var(--lx-ink);outline:0;
 }
 .cx-ai__q::placeholder{color:var(--lx-gray2)}
 .cx-ai__q:focus{border-color:var(--lx-blue);box-shadow:0 0 0 3px rgba(22,104,240,.12)}
 .cx-ai__go{
-  flex:none;height:58px;padding:0 26px;border:0;border-radius:14px;cursor:pointer;
+  flex:none;height:58px;align-self:flex-start;padding:0 26px;border:0;border-radius:14px;cursor:pointer;
   background:var(--lx-navy);color:#fff;font-size:.98rem;font-weight:600;
   display:inline-flex;align-items:center;gap:10px;white-space:nowrap;transition:background .15s;
 }
@@ -186,6 +189,17 @@ html[data-theme="dark"] .cx-svc{background:#16243C;box-shadow:inset 0 0 0 1px va
 }
 .cx-svc:hover .cx-svc__ic{background-size:68%,auto}
 .cx-svc__t{font-size:.98rem;font-weight:600;line-height:1.35;letter-spacing:-.005em}
+/* "24/7" on the on-duty advocate's card: a round sticker in the top-right
+   corner, half over the dome's edge, ringed in the page colour so it reads on
+   both the navy arch and the background. */
+.cx-svc__247{
+  position:absolute;top:2px;right:2px;z-index:1;width:48px;height:48px;border-radius:50%;
+  display:grid;place-items:center;background:var(--lx-blue);color:#fff;
+  font:800 .8rem/1 var(--fd);letter-spacing:-.02em;font-variant-numeric:tabular-nums;
+  box-shadow:0 0 0 3px var(--lx-bg),0 10px 20px -10px rgba(22,104,240,.8);
+}
+.cx-svc__247::before{content:"";position:absolute;inset:4px;border-radius:50%;border:1.5px dashed rgba(255,255,255,.6)}
+.cx-svc:hover .cx-svc__247{filter:brightness(.96)}
 .cx-svc__s{margin-top:6px;font-size:.81rem;line-height:1.45;color:rgba(255,255,255,.74)}
 
 /* specialists */
@@ -305,7 +319,7 @@ html[data-theme="dark"] .cx-gift{background:#0B1830;box-shadow:inset 0 0 0 1px v
   .cx-ai__f{flex-direction:column}
   /* flex:1 in a column means a zero basis: the field collapsed to a sliver */
   .cx-ai__q{flex:none;width:100%}
-  .cx-ai__go{height:52px;justify-content:center}
+  .cx-ai__go{height:52px;justify-content:center;align-self:stretch}
   .cx-head{flex-direction:column;align-items:stretch}
   .cx-head__btn{align-self:flex-start}
 }
@@ -317,7 +331,7 @@ html[data-theme="dark"] .cx-gift{background:#0B1830;box-shadow:inset 0 0 0 1px v
   .cx-ai__badge{font-size:1.16rem}
   .cx-ai__free + .cx-ai__link{margin-left:0}
   .cx-ai__lead{font-size:.9rem;margin-bottom:14px}
-  .cx-ai__q{height:50px;padding:0 15px;font-size:.92rem}
+  .cx-ai__q{min-height:50px;padding:13px 15px;font-size:.92rem}
   .cx-ai__go{height:48px}
   .cx-ai__chips{gap:8px;margin-top:14px}
   .cx-ai__chipsL{display:none}
@@ -329,6 +343,7 @@ html[data-theme="dark"] .cx-gift{background:#0B1830;box-shadow:inset 0 0 0 1px v
   .cx-area__go{display:none}
   .cx-svc{padding:16px 10px 18px;border-radius:50% 50% 14px 14px / 72px 72px 14px 14px}
   .cx-svc__ic{width:64px;height:64px;margin-bottom:12px}
+  .cx-svc__247{width:40px;height:40px;top:0;right:0;font-size:.7rem}
   .cx-svc__t{font-size:.86rem}
   .cx-svc__s{font-size:.74rem}
   .cx-exp{flex-direction:column}

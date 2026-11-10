@@ -47,21 +47,23 @@ const GIFT_KEY = "lexgo_dash_gift_closed";
 // The card pictures live in public/img/xizmatlar: 512px PNG sources (the
 // drawing centred in the same frame on each) and the 192px WebP copies the
 // page loads — the circle shows them at ~63px, and the PNGs weighed 150-185 KB
-// each, which on a slow line left five empty circles for half a minute. "Tezkor Advokat" and the road-accident card
+// each, which on a slow line left five empty circles for half a minute.
+//
+// Order: the on-duty advocate first, the services marketplace second, the
+// legal documents last. "Tezkor Navbatchi Advokat" and the road-accident card
 // open the Tezkor Advokat page as it is: no ?service=, so no order dialog
 // pops open on arrival — choosing a service there is the client's own step.
-// Every other card goes to its own place.
-type Svc = { key: "urgent" | "ai" | "docs" | "catalog" | "traffic"; img: string; href: string };
+// Every other card goes to its own place. `allDay` puts the 24/7 badge on.
+type Svc = { key: "urgent" | "ai" | "docs" | "catalog" | "traffic"; img: string; href: string; allDay?: boolean };
 const SERVICES: Svc[] = [
-  { key: "urgent", img: "/img/xizmatlar/Tezkor_Advokat.webp", href: "/portal/client/urgent" },
+  { key: "urgent", img: "/img/xizmatlar/Tezkor_Advokat.webp", href: "/portal/client/urgent", allDay: true },
+  // "Advokat va yuristlar" opened on its "Xizmatlar bo'yicha" view, from the
+  // top: that view's banner is the compact services one, part of the answer
+  { key: "catalog", img: "/img/xizmatlar/xizmatlar.webp", href: "/portal/client/lawyers?mode=services" },
   { key: "ai", img: "/img/xizmatlar/suniy-intelekt.webp", href: "/portal/client/ai" },
-  { key: "docs", img: "/img/xizmatlar/Huquqiy_hujjatlar.webp", href: "/portal/client/services" },
-  // "Advokat va yuristlar" opened on its "Xizmatlar bo'yicha" view, scrolled
-  // to those tabs rather than the hero above them
-  { key: "catalog", img: "/img/xizmatlar/xizmatlar.webp", href: "/portal/client/lawyers?mode=services#market-modes" },
   // a road accident needs an advocate now: the Tezkor Advokat page, as is
-  // (no ?service=, so no order dialog opens on arrival)
   { key: "traffic", img: "/img/xizmatlar/Avtoavariya.webp", href: "/portal/client/urgent" },
+  { key: "docs", img: "/img/xizmatlar/Huquqiy_hujjatlar.webp", href: "/portal/client/services" },
 ];
 
 // The questions clients actually open with, in the order they do.
@@ -137,10 +139,19 @@ export default function ClientHome() {
         </div>
         <p className="cx-ai__lead">{t("aiHero.lead")}</p>
         <form className="cx-ai__f" onSubmit={sendAsk} data-tour="ai-ask">
-          <input
+          {/* A textarea, so the long hint wraps onto a second line on a
+              narrower screen instead of being cut off; Enter still sends. */}
+          <textarea
             className="cx-ai__q"
+            rows={2}
             value={ask}
             onChange={(e) => setAsk(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                openAi(ask);
+              }
+            }}
             placeholder={t("aiHero.ph")}
             aria-label={t("aiHero.ph")}
           />
@@ -176,6 +187,12 @@ export default function ClientHome() {
             <li key={s.key}>
               {/* The whole arch is the link — no button, as in the design. */}
               <Link href={s.href} className="cx-svc">
+                {s.allDay ? (
+                  <span className="cx-svc__247" title={t("services.allDay")}>
+                    <span aria-hidden="true">24/7</span>
+                    <span className="sr-only">{t("services.allDay")}</span>
+                  </span>
+                ) : null}
                 <span className="cx-svc__ic" style={{ "--img": `url(${s.img})` } as CSSProperties} />
                 <b className="cx-svc__t">{t(`services.${s.key}.t`)}</b>
                 <span className="cx-svc__s">{t(`services.${s.key}.s`)}</span>
