@@ -962,3 +962,264 @@ html[data-opx-theme="light"] .opx-pf .opx-pf-legacy .btn--grad {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* ───────────────────────────────────────────────────────────────────────
+   «Profil» polish: the same blocks in the same places and sizes, a richer
+   surface. A lit header with a glowing avatar, tiles washed in their tone,
+   gradient icon tiles with a gentle glow, a raised status switch, layered
+   cards and fields, glowing selected looks. Light theme matched below;
+   motion respects reduced motion.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.opx-pf-head {
+  background:
+    radial-gradient(70% 140% at 0% 0%, color-mix(in srgb, var(--opx-ice) 13%, transparent), transparent 60%),
+    radial-gradient(60% 140% at 100% 100%, color-mix(in srgb, var(--opx-aqua) 9%, transparent), transparent 60%),
+    var(--opx-card);
+}
+
+.opx-pf-av {
+  box-shadow: 0 16px 34px -18px rgba(47, 116, 236, 0.9), 0 0 0 4px color-mix(in srgb, var(--opx-ice) 12%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.opx-pf-av__dot {
+  box-shadow: 0 0 10px var(--opx-dot);
+}
+
+.opx-pf-head__name {
+  background: linear-gradient(180deg, var(--opx-ink) 35%, color-mix(in srgb, var(--opx-ink) 70%, var(--opx-ice)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.opx-pf-role {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 22%, transparent), color-mix(in srgb, var(--opx-ice) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 14px -10px color-mix(in srgb, var(--opx-ice) 90%, transparent);
+}
+
+.opx-pf-meta .opx-i {
+  color: var(--opx-ice);
+}
+
+.opx-pf-head__out {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-pf-head__out:hover {
+  border-color: color-mix(in srgb, var(--opx-hot) 45%, transparent);
+  color: var(--opx-hot);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -14px color-mix(in srgb, var(--opx-hot) 85%, transparent);
+}
+
+/* Tiles: a tone wash and gradient icon tiles with a glow. */
+.opx-pf-tile {
+  background:
+    radial-gradient(110% 120% at 0% 0%, color-mix(in srgb, var(--tone) 9%, transparent), transparent 55%),
+    var(--opx-glass);
+}
+
+.opx-pf-tile[data-tone="ok"] {
+  background:
+    radial-gradient(110% 120% at 0% 0%, color-mix(in srgb, var(--tone) 15%, transparent), transparent 60%),
+    var(--opx-glass);
+  border-color: color-mix(in srgb, var(--tone) 30%, transparent);
+}
+
+.opx-pf-tile--st {
+  background:
+    radial-gradient(110% 120% at 0% 0%, color-mix(in srgb, var(--opx-dot) 11%, transparent), transparent 55%),
+    var(--opx-glass);
+}
+
+.opx-pf-card__ic,
+.opx-pf-tile__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--tone, var(--opx-ice)) 26%, transparent), color-mix(in srgb, var(--tone, var(--opx-ice)) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 24px -14px color-mix(in srgb, var(--tone, var(--opx-ice)) 90%, transparent);
+}
+
+.opx-pf-tile__ic--st {
+  border-color: color-mix(in srgb, var(--opx-dot) 35%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-dot) 26%, transparent), color-mix(in srgb, var(--opx-dot) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 24px -14px color-mix(in srgb, var(--opx-dot) 90%, transparent);
+}
+
+/* Status switch: a top highlight, a glowing selected status. */
+.opx-pf-sts button {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-pf-sts button:hover:not(.is-on) {
+  background: var(--opx-glass-3);
+  border-color: color-mix(in srgb, var(--opx-dot) 35%, var(--opx-line));
+}
+
+.opx-pf-sts button.is-on {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--opx-dot) 24%, transparent), color-mix(in srgb, var(--opx-dot) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 22px -12px color-mix(in srgb, var(--opx-dot) 90%, transparent);
+}
+
+.opx-pf-sts button.is-on .opx-pf-dot {
+  box-shadow: 0 0 8px var(--opx-dot);
+}
+
+.opx-pf-sts button:focus-visible {
+  outline: none;
+  box-shadow: var(--opx-ring);
+}
+
+/* Cards: a soft top light. */
+.opx-pf-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 40%),
+    var(--opx-glass);
+}
+
+.opx-pf-card__head {
+  padding-bottom: 2px;
+}
+
+/* Fields: depth at rest, a clear focus ring. */
+.opx-pf-form .opx-field input:not([type="file"]) {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.16);
+  transition: border-color 0.2s, box-shadow 0.25s, background 0.2s;
+}
+
+.opx-pf-form .opx-field input:not([type="file"]):focus {
+  box-shadow: var(--opx-ring);
+}
+
+.opx-pf-ro input {
+  box-shadow: none !important;
+}
+
+.opx-pf-photo .phup__av {
+  transition: border-color 0.2s, box-shadow 0.3s;
+}
+
+.opx-pf-photo .phup__av:hover {
+  border-color: color-mix(in srgb, var(--opx-aqua) 45%, transparent);
+  box-shadow: 0 10px 24px -16px color-mix(in srgb, var(--opx-aqua) 85%, transparent);
+}
+
+.opx-pf-photo .phup__m .btn {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+/* Work preferences: glowing selected looks, switches with a lit track. */
+.opx-pf-work .opx-look__theme,
+.opx-pf-work .opx-look__bg {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  transition: border-color 0.2s, box-shadow 0.3s, transform 0.35s var(--opx-spring);
+}
+
+.opx-pf-work .opx-look__theme:hover:not(.is-on),
+.opx-pf-work .opx-look__bg:hover:not(.is-on) {
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 16px 32px -22px color-mix(in srgb, var(--opx-ice) 80%, transparent);
+}
+
+.opx-pf-work .opx-look__theme.is-on,
+.opx-pf-work .opx-look__bg.is-on {
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 0 0 1px color-mix(in srgb, var(--opx-aqua) 40%, transparent), 0 16px 36px -20px color-mix(in srgb, var(--opx-aqua) 85%, transparent);
+}
+
+.opx-pf-work .opx-look__switch {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 50%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-pf-work .opx-look__swic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-aqua) 24%, transparent), color-mix(in srgb, var(--opx-aqua) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -14px color-mix(in srgb, var(--opx-aqua) 90%, transparent);
+}
+
+.opx-pf-seg {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.22);
+}
+
+.opx-pf-seg button:hover:not(.is-on) {
+  background: var(--opx-glass-2);
+}
+
+/* Roles and permissions. */
+.opx-pf-roles li {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 50%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-pf-roles__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-aqua) 26%, transparent), color-mix(in srgb, var(--opx-aqua) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -14px color-mix(in srgb, var(--opx-aqua) 90%, transparent);
+}
+
+.opx-pf-perms li {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+/* Security, notifications and the audit (shared cards in the workspace look). */
+.opx-pf .opx-pf-legacy .ppanel {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 40%),
+    var(--opx-glass);
+}
+
+.opx-pf .opx-pf-legacy .pico,
+.opx-pf .opx-pf-legacy .tfa__method-ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 24%, transparent), color-mix(in srgb, var(--opx-ice) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -14px color-mix(in srgb, var(--opx-ice) 90%, transparent);
+}
+
+.opx-pf .opx-pf-legacy .tfa__method {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-pf .opx-pf-legacy .btn--soft {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+/* Light theme. */
+html[data-opx-theme="light"] .opx-pf-head {
+  background:
+    radial-gradient(70% 140% at 0% 0%, rgba(42, 99, 201, 0.09), transparent 60%),
+    radial-gradient(60% 140% at 100% 100%, rgba(14, 139, 128, 0.07), transparent 60%),
+    var(--opx-card);
+  box-shadow: inset 0 1px 0 #fff, 0 30px 60px -44px rgba(30, 70, 140, 0.5);
+}
+
+html[data-opx-theme="light"] .opx-pf-tile,
+html[data-opx-theme="light"] .opx-pf-card,
+html[data-opx-theme="light"] .opx-pf .opx-pf-legacy .ppanel {
+  box-shadow: inset 0 1px 0 #fff, 0 20px 44px -34px rgba(30, 70, 140, 0.45);
+}
+
+html[data-opx-theme="light"] .opx-pf-form .opx-field input:not([type="file"]),
+html[data-opx-theme="light"] .opx-pf-seg {
+  box-shadow: inset 0 1px 2px rgba(20, 50, 90, 0.08);
+}
+
+html[data-opx-theme="light"] .opx-pf-form .opx-field input:not([type="file"]):focus {
+  box-shadow: var(--opx-ring);
+}
+
+html[data-opx-theme="light"] .opx-pf-work .opx-look__switch,
+html[data-opx-theme="light"] .opx-pf-roles li {
+  background: linear-gradient(180deg, #fff, rgba(255, 255, 255, 0.78));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opx-pf-work .opx-look__theme,
+  .opx-pf-work .opx-look__bg,
+  .opx-pf-photo .phup__av {
+    transition: none;
+  }
+
+  .opx-pf-work .opx-look__theme:hover:not(.is-on),
+  .opx-pf-work .opx-look__bg:hover:not(.is-on) {
+    transform: none;
+  }
+}

@@ -987,3 +987,322 @@ html[data-opx-theme="light"] .opx-an-seg button.is-on {
     grid-template-columns: minmax(40px, 120px) 48px;
   }
 }
+
+/* ───────────────────────────────────────────────────────────────────────
+   «Tahlil» polish: the same blocks in the same places and sizes, a richer
+   surface. A layered header, gradient icon tiles with a gentle glow, KPI
+   tiles washed in their tone, chart and side cards with depth, glowing
+   bars and keys, a layered drill-down. Light theme matched below; motion
+   respects reduced motion.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.opx-an-head {
+  background:
+    radial-gradient(120% 160% at 0% 0%, color-mix(in srgb, var(--opx-ice) 9%, transparent), transparent 55%),
+    radial-gradient(90% 160% at 100% 100%, color-mix(in srgb, var(--opx-aqua) 7%, transparent), transparent 60%),
+    var(--opx-glass);
+}
+
+.opx-an-head h2 {
+  background: linear-gradient(180deg, var(--opx-ink) 35%, color-mix(in srgb, var(--opx-ink) 70%, var(--opx-ice)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Icon tiles everywhere: a gradient fill, a top highlight and a soft glow. */
+.opx-an-head__ic,
+.opx-an-card__ic,
+.opx-an-tile__ic,
+.opx-an-dhead__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--tone, var(--opx-ice)) 26%, transparent), color-mix(in srgb, var(--tone, var(--opx-ice)) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 24px -14px color-mix(in srgb, var(--tone, var(--opx-ice)) 90%, transparent);
+}
+
+/* Period switch: an inset track and a raised, glowing selected option. */
+.opx-an-seg {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.22);
+}
+
+.opx-an-seg button:hover:not(.is-on) {
+  background: var(--opx-glass-2);
+}
+
+.opx-an-seg button:active {
+  transform: scale(0.97);
+}
+
+.opx-an-seg button.is-on {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 8px 22px -12px rgba(60, 220, 200, 0.9), inset 0 0 0 1px rgba(94, 230, 208, 0.55);
+}
+
+/* Demo switch and refresh: one family with a top highlight. */
+.opx-an-demo,
+.opx-an-sync {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  transition: color 0.2s, border-color 0.2s, background 0.2s, box-shadow 0.3s, transform 0.3s var(--opx-spring);
+}
+
+.opx-an-demo:hover,
+.opx-an-sync:hover:not(:disabled) {
+  background: var(--opx-glass-3);
+  border-color: color-mix(in srgb, var(--opx-aqua) 40%, transparent);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -12px color-mix(in srgb, var(--opx-aqua) 70%, transparent);
+}
+
+.opx-an-sync:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.opx-an-demo.is-on {
+  border-color: color-mix(in srgb, var(--opx-warn) 35%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--opx-warn) 10%, transparent), transparent 70%), var(--opx-glass-2);
+}
+
+.opx-an-demo.is-on > i {
+  box-shadow: 0 0 12px -2px color-mix(in srgb, var(--opx-teal) 80%, transparent);
+}
+
+.opx-an-note {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--opx-warn) 30%, transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--opx-warn) 9%, transparent), transparent 70%);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--opx-warn) 70%, transparent);
+}
+
+/* The demo notice (a shared note), lit like the rest of the page. */
+.opx-an > .opx-pnote {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--tone) 12%, transparent), color-mix(in srgb, var(--tone) 3%, transparent) 70%),
+    var(--opx-glass);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--tone) 75%, transparent), inset 0 1px 0 var(--opx-hi), 0 14px 30px -26px color-mix(in srgb, var(--tone) 80%, transparent);
+}
+
+/* KPI tiles: a tone wash, a lift and glow on hover. */
+.opx-an-tile {
+  background:
+    radial-gradient(110% 120% at 0% 0%, color-mix(in srgb, var(--tone) 9%, transparent), transparent 55%),
+    var(--opx-glass);
+}
+
+.opx-an-tile[data-tone="ok"],
+.opx-an-tile[data-tone="hot"] {
+  background:
+    radial-gradient(110% 120% at 0% 0%, color-mix(in srgb, var(--tone) 15%, transparent), transparent 60%),
+    linear-gradient(160deg, color-mix(in srgb, var(--tone) 8%, transparent), transparent 70%),
+    var(--opx-glass);
+}
+
+.opx-an-tile:hover {
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 24px 50px -28px color-mix(in srgb, var(--tone) 75%, transparent);
+}
+
+.opx-an-tile__go {
+  color: var(--tone);
+}
+
+/* Cards: a soft top light; chart and side cards share one depth. */
+.opx-an-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 40%),
+    var(--opx-glass);
+}
+
+.opx-an-chart {
+  background:
+    radial-gradient(80% 60% at 0% 0%, color-mix(in srgb, var(--opx-aqua) 8%, transparent), transparent 60%),
+    var(--opx-card);
+}
+
+.opx-an-card__sum,
+.opx-an-card__count {
+  background: linear-gradient(145deg, var(--opx-glass-3), var(--opx-glass-2));
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-an-card__head .opx-pill {
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 14px -10px color-mix(in srgb, var(--tone, var(--opx-warn)) 90%, transparent);
+}
+
+.opx-an-tip {
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 22px 46px -18px rgba(0, 0, 0, 0.65);
+}
+
+/* Answer share: a track with depth, segments with a gentle glow. */
+.opx-an-split__pct {
+  background: linear-gradient(180deg, var(--opx-ink) 30%, color-mix(in srgb, var(--opx-ink) 55%, var(--opx-aqua)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.opx-an-split__bar {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.opx-an-split__bar i {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--tone) 60%, #ffffff), var(--tone));
+  box-shadow: 0 0 12px -2px color-mix(in srgb, var(--tone) 80%, transparent);
+}
+
+.opx-an-split__keys i,
+.opx-an-kv dt i {
+  box-shadow: 0 0 8px color-mix(in srgb, var(--tone) 70%, transparent);
+}
+
+.opx-an-split__keys li {
+  padding: 2px 0;
+}
+
+/* Agents: a ranked badge, gradient bars, a gold first place. */
+.opx-an-bars li {
+  border-radius: 12px;
+  transition: background 0.2s;
+}
+
+.opx-an-bars__n {
+  border: 1px solid var(--opx-line);
+  background: linear-gradient(145deg, var(--opx-glass-3), var(--opx-glass-2));
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-an-bars li:first-child .opx-an-bars__n {
+  border-color: color-mix(in srgb, var(--opx-warn) 45%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-warn) 30%, transparent), color-mix(in srgb, var(--opx-warn) 8%, transparent));
+  color: var(--opx-warn);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 14px -8px color-mix(in srgb, var(--opx-warn) 90%, transparent);
+}
+
+.opx-an-bars__track {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28);
+}
+
+.opx-an-bars__track i {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--opx-ice) 50%, var(--opx-aqua)), var(--opx-ice));
+  box-shadow: 0 0 10px -2px color-mix(in srgb, var(--opx-ice) 80%, transparent);
+}
+
+/* Empty and failed states: an icon tile and one short line. */
+.opx-an-none {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.opx-an-none::before {
+  content: "";
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%237fb2ff' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3v18h18'/%3E%3Cpath d='m7 15 4-4 3 3 5-6'/%3E%3C/svg%3E") center / 20px no-repeat,
+    linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 22%, transparent), color-mix(in srgb, var(--opx-ice) 6%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -14px color-mix(in srgb, var(--opx-ice) 90%, transparent);
+}
+
+.opx-an-fail__orb {
+  border: 1px solid color-mix(in srgb, var(--opx-hot) 30%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-hot) 24%, transparent), color-mix(in srgb, var(--opx-hot) 6%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 12px 30px -14px color-mix(in srgb, var(--opx-hot) 90%, transparent);
+}
+
+/* Drill-down: layered key figures and table rows with a hover. */
+.opx-an-dhead__txt b {
+  background: linear-gradient(180deg, var(--opx-ink) 30%, color-mix(in srgb, var(--opx-ink) 60%, var(--tone)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.opx-an-kv {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 50%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 16px 36px -30px rgba(0, 0, 0, 0.7);
+}
+
+.opx-an-table tbody tr {
+  transition: background 0.2s;
+}
+
+.opx-an-table tbody tr:hover {
+  background: var(--opx-glass-2);
+}
+
+.opx-an-cell i {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--opx-aqua) 55%, #ffffff), var(--opx-aqua));
+  box-shadow: 0 0 10px -2px color-mix(in srgb, var(--opx-aqua) 80%, transparent);
+}
+
+.opx-an-wait__tile,
+.opx-an-wait__chart {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+/* Light theme. */
+html[data-opx-theme="light"] .opx-an-head {
+  background:
+    radial-gradient(120% 160% at 0% 0%, rgba(42, 99, 201, 0.07), transparent 55%),
+    radial-gradient(90% 160% at 100% 100%, rgba(14, 139, 128, 0.05), transparent 60%),
+    var(--opx-glass);
+}
+
+html[data-opx-theme="light"] .opx-an-seg {
+  box-shadow: inset 0 1px 2px rgba(20, 50, 90, 0.08);
+}
+
+html[data-opx-theme="light"] .opx-an-seg button.is-on {
+  background: linear-gradient(120deg, rgba(14, 139, 128, 0.2), rgba(14, 139, 128, 0.08));
+  box-shadow: inset 0 1px 0 #fff, inset 0 0 0 1px rgba(14, 139, 128, 0.4), 0 8px 20px -12px rgba(14, 139, 128, 0.6);
+}
+
+html[data-opx-theme="light"] .opx-an-tile,
+html[data-opx-theme="light"] .opx-an-card,
+html[data-opx-theme="light"] .opx-an-kv {
+  box-shadow: inset 0 1px 0 #fff, 0 20px 44px -34px rgba(30, 70, 140, 0.45);
+}
+
+html[data-opx-theme="light"] .opx-an-tile:hover {
+  box-shadow: inset 0 1px 0 #fff, 0 22px 44px -26px color-mix(in srgb, var(--tone) 50%, transparent);
+}
+
+html[data-opx-theme="light"] .opx-an-card__sum,
+html[data-opx-theme="light"] .opx-an-card__count,
+html[data-opx-theme="light"] .opx-an-bars__n {
+  background: linear-gradient(180deg, #fff, rgba(244, 248, 253, 0.9));
+}
+
+html[data-opx-theme="light"] .opx-an-split__bar,
+html[data-opx-theme="light"] .opx-an-bars__track {
+  box-shadow: inset 0 1px 2px rgba(20, 50, 90, 0.1);
+}
+
+html[data-opx-theme="light"] .opx-an-none::before {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%232a63c9' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3v18h18'/%3E%3Cpath d='m7 15 4-4 3 3 5-6'/%3E%3C/svg%3E") center / 20px no-repeat,
+    linear-gradient(145deg, rgba(42, 99, 201, 0.14), rgba(42, 99, 201, 0.04));
+}
+
+html[data-opx-theme="light"] .opx-an-tip {
+  box-shadow: inset 0 1px 0 #fff, 0 20px 40px -20px rgba(30, 70, 140, 0.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opx-an-seg button,
+  .opx-an-demo,
+  .opx-an-sync,
+  .opx-an-bars li,
+  .opx-an-table tbody tr {
+    transition: none;
+  }
+
+  .opx-an-seg button:active,
+  .opx-an-sync:active:not(:disabled),
+  .opx-an-tile:hover,
+  .opx-an-tile:active {
+    transform: none;
+  }
+}

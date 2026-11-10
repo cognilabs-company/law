@@ -1,11 +1,8 @@
 "use client";
 
 import "./pickfield.css";
-import type { KeyboardEvent } from "react";
-import { useLocale } from "next-intl";
-import { fmtDate } from "@/lib/date";
-import { IcClock } from "../icons";
-import { IcCalendar } from "./icons";
+import DatePicker from "@/components/DatePicker";
+import TimePicker from "@/components/TimePicker";
 
 type Props = {
   kind?: "date" | "time";
@@ -15,44 +12,28 @@ type Props = {
   placeholder: string;
   min?: string;
   max?: string;
+  // Seconds between offered times (as the old native field took it).
   step?: number;
   invalid?: boolean;
   big?: boolean;
 };
 
-const open = (el: HTMLInputElement) => {
-  try {
-    el.showPicker();
-  } catch {}
+const STEPS = [5, 10, 15, 30] as const;
+const minutesOf = (step?: number): (typeof STEPS)[number] => {
+  const m = step ? Math.round(step / 60) : 15;
+  return STEPS.find((s) => s >= m) ?? 30;
 };
 
+// A date ("YYYY-MM-DD") or time ("HH:MM") field in the workspace's look,
+// built on the app's handmade pickers: no native date/time control opens.
 export default function PickField({ kind = "date", value, onChange, label, placeholder, min, max, step, invalid, big }: Props) {
-  const locale = useLocale();
-  const shown = value ? (kind === "date" ? fmtDate(value, locale) : value) : placeholder;
-  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key !== "Enter" && e.key !== " ") return;
-    e.preventDefault();
-    open(e.currentTarget);
-  };
   return (
-    <span className="opx-tk-pick" data-big={big || undefined} data-empty={value ? undefined : ""} data-invalid={invalid || undefined}>
-      {kind === "date" ? <IcCalendar size={big ? 17 : 15} /> : <IcClock size={big ? 17 : 15} />}
-      <span className="opx-tk-pick__v opx-num" aria-hidden="true">
-        {shown}
-      </span>
-      <input
-        type={kind}
-        value={value}
-        min={min}
-        max={max}
-        step={step}
-        aria-label={label}
-        title={label}
-        aria-invalid={invalid || undefined}
-        onChange={(e) => onChange(e.target.value)}
-        onClick={(e) => open(e.currentTarget)}
-        onKeyDown={onKey}
-      />
+    <span className="opx-tk-pick" data-big={big || undefined} data-empty={value ? undefined : ""} data-invalid={invalid || undefined} data-kind={kind} title={label}>
+      {kind === "date" ? (
+        <DatePicker value={value} onChange={onChange} placeholder={placeholder} ariaLabel={label} min={min} max={max} />
+      ) : (
+        <TimePicker value={value} onChange={onChange} placeholder={placeholder} ariaLabel={label} step={minutesOf(step)} />
+      )}
     </span>
   );
 }

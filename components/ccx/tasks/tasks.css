@@ -2718,3 +2718,604 @@ html[data-opx-motion="off"] .opx-tk-lb,
 html[data-opx-motion="off"] .opx-tk-lb__pic {
   animation: none;
 }
+
+/* ───────────────────────────────────────────────────────────────────────
+   «Jamoa vazifalari» polish: the same blocks in the same places and
+   sizes, a richer surface. A layered header, gradient icon tiles with a
+   gentle glow, columns washed in their status colour, cards with a
+   status edge and clear hover/open states, chips and pills with depth,
+   a layered drawer and sheets, empty columns with an icon. Light theme
+   matched below; motion respects reduced motion.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.opx-tk-head {
+  background:
+    radial-gradient(120% 160% at 0% 0%, color-mix(in srgb, var(--opx-ice) 9%, transparent), transparent 55%),
+    radial-gradient(90% 160% at 100% 100%, color-mix(in srgb, var(--opx-aqua) 7%, transparent), transparent 60%),
+    var(--opx-glass);
+}
+
+.opx-tk-head__t {
+  background: linear-gradient(180deg, var(--opx-ink) 35%, color-mix(in srgb, var(--opx-ink) 70%, var(--opx-ice)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.opx-tk-head__t b {
+  border: 1px solid var(--opx-line-2);
+  background: linear-gradient(145deg, var(--opx-glass-3), var(--opx-glass-2));
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  -webkit-text-fill-color: currentColor;
+}
+
+/* Scope switch: an inset track and a raised, glowing selected option. */
+.opx-tk-scope {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.22);
+}
+
+.opx-tk-scope button:hover:not(.is-on) {
+  background: var(--opx-glass-2);
+}
+
+.opx-tk-scope button:active {
+  transform: scale(0.97);
+}
+
+.opx-tk-scope button.is-on {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--opx-ice) 24%, transparent), color-mix(in srgb, var(--opx-ice) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), inset 0 0 0 1px color-mix(in srgb, var(--opx-ice) 45%, transparent), 0 10px 26px -14px color-mix(in srgb, var(--opx-ice) 90%, transparent);
+}
+
+.opx-tk-scope button b {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--opx-warn) 30%, transparent);
+}
+
+/* Search: depth at rest, a clear focus ring. */
+.opx-tk-search {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+  transition: border-color 0.2s, box-shadow 0.25s, background 0.2s, color 0.2s;
+}
+
+.opx-tk-search:focus-within {
+  border-color: color-mix(in srgb, var(--opx-aqua) 55%, transparent);
+  box-shadow: var(--opx-ring);
+  color: var(--opx-aqua);
+}
+
+/* Filter chips: one family with a top highlight and a lit pressed state. */
+.opx-tk-fchip {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  transition: background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.3s, transform 0.3s var(--opx-spring);
+}
+
+.opx-tk-fchip:active {
+  transform: scale(0.97);
+}
+
+.opx-tk-fchip[aria-pressed="true"],
+.opx-tk-fchip[aria-checked="true"] {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--opx-aqua) 22%, transparent), color-mix(in srgb, var(--opx-aqua) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -12px color-mix(in srgb, var(--opx-aqua) 85%, transparent);
+}
+
+.opx-tk-fchip[data-tone="hot"][aria-pressed="true"] {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--opx-hot) 22%, transparent), color-mix(in srgb, var(--opx-hot) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -12px color-mix(in srgb, var(--opx-hot) 85%, transparent);
+}
+
+.opx-tk-fchip b {
+  box-shadow: 0 3px 10px -5px color-mix(in srgb, var(--opx-hot) 90%, transparent);
+}
+
+.opx-tk-sel[data-on] {
+  border-radius: 12px;
+  box-shadow: 0 8px 20px -14px color-mix(in srgb, var(--opx-aqua) 85%, transparent);
+}
+
+.opx-tk-ibtn,
+.opx-tk-reset {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+/* KPI tiles: a soft tone wash and a gradient icon tile with glow. */
+.opx-tk-tile {
+  background:
+    radial-gradient(110% 120% at 0% 0%, color-mix(in srgb, var(--tone) 9%, transparent), transparent 55%),
+    var(--opx-card);
+}
+
+.opx-tk-tile[data-tone="hot"] {
+  background:
+    radial-gradient(110% 120% at 0% 0%, color-mix(in srgb, var(--opx-hot) 16%, transparent), transparent 60%),
+    linear-gradient(150deg, color-mix(in srgb, var(--opx-hot) 10%, transparent), color-mix(in srgb, var(--opx-hot) 3%, transparent)),
+    var(--opx-card);
+}
+
+.opx-tk-tile__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--tone) 26%, transparent), color-mix(in srgb, var(--tone) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 24px -14px color-mix(in srgb, var(--tone) 90%, transparent);
+}
+
+.opx-tk-tile.is-tap:hover {
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 22px 46px -28px color-mix(in srgb, var(--tone) 75%, transparent);
+}
+
+.opx-tk-tile__meter i {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--tone) 55%, #ffffff), var(--tone));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--tone) 60%, transparent);
+}
+
+/* Columns: a wash in the status colour, a glowing icon tile and count. */
+.opx-tk-col {
+  background:
+    radial-gradient(120% 70px at 50% 0%, color-mix(in srgb, var(--st) 11%, transparent), transparent),
+    var(--opx-card);
+}
+
+.opx-tk-col__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--st) 26%, transparent), color-mix(in srgb, var(--st) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -12px color-mix(in srgb, var(--st) 90%, transparent);
+}
+
+.opx-tk-col__n {
+  border: 1px solid color-mix(in srgb, var(--st) 30%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--st) 24%, transparent), color-mix(in srgb, var(--st) 9%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 14px -8px color-mix(in srgb, var(--st) 85%, transparent);
+}
+
+.opx-tk-col__empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--st) 5%, transparent), transparent);
+}
+
+/* The icon: a tinted tile (::before) with the inbox glyph (::after) on it,
+   both in the first grid row; the text flows into the next one. */
+.opx-tk-col__empty::before,
+.opx-tk-col__empty::after {
+  content: "";
+  grid-area: 1 / 1;
+  place-self: center;
+}
+
+.opx-tk-col__empty::before {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--st) 24%, transparent), color-mix(in srgb, var(--st) 6%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -14px color-mix(in srgb, var(--st) 90%, transparent);
+}
+
+.opx-tk-col__empty::after {
+  width: 20px;
+  height: 20px;
+  background: var(--st);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 12h-6l-2 3h-4l-2-3H2'/%3E%3Cpath d='M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 12h-6l-2 3h-4l-2-3H2'/%3E%3Cpath d='M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.opx-tk-col__more {
+  transition: background 0.2s, color 0.2s;
+}
+
+/* Board and drawer scrollbars: thin and quiet. */
+.opx-tk-board::-webkit-scrollbar,
+.opx-tk-drawer__body::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.opx-tk-board::-webkit-scrollbar-thumb,
+.opx-tk-drawer__body::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--opx-line-2) padding-box;
+}
+
+/* A column never grows past its track; a long deadline chip wraps inside
+   the card instead of pushing it out of the column. */
+.opx-tk-col,
+.opx-tk-col__list {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.opx-tk-card__chips > * {
+  max-width: 100%;
+}
+
+.opx-tk-card__chips .opx-tk-due {
+  flex-wrap: wrap;
+  row-gap: 2px;
+  min-width: 0;
+  white-space: normal;
+}
+
+.opx-tk-card__chips .opx-tk-due > * {
+  white-space: nowrap;
+}
+
+/* Cards: layered surface, a status edge, a lift on hover, a glow when open. */
+.opx-tk-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 45%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 16px 34px -30px rgba(0, 0, 0, 0.75);
+}
+
+.opx-tk-card::before {
+  content: "";
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: -1px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, var(--st), color-mix(in srgb, var(--st) 10%, transparent));
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 0.25s;
+}
+
+.opx-tk-card[data-late] {
+  --st: var(--opx-hot);
+  background:
+    radial-gradient(90% 70% at 0% 0%, color-mix(in srgb, var(--opx-hot) 8%, transparent), transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 45%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 16px 34px -30px rgba(0, 0, 0, 0.75);
+}
+
+.opx-tk-card[data-late]::before,
+.opx-tk-card:hover::before,
+.opx-tk-card[data-open]::before {
+  opacity: 1;
+}
+
+.opx-tk-card:hover {
+  border-color: color-mix(in srgb, var(--st) 40%, var(--opx-line-2));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--st) 6%, transparent), transparent 55%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 20px 42px -26px color-mix(in srgb, var(--st) 65%, transparent);
+}
+
+.opx-tk-card[data-open] {
+  background:
+    radial-gradient(100% 80% at 0% 0%, color-mix(in srgb, var(--opx-aqua) 11%, transparent), transparent 60%),
+    var(--opx-card);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 0 0 1px color-mix(in srgb, var(--opx-aqua) 45%, transparent), 0 18px 44px -22px color-mix(in srgb, var(--opx-aqua) 85%, transparent);
+}
+
+.opx-tk-card__code {
+  letter-spacing: 0.02em;
+}
+
+.opx-tk-card__att {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--opx-glass-2);
+  box-shadow: inset 0 0 0 1px var(--opx-line);
+}
+
+.opx-tk-card__foot {
+  border-top-color: color-mix(in srgb, var(--opx-line) 80%, transparent);
+}
+
+/* Card action buttons: a top highlight, a tone glow on hover, a focus ring. */
+.opx-tk-mini {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--tone) 15%, transparent), color-mix(in srgb, var(--tone) 6%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-tk-mini:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--tone) 60%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--tone) 24%, transparent), color-mix(in srgb, var(--tone) 10%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 18px -12px color-mix(in srgb, var(--tone) 90%, transparent);
+}
+
+/* Deadline chips and status pills with a little depth. */
+.opx-tk-due {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-tk-due[data-tone="warn"],
+.opx-tk-due[data-tone="hot"] {
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 14px -10px color-mix(in srgb, var(--tone) 90%, transparent);
+}
+
+.opx-tk-due[data-tone="mute"] {
+  box-shadow: none;
+}
+
+.opx-tk-st {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--st) 20%, transparent), color-mix(in srgb, var(--st) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 14px -10px color-mix(in srgb, var(--st) 90%, transparent);
+}
+
+/* People: avatars with a gradient fill and a soft ring. */
+.opx-tk-face {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--tone) 28%, var(--opx-base)), color-mix(in srgb, var(--tone) 10%, var(--opx-base)));
+}
+
+/* Empty and failed states: an orb with a ring and glow. */
+.opx-tk-empty {
+  background:
+    radial-gradient(80% 140% at 0% 50%, color-mix(in srgb, var(--opx-aqua) 7%, transparent), transparent 60%),
+    var(--opx-glass);
+}
+
+.opx-tk-empty__orb,
+.opx-tk-fail__orb {
+  border: 1px solid color-mix(in srgb, var(--opx-aqua) 30%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-aqua) 26%, transparent), color-mix(in srgb, var(--opx-aqua) 6%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 26px -14px color-mix(in srgb, var(--opx-aqua) 90%, transparent);
+}
+
+.opx-tk-fail .opx-tk-fail__orb {
+  border-color: color-mix(in srgb, var(--opx-hot) 30%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-hot) 26%, transparent), color-mix(in srgb, var(--opx-hot) 6%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 26px -14px color-mix(in srgb, var(--opx-hot) 90%, transparent);
+}
+
+.opx-tk-warn {
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 26px -20px color-mix(in srgb, var(--opx-warn) 80%, transparent);
+}
+
+/* Drawer: a soft top light, layered sections, gradient icons, a glass foot. */
+.opx-tk-drawer__head {
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--opx-ice) 10%, transparent), transparent 60%),
+    radial-gradient(80% 120% at 100% 0%, color-mix(in srgb, var(--opx-aqua) 7%, transparent), transparent 60%);
+}
+
+.opx-tk-code {
+  border: 1px solid var(--opx-line);
+  background: linear-gradient(145deg, var(--opx-glass-3), var(--opx-glass-2));
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  letter-spacing: 0.02em;
+}
+
+.opx-tk-x {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.3s var(--opx-spring);
+}
+
+.opx-tk-x:hover {
+  border-color: color-mix(in srgb, var(--opx-hot) 40%, transparent);
+  color: var(--opx-hot);
+}
+
+.opx-tk-x:active {
+  transform: scale(0.94);
+}
+
+.opx-tk-drawer .opx-psec,
+.opx-tk-drawer .opx-facts {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 50%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 16px 36px -30px rgba(0, 0, 0, 0.7);
+}
+
+.opx-tk-drawer .opx-facts > div > span:first-child:not(:last-child) .opx-i,
+.opx-tk-drawer .opx-psec h3 .opx-i {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--opx-ice) 55%, transparent));
+}
+
+.opx-tk-drawer .opx-psec h3 b {
+  border: 1px solid var(--opx-line);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-tk-people li {
+  background: linear-gradient(145deg, var(--opx-glass-3), var(--opx-glass-2));
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-tk-frow {
+  background: linear-gradient(145deg, var(--opx-glass-3), var(--opx-glass-2));
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  transition: border-color 0.2s, box-shadow 0.3s;
+}
+
+.opx-tk-frow:hover {
+  border-color: color-mix(in srgb, var(--opx-ice) 40%, transparent);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 24px -18px color-mix(in srgb, var(--opx-ice) 85%, transparent);
+}
+
+.opx-tk-frow__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 26%, transparent), color-mix(in srgb, var(--opx-ice) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 18px -12px color-mix(in srgb, var(--opx-ice) 90%, transparent);
+}
+
+.opx-tk-th__open {
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 12px 26px -20px rgba(0, 0, 0, 0.8);
+}
+
+.opx-tk-thread__ic {
+  border: 1px solid color-mix(in srgb, var(--opx-ice) 28%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 22%, transparent), color-mix(in srgb, var(--opx-ice) 6%, transparent));
+  color: var(--opx-ice);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-tk-thread li[data-kind="ret"] .opx-tk-thread__ic {
+  border-color: color-mix(in srgb, var(--opx-warn) 30%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-warn) 22%, transparent), color-mix(in srgb, var(--opx-warn) 6%, transparent));
+  color: var(--opx-warn);
+}
+
+.opx-tk-thread__msg {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-tk-thread__new {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--opx-aqua) 35%, transparent);
+}
+
+.opx-tk-ret {
+  background:
+    radial-gradient(90% 120% at 0% 0%, color-mix(in srgb, var(--opx-warn) 14%, transparent), transparent 60%),
+    color-mix(in srgb, var(--opx-warn) 7%, transparent);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 12px 28px -22px color-mix(in srgb, var(--opx-warn) 85%, transparent);
+}
+
+.opx-tk-add {
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.3s;
+}
+
+.opx-tk-add:hover {
+  box-shadow: 0 8px 20px -14px color-mix(in srgb, var(--opx-aqua) 85%, transparent);
+}
+
+.opx-tk-drawer__foot {
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: 0 -14px 30px -26px rgba(0, 0, 0, 0.7);
+}
+
+/* Task and reason sheets: a glowing head icon, layered fields and chips. */
+.opx-tk-shead__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--tone) 26%, transparent), color-mix(in srgb, var(--tone) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 24px -14px color-mix(in srgb, var(--tone) 90%, transparent);
+}
+
+.opx-tk-lbl i {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--opx-ice) 55%, transparent));
+}
+
+.opx-tk-pp__chips li {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-tk-pp__input {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.opx-tk-pp__list {
+  box-shadow: 0 22px 48px -22px rgba(0, 0, 0, 0.7);
+}
+
+.opx-tk-pp__tick {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-tk-up__drop {
+  background:
+    radial-gradient(90% 120% at 50% 0%, color-mix(in srgb, var(--opx-aqua) 7%, transparent), transparent 70%),
+    var(--opx-glass-2);
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.3s;
+}
+
+.opx-tk-up__drop:hover,
+.opx-tk-up__drop[data-over] {
+  box-shadow: 0 14px 30px -22px color-mix(in srgb, var(--opx-aqua) 85%, transparent);
+}
+
+.opx-tk-up__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-aqua) 26%, transparent), color-mix(in srgb, var(--opx-aqua) 7%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 24px -14px color-mix(in srgb, var(--opx-aqua) 90%, transparent);
+}
+
+.opx-tk-up__grid li {
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 22px -18px rgba(0, 0, 0, 0.7);
+}
+
+/* Lightbox controls: one glass family with a top highlight. */
+.opx-tk-lb__btn,
+.opx-tk-lb__nav,
+.opx-tk-lb__zoom {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 10px 24px -14px rgba(0, 0, 0, 0.8);
+}
+
+.opx-tk-lb__fi[data-on] {
+  box-shadow: 0 0 0 2px var(--opx-aqua), 0 8px 20px -10px color-mix(in srgb, var(--opx-aqua) 90%, transparent);
+}
+
+/* Light theme. */
+html[data-opx-theme="light"] .opx-tk-head {
+  background:
+    radial-gradient(120% 160% at 0% 0%, rgba(42, 99, 201, 0.07), transparent 55%),
+    radial-gradient(90% 160% at 100% 100%, rgba(14, 139, 128, 0.05), transparent 60%),
+    var(--opx-glass);
+}
+
+html[data-opx-theme="light"] .opx-tk-scope,
+html[data-opx-theme="light"] .opx-tk-search,
+html[data-opx-theme="light"] .opx-tk-pp__input {
+  box-shadow: inset 0 1px 2px rgba(20, 50, 90, 0.08);
+}
+
+html[data-opx-theme="light"] .opx-tk-search:focus-within {
+  box-shadow: var(--opx-ring);
+}
+
+html[data-opx-theme="light"] .opx-tk-scope button.is-on {
+  background: linear-gradient(135deg, rgba(42, 99, 201, 0.15), rgba(42, 99, 201, 0.04));
+  box-shadow: inset 0 1px 0 #fff, inset 0 0 0 1px rgba(42, 99, 201, 0.38), 0 10px 22px -14px rgba(42, 99, 201, 0.55);
+}
+
+html[data-opx-theme="light"] .opx-tk-card {
+  background: linear-gradient(180deg, #fff, rgba(255, 255, 255, 0.8));
+  box-shadow: inset 0 1px 0 #fff, 0 14px 30px -24px rgba(30, 70, 140, 0.4);
+}
+
+html[data-opx-theme="light"] .opx-tk-card[data-late] {
+  background:
+    radial-gradient(90% 70% at 0% 0%, rgba(217, 48, 85, 0.07), transparent 60%),
+    linear-gradient(180deg, #fff, rgba(255, 255, 255, 0.8));
+}
+
+html[data-opx-theme="light"] .opx-tk-card:hover {
+  box-shadow: inset 0 1px 0 #fff, 0 20px 40px -24px color-mix(in srgb, var(--st) 55%, transparent);
+}
+
+html[data-opx-theme="light"] .opx-tk-card[data-open] {
+  background:
+    radial-gradient(100% 80% at 0% 0%, rgba(14, 139, 128, 0.09), transparent 60%),
+    #fff;
+  box-shadow: inset 0 1px 0 #fff, 0 0 0 1px rgba(14, 139, 128, 0.4), 0 20px 40px -24px rgba(14, 139, 128, 0.55);
+}
+
+html[data-opx-theme="light"] .opx-tk-tile,
+html[data-opx-theme="light"] .opx-tk-col {
+  box-shadow: inset 0 1px 0 #fff, 0 20px 44px -34px rgba(30, 70, 140, 0.45);
+}
+
+html[data-opx-theme="light"] .opx-tk-drawer .opx-psec,
+html[data-opx-theme="light"] .opx-tk-drawer .opx-facts {
+  background: linear-gradient(180deg, #fff, rgba(255, 255, 255, 0.78));
+  box-shadow: inset 0 1px 0 #fff, 0 14px 30px -26px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-tk-face {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--tone) 20%, #fff), color-mix(in srgb, var(--tone) 7%, #fff));
+}
+
+html[data-opx-theme="light"] .opx-tk-drawer__foot {
+  box-shadow: 0 -14px 30px -26px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-tk-frow,
+html[data-opx-theme="light"] .opx-tk-people li,
+html[data-opx-theme="light"] .opx-tk-code {
+  background: linear-gradient(180deg, #fff, rgba(244, 248, 253, 0.9));
+}
+
+/* Motion. */
+@media (prefers-reduced-motion: reduce) {
+  .opx-tk-scope button,
+  .opx-tk-fchip,
+  .opx-tk-mini,
+  .opx-tk-x {
+    transition: none;
+  }
+
+  .opx-tk-scope button:active,
+  .opx-tk-fchip:active,
+  .opx-tk-x:active {
+    transform: none;
+  }
+}

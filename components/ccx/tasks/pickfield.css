@@ -2,104 +2,101 @@
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
   min-width: 0;
+  width: 152px;
   height: 36px;
-  padding: 0 12px;
   border-radius: 11px;
-  border: 1px solid var(--opx-line-2);
-  background: var(--opx-glass-2);
   color: var(--opx-ink);
   font-size: 13px;
   font-weight: 700;
   line-height: 1;
   white-space: nowrap;
-  cursor: pointer;
-  transition: border-color 0.2s, box-shadow 0.25s, background 0.2s;
 }
 
 .opx-tk-pick[data-big] {
   display: flex;
   width: 100%;
   height: 44px;
-  padding: 0 14px;
   border-radius: 13px;
   font-size: 14px;
   font-weight: 650;
 }
 
-.opx-tk-pick > .opx-i {
-  flex: none;
-  color: var(--opx-ice);
+
+/* The handmade picker fills the field and wears its look: same height,
+   radius and surface as before, a top highlight and a clear focus ring. */
+.opx-tk-pick > .mpick {
+  width: 100%;
+  height: 100%;
 }
 
-.opx-tk-pick[data-empty] {
-  color: var(--opx-ink-3);
-  font-weight: 600;
-}
-
-.opx-tk-pick[data-empty] > .opx-i {
-  color: var(--opx-ink-3);
-}
-
-.opx-tk-pick__v {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.opx-tk-pick > input[type] {
-  position: absolute;
-  inset: 0;
+html[data-opx] .opx-tk-pick .mpick__btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   height: 100%;
   min-height: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
+  padding: 0 10px 0 12px;
   border-radius: inherit;
-  background: none;
-  box-shadow: none;
-  color: transparent;
-  font: inherit;
-  opacity: 0;
-  cursor: pointer;
-  color-scheme: dark;
-}
-
-html[data-opx-theme="light"] .opx-tk-pick > input[type] {
-  color-scheme: light;
-}
-
-.opx-tk-pick > input[type]::-webkit-calendar-picker-indicator {
-  position: absolute;
-  inset: 0;
-  width: auto;
-  height: auto;
-  margin: 0;
-  padding: 0;
-  opacity: 0;
+  background: linear-gradient(180deg, var(--opx-glass-3), var(--opx-glass-2));
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+  font-size: inherit;
+  font-weight: inherit;
   cursor: pointer;
 }
 
-.opx-tk-pick:hover {
+html[data-opx] .opx-tk-pick[data-big] .mpick__btn {
+  padding: 0 12px 0 14px;
+}
+
+html[data-opx] .opx-tk-pick .mpick__btn > svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  stroke: var(--opx-ice);
+}
+
+html[data-opx] .opx-tk-pick[data-big] .mpick__btn > svg {
+  width: 17px;
+  height: 17px;
+}
+
+html[data-opx] .opx-tk-pick[data-empty] .mpick__btn > svg {
+  stroke: var(--opx-ink-3);
+}
+
+html[data-opx] .opx-tk-pick .mpick__val {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  text-overflow: ellipsis;
+}
+
+html[data-opx] .opx-tk-pick .mpick__btn:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--opx-ice) 45%, transparent);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -14px color-mix(in srgb, var(--opx-ice) 85%, transparent);
 }
 
-.opx-tk-pick:focus-within {
+html[data-opx] .opx-tk-pick .mpick[data-open="true"] .mpick__btn,
+html[data-opx] .opx-tk-pick .mpick__btn:focus-within,
+html[data-opx] .opx-tk-pick .mpick__btn:focus-visible {
+  outline: none;
   border-color: color-mix(in srgb, var(--opx-aqua) 60%, transparent);
   box-shadow: var(--opx-ring);
 }
 
-.opx-tk-pick[data-invalid] {
+html[data-opx] .opx-tk-pick[data-invalid] .mpick__btn {
   border-color: color-mix(in srgb, var(--opx-hot) 60%, transparent);
 }
 
-.opx-tk-pick:has(> input:disabled) {
-  cursor: default;
+html[data-opx] .opx-tk-pick:has(.mpick__btn:disabled) {
   opacity: 0.6;
 }
 
-.opx-tk-pick > input[type]:disabled {
-  cursor: default;
+html[data-opx-theme="light"] .opx-tk-pick .mpick__btn {
+  background: linear-gradient(180deg, #fff, rgba(244, 248, 253, 0.9));
+  box-shadow: inset 0 1px 0 #fff, 0 6px 16px -14px rgba(30, 70, 140, 0.45);
 }

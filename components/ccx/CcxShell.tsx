@@ -64,8 +64,12 @@ export default function CcxShell({ nav: navIn, activeHref, title, openCount, use
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const viewKey = pathname === "/admin/call-center" ? VIEW_NAV_KEY[params.get("view") ?? ""] : undefined;
-  const isOn = (n: CcxNavItem) => (viewKey ? n.key === viewKey : n.href === activeHref);
+  const view = pathname === "/admin/call-center" ? (params.get("view") ?? "") : "";
+  const viewKey = VIEW_NAV_KEY[view];
+  // The profile is opened from the avatar menu, not a tab: no tab is lit
+  // there (the «Hozir» tab used to look selected on the profile).
+  const onProfile = view === "profile";
+  const isOn = (n: CcxNavItem) => !onProfile && (viewKey ? n.key === viewKey : n.href === activeHref);
   const prefs = useCcxPrefs();
   const shift = useCcShift();
   const nav = [...navIn].sort((a, b) => rank(a.key) - rank(b.key));
@@ -143,7 +147,7 @@ export default function CcxShell({ nav: navIn, activeHref, title, openCount, use
     const ro = new ResizeObserver(place);
     ro.observe(box);
     return () => ro.disconnect();
-  }, [activeHref, viewKey, nav.length, locale]);
+  }, [activeHref, viewKey, onProfile, nav.length, locale]);
 
   useEffect(() => {
     if (intro) return;
@@ -240,7 +244,7 @@ export default function CcxShell({ nav: navIn, activeHref, title, openCount, use
           ) : null}
           <CcxStatus />
           <div className="opx-me" ref={menuBox}>
-            <button type="button" className="opx-me__btn" aria-expanded={menu} aria-haspopup="menu" onClick={() => setMenu((v) => !v)} aria-label={tx("account")}>
+            <button type="button" className="opx-me__btn" data-on={onProfile || undefined} aria-expanded={menu} aria-haspopup="menu" onClick={() => setMenu((v) => !v)} aria-label={tx("account")}>
               <span className="opx-me__av">
                 {initials(name || "A")}
                 <i className="opx-me__live" data-st={shift.status} aria-hidden="true" />
