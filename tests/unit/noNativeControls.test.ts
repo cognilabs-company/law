@@ -26,7 +26,6 @@ const ALLOWED: Record<string, { types: string[]; why: string }> = {
   "app/[locale]/portal/client/cases/page.tsx": { types: ["radio"], why: ".olx-opt picture card drawn (blue ring + tick when on); input 1px, opacity 0" },
   "components/marketplace/PriceOptions.tsx": { types: ["checkbox"], why: ".pxo__box drawn; input opacity 0" },
   "app/[locale]/admin/pipeline/LegacyPipeline.tsx": { types: ["radio"], why: ".lstg-clr__sw swatch drawn; input opacity 0" },
-  "app/[locale]/admin/notifications/page.tsx": { types: ["checkbox"], why: ".nrcp__cb drawn; input size 0" },
   "app/[locale]/admin/policies/page.tsx": { types: ["radio"], why: ".unvmode__dot drawn; input size 0" },
   "components/ccx/CcxAppearance.tsx": { types: ["checkbox"], why: ".opx-look__toggle drawn; input opacity 0" },
   "components/ccx/profile/WorkPrefs.tsx": { types: ["checkbox"], why: ".opx-look__toggle drawn; input opacity 0" },
