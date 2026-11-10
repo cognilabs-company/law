@@ -1,7 +1,6 @@
 "use client";
 
-import "./docOrder1920.css";
-import { useRef, useState, type CSSProperties } from "react";
+import { useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   requestCustomDraft,
@@ -21,6 +20,9 @@ import AttachmentPicker, { type VoiceNoteItem } from "./AttachmentPicker";
 import DocTypePicker from "./DocTypePicker";
 import {
   IconChevronLeft,
+  IconEdit,
+  IconClipboardCheck,
+  IconEye,
   IconPaperclip,
   IconArrowRight,
   IconLock,
@@ -133,16 +135,6 @@ function draftTitle(docType: string, need: string): string {
   // Cut on a word boundary, unless that would throw away half the title.
   return `${(sp > TITLE_MAX / 2 ? cut.slice(0, sp) : cut).trimEnd()}…`;
 }
-
-// The two document journeys (and the AI one) by the dashboard's own black
-// line drawings — public/img/xizmatlar, the pictures of its "Xizmatlar"
-// arches — in a light circle, instead of a small icon on a pastel tile.
-const docArt = (name: string) => ({ "--art": `url(/img/xizmatlar/${name}.webp)` }) as CSSProperties;
-const DOC_ART = {
-  scratch: docArt("Huquqiy_hujjatlar"),
-  review: docArt("Hujjat_tahlili"),
-  analysis: docArt("suniy-intelekt"),
-};
 
 export default function NewDocumentOrder({
   onClose,
@@ -349,12 +341,12 @@ export default function NewDocumentOrder({
         <p className="advmuted" style={{ margin: 0 }}>{t("lead")}</p>
         <div className="docchoose" data-ai-target="documents:order-options" data-ai-id="documents.create.options" data-ai-type="section">
           <button type="button" className="docchoose__c" onClick={() => setFlow("scratch")} data-ai-id="documents.create.option.scratch">
-            <span className="docchoose__art" style={DOC_ART.scratch} aria-hidden />
+            <span className="docchoose__i"><IconEdit /></span>
             <b>{t("scratchTitle")}</b>
             <span>{t("scratchSub")}</span>
           </button>
           <button type="button" className="docchoose__c" onClick={() => setFlow("review")} data-ai-id="documents.create.option.review">
-            <span className="docchoose__art" style={DOC_ART.review} aria-hidden />
+            <span className="docchoose__i"><IconClipboardCheck /></span>
             <b>{t("reviewTitle")}</b>
             <span>{t("reviewSub")}</span>
           </button>
@@ -362,7 +354,7 @@ export default function NewDocumentOrder({
               lives here now so both document journeys start in one place. */}
           {showAnalysis ? (
             <Link href="/portal/client/doc-analysis" className="docchoose__c" onClick={onClose} data-ai-id="documents.create.option.analysis">
-              <span className="docchoose__art" style={DOC_ART.analysis} aria-hidden />
+              <span className="docchoose__i"><IconEye /></span>
               <b>{t("analysisTitle")}</b>
               <span>{t("analysisSub")}</span>
             </Link>
@@ -385,7 +377,7 @@ export default function NewDocumentOrder({
       </button>
 
       <div className="docassist__head">
-        <span className="docassist__art" style={flow === "review" ? DOC_ART.review : DOC_ART.scratch} aria-hidden />
+        <span className="docassist__i docassist__i--lawyer">{flow === "review" ? <IconClipboardCheck /> : <IconEdit />}</span>
         <div>
           <b>{flow === "review" ? t("reviewTitle") : t("scratchTitle")}</b>
           <p className="advmuted">{flow === "review" ? t("reviewSub") : t("scratchSub")}</p>

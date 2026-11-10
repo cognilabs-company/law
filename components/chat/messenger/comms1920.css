@@ -150,6 +150,8 @@ html[data-theme="dark"] :is(.portal.lx,.mx--standalone) .mx-row--sk .mx-av{backg
 :is(.portal.lx,.mx--standalone) .mx-search input{font:500 .92rem/1 var(--fb);color:var(--lx-ink)}
 :is(.portal.lx,.mx--standalone) .mx-search input::placeholder{color:var(--lx-gray2)}
 :is(.portal.lx,.mx--standalone) .mx-search button:hover{background:var(--lx-chip);color:var(--lx-ink)}
+/* the filter: one select, full width, in the search field's shape */
+:is(.portal.lx,.mx--standalone) .mx-filter .dsel__btn{height:40px;border-radius:12px;font:600 .86rem/1 var(--fb)}
 /* the filters wrap onto a second line rather than run off the edge */
 :is(.portal.lx,.mx--standalone) .mx-chips{flex-wrap:wrap;overflow:visible;margin:0;padding:0;gap:6px}
 :is(.portal.lx,.mx--standalone) .mx-chip{

@@ -1,8 +1,6 @@
 "use client";
 
-import "@/components/portal/docCatalog/catalog1920.css";
-import { useEffect, useMemo, useState, type CSSProperties, type SVGProps, useCallback } from "react";
-import { ArrowRight } from "lucide-react";
+import { useEffect, useMemo, useState, type SVGProps, useCallback } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { Link, useRouter } from "@/i18n/navigation";
@@ -38,6 +36,8 @@ import FieldError from "@/components/ui/FieldError";
 import { evalBusinessHours, responseDeadline, deadlineLabel } from "@/lib/businessHours";
 import { getBusinessHours, DEFAULT_BUSINESS_HOURS } from "@/lib/services/backend";
 import {
+  IconArrowRight,
+  IconSparkle,
   IconAlert,
   IconStar,
   IconMapPin,
@@ -51,9 +51,6 @@ import { useAiField, useAiModal } from "@/lib/ai/registry";
 import { useRoleNav } from "@/components/RoleNavHost";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
-// The dashboard's black line drawings (public/img/xizmatlar), shown in a white
-// circle on the navy entry cards (catalog1920.css).
-const art = (name: string) => ({ "--art": `url(/img/xizmatlar/${name}.webp)` }) as CSSProperties;
 
 const SORT_VALUES = ["match", "rating", "exp", "price"] as const;
 type Sort = (typeof SORT_VALUES)[number];
@@ -364,34 +361,29 @@ export default function ClientServices() {
 
   return (
     <div className="mkt">
-      {/* Module 10 client entry points: AI intake + urgent advocate, as the
-          dashboard's flat navy feature cards — its own pictures in white
-          circles (the thinking lawyer; the lawyer on the phone by the beacon,
-          with a small red "SOS" sticker instead of a red slab). */}
-      <div className={`mkt__actions${intakeHidden ? " mkt__actions--one" : ""}`}>
+      {/* Module 10 client entry points: AI intake + urgent advocate. */}
+      <div className="mkt__actions">
         {intakeHidden ? null : <Link href="/portal/client/intake" className="mkt__act mkt__act--ai" data-ai-id="documents.actions.ai-help">
-          <span className="mkt__act-art" style={art("Muammo_tahlili")} aria-hidden="true" />
+          <span className="mkt__act-i"><IconSparkle /></span>
           <span className="mkt__act-t">
             <b>{t("aiHelp")}</b>
             <span>{t("aiHelpSub")}</span>
           </span>
-          <span className="mkt__act-go" aria-hidden="true"><ArrowRight /></span>
+          <IconArrowRight />
         </Link>}
         <Link href="/portal/client/sos" className="mkt__act mkt__act--sos" data-ai-id="documents.actions.urgent">
-          <span className="mkt__act-art" style={art("Shoshilinch_yordam")} aria-hidden="true">
-            <i className="mkt__act-sos">SOS</i>
-          </span>
+          <span className="mkt__act-i"><IconAlert /></span>
           <span className="mkt__act-t">
             <b>{t("urgent")}</b>
             <span>{t("urgentSub")}</span>
           </span>
-          <span className="mkt__act-go" aria-hidden="true"><ArrowRight /></span>
+          <IconArrowRight />
         </Link>
       </div>
 
       {preSeller ? (
         <div className="presel" role="status">
-          <span className="presel__av cx-av">{(preSeller.name || "A").split(/\s+/).map((x) => x[0]).join("").slice(0, 2).toUpperCase()}</span>
+          <span className="presel__av">{(preSeller.name || "A").split(/\s+/).map((x) => x[0]).join("").slice(0, 2).toUpperCase()}</span>
           <div>
             <b>{t("preSellerTitle", { name: preSeller.name || t("preSellerAnon") })}</b>
             <span>
@@ -399,7 +391,7 @@ export default function ClientServices() {
               {afterHours ? ` ${t("afterHours", { when: respondBy })}` : ""}
             </span>
           </div>
-          <button type="button" className="btn btn--line btn--sm btn--pill" onClick={() => { setPreSeller(null); if (typeof window !== "undefined") window.history.replaceState(null, "", window.location.pathname); }}>{t("preSellerClear")}</button>
+          <button type="button" className="btn btn--line btn--sm" onClick={() => { setPreSeller(null); if (typeof window !== "undefined") window.history.replaceState(null, "", window.location.pathname); }}>{t("preSellerClear")}</button>
         </div>
       ) : null}
       {/* The ready-document catalog reads the templates themselves
@@ -411,8 +403,8 @@ export default function ClientServices() {
         initialQuery={searchParams.get("q") ?? ""}
         actions={
           <>
-            <CopilotLauncher surface="service_catalog" context={{}} className="tcat__ai" />
-            <button type="button" className="btn btn--pri btn--pill tcat__new" onClick={() => setNewDocOpen(true)} data-ai-target="button:create-document" data-ai-id="documents.create.open">
+            <CopilotLauncher surface="service_catalog" context={{}} />
+            <button type="button" className="btn btn--grad btn--sm" onClick={() => setNewDocOpen(true)} data-ai-target="button:create-document" data-ai-id="documents.create.open">
               <IconPlus />
               {t("newDocOrder")}
             </button>
@@ -428,7 +420,6 @@ export default function ClientServices() {
 
       <Modal open={!!order} onClose={() => { setOrder(null); setDocLawyer(false); }} title={order?.name || t("orderTitle")} wide={!orderAsAdvocate}>
         <div
-          className="lxc-order"
           data-ai-id={orderModalId}
           data-ai-type="modal"
           data-ai-label={order?.name || t("orderTitle")}
@@ -574,7 +565,7 @@ export default function ClientServices() {
               {/* A package whose services the backend could not resolve
                   cannot be bought (the alert above says so): no button. */}
               {pkg?.unresolvedServiceCodes.length ? null : (
-                <button className="btn btn--pri btn--full btn--lg" type="button" onClick={buy}>
+                <button className="btn btn--grad btn--full btn--lg" type="button" onClick={buy}>
                   {t("buy")}
                 </button>
               )}

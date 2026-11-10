@@ -266,7 +266,9 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
     : "";
   // The cabinet this panel is in (client / lawyer / advocate) for its links.
   const rolePath = role === "lawyer" ? "/portal/lawyer" : role === "advocate" ? "/portal/advocate" : "/portal/client";
-  const otherShown = personal || otherPlans.length > 0;
+  // The client's Tariflar page shows only the AI tariffs ("Boshqa tariflar"
+  // is gone there); the advocate and lawyer pages keep their other tariffs.
+  const otherShown = role !== "client" && (personal || otherPlans.length > 0);
   useAiSelection("billing_period", billingPeriod(aiTerm, aiUpfront));
   useAiSelection("plan_term", aiTerm);
   useAiSelection("plan_upfront", aiTerm === 12 && aiUpfront ? "true" : "false");
@@ -579,7 +581,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
       ) : null}
 
       {/* ── Every tariff that is not LexGo.AI, for every role ───────── */}
-      {personal || otherPlans.length ? (
+      {otherShown ? (
         <>
           <div className="plans__head cx-head plx-head">
             <div className="plx-head__t">

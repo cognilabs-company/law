@@ -1,14 +1,13 @@
 "use client";
 
 import "./docCatalog.css";
-import "./catalog1920.css";
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
-import { ArrowUpRight, Check } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import { EmptyState, ErrorState } from "@/components/portal/DataState";
-import { IconDocLines, IconFileText, IconGlobe, IconGrid, IconSearch } from "@/components/icons";
+import { IconArrowRight, IconDocLines, IconEye, IconFileText, IconGlobe, IconGrid, IconSearch } from "@/components/icons";
 import { getDocumentTemplateCategories, type DocTemplateCategory } from "@/lib/services/backend";
 import { CATALOG_PAGE, listTemplateCatalog, type TemplateCard, type TemplatePage } from "@/lib/services/docTemplates";
 import { searchTerms } from "@/lib/searchText";
@@ -16,7 +15,7 @@ import { fmtUzs } from "@/lib/money";
 import { aiId } from "@/lib/ai/ids";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
 import { useAiReveal } from "@/lib/guide/targets";
-import { ALL_TEMPLATES_IMAGE, categoryKeyImage, templateImage } from "./images";
+import { generalCategoryImage, subcategoryImage } from "./images";
 
 // The ready-document catalog, built on the templates themselves
 // (FRONTEND_MOBILE_LEGAL_DOCUMENT_TEMPLATES_FULL_FLOW_2026_10_22.md §1, §3.1):
@@ -35,8 +34,12 @@ const CATEGORY_AI_SLUG: Record<string, string> = {
   "legal-doc-administrative": "mamuriy",
   "legal-doc-economic": "iqtisodiy",
 };
-// A family-D picture on the dashboard's light plate (catalog1920.css).
-const plate = (src: string) => ({ "--img": `url(${src})` }) as CSSProperties;
+const CATEGORY_IMAGE_NAME: Record<string, string> = {
+  "legal-doc-civil": "fuqarolik",
+  "legal-doc-criminal": "jinoiy",
+  "legal-doc-administrative": "mamuriy",
+  "legal-doc-economic": "iqtisodiy",
+};
 
 // First pages, kept a few minutes so going back to the catalog is instant;
 // never longer, so a stale empty answer cannot stick (§23.10).
@@ -90,8 +93,6 @@ function useTemplates(category: string, language: string, q: string, enabled: bo
 
 export default function TemplateCatalog({ actions, initialCategory = "", initialQuery = "" }: { actions?: ReactNode; initialCategory?: string; initialQuery?: string }) {
   const t = useTranslations("portal.client.services.tpl");
-  const ts = useTranslations("portal.client.services");
-  const tl = useTranslations("lxCatalog");
   const locale = useLocale();
   const [cats, setCats] = useState<{ status: "loading" | "ready" | "error"; list: DocTemplateCategory[]; error?: unknown }>({ status: "loading", list: [] });
   const [catTry, setCatTry] = useState(0);
@@ -206,30 +207,22 @@ export default function TemplateCatalog({ actions, initialCategory = "", initial
 
   return (
     <div className="ppanel svhub tcat">
-      {/* Headed like the dashboard's sections: the title and its line on the
-          left, the page's two actions on the right. */}
-      <div className="ppanel__h tcat__head">
-        <div className="tcat__headt">
-          <h2 className="lx-h1">{heading}</h2>
-          <p className="lx-sub">
-            {count !== undefined ? `${t("count", { n: count })} · ` : ""}
-            {tl("sub")}
-          </p>
-        </div>
-        <span className="ppanel__hact">{actions}</span>
+      <div className="ppanel__h">
+        <b>{heading}</b>
+        <span className="ppanel__hact">
+          {count !== undefined ? <span className="advmuted">{t("count", { n: count })}</span> : null}
+          {actions}
+        </span>
       </div>
 
       {cats.status === "error" ? (
         <ErrorState error={cats.error} onRetry={() => setCatTry((n) => n + 1)} />
       ) : (
-        // The directions as the dashboard's area cards: a family-D picture on
-        // the light plate, the name and its count, the round chip arrow (a
-        // check on the chosen one).
         <div className="tcat__cats" role="radiogroup" aria-label={t("category")} data-ai-id="documents.categories" data-ai-type="list">
           {cats.status === "loading"
-            ? Array.from({ length: 5 }, (_, i) => <span key={i} className="tcat__cat tcat__cat--ghost cx-skel" aria-hidden="true" />)
+            ? Array.from({ length: 4 }, (_, i) => <span key={i} className="tcat__cat tcat__cat--ghost" aria-hidden="true" />)
             : [{ key: "", title: t("allCategories"), templatesCount: total }, ...cats.list].map((c) => {
-                const img = c.key ? categoryKeyImage(c.key, c.title) ?? ALL_TEMPLATES_IMAGE : ALL_TEMPLATES_IMAGE;
+                const img = c.key ? generalCategoryImage(CATEGORY_IMAGE_NAME[c.key] ?? c.title) : null;
                 const on = known === c.key;
                 return (
                   <button
@@ -237,19 +230,16 @@ export default function TemplateCatalog({ actions, initialCategory = "", initial
                     type="button"
                     role="radio"
                     aria-checked={on}
-                    className="tcat__cat cx-area"
+                    className="tcat__cat"
                     onClick={() => setCat(c.key)}
                     data-ai-id={c.key ? (CATEGORY_AI_SLUG[c.key] ? `documents.catalog.category.${CATEGORY_AI_SLUG[c.key]}` : aiId("documents.category", c.key)) : "documents.catalog.category.all"}
                   >
-                    <span className="tcat__cat-i cx-area__img" style={plate(img.wide)} aria-hidden="true" />
-                    <span className="cx-area__body">
-                      <span className="tcat__cat-t cx-area__txt">
-                        <b>{c.key ? catLabel(c.key, c.title) : t("allCategories")}</b>
-                        <small>{t("count", { n: c.templatesCount })}</small>
-                      </span>
-                      <span className="cx-area__go" aria-hidden="true">
-                        {on ? <Check /> : <ArrowUpRight />}
-                      </span>
+                    <span className="tcat__cat-i" aria-hidden="true">
+                      {img ? <Image src={img} alt="" fill sizes="56px" style={{ objectFit: "contain" }} /> : <IconGrid />}
+                    </span>
+                    <span className="tcat__cat-t">
+                      <b>{c.key ? catLabel(c.key, c.title) : t("allCategories")}</b>
+                      <small>{t("count", { n: c.templatesCount })}</small>
                     </span>
                   </button>
                 );
@@ -267,19 +257,25 @@ export default function TemplateCatalog({ actions, initialCategory = "", initial
           setSort("title");
           setQ("");
         }}
+        extra={
+          <span className="svfilt__free" role="status">
+            <IconEye aria-hidden="true" />
+            {t("freeToView")}
+          </span>
+        }
         aiId="documents.filters"
         aiTarget="documents:catalog-filters"
       />
 
       {status === "loading" ? (
         <div aria-busy="true">
-          {!known ? <p className="tcat__hint lx-sub">{t("loadingAll")}</p> : null}
+          {!known ? <p className="tcat__hint">{t("loadingAll")}</p> : null}
           <p className="sr-only" role="status">
             {t("loading")}
           </p>
           <ul className="tcat__grid" aria-hidden="true">
             {Array.from({ length: 6 }, (_, i) => (
-              <li key={i} className="tcard tcard--ghost cx-skel" />
+              <li key={i} className="tcard tcard--ghost" />
             ))}
           </ul>
         </div>
@@ -313,7 +309,7 @@ export default function TemplateCatalog({ actions, initialCategory = "", initial
         <>
           <ul className="tcat__grid" data-ai-id="documents.templates" data-ai-type="list" data-ai-target="documents:template-list">
             {shown.map((c) => {
-              const img = templateImage(c.title, c.category);
+              const img = subcategoryImage(c.title) ?? generalCategoryImage(CATEGORY_IMAGE_NAME[c.category] ?? "");
               return (
                 <li key={c.id}>
                   <Link
@@ -323,25 +319,22 @@ export default function TemplateCatalog({ actions, initialCategory = "", initial
                     data-ai-entity-type="document_template"
                     data-ai-entity-id={c.id}
                   >
-                    <span className={`tcard__img lxc-plate${img.square === img.wide ? " lxc-plate--wide" : ""}`} style={plate(img.square)} aria-hidden="true" />
+                    <span className="tcard__img" aria-hidden="true">
+                      {img ? <Image src={img} alt="" fill sizes="64px" style={{ objectFit: "contain" }} /> : <IconFileText />}
+                    </span>
                     <span className="tcard__body">
                       <span className="tcard__meta">
-                        <span className="tchip cx-tag">{catLabel(c.category)}</span>
-                        {c.language ? <span className="tchip tchip--soft cx-tag">{langLabel(c.language)}</span> : null}
-                        {c.hasSourceFile ? <span className="tchip tchip--ok cx-tag">DOCX</span> : null}
+                        <span className="tchip">{catLabel(c.category)}</span>
+                        {c.language ? <span className="tchip tchip--soft">{langLabel(c.language)}</span> : null}
+                        {c.hasSourceFile ? <span className="tchip tchip--ok">DOCX</span> : null}
                       </span>
                       <b className="tcard__t">{c.title}</b>
                       {c.description ? <small className="tcard__d">{c.description}</small> : null}
                       <span className="tcard__foot">
-                        {c.price > 0 ? (
-                          <span className="tcard__price">
-                            {fmtUzs(c.price)} {ts("som")}
-                          </span>
-                        ) : (
-                          <span className="tcard__price tcard__price--free cx-pill cx-pill--ok">{t("freeView")}</span>
-                        )}
-                        <span className="tcard__go cx-area__go" title={t("open")} aria-hidden="true">
-                          <ArrowUpRight />
+                        <span className="tcard__price">{c.price > 0 ? fmtUzs(c.price) : t("freeView")}</span>
+                        <span className="tcard__go">
+                          {t("open")}
+                          <IconArrowRight aria-hidden="true" />
                         </span>
                       </span>
                     </span>

@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+import Select from "@/components/Select";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/http";
 import { CALL_LINK_RE, isMachineFileName, maskContacts } from "@/lib/chatFilter";
@@ -287,13 +288,15 @@ export function ChatList({
           ) : null}
         </label>
         {rooms.length ? (
-          <div className="mx-chips" role="tablist" aria-label={t("fKind")} data-ai-id={ai ? `${ai}.filters.kind` : undefined}>
-            {chips.map((c) => (
-              <button key={c.value || "all"} type="button" role="tab" aria-selected={filter === c.value} className={`mx-chip${filter === c.value ? " on" : ""}`} onClick={() => setFilter(c.value)}>
-                {c.label}
-                {c.n ? <span>{c.n}</span> : null}
-              </button>
-            ))}
+          // One select with every filter and its count: as chips in this
+          // narrow column they broke onto a second line with one left alone.
+          <div className="mx-filter" data-ai-id={ai ? `${ai}.filters.kind` : undefined}>
+            <Select
+              value={filter}
+              onChange={(v) => setFilter(v as Filter)}
+              options={chips.map((c) => ({ value: c.value, label: c.n ? `${c.label} · ${c.n}` : c.label }))}
+              ariaLabel={t("fKind")}
+            />
           </div>
         ) : null}
       </div>

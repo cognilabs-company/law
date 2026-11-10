@@ -1,9 +1,8 @@
 "use client";
 
-import "./builder1920.css";
 import PlanGateCard from "@/components/ui/PlanGateCard";
 import { planGateOf, type PlanGate } from "@/lib/planGate";
-import { useContext, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   getServiceDocumentTemplate,
@@ -20,7 +19,7 @@ import {
 } from "@/lib/services/backend";
 import DocumentRequestPanel from "./DocumentRequestPanel";
 import DocumentLawyerAssist from "./DocumentLawyerAssist";
-import { ManualDocPlanNotice } from "./ManualDocPlanGate";
+import ManualDocPlanGate from "./ManualDocPlanGate";
 import { DocChromeContext, lawyerPendingNote } from "./DocFill";
 import { ErrorState, Skeleton } from "./DataState";
 import Modal from "@/components/admin/Modal";
@@ -29,17 +28,10 @@ import InlineAlert from "@/components/ui/InlineAlert";
 import { ApiError, errDetail } from "@/lib/http";
 import { statusLabel } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
-import { IconList, IconChevronLeft, IconArrowRight, IconClock } from "@/components/icons";
+import { IconList, IconHeadset, IconChevronLeft, IconLock } from "@/components/icons";
 import { aiId } from "@/lib/ai/ids";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
-
-// The two ways to a document, drawn with the dashboard's own line drawings
-// (public/img/xizmatlar) in white circles instead of icons on pastel tiles:
-// the builder is the "Huquqiy hujjatlar" picture, the advocate the "Tezkor
-// Advokat" one — the same two the dashboard's arches use for these services.
-const art = (name: string) => ({ "--art": `url(/img/xizmatlar/${name}.webp)` }) as CSSProperties;
-const ART = { manual: art("Huquqiy_hujjatlar"), lawyer: art("Tezkor_Advokat") };
 
 type Mode = "choose" | "manual" | "lawyer";
 
@@ -109,7 +101,6 @@ export default function ServiceDocumentRequest({
 }) {
   const t = useTranslations("portal.client.documents");
   const tc = useTranslations("portal.common");
-  const tb = useTranslations("lxBuilder");
   const chrome = useContext(DocChromeContext);
   const [tpl, setTpl] = useState<BackendTemplate | null>(null);
   const [sourceFile, setSourceFile] = useState<ServiceDocumentFields | null>(null);
@@ -155,6 +146,7 @@ export default function ServiceDocumentRequest({
   // to the plan-purchase prompt instead of the normal template/fill flow.
   const [planRequired, setPlanRequired] = useState("");
   const [limitGate, setLimitGate] = useState<PlanGate | null>(null);
+  const [planGateOpen, setPlanGateOpen] = useState(false);
 
   // Reset when a different service is opened — during render, not an effect
   // (see DocumentRequestPanel for why), so the new fetch below starts clean.
@@ -173,6 +165,7 @@ export default function ServiceDocumentRequest({
     setResumed(false);
     setMode(initialMode ?? "manual");
     setPlanRequired("");
+    setPlanGateOpen(false);
   }
 
   useEffect(() => {
@@ -450,121 +443,96 @@ export default function ServiceDocumentRequest({
       />
     );
   }
-  // On the full page every step sits in the dashboard's white card
-  // (.bld-card, framed only inside .docbuild--full — in the catalogue's
-  // order dialog the dialog itself is the frame).
-  if (loading || (tpl && mode === "manual" && tpl.questionnaire.length === 0 && !req && !err))
-    return (
-      <div className="cform bld" style={{ maxWidth: "none" }}>
-        <section className="bld-card">
-          <Skeleton rows={3} />
-        </section>
-      </div>
-    );
+  if (loading || (tpl && mode === "manual" && tpl.questionnaire.length === 0 && !req && !err)) return <Skeleton rows={3} />;
 
   if (limitGate)
     return (
-      <div className="cform bld" style={{ maxWidth: "none" }}>
+      <div className="cform" style={{ maxWidth: "none" }}>
         <PlanGateCard gate={limitGate} />
       </div>
     );
 
   if (planRequired)
     return (
-      <div className="cform bld" style={{ maxWidth: "none" }}>
-        <ManualDocPlanNotice message={planRequired} />
+      <div className="cform" style={{ maxWidth: "none" }}>
+        <div className="docassist__head">
+          <span className="docassist__i docassist__i--lawyer"><IconLock /></span>
+          <div>
+            <b>{t("planGateTitle")}</b>
+            <p className="advmuted">{planRequired}</p>
+          </div>
+        </div>
+        <button className="btn btn--grad btn--full btn--lg" type="button" onClick={() => setPlanGateOpen(true)}>
+          {t("choosePlan")}
+        </button>
+        <ManualDocPlanGate open={planGateOpen} onClose={() => setPlanGateOpen(false)} message={planRequired} />
       </div>
     );
 
   if (!tpl)
     return (
-      <div className="cform bld" style={{ maxWidth: "none" }}>
-        <section className="bld-card">
-          <ErrorState
-            error={loadErr}
-            onRetry={() => {
-              setLoading(true);
-              setLoadErr(null);
-              setErr(false);
-              setLoadKey((k) => k + 1);
-            }}
-          />
-        </section>
-      </div>
+      <ErrorState
+        error={loadErr}
+        onRetry={() => {
+          setLoading(true);
+          setLoadErr(null);
+          setErr(false);
+          setLoadKey((k) => k + 1);
+        }}
+      />
     );
 
   const tplKey = sourceFile?.templateId || tpl.id;
   const tplAi = tplKey ? aiId("documents.template", tplKey) : "";
 
-  const priceText = tpl.price ? `${som(tpl.price)} ${t("som")}` : t("free");
-
   if (mode === "choose")
     return (
-      <div className="cform bld" style={{ maxWidth: "none" }}>
-        <section className="bld-card">
-          {/* The dashboard's section head: the question, the template's own
-              line under it, and what the document costs beside them. */}
-          <div className="bld-head">
-            <div className="bld-head__t">
-              <h2 className="cx-h3">{tb("chooseTitle")}</h2>
-              <p className="lx-sub">{tpl.description || tb("chooseSub")}</p>
-            </div>
-            <div className="oprice bld-price">
-              <span>{t("price")}</span>
-              <b>{priceText}</b>
-            </div>
-          </div>
-          <div className="docchoose bld-choose" data-ai-id="documents.constructor.mode" data-ai-type="section" data-ai-entity-type="service" data-ai-entity-id={serviceId}>
-            {/* An advocate holding the document does not take the constructor
-                away — §3 L50 is explicit about that, and §3 L74 says it asks
-                first only while constructor_action.prompt_required is true. */}
-            <button
-              type="button"
-              className="docchoose__c bld-opt"
-              onClick={() => (askFirst ? setGateOpen(true) : setMode("manual"))}
-              data-ai-id={tplAi ? aiId(tplAi, "manual") : undefined}
-            >
-              <span className="docchoose__art" style={ART.manual} aria-hidden />
-              <b>{t("chooseManual")}</b>
-              <span className="bld-opt__s">{t("chooseManualSub")}</span>
-              <span className="bld-opt__go" aria-hidden><IconArrowRight /></span>
-            </button>
-            {/* Still opens, but on to the wait screen for the request they
-                already sent rather than a form that would send a second one.
-                The sub-line is the backend's own refusal (§5 L115) once
-                can_send_lawyer_request is false, so the card says why before it
-                is pressed rather than only after — and the advocate's status
-                rides along as the dashboard's amber pill. */}
-            <button
-              type="button"
-              className={`docchoose__c bld-opt${canSendLawyer ? "" : " docchoose__c--held"}`}
-              onClick={() => setMode("lawyer")}
-              data-ai-id={tplAi ? aiId(tplAi, "lawyer") : undefined}
-            >
-              <span className="docchoose__art" style={ART.lawyer} aria-hidden />
-              <b>{t("chooseLawyer")}</b>
-              <span className="bld-opt__s">{canSendLawyer ? t("chooseLawyerSub") : blockReason || t("lawyerPendingStatus", { status: heldStatus })}</span>
-              {!canSendLawyer && heldStatus ? (
-                <em className="cx-pill cx-pill--warn bld-opt__pill">
-                  <IconClock />
-                  {heldStatus}
-                </em>
-              ) : null}
-              <span className="bld-opt__go" aria-hidden><IconArrowRight /></span>
-            </button>
-          </div>
-        </section>
+      <div className="cform" style={{ maxWidth: "none" }}>
+        {tpl.description ? <p className="advmuted">{tpl.description}</p> : null}
+        <div className="oprice">
+          <span>{t("price")}</span>
+          <b>{tpl.price ? `${som(tpl.price)} ${t("som")}` : t("free")}</b>
+        </div>
+        <div className="docchoose" data-ai-id="documents.constructor.mode" data-ai-type="section" data-ai-entity-type="service" data-ai-entity-id={serviceId}>
+          {/* An advocate holding the document does not take the constructor
+              away — §3 L50 is explicit about that, and §3 L74 says it asks
+              first only while constructor_action.prompt_required is true. */}
+          <button
+            type="button"
+            className="docchoose__c"
+            onClick={() => (askFirst ? setGateOpen(true) : setMode("manual"))}
+            data-ai-id={tplAi ? aiId(tplAi, "manual") : undefined}
+          >
+            <span className="docchoose__i"><IconList /></span>
+            <b>{t("chooseManual")}</b>
+            <span>{t("chooseManualSub")}</span>
+          </button>
+          {/* Still opens, but on to the wait screen for the request they
+              already sent rather than a form that would send a second one.
+              The sub-line is the backend's own refusal (§5 L115) once
+              can_send_lawyer_request is false, so the card says why before it
+              is pressed rather than only after. */}
+          <button
+            type="button"
+            className={`docchoose__c${canSendLawyer ? "" : " docchoose__c--held"}`}
+            onClick={() => setMode("lawyer")}
+            data-ai-id={tplAi ? aiId(tplAi, "lawyer") : undefined}
+          >
+            <span className="docchoose__i"><IconHeadset /></span>
+            <b>{t("chooseLawyer")}</b>
+            <span>{canSendLawyer ? t("chooseLawyerSub") : blockReason || t("lawyerPendingStatus", { status: heldStatus })}</span>
+          </button>
+        </div>
 
         {/* §3 L74 + §5 L116: title and message are the server's, the two
             button labels stay local — the backend names the two actions
             ("open_constructor" / "wait_for_lawyer") but sends no wording for
-            them. The lead carries the advocate's picture: this is a question,
-            not a warning, so it no longer wears the amber warning tile. */}
+            them. */}
         <Modal open={gateOpen} onClose={() => setGateOpen(false)} title={gateTitle}>
-          <div className="cform bld-gate" style={{ maxWidth: "none" }} data-ai-id="documents.constructor.lawyer-gate" data-ai-type="modal" data-ai-label={gateTitle}>
+          <div className="cform" style={{ maxWidth: "none" }} data-ai-id="documents.constructor.lawyer-gate" data-ai-type="modal" data-ai-label={gateTitle}>
             <p className="dexit__lead">
-              <span className="bld-art bld-gate__art" style={ART.lawyer} aria-hidden />
-              <span>{gateMessage}</span>
+              <span className="dexit__i"><IconHeadset /></span>
+              {gateMessage}
             </p>
             <p className="dgate__meta">
               <span>{t("lawyerPendingStatus", { status: heldStatus })}</span>
@@ -596,48 +564,38 @@ export default function ServiceDocumentRequest({
   if (lawyerHeld && mode === "lawyer")
     return (
       <>
-        <div className="cform bld" style={{ maxWidth: "none" }} data-ai-id="documents.lawyer.pending" data-ai-type="section" data-ai-entity-type="document_request" data-ai-entity-id={lawyerHeld.id}>
+        <div className="cform" style={{ maxWidth: "none" }} data-ai-id="documents.lawyer.pending" data-ai-type="section" data-ai-entity-type="document_request" data-ai-entity-id={lawyerHeld.id}>
           {initialMode ? null : (
             <button type="button" className="rf__link" onClick={() => setMode("choose")}>
               <IconChevronLeft />
               {t("backToChoices")}
             </button>
           )}
-          {/* One dashboard card: the advocate's picture, what happened, and
-              the advocate's status and the work id as the dashboard's pill
-              and grey chip. */}
-          <section className="bld-card bld-held">
-            <div className="docassist__head">
-              <span className="docassist__art" style={ART.lawyer} aria-hidden />
-              <div>
-                <b>{t("lawyerPendingTitle")}</b>
-                <p className="advmuted">{blockReason || t("lawyerPendingLead")}</p>
-                <p className="dgate__meta bld-held__meta">
-                  {heldStatus ? (
-                    <span className="cx-pill cx-pill--warn">
-                      <IconClock />
-                      {heldStatus}
-                    </span>
-                  ) : null}
-                  {lawyerHeld.workId ? <span className="bld-held__id">{t("lawyerPendingWork", { id: lawyerHeld.workId })}</span> : null}
-                </p>
-              </div>
+          <div className="docassist__head">
+            <span className="docassist__i docassist__i--lawyer"><IconHeadset /></span>
+            <div>
+              <b>{t("lawyerPendingTitle")}</b>
+              <p className="advmuted">{blockReason || t("lawyerPendingLead")}</p>
+              <p className="dgate__meta">
+                <span>{t("lawyerPendingStatus", { status: heldStatus })}</span>
+                {lawyerHeld.workId ? <span>{t("lawyerPendingWork", { id: lawyerHeld.workId })}</span> : null}
+              </p>
             </div>
-            {/* §3 L50: being with an advocate no longer blocks the constructor
-                outright, so the way back into it is offered here too — this
-                screen is where a client who arrived with initialMode="lawyer"
-                lands, and they never see the chooser that carries the other
-                one. Shown only while the backend actually offers the
-                constructor for this row (constructor_action.available: true on
-                10 of the 50 live rows, false on the 9 held rows that have no
-                template behind them). */}
-            {ca?.available && (heldGate?.constructorUrls.continueUrl || ca.continueUrl) ? (
-              <button type="button" className="btn btn--line bld-held__open" onClick={openConstructor} disabled={!resumed}>
-                <IconList />
-                {resumed ? t("lawyerGateOpen") : t("processingShort")}
-              </button>
-            ) : null}
-          </section>
+          </div>
+          {/* §3 L50: being with an advocate no longer blocks the constructor
+              outright, so the way back into it is offered here too — this
+              screen is where a client who arrived with initialMode="lawyer"
+              lands, and they never see the chooser that carries the other
+              one. Shown only while the backend actually offers the
+              constructor for this row (constructor_action.available: true on
+              10 of the 50 live rows, false on the 9 held rows that have no
+              template behind them). */}
+          {ca?.available && (heldGate?.constructorUrls.continueUrl || ca.continueUrl) ? (
+            <button type="button" className="btn btn--line btn--full" onClick={openConstructor} disabled={!resumed}>
+              <IconList />
+              {resumed ? t("lawyerGateOpen") : t("processingShort")}
+            </button>
+          ) : null}
         </div>
         {/* The same wait screen the advocate flow itself ends on, so the
             client keeps the status, the chat and the finished file here. */}
@@ -650,7 +608,7 @@ export default function ServiceDocumentRequest({
 
   if (initialMode === "lawyer" && !sourceFile?.lawyerFlow)
     return (
-      <div className="cform bld" style={{ maxWidth: "none" }}>
+      <div className="cform" style={{ maxWidth: "none" }}>
         <InlineAlert tone="info">{t("lawyerNotAvailable")}</InlineAlert>
       </div>
     );
@@ -678,34 +636,24 @@ export default function ServiceDocumentRequest({
     );
 
   return (
-    <div className="cform bld" style={{ maxWidth: "none" }} data-ai-target="documents:constructor" data-ai-id="documents.constructor.intro" data-ai-type="section" data-ai-entity-type="service" data-ai-entity-id={serviceId}>
+    <div className="cform" style={{ maxWidth: "none" }} data-ai-target="documents:constructor" data-ai-id="documents.constructor.intro" data-ai-type="section" data-ai-entity-type="service" data-ai-entity-id={serviceId}>
       {mode !== "manual" || !sourceFile?.lawyerFlow ? null : (
         <button type="button" className="rf__link" onClick={() => setMode("choose")}>
           <IconChevronLeft />
           {t("backToChoices")}
         </button>
       )}
-      {/* The builder's card: its picture and name, the template's own line,
-          the price as an ink row on the dashboard's chip, and the one button. */}
-      <section className="bld-card bld-intro">
-        <div className="docassist__head">
-          <span className="docassist__art" style={ART.manual} aria-hidden />
-          <div>
-            <b>{t("chooseManual")}</b>
-            <p className="advmuted">{tpl.description || t("chooseManualSub")}</p>
-          </div>
-        </div>
-        <div className="oprice bld-price bld-price--row">
-          <span>{t("price")}</span>
-          <b>{priceText}</b>
-        </div>
-        {/* Live only once the resume lookup has answered: clicking before then
-            creates a second, separately-payable request for a template this
-            client had already started. */}
-        <button className="btn btn--grad btn--full btn--lg" type="button" onClick={start} disabled={busy || !resumed} data-ai-id="documents.constructor.start">
-          {busy || !resumed ? t("processingShort") : t("continue")}
-        </button>
-      </section>
+      {tpl.description ? <p className="advmuted">{tpl.description}</p> : null}
+      <div className="oprice">
+        <span>{t("price")}</span>
+        <b>{tpl.price ? `${som(tpl.price)} ${t("som")}` : t("free")}</b>
+      </div>
+      {/* Live only once the resume lookup has answered: clicking before then
+          creates a second, separately-payable request for a template this
+          client had already started. */}
+      <button className="btn btn--grad btn--full btn--lg" type="button" onClick={start} disabled={busy || !resumed} data-ai-id="documents.constructor.start">
+        {busy || !resumed ? t("processingShort") : t("continue")}
+      </button>
     </div>
   );
 }

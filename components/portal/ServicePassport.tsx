@@ -1,6 +1,5 @@
 "use client";
 
-import "./docCatalog/catalog1920.css";
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getServicePassport, type ServicePassport as Passport } from "@/lib/services/backend";
