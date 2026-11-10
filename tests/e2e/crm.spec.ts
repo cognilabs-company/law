@@ -792,6 +792,69 @@ test("Eslatma: a reminder time becomes the lead's next action and shows in the h
   expect(missing).toEqual([]);
 });
 
+test("robot builder design: the rail marks done and edited steps, the event list shows translated groups with icons, AND/OR slides, empty states and the delay summary are designed; nothing sticks out on a phone", async ({ page }) => {
+  const missing = watchIntl(page);
+  const { routes } = crmServer(ROP_PERMS);
+  await mockBackend(page, await signIn(page, ROP, routes as never));
+  await page.goto("/uz/admin/crm/automation");
+  await page.locator("[data-rop-new-robot]").click();
+  const b = page.locator("[data-rop-builder]");
+  const step = (n: number) => b.locator(`.rb-step[data-step="${n}"]`);
+  // A new robot starts on step 1 with nothing done; the rail is empty.
+  await expect(step(1)).toHaveAttribute("data-active", "true");
+  await expect(b.locator(".rb-step[data-done]")).toHaveCount(0);
+  await expect(b.locator(".rb-step[data-fill]")).toHaveCount(0);
+  // Every rail circle keeps exactly one icon.
+  await expect(b.locator(".rb-step__dot svg")).toHaveCount(9);
+  // Empty conditions and actions: an icon and one line, counters as badges.
+  await expect(step(4).locator(".rb-empty")).toContainText("Shartsiz — robot har bir hodisada ishlaydi");
+  await expect(step(4).locator(".rb-empty__ic svg")).toHaveCount(1);
+  await expect(step(5).locator(".rb-empty")).toContainText("Hali amal yo'q");
+  await expect(step(4).locator(".rb-badge")).toHaveAttribute("data-zero", "");
+  // No delay reads as "now".
+  await expect(step(3).locator(".rb-delay__sum")).toHaveAttribute("data-now", "");
+  await expect(step(3).locator(".rb-delay__sum")).toContainText("Darhol");
+  await b.getByRole("textbox", { name: "Nomi" }).fill("Javobsiz qo'ng'iroq");
+  await expect(step(1)).toHaveAttribute("data-done", "true");
+  // The event list: group names in the UI language, an icon on every option,
+  // the title over its description.
+  await b.getByRole("button", { name: "Hodisa" }).click();
+  await expect(step(2)).toHaveAttribute("data-active", "true");
+  await expect(step(1)).toHaveAttribute("data-fill", "true");
+  const list = page.getByRole("listbox");
+  await expect(list.locator(".dsel__grph")).toHaveText(["Qo'ng'iroqlar", "Lidlar"]);
+  await expect(list.getByRole("group", { name: "Qo'ng'iroqlar" })).toBeVisible();
+  const opts = await list.getByRole("option").count();
+  await expect(list.locator(".dsel__opt .dsel__ic svg")).toHaveCount(opts);
+  await expect(list.getByRole("option", { name: /Qo'ng'iroqqa javob berilmadi/ }).locator(".dsel__txt .dsel__hint")).toBeVisible();
+  await list.getByRole("option", { name: /Qo'ng'iroqqa javob berilmadi/ }).click();
+  await expect(step(2)).toHaveAttribute("data-done", "true");
+  // A delay turns the summary into "after …".
+  await b.getByRole("textbox", { name: "Kechikish" }).fill("3");
+  await expect(step(3)).toHaveAttribute("data-active", "true");
+  await expect(step(3).locator(".rb-delay__sum")).not.toHaveAttribute("data-now", "");
+  await expect(step(3).locator(".rb-delay__sum")).toContainText("3 daqiqadan keyin");
+  // AND/OR is one segmented control whose thumb slides to the pick.
+  const seg = step(4).locator(".rb-seg");
+  await expect(seg).toHaveAttribute("data-op", "and");
+  await seg.getByRole("button", { name: "YOKI" }).click();
+  await expect(seg).toHaveAttribute("data-op", "or");
+  await expect.poll(() => seg.evaluate((el) => getComputedStyle(el, "::before").transform)).not.toBe("none");
+  await b.getByRole("button", { name: "Shart qo'shish" }).click();
+  await expect(step(4).locator(".rb-badge")).not.toHaveAttribute("data-zero", "");
+  await expect(step(4)).toHaveAttribute("data-done", "true");
+  // On a phone nothing sticks out sideways.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(300);
+  const over = await page.evaluate(() => {
+    const vw = document.documentElement.clientWidth;
+    const wide = [...document.querySelectorAll("[data-rop-builder] *")].filter((el) => el.getBoundingClientRect().right > vw + 1).map((el) => el.className);
+    return { scroll: document.documentElement.scrollWidth - vw, wide: wide.slice(0, 5) };
+  });
+  expect(over).toEqual({ scroll: 0, wide: [] });
+  expect(missing).toEqual([]);
+});
+
 test("robots in Russian: catalog triggers, actions, fields and dropdown options read in the UI language", async ({ page }) => {
   const missing = watchIntl(page);
   const { routes } = crmServer(ROP_PERMS);

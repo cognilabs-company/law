@@ -67,7 +67,7 @@ export function LeadRobots({ leadId }: { leadId: string }): ReactElement {
           <ul className="rop-list">
             {drafts.map((d) => (
               <li key={d.id} className="rop-row" style={{ cursor: "default" }}>
-                <span className="rop-ic"><ClipboardCheck /></span>
+                <span className="rop-ic" data-tone="warn"><ClipboardCheck /></span>
                 <span className="rop-row__b">
                   <b>{d.title || actionLabel(catalog, d.type)}</b>
                   <small>{[d.ruleName, d.createdAt ? fmtDateTime(d.createdAt, locale) : ""].filter(Boolean).join(" · ")}</small>
@@ -90,7 +90,7 @@ export function LeadRobots({ leadId }: { leadId: string }): ReactElement {
             {runs.map((r) => (
               <li key={r.id}>
                 <Link className="rop-row" href={`/admin/crm/automation/runs?lead=${id}&run=${encodeURIComponent(r.id)}`}>
-                  <span className="rop-ic"><Bot /></span>
+                  <span className="rop-ic" data-tone={statusTone(r.status) || undefined}><Bot /></span>
                   <span className="rop-row__b">
                     <b>{r.ruleName || t("robot")}</b>
                     <small>{[r.startedAt || r.scheduledAt ? fmtDateTime(r.startedAt || r.scheduledAt, locale) : "", r.error].filter(Boolean).join(" · ")}</small>

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Archive, ArrowDown, ArrowUp, Bot, Copy, FlaskConical, ListChecks, Pause, Pencil, Play, Plus, Search, Sparkles, Wand2 } from "lucide-react";
+import { Activity, Archive, ArrowDown, ArrowUp, Bot, CalendarClock, CircleCheckBig, Copy, FlaskConical, Hourglass, Layers, ListChecks, Pause, Pencil, Play, Plus, Search, Sparkles, TriangleAlert, Wand2 } from "lucide-react";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { fmtDateTime, fmtNum } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
@@ -348,12 +348,12 @@ function MetricsStrip({ m }: { m: AutomationMetrics }): ReactElement {
   const failed = (m.byStatus.failed ?? 0) + (m.byStatus.partially_failed ?? 0);
   return (
     <div className="rb-metrics" data-rb-metrics="">
-      <div><small>{t("runsTotal")}</small><b>{fmtNum(m.total, locale)}</b></div>
-      <div><small>{t("successRate")}</small><b>{m.successRate === null ? "—" : `${fmtNum(m.successRate, locale, 1)}%`}</b></div>
-      <div data-bad={failed > 0 || undefined}><small>{t("failures")}</small><b>{fmtNum(failed, locale)}</b></div>
-      <div><small>{t("queueSize")}</small><b>{fmtNum(m.queueSize, locale)}</b></div>
-      <div><small>{t("queueLag")}</small><b>{m.queueLagSec === null ? "—" : t("min", { n: Math.round(m.queueLagSec / 60) })}</b></div>
-      <div><small>{t("oldest")}</small><b>{m.oldestScheduledAt ? fmtDateTime(m.oldestScheduledAt, locale) : "—"}</b></div>
+      <div><i aria-hidden="true"><Activity /></i><small>{t("runsTotal")}</small><b>{fmtNum(m.total, locale)}</b></div>
+      <div data-ok=""><i aria-hidden="true"><CircleCheckBig /></i><small>{t("successRate")}</small><b>{m.successRate === null ? "—" : `${fmtNum(m.successRate, locale, 1)}%`}</b></div>
+      <div data-bad={failed > 0 || undefined}><i aria-hidden="true"><TriangleAlert /></i><small>{t("failures")}</small><b>{fmtNum(failed, locale)}</b></div>
+      <div><i aria-hidden="true"><Layers /></i><small>{t("queueSize")}</small><b>{fmtNum(m.queueSize, locale)}</b></div>
+      <div><i aria-hidden="true"><Hourglass /></i><small>{t("queueLag")}</small><b>{m.queueLagSec === null ? "—" : t("min", { n: Math.round(m.queueLagSec / 60) })}</b></div>
+      <div><i aria-hidden="true"><CalendarClock /></i><small>{t("oldest")}</small><b title={m.oldestScheduledAt ? fmtDateTime(m.oldestScheduledAt, locale) : undefined}>{m.oldestScheduledAt ? fmtDateTime(m.oldestScheduledAt, locale) : "—"}</b></div>
     </div>
   );
 }

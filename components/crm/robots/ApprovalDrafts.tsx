@@ -80,7 +80,7 @@ function Drafts(): ReactElement {
         {leadId ? <Link href="/admin/crm/automation/drafts" className="crm-btn">{t("allLeads")}</Link> : null}
       </div>
       <section className="rop-card">
-        <p className="rop-muted"><ShieldAlert aria-hidden="true" style={{ width: 15, height: 15, verticalAlign: "-3px", marginRight: 6 }} />{t("lead")}</p>
+        <p className="rop-muted rb-note"><ShieldAlert aria-hidden="true" />{t("lead")}</p>
         {err ? <p className="rop-pill rop-pill--bad">{err}</p> : null}
         {!rows ? (
           <div className="rop-list" aria-hidden="true">{Array.from({ length: 4 }, (_, i) => <span key={i} className="rop-sk" />)}</div>
@@ -91,7 +91,7 @@ function Drafts(): ReactElement {
             {rows.map((d) => (
               <li key={d.id}>
                 <button type="button" className="rop-row" onClick={() => setOpen(d)} data-draft={d.id}>
-                  <span className="rop-ic"><MessageSquareText /></span>
+                  <span className="rop-ic" data-tone={statusTone(d.status) || undefined}><MessageSquareText /></span>
                   <span className="rop-row__b">
                     <b>{d.title || actionLabel(catalog, d.type)}</b>
                     <small>{[d.customerName, d.leadWorkId || d.leadTitle, d.ruleName, d.createdAt ? fmtDateTime(d.createdAt, locale) : ""].filter(Boolean).join(" · ")}</small>

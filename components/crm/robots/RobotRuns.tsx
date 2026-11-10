@@ -123,7 +123,7 @@ function Runs(): ReactElement {
               return (
                 <li key={r.id}>
                   <button type="button" className="rop-row" onClick={() => setOpen(r.id)} data-run={r.id}>
-                    <span className="rop-ic"><RunIcon status={r.status} /></span>
+                    <span className="rop-ic" data-tone={tone || undefined}><RunIcon status={r.status} /></span>
                     <span className="rop-row__b">
                       <b>{r.ruleName || t("robot")}</b>
                       <small>{[r.leadWorkId || r.leadTitle, r.startedAt || r.scheduledAt ? fmtDateTime(r.startedAt || r.scheduledAt, locale) : "", r.attempts > 1 ? t("attemptsN", { n: r.attempts }) : ""].filter(Boolean).join(" · ")}</small>
@@ -229,7 +229,7 @@ function RunDetail({ id, catalogLabel, onClose, onChanged }: { id: string; catal
             <ol className="rb-runsteps">
               {run.steps.map((s) => (
                 <li key={s.index} data-status={s.status}>
-                  <span className="rb-runsteps__dot"><RunIcon status={s.status} /></span>
+                  <span className="rb-runsteps__dot" data-tone={statusTone(s.status) || undefined}><RunIcon status={s.status} /></span>
                   <div className="rb-runsteps__b">
                     <div className="rop-toolbar">
                       <b>{t("stepN", { n: s.index + 1 })} · {catalogLabel(s.type)}</b>

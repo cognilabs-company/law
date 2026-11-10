@@ -3,7 +3,7 @@
 import "./robots.css";
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Hash, Plus, ShieldAlert, X } from "lucide-react";
+import { BriefcaseBusiness, CreditCard, FileText, Hash, ListTodo, MessageSquareText, PhoneCall, Plug, Plus, ShieldAlert, Sparkles, Timer, UserPlus, Users, X, Zap, type LucideIcon } from "lucide-react";
 import CheckBox from "@/components/CheckBox";
 import { isAborted, logApiError } from "@/lib/http";
 import { fmtDateTime } from "@/lib/date";
@@ -101,6 +101,26 @@ export const triggerLabel = (c: AutomationCatalog | null, key: string): string =
 export const actionOf = (c: AutomationCatalog | null, key: string): CatalogAction | undefined => c?.actions.find((x) => x.key === key);
 export const actionLabel = (c: AutomationCatalog | null, key: string): string => actionOf(c, key)?.label || humanKey(key);
 export const optLabel = (o: { value: string; label: string }): string => o.label || humanKey(o.value);
+
+// A picture for a catalog group (trigger or action group), by its key:
+// the event dropdown and the action picker show it beside every option.
+const GROUP_ICONS: [RegExp, LucideIcon][] = [
+  [/^ai/, Sparkles],
+  [/call/, PhoneCall],
+  [/lead/, UserPlus],
+  [/task/, ListTodo],
+  [/pay/, CreditCard],
+  [/message|sms|communication|chat/, MessageSquareText],
+  [/doc/, FileText],
+  [/sla|deadline|time/, Timer],
+  [/team|operator|user/, Users],
+  [/integration/, Plug],
+  [/service/, BriefcaseBusiness],
+];
+export function GroupIcon({ group }: { group: string }): ReactElement {
+  const Icon = GROUP_ICONS.find(([re]) => re.test(group))?.[1] ?? Zap;
+  return <Icon aria-hidden="true" />;
+}
 
 export function useRuleStatus(): (s: string) => string {
   const t = useTranslations("rop.robots.status");

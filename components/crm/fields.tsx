@@ -9,10 +9,10 @@ import TimePicker from "@/components/TimePicker";
 // The site's own controls for every CRM form: the handmade Select,
 // DatePicker and TimePicker — never the browser's native ones.
 
-export function CrmSelect({ value, onChange, options, label, placeholder, search }: { value: string; onChange: (v: string) => void; options: Option[]; label: string; placeholder?: string; search?: boolean }): ReactElement {
+export function CrmSelect({ value, onChange, options, label, placeholder, search, invalid, popClass }: { value: string; onChange: (v: string) => void; options: Option[]; label: string; placeholder?: string; search?: boolean; invalid?: boolean; popClass?: string }): ReactElement {
   return (
     <span className="crm-sel">
-      <Select value={value} onChange={onChange} options={options} ariaLabel={label} placeholder={placeholder ?? label} search={search ?? options.length > 8} />
+      <Select value={value} onChange={onChange} options={options} ariaLabel={label} placeholder={placeholder ?? label} search={search ?? options.length > 8} invalid={invalid} popClass={popClass} />
     </span>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, type DragEvent, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { ArrowDown, ArrowUp, CalendarClock, CircleAlert, Eye, FilePen, Filter, GitBranch, GripVertical, ListOrdered, OctagonX, Plug, Plus, Rocket, Save, Search, Settings2, Timer, Trash2, X, Zap } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarClock, CircleAlert, Eye, FilePen, Filter, GitBranch, GripVertical, Hourglass, ListOrdered, OctagonX, Plug, Plus, Rocket, Save, Search, Settings2, Timer, Trash2, X, Zap } from "lucide-react";
 import { notify, toast } from "@/lib/toast";
 import { isAborted, logApiError } from "@/lib/http";
 import { CONDITION_FIELDS, type CrmLead, type CrmMeta } from "@/lib/services/crm";
@@ -31,7 +31,7 @@ import {
 import Modal from "@/components/admin/Modal";
 import { useCrmError, useStatusLabel } from "../bits";
 import { CrmSelect } from "../fields";
-import { ApprovalBadge, FieldInput, LeadPicker, TagsInput, actionLabel, actionOf, optLabel, triggerLabel, useCatalogText } from "./shared";
+import { ApprovalBadge, FieldInput, GroupIcon, LeadPicker, TagsInput, actionLabel, actionOf, optLabel, triggerLabel, useCatalogText } from "./shared";
 
 // The robot form, in the order the contract sets (§16): 1 name and
 // description → 2 trigger → 3 delay → 4 conditions → 5 ordered actions →
@@ -66,6 +66,15 @@ export default function RobotBuilder({ catalog, meta, rule, onClose, onSaved }: 
   const [lead, setLead] = useState<CrmLead | null>(null);
   const [picking, setPicking] = useState(false);
   const [tried, setTried] = useState(false);
+  // The step being edited (its card and rail circle light up) and the
+  // furthest one reached (the rail fills up to it). Presentation only.
+  const [active, setActive] = useState(1);
+  const [reach, setReach] = useState(rule ? 9 : 1);
+  const visit = (n: number) => {
+    setActive(n);
+    setReach((r) => Math.max(r, n));
+  };
+  const tx = useCatalogText();
   const set = (p: Partial<RuleDraft>) => setD((cur) => ({ ...cur, ...p }));
   const bodyKey = JSON.stringify(ruleBody(d));
   const previewFresh = !!preview && previewKey === bodyKey;
@@ -141,6 +150,20 @@ export default function RobotBuilder({ catalog, meta, rule, onClose, onSaved }: 
 
   const triggerDef = catalog.triggers.find((x) => x.key === d.trigger);
   const triggerGroups = new Map<string, string>(catalog.groups.map((g) => [g.value, optLabel(g)]));
+  const nConds = condCount(d.conditions);
+  // A step is done when what it asks for is there; the optional ones once passed.
+  const done: Record<number, boolean> = {
+    1: d.name.trim().length >= 2,
+    2: !!d.trigger,
+    3: !!d.delaySec || reach > 3,
+    4: nConds > 0 || reach > 4,
+    5: d.actions.length > 0,
+    6: !!d.executionMode || reach > 6,
+    7: reach > 7,
+    8: previewFresh,
+    9: false,
+  };
+  const stepProps = (n: number) => ({ n, active: active === n, done: done[n], fill: n < reach, onVisit: visit });
 
   return (
     <div className="rb" data-rop-builder="">
@@ -156,7 +179,7 @@ export default function RobotBuilder({ catalog, meta, rule, onClose, onSaved }: 
       </div>
 
       <ol className="rb-steps">
-        <Step n={1} Icon={FilePen} title={t("s.name")}>
+        <Step {...stepProps(1)} Icon={FilePen} title={t("s.name")}>
           <div className="rop-form__two">
             <label className="rop-label">
               {t("name")}
@@ -176,20 +199,22 @@ export default function RobotBuilder({ catalog, meta, rule, onClose, onSaved }: 
           </label>
         </Step>
 
-        <Step n={2} Icon={Zap} title={t("s.trigger")} help={t("help.trigger")}>
+        <Step {...stepProps(2)} Icon={Zap} title={t("s.trigger")} help={t("help.trigger")}>
           <CrmSelect
             value={d.trigger}
             onChange={(v) => set({ trigger: v })}
             label={t("trigger")}
             placeholder={t("pickTrigger")}
             search
-            options={catalog.triggers.map((x) => ({ value: x.key, label: x.label || humanKey(x.key), group: x.group ? triggerGroups.get(x.group) || humanKey(x.group) : undefined, hint: x.description || undefined }))}
+            invalid={tried && !d.trigger}
+            popClass="rb-menu"
+            options={catalog.triggers.map((x) => ({ value: x.key, label: x.label || humanKey(x.key), group: x.group ? tx("group", x.group) || triggerGroups.get(x.group) || humanKey(x.group) : undefined, hint: x.description || undefined, icon: <GroupIcon group={x.group || x.key} /> }))}
           />
           {triggerDef?.description ? <p className="rb-desc">{triggerDef.description}</p> : null}
           {tried && !d.trigger ? <p className="rb-err" role="alert">{t("needTrigger")}</p> : null}
         </Step>
 
-        <Step n={3} Icon={Timer} title={t("s.delay")} help={t("help.delay")}>
+        <Step {...stepProps(3)} Icon={Timer} title={t("s.delay")} help={t("help.delay")}>
           <div className="rb-delay">
             <input
               className="rop-input"
@@ -200,15 +225,21 @@ export default function RobotBuilder({ catalog, meta, rule, onClose, onSaved }: 
               aria-label={t("delay")}
             />
             <CrmSelect value={delayUnit} onChange={(v) => { const sec = UNITS.find((u) => u.key === v)?.sec ?? 60; setDelayUnit(v); set({ delaySec: Math.round(d.delaySec / unitSec) * sec }); }} label={t("delayUnit")} options={UNITS.map((u) => ({ value: u.key, label: t(`unit.${u.key}`) }))} />
-            <span className="rop-pill rop-pill--blue">{d.delaySec ? t("delayIs", { v: Math.round(d.delaySec / unitSec), u: t(`unit.${delayUnit}`) }) : t("noDelay")}</span>
+            <span className="rb-delay__sum" data-now={d.delaySec ? undefined : ""} aria-live="polite">
+              <i aria-hidden="true">{d.delaySec ? <Hourglass /> : <Zap />}</i>
+              <span>
+                <b>{d.delaySec ? t("delayIs", { v: Math.round(d.delaySec / unitSec), u: t(`unit.${delayUnit}`) }) : t("noDelay")}</b>
+                <small>{d.delaySec ? t("delaySumLater") : t("delaySumNow")}</small>
+              </span>
+            </span>
           </div>
         </Step>
 
-        <Step n={4} Icon={Filter} title={t("s.conditions")} help={t("help.conditions")} aside={<span className="rop-pill">{t("condN", { n: condCount(d.conditions) })}</span>}>
+        <Step {...stepProps(4)} Icon={Filter} title={t("s.conditions")} help={t("help.conditions")} aside={<span className="rop-pill rb-badge" data-zero={nConds ? undefined : ""}><Filter aria-hidden="true" />{t("condN", { n: nConds })}</span>}>
           <CondTree group={d.conditions} onChange={(g) => set({ conditions: g })} catalog={catalog} meta={meta} depth={0} />
         </Step>
 
-        <Step n={5} Icon={ListOrdered} title={t("s.actions")} help={t("help.actions")} aside={<span className="rop-pill">{t("actionN", { n: d.actions.length })}</span>}>
+        <Step {...stepProps(5)} Icon={ListOrdered} title={t("s.actions")} help={t("help.actions")} aside={<span className="rop-pill rb-badge" data-zero={d.actions.length ? undefined : ""}><ListOrdered aria-hidden="true" />{t("actionN", { n: d.actions.length })}</span>}>
           <ActionList actions={d.actions} onChange={(a) => set({ actions: a })} catalog={catalog} meta={meta} />
           <button type="button" className="crm-btn crm-btn--pri" onClick={() => setPicking(true)} data-rb-add="">
             <Plus aria-hidden="true" />
@@ -217,7 +248,7 @@ export default function RobotBuilder({ catalog, meta, rule, onClose, onSaved }: 
           {tried && !d.actions.length ? <p className="rb-err" role="alert">{t("needAction")}</p> : null}
         </Step>
 
-        <Step n={6} Icon={Settings2} title={t("s.mode")} help={t("help.mode")}>
+        <Step {...stepProps(6)} Icon={Settings2} title={t("s.mode")} help={t("help.mode")}>
           {catalog.executionModes.length ? (
             <div className="rb-modes" role="radiogroup" aria-label={t("s.mode")}>
               {catalog.executionModes.map((m) => (
@@ -228,11 +259,11 @@ export default function RobotBuilder({ catalog, meta, rule, onClose, onSaved }: 
               ))}
             </div>
           ) : (
-            <p className="rop-muted">{t("modeDefault")}</p>
+            <Empty Icon={Settings2} text={t("modeDefault")} />
           )}
         </Step>
 
-        <Step n={7} Icon={CalendarClock} title={t("s.stop")} help={t("help.stop")}>
+        <Step {...stepProps(7)} Icon={CalendarClock} title={t("s.stop")} help={t("help.stop")}>
           {catalog.stopPolicyFields.length || catalog.scheduleFields.length ? (
             <div className="rb-fields">
               {catalog.stopPolicyFields.map((f) => (
@@ -243,14 +274,11 @@ export default function RobotBuilder({ catalog, meta, rule, onClose, onSaved }: 
               ))}
             </div>
           ) : (
-            <p className="rop-muted">
-              <OctagonX aria-hidden="true" style={{ width: 15, height: 15, verticalAlign: "-3px", marginRight: 6 }} />
-              {t("stopNone")}
-            </p>
+            <Empty Icon={OctagonX} text={t("stopNone")} />
           )}
         </Step>
 
-        <Step n={8} Icon={Eye} title={t("s.preview")} help={t("help.preview")}>
+        <Step {...stepProps(8)} Icon={Eye} title={t("s.preview")} help={t("help.preview")}>
           <div className="rb-preview__bar">
             <div className="rb-preview__lead">
               <span className="rop-label">{t("previewLead")}</span>
@@ -261,10 +289,10 @@ export default function RobotBuilder({ catalog, meta, rule, onClose, onSaved }: 
               {busy === "preview" ? t("previewing") : t("preview")}
             </button>
           </div>
-          {preview ? <PreviewView p={preview} stale={!previewFresh} /> : <p className="rop-muted">{t("previewEmpty")}</p>}
+          {preview ? <PreviewView p={preview} stale={!previewFresh} /> : <Empty Icon={Eye} text={t("previewEmpty")} />}
         </Step>
 
-        <Step n={9} Icon={Rocket} title={t("s.save")} help={t("help.save")}>
+        <Step {...stepProps(9)} Icon={Rocket} title={t("s.save")} help={t("help.save")}>
           {tried && missing.length ? (
             <ul className="rb-missing" role="alert">
               {missing.map((m) => (
@@ -308,9 +336,19 @@ export default function RobotBuilder({ catalog, meta, rule, onClose, onSaved }: 
   );
 }
 
-function Step({ n, Icon, title, help, aside, children }: { n: number; Icon: typeof Zap; title: string; help?: string; aside?: ReactNode; children: ReactNode }): ReactElement {
+// A designed empty state: an icon and one line.
+function Empty({ Icon, text }: { Icon: typeof Zap; text: string }): ReactElement {
   return (
-    <li className="rb-step" data-step={n}>
+    <p className="rb-empty">
+      <span className="rb-empty__ic" aria-hidden="true"><Icon /></span>
+      <span>{text}</span>
+    </p>
+  );
+}
+
+function Step({ n, Icon, title, help, aside, active, done, fill, onVisit, children }: { n: number; Icon: typeof Zap; title: string; help?: string; aside?: ReactNode; active: boolean; done: boolean; fill: boolean; onVisit: (n: number) => void; children: ReactNode }): ReactElement {
+  return (
+    <li className="rb-step" data-step={n} data-active={active || undefined} data-done={done || undefined} data-fill={fill || undefined} onFocus={() => onVisit(n)} onPointerDown={() => onVisit(n)}>
       <span className="rb-step__dot" aria-hidden="true">
         <Icon />
       </span>
@@ -371,7 +409,7 @@ function CondTree({ group, onChange, catalog, meta, depth }: { group: CondGroup;
   return (
     <div className={`rb-group${depth ? " rb-group--nested" : ""}`} data-op={group.op}>
       <div className="rb-group__h">
-        <span className="rop-seg" role="group" aria-label={t("logic")}>
+        <span className="rop-seg rb-seg" role="group" aria-label={t("logic")} data-op={group.op}>
           <button type="button" aria-pressed={group.op === "and"} onClick={() => onChange({ ...group, op: "and" })}>{t("and")}</button>
           <button type="button" aria-pressed={group.op === "or"} onClick={() => onChange({ ...group, op: "or" })}>{t("or")}</button>
         </span>
@@ -381,7 +419,7 @@ function CondTree({ group, onChange, catalog, meta, depth }: { group: CondGroup;
         <ul className="rb-conds">
           {group.items.map((n, i) => (
             <li key={n.id}>
-              {i ? <span className="rb-join">{group.op === "and" ? t("and") : t("or")}</span> : null}
+              {i ? <span className="rb-join" data-op={group.op}>{group.op === "and" ? t("and") : t("or")}</span> : null}
               {n.kind === "group" ? (
                 <div className="rb-subgroup">
                   <CondTree group={n} onChange={(g) => put(i, g)} catalog={catalog} meta={meta} depth={depth + 1} />
@@ -394,7 +432,7 @@ function CondTree({ group, onChange, catalog, meta, depth }: { group: CondGroup;
           ))}
         </ul>
       ) : (
-        <p className="rop-muted">{depth ? t("groupEmpty") : t("noConditions")}</p>
+        <Empty Icon={depth ? GitBranch : Filter} text={depth ? t("groupEmpty") : t("noConditions")} />
       )}
       <div className="rb-group__add">
         <button type="button" className="crm-btn crm-btn--sm" onClick={() => onChange({ ...group, items: [...group.items, { kind: "cond", id: nodeId(), field: firstField, operator: "eq", value: "" }] })}>
@@ -456,7 +494,7 @@ function ActionList({ actions, onChange, catalog, meta }: { actions: RuleActionX
     next.splice(to, 0, x);
     onChange(next);
   };
-  if (!actions.length) return <p className="rop-muted">{t("noActions")}</p>;
+  if (!actions.length) return <Empty Icon={ListOrdered} text={t("noActions")} />;
   return (
     <ol className="rb-actions">
       {actions.map((a, i) => {
@@ -537,13 +575,14 @@ function ActionPicker({ catalog, onClose, onPick }: { catalog: AutomationCatalog
         {hits.length ? (
           groups.map((g) => (
             <section key={g || "other"} className="rb-picker__g" aria-label={g ? groupName.get(g) || humanKey(g) : t("otherActions")}>
-              <h4>{g ? groupName.get(g) || humanKey(g) : t("otherActions")}</h4>
+              <h4><GroupIcon group={g || "other"} />{g ? groupName.get(g) || humanKey(g) : t("otherActions")}</h4>
               <ul>
                 {hits
                   .filter((a) => (a.group || "") === g)
                   .map((a) => (
                     <li key={a.key}>
                       <button type="button" className="rb-picker__it" onClick={() => onPick(a)} data-rb-pick={a.key}>
+                        <span className="rb-picker__ic" aria-hidden="true"><GroupIcon group={a.group || a.key} /></span>
                         <span className="rb-picker__t">
                           <b>{a.label || humanKey(a.key)}</b>
                           {a.description ? <small>{a.description}</small> : null}
@@ -559,7 +598,7 @@ function ActionPicker({ catalog, onClose, onPick }: { catalog: AutomationCatalog
             </section>
           ))
         ) : (
-          <p className="rop-muted">{t("noActionMatch")}</p>
+          <Empty Icon={Search} text={t("noActionMatch")} />
         )}
       </div>
     </Modal>

@@ -7,7 +7,9 @@ import { isCoarsePointer, usePopover } from "@/lib/usePopover";
 import { matchesSearch, normalizeSearchText } from "@/lib/searchText";
 import { IconSearch } from "./icons";
 
-export type Option = { value: string; label: string; group?: string; hint?: string };
+// `icon`: an optional picture before the label; with it the label and the
+// hint stack in one column (see .dsel__txt).
+export type Option = { value: string; label: string; group?: string; hint?: string; icon?: ReactNode };
 
 const SEARCH_AFTER = 8;
 const TYPE_MS = 700;
@@ -74,6 +76,7 @@ export default function Select({
   labelId,
   search,
   disabled = false,
+  popClass,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -86,6 +89,9 @@ export default function Select({
   search?: boolean;
   // Shown but not usable: the button is disabled and never opens.
   disabled?: boolean;
+  // An extra class on the open list / pane / sheet (it lives in a portal,
+  // so a page can only style it through this).
+  popClass?: string;
 }) {
   const t = useTranslations("common.select");
   const [open, setOpen] = useState(false);
@@ -256,7 +262,15 @@ export default function Select({
   const optionEl = (o: Option) => (
     <li key={o.value} role="presentation">
       <button type="button" role="option" aria-selected={o.value === value} className="dsel__opt" onClick={() => pick(o.value)}>
-        {o.hint ? (
+        {o.icon ? (
+          <>
+            <span className="dsel__ic" aria-hidden="true">{o.icon}</span>
+            <span className="dsel__txt">
+              <span className="dsel__lbl" title={o.label}>{o.label}</span>
+              {o.hint ? <span className="dsel__hint">{o.hint}</span> : null}
+            </span>
+          </>
+        ) : o.hint ? (
           <>
             <span className="dsel__lbl" title={o.label}>{o.label}</span>
             <span className="dsel__hint">{o.hint}</span>
@@ -331,7 +345,7 @@ export default function Select({
       <div className="dsel__scrim" style={{ zIndex: pop.z - 1 }} aria-hidden="true" />
       <div
         ref={bindPane}
-        className="dsel__sheet"
+        className={`dsel__sheet${popClass ? ` ${popClass}` : ""}`}
         role="dialog"
         aria-label={title || undefined}
         tabIndex={-1}
@@ -348,7 +362,7 @@ export default function Select({
       </div>
     </>
   ) : searchable ? (
-    <div ref={bindPane} className="dsel__pop" tabIndex={-1} data-placement={pop.placement} style={pop.style} onKeyDown={onPaneKey}>
+    <div ref={bindPane} className={`dsel__pop${popClass ? ` ${popClass}` : ""}`} tabIndex={-1} data-placement={pop.placement} style={pop.style} onKeyDown={onPaneKey}>
       {searchBox}
       {innerList}
     </div>
@@ -356,7 +370,7 @@ export default function Select({
     <ul
       ref={bindOwnList}
       id={listId}
-      className="dsel__menu"
+      className={`dsel__menu${popClass ? ` ${popClass}` : ""}`}
       role="listbox"
       tabIndex={-1}
       {...listAria}
