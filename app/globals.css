@@ -154,8 +154,10 @@ h1,h2,h3,h4{font-family:var(--fd);margin:0;letter-spacing:-.03em;line-height:1.0
 .logo__w1{color:inherit}
 .logo__w2{color:var(--logo-blue,#1668F0)}
 /* two lines in a narrow sidebar: "Himoya" under "Tezkor", stepped in */
-.logo__w--stack{flex-direction:column;align-items:flex-start;gap:.06em;line-height:1}
-.logo__w--stack .logo__w2{margin-left:1.15em}
+.logo__w--stack{flex-direction:column;align-items:flex-start;gap:.04em;line-height:1}
+/* in the sidebar: a small "Tezkor" over a larger "Himoya", flush left */
+.logo__w--stack .logo__w1{font-size:.7em;font-weight:600;letter-spacing:.01em}
+.logo__w--stack .logo__w2{margin-left:0;font-size:1.2em;letter-spacing:-.025em}
 /* "Tezkor Himoya" does not fit on one line in the header on a phone (next
    to the CTA and the menu button) nor just above the burger breakpoint (next
    to the full menu): stack it there as the sidebar does, and below 370px
