@@ -352,6 +352,7 @@ function Step({ n, Icon, title, help, aside, active, done, fill, onVisit, childr
       <span className="rb-step__dot" aria-hidden="true">
         <Icon />
       </span>
+      <i className="rb-step__spark" aria-hidden="true" />
       <section className="rb-step__card" aria-label={title}>
         <div className="rb-step__h">
           <h3>

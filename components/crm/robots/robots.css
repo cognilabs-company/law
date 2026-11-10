@@ -258,6 +258,110 @@ html[data-theme="dark"] .rb-step[data-done] .rb-step__dot::after { background-co
 }
 .rb-step[data-fill]:not(:last-child)::before { background-size: 100% 100%; }
 
+/* the rail (2026-11-10, second pass): a dashed, faded track; a blue → cyan
+   fill with a soft glow up to the furthest step reached; a spark running
+   down the next stretch; upcoming circles muted, the edited one filled with a
+   halo and a slow pulse, done ones green with a tick. Positions and sizes
+   are those of the base rules above. */
+.rb-steps {
+  --rb-cyan: #06b6d4;
+  --rb-glow: color-mix(in srgb, var(--rb-blue) 55%, transparent);
+  --rb-glow-soft: color-mix(in srgb, var(--rb-blue) 24%, transparent);
+  --rb-okc: var(--rb-ok);
+  --rb-bgc: var(--lx-bg, var(--b50));
+}
+html[data-theme="dark"] .rb-steps {
+  --rb-cyan: #22d3ee;
+  --rb-glow: color-mix(in srgb, #3b82f6 80%, transparent);
+  --rb-glow-soft: color-mix(in srgb, #3b82f6 36%, transparent);
+  --rb-okc: #34d399;
+}
+
+/* the track: faded dashes */
+.rb-step:not(:last-child)::before {
+  border-radius: 2px;
+  background: repeating-linear-gradient(180deg, color-mix(in srgb, var(--rb-gray) 34%, transparent) 0 6px, transparent 6px 11px);
+  -webkit-mask: linear-gradient(180deg, #000 0, #000 70%, rgb(0 0 0 / 45%));
+  mask: linear-gradient(180deg, #000 0, #000 70%, rgb(0 0 0 / 45%));
+}
+/* the fill: a gradient with a glow, grown from the top */
+.rb-step:not(:last-child)::after {
+  content: ""; position: absolute; left: 21px; top: 46px; bottom: -14px; width: 2px; border-radius: 2px;
+  background: linear-gradient(180deg, var(--rb-blue), color-mix(in srgb, var(--rb-blue) 45%, var(--rb-cyan)) 60%, var(--rb-cyan));
+  box-shadow: 0 0 6px var(--rb-glow), 0 0 14px var(--rb-glow-soft);
+  transform: scaleY(0); transform-origin: top;
+  transition: transform .6s var(--rb-ease, ease);
+  pointer-events: none;
+}
+.rb-step[data-fill]:not(:last-child)::after { transform: scaleY(1); }
+html:not([data-theme="dark"]) .rb-step:not(:last-child)::after { box-shadow: 0 0 5px var(--rb-glow-soft); }
+
+/* the spark: runs down the stretch after the furthest step reached */
+.rb-step__spark { position: absolute; left: 18px; top: 46px; bottom: -14px; width: 10px; overflow: hidden; pointer-events: none; display: none; }
+.rb-step__spark::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 100%;
+  background:
+    radial-gradient(circle at 50% 5px, #fff 0 1.6px, var(--rb-cyan) 2.6px, transparent 5px) no-repeat;
+  filter: drop-shadow(0 0 4px var(--rb-cyan));
+  transform: translateY(-12px);
+  animation: rb-spark 2.6s cubic-bezier(.45, .05, .35, 1) infinite;
+}
+.rb-step:not([data-fill]):not(:last-child):is(:first-child, [data-fill] + .rb-step) .rb-step__spark { display: block; }
+@keyframes rb-spark {
+  0% { transform: translateY(-12px); opacity: 0; }
+  12% { opacity: 1; }
+  80% { opacity: .9; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+
+/* the circles: upcoming = a muted ring around the icon */
+.rb-step__dot {
+  background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--rb-blue) 7%, var(--rb-card)), var(--rb-card) 70%);
+  color: color-mix(in srgb, var(--rb-gray) 78%, var(--rb-blue));
+  box-shadow: 0 0 0 5px var(--rb-bgc), inset 0 0 0 1.5px color-mix(in srgb, var(--rb-gray) 26%, var(--rb-line));
+  cursor: pointer;
+  transition: background .3s var(--rb-ease), color .3s, box-shadow .35s var(--rb-ease), transform .25s var(--rb-ease);
+}
+.rb-step__dot svg { width: 19px; height: 19px; stroke-width: 2; position: relative; z-index: 1; }
+.rb-step:hover .rb-step__dot {
+  transform: translateY(-1px);
+  color: var(--rb-link);
+  box-shadow: 0 0 0 5px var(--rb-bgc), inset 0 0 0 1.5px color-mix(in srgb, var(--rb-blue) 55%, var(--rb-line)), 0 8px 18px -8px var(--rb-glow);
+}
+
+/* done = a green tint, the icon kept, a tick badge */
+.rb-step[data-done] .rb-step__dot {
+  background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--rb-okc) 22%, var(--rb-card)), color-mix(in srgb, var(--rb-okc) 10%, var(--rb-card)) 75%);
+  color: var(--rb-okc);
+  box-shadow: 0 0 0 5px var(--rb-bgc), inset 0 0 0 1.5px color-mix(in srgb, var(--rb-okc) 55%, transparent), 0 8px 20px -10px color-mix(in srgb, var(--rb-okc) 70%, transparent);
+}
+.rb-step[data-done]:hover .rb-step__dot { box-shadow: 0 0 0 5px var(--rb-bgc), inset 0 0 0 1.5px var(--rb-okc), 0 10px 22px -8px color-mix(in srgb, var(--rb-okc) 75%, transparent); }
+.rb-step[data-done] .rb-step__dot::after { z-index: 2; background-color: var(--rb-ok); box-shadow: 0 0 0 2.5px var(--rb-bgc), 0 0 8px color-mix(in srgb, var(--rb-okc) 60%, transparent); }
+html[data-theme="dark"] .rb-step[data-done] .rb-step__dot::after { background-color: #16a36f; }
+
+/* active = a filled gradient circle, a halo and a slow pulse ring */
+.rb-step[data-active] .rb-step__dot,
+.rb-step[data-active][data-done] .rb-step__dot {
+  background: linear-gradient(150deg, color-mix(in srgb, var(--rb-cyan) 55%, var(--rb-blue)) 0, var(--rb-blue) 62%, color-mix(in srgb, var(--rb-blue) 80%, #000) 100%);
+  color: #fff;
+  box-shadow: 0 0 0 5px var(--rb-bgc), 0 0 0 8px color-mix(in srgb, var(--rb-blue) 30%, transparent), 0 0 22px 4px var(--rb-glow-soft), 0 12px 26px -8px var(--rb-glow), inset 0 1px 0 rgb(255 255 255 / 28%);
+  transform: scale(1.04);
+}
+html:not([data-theme="dark"]) .rb-step[data-active] .rb-step__dot {
+  box-shadow: 0 0 0 5px var(--rb-bgc), 0 0 0 8px color-mix(in srgb, var(--rb-blue) 18%, transparent), 0 10px 22px -10px color-mix(in srgb, var(--rb-blue) 75%, transparent), inset 0 1px 0 rgb(255 255 255 / 30%);
+}
+.rb-step[data-active] .rb-step__dot::before {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--rb-cyan) 70%, var(--rb-blue));
+  opacity: 0; pointer-events: none;
+  animation: rb-pulse 2.8s cubic-bezier(.2, .6, .3, 1) infinite;
+}
+@keyframes rb-pulse {
+  0% { transform: scale(1); opacity: .55; }
+  70%, 100% { transform: scale(1.42); opacity: 0; }
+}
+.rb-step__dot:focus-visible { outline: 2px solid var(--rb-blue); outline-offset: 6px; }
+
 /* fields: one height, one radius, a hover and a focus ring, calm placeholders */
 .rb .rop-label { font-weight: 650; }
 .rb .rop-label small, .rb-field small { color: var(--rb-help); font-weight: 500; font-size: .78rem; line-height: 1.45; }
@@ -472,13 +576,20 @@ html[data-theme="dark"] :is(.rb-menu.dsel__pop, .rb-menu.dsel__sheet, .rb-menu.d
 /* motion off for those who ask */
 @media (prefers-reduced-motion: reduce) {
   .rb *, .rb *::before, .rb *::after, .rb-menu *, .rb-picker *, [data-rop-robots] *, [data-rop-runs] *, [data-rop-drafts] *, .rb-lead *, .rb-run * { transition: none !important; animation: none !important; }
-  .rb-step[data-active] .rb-step__dot { transform: none; }
+  .rb-step[data-active] .rb-step__dot, .rb-step:hover .rb-step__dot { transform: none; }
+  .rb-step__spark, .rb-step[data-active] .rb-step__dot::before { display: none !important; }
 }
 
 /* phones */
 @media (max-width: 560px) {
   .rb-step[data-done] .rb-step__dot::after { width: 14px; height: 14px; right: -3px; bottom: -3px; background-size: 8px; }
-  .rb-step[data-active] .rb-step__dot { box-shadow: 0 0 0 4px var(--lx-bg, var(--b50)), 0 0 0 7px color-mix(in srgb, var(--rb-blue) 26%, transparent), 0 10px 22px -8px color-mix(in srgb, var(--rb-blue) 90%, transparent); }
+  .rb-step:not(:last-child)::after { left: 16px; top: 36px; }
+  .rb-step__spark { left: 12px; top: 36px; }
+  .rb-step__dot svg { width: 17px; height: 17px; }
+  .rb-step__dot { box-shadow: 0 0 0 4px var(--rb-bgc), inset 0 0 0 1.5px color-mix(in srgb, var(--rb-gray) 26%, var(--rb-line)); }
+  .rb-step[data-done] .rb-step__dot { box-shadow: 0 0 0 4px var(--rb-bgc), inset 0 0 0 1.5px color-mix(in srgb, var(--rb-okc) 55%, transparent), 0 6px 16px -8px color-mix(in srgb, var(--rb-okc) 70%, transparent); }
+  .rb-step[data-active] .rb-step__dot, .rb-step[data-active][data-done] .rb-step__dot { box-shadow: 0 0 0 4px var(--rb-bgc), 0 0 0 7px color-mix(in srgb, var(--rb-blue) 28%, transparent), 0 0 16px 2px var(--rb-glow-soft), 0 10px 22px -8px var(--rb-glow), inset 0 1px 0 rgb(255 255 255 / 28%); }
+  html:not([data-theme="dark"]) .rb-step[data-active] .rb-step__dot { box-shadow: 0 0 0 4px var(--rb-bgc), 0 0 0 7px color-mix(in srgb, var(--rb-blue) 18%, transparent), 0 8px 18px -8px color-mix(in srgb, var(--rb-blue) 75%, transparent), inset 0 1px 0 rgb(255 255 255 / 30%); }
   .rb-cond { padding: 8px; }
   .rb-delay__sum small { white-space: normal; }
   .rb-metrics > div > i { width: 26px; height: 26px; }
