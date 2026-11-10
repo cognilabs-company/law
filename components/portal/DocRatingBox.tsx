@@ -183,7 +183,7 @@ export default function DocRatingBox({
     <div className="drate">
       <div className="drate__h">
         <b><IconStarRate />{t("rateTitle")}</b>
-        {timed ? <span className="drate__left"><IconClock />{t("rateLeft", { time: clock(left) })}</span> : null}
+        {timed ? <span className="drate__left cx-pill cx-pill--warn"><IconClock />{t("rateLeft", { time: clock(left) })}</span> : null}
       </div>
       {/* Two classes, because they answer two different questions. `on` is
           "draw this star gold" and follows the preview, so moving across the
@@ -254,7 +254,7 @@ export default function DocRatingBox({
         </div>
       ) : null}
       {err ? <p className="drate__err" role="status">{err}</p> : null}
-      <button type="button" className="btn btn--grad btn--sm" onClick={() => void send()} disabled={!stars || busy}>
+      <button type="button" className="btn btn--pri btn--sm drate__go" onClick={() => void send()} disabled={!stars || busy}>
         {busy ? t("rateSending") : t("rateSubmit")}
       </button>
     </div>

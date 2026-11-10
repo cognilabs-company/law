@@ -48,6 +48,7 @@ import {
   IconBolt,
   IconBriefcase,
   IconCard,
+  IconChatDots,
   IconCheckDouble,
   IconChevronLeft,
   IconClose,
@@ -190,6 +191,7 @@ export default function SupportChat({
   onBack?: () => void;
 }) {
   const t = useTranslations("support");
+  const tl = useTranslations("lxSupport");
   const tc = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
@@ -723,7 +725,20 @@ export default function SupportChat({
             ) : null}
           </div>
         ) : null}
-        {state === "ready" && !rows.length ? <p className="supchat__hint">{t("noMessages")}</p> : null}
+        {state === "ready" && !rows.length ? (
+          mode === "client" ? (
+            // the dashboard's empty state: a tinted tile, a bold line, a grey one
+            <div className="cx-empty supchat__empty">
+              <span className="cx-empty__ic" aria-hidden="true">
+                <IconChatDots />
+              </span>
+              <b>{tl("emptyChat")}</b>
+              {writable ? <p>{tl("emptyChatText")}</p> : null}
+            </div>
+          ) : (
+            <p className="supchat__hint">{t("noMessages")}</p>
+          )
+        ) : null}
         {mode === "client" && state === "ready" && !hasMore && rows.length && meta ? <p className="supchat__start">{meta}</p> : null}
         {rows.map((row, i) => {
           const prevRow = i > 0 ? rows[i - 1] : undefined;

@@ -3,6 +3,7 @@
 import "@/components/admin/studio/sx/sx-core.css";
 import "./order.css";
 import "./orderLook.css";
+import "./orderDetail1920.css";
 import { useEffect, useMemo, useRef, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth";
@@ -34,7 +35,7 @@ import OrderHeader from "./OrderHeader";
 import SecondOpinion from "./SecondOpinion";
 import StartWork from "./StartWork";
 import StayInLexGo from "./StayInLexGo";
-import { ArrowLeftIcon, RefreshCwIcon, ClipboardListIcon, SearchIcon, SxIconScope, CircleAlertIcon } from "./icons";
+import { ArrowLeftIcon, RefreshCwIcon, ClipboardListIcon, SearchIcon, SxIconScope, CircleAlertIcon, artStyle } from "./icons";
 import { SECTION_ID, orderAiBase, type OrderSectionProps, type OrderView } from "./types";
 import { useOrderDetail, type OrderDetail } from "./useOrderDetail";
 import { useOrderPayouts } from "./useOrderPayouts";
@@ -84,6 +85,7 @@ function Skeleton({ label }: { label: string }): ReactElement {
 function Sections({ d, o, phase, view, aiBase, listHref, preview, payouts }: { d: OrderDetail; o: MarketOrder; phase: MarketPhase; view: OrderView; aiBase: string; listHref: string; preview: boolean; payouts: readonly Payout[] | null }): ReactElement {
   const to = useTranslations("marketplace.orders");
   const t = useTranslations("marketplace.orderDetail");
+  const tl = useTranslations("lxOrder");
   const client = view === "client";
   const section: OrderSectionProps = { o, phase, view, aiBase, runtime: d.runtime, onChanged: (patch) => d.patchOrder(patch ?? {}) };
   const checklist = <OrderChecklist key="checklist" o={o} phase={phase} view={view} aiBase={aiBase} checklist={d.checklist} state={d.checklistState} onChange={d.setChecklist} onRetry={() => d.refresh("checklist")} payouts={client ? null : payouts} />;
@@ -168,6 +170,7 @@ function Sections({ d, o, phase, view, aiBase, listHref, preview, payouts }: { d
   } else if (phase === "completed" || phase === "rated") {
     parts = [
       <section key="result" id={SECTION_ID.result} tabIndex={-1} className="mod-sec mod-sec--legacy">
+        {client && (o.resultText || o.resultFiles.length) ? <span className="mod-sec__art odx-art" style={artStyle("Hujjat_tayyor")} aria-hidden="true" /> : null}
         <ResultBlock o={o} />
       </section>,
       client ? (
@@ -186,8 +189,12 @@ function Sections({ d, o, phase, view, aiBase, listHref, preview, payouts }: { d
     parts = [
       cancel,
       client ? (
-        <div key="find" className="mod-find">
-          <SxLinkButton variant="secondary" icon={SearchIcon} href="/portal/client/lawyers" aiId={`${aiBase}.find-other`}>
+        // The dashboard's empty state: what happened, and the one way on.
+        <div key="find" className="mod-find odx-empty">
+          <span className="odx-empty__art odx-art" style={artStyle("Boshqa_mutaxassis")} aria-hidden="true" />
+          <b className="odx-empty__t">{tl("cancelled.title")}</b>
+          <p className="odx-empty__p">{tl("cancelled.text")}</p>
+          <SxLinkButton variant="primary" icon={SearchIcon} href="/portal/client/lawyers" aiId={`${aiBase}.find-other`}>
             {t("cancelledFind")}
           </SxLinkButton>
         </div>

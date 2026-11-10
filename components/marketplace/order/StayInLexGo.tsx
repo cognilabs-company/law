@@ -9,14 +9,15 @@ import type { MarketPhase } from "@/lib/services/marketplace";
 import type { RuntimeConfig } from "@/lib/services/marketRuntime";
 import { GuaranteeList } from "../runtime/Guarantees";
 import { guaranteesOf } from "../runtime/facts";
-import { LifeBuoyIcon, LockIcon, MessageSquareTextIcon, ShieldCheckIcon, glyph } from "./icons";
+import { ShieldCheckIcon, artStyle, glyph } from "./icons";
 
 export const RETAIN_PHASES: ReadonlySet<MarketPhase> = new Set<MarketPhase>(["paid", "in_progress", "review"]);
 
+// Each reason as the dashboard's feature tile: its picture in a white circle.
 const REASONS = [
-  { key: "pay", icon: LockIcon },
-  { key: "talk", icon: MessageSquareTextIcon },
-  { key: "help", icon: LifeBuoyIcon },
+  { key: "pay", art: "Xavfsiz_tolov" },
+  { key: "talk", art: "Maxfiy_yozishma" },
+  { key: "help", art: "Kafolat" },
 ] as const;
 
 export default function StayInLexGo({ phase, runtime, aiBase }: { phase: MarketPhase; runtime: RuntimeConfig | null; aiBase: string }): ReactElement | null {
@@ -38,9 +39,7 @@ export default function StayInLexGo({ phase, runtime, aiBase }: { phase: MarketP
       <ul className="mret__list" data-ai-id={`${aiBase}.retain.reasons`} data-ai-type="list" aria-label={t("title")}>
         {REASONS.map((r) => (
           <li key={r.key} className="mret__item">
-            <span className="mret__ico" aria-hidden="true">
-              {glyph(r.icon, { size: 16 })}
-            </span>
+            <span className="mret__ico odx-art" style={artStyle(r.art)} aria-hidden="true" />
             <span className="mret__txt">
               <b>{t(`${r.key}.title`)}</b>
               <small>{r.key === "talk" ? td("safe3") : t(`${r.key}.text`)}</small>

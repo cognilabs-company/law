@@ -1,5 +1,7 @@
 "use client";
 
+import "./messenger/comms1920.css";
+import { breakName } from "./messenger/format";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { IconClose, IconDownload } from "@/components/icons";
@@ -72,7 +74,7 @@ export default function ImageLightbox({
   return createPortal(
     <div ref={box} className={`slight${on ? " slight--on" : ""}`} role="dialog" aria-modal="true" aria-label={name || closeLabel} onClick={close}>
       <div className="slight__bar" onClick={(e) => e.stopPropagation()}>
-        <b className="slight__name">{name}</b>
+        <b className="slight__name">{breakName(name)}</b>
         {onDownload ? (
           <button type="button" className="slight__btn" onClick={onDownload} aria-label={downloadLabel} title={downloadLabel}>
             <IconDownload />

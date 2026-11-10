@@ -1,5 +1,6 @@
 "use client";
 
+import "./builder1920.css";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { previewDocumentRequest, getServiceTemplateSourceFile, requestServiceDocumentLawyerGated, type DocLawyerFlow, type DocPaymentGate, type DocumentPreview, type DocumentRequest, type ServiceDocumentFields } from "@/lib/services/backend";
@@ -838,10 +839,12 @@ export default function DocFill({
     </div>
   );
 
-  // In the workspace this is the constructor's one red, pulsing action (the
-  // same #E5484D the two-pane layout's .docpaper__ask uses): the way out for a
-  // client stuck on a form, so it has to be seen next to "Hujjatni yaratish".
-  // Its own --help modifier keeps it off the advocate editor's .deditor__act.
+  // In the workspace this is the constructor's way out for a client stuck on
+  // a form, so it has to be seen next to "Hujjatni yaratish" — drawn as the
+  // dashboard's navy button (builder1920.css), not the red pulse it used to
+  // be: red is kept for status and destructive actions, and asking for help
+  // is neither. Its own --help modifier keeps it off the advocate editor's
+  // .deditor__act.
   // The backend holds the request (can_send_lawyer_request=false): no
   // button at all, the held note below says why.
   const askButton = lawyerHeldNote ? null : sourceFile?.lawyerFlow ? (
@@ -851,13 +854,14 @@ export default function DocFill({
       onClick={askLawyer}
       disabled={askBusy || askSent}
       title={askSent ? t("askLawyerSent") : t("askLawyer")}
+      aria-label={askSent ? t("askLawyerSent") : askBusy ? t("askLawyerSending") : t("askLawyer")}
       data-ai-id="documents.constructor.ask-lawyer"
     >
       {askSent ? <IconCheck /> : <IconHeadset />}
       <span className={chrome ? "deditor__actLabel" : undefined}>{askSent ? t("askLawyerSent") : askBusy ? t("askLawyerSending") : t("askLawyer")}</span>
     </button>
   ) : (
-    <Link href="/portal/client/lawyers" className={chrome ? "deditor__act deditor__act--help" : "docfill__ask"} title={t("askLawyer")} data-ai-id="documents.constructor.ask-lawyer">
+    <Link href="/portal/client/lawyers" className={chrome ? "deditor__act deditor__act--help" : "docfill__ask"} title={t("askLawyer")} aria-label={t("askLawyer")} data-ai-id="documents.constructor.ask-lawyer">
       <IconHeadset />
       <span className={chrome ? "deditor__actLabel" : undefined}>{t("askLawyer")}</span>
     </Link>
@@ -1064,9 +1068,9 @@ export default function DocFill({
         style={{ "--deditor-rw": `${RIGHT_W}px` } as CSSProperties}
       >
         <div className="deditor__top">
-          <button type="button" className="deditor__back" onClick={chrome.onBack} data-ai-id="documents.constructor.back">
+          <button type="button" className="deditor__back" onClick={chrome.onBack} data-ai-id="documents.constructor.back" title={tc("back")} aria-label={tc("back")}>
             <IconChevronLeft />
-            {tc("back")}
+            <span className="deditor__backLabel">{tc("back")}</span>
           </button>
           <button
             type="button"
@@ -1096,7 +1100,7 @@ export default function DocFill({
           <div className="deditor__actions">
             {askButton}
             <InstructorButton className="deditor__act deditor__act--ai" labelClassName="deditor__actLabel" size={18} />
-            <button type="button" className="deditor__act" onClick={chrome.onExit} title={t("exit")} data-ai-id="documents.constructor.exit">
+            <button type="button" className="deditor__act" onClick={chrome.onExit} title={t("exit")} aria-label={t("exit")} data-ai-id="documents.constructor.exit">
               <IconClose />
               <span className="deditor__actLabel">{t("exit")}</span>
             </button>

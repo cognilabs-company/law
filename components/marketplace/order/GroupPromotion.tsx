@@ -14,6 +14,7 @@ import { ChoiceCards, type ChoiceCard } from "@/components/admin/studio/sx/form/
 import { TagsInput } from "@/components/admin/studio/sx/form/TagsInput";
 import { TextArea } from "@/components/admin/studio/sx/form/TextArea";
 import { glyph } from "@/components/admin/studio/sx/icons";
+import { artStyle } from "./icons";
 import { aiId as makeAiId } from "@/lib/ai/ids";
 import { isAborted, isForbidden } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
@@ -88,9 +89,7 @@ export function GroupPromotionCard({
 
   return (
     <section ref={ref} className="msog" aria-labelledby={titleId} data-placement={promo.placement || undefined} data-ai-id={ai} data-ai-type="section" data-ai-label={promo.title}>
-      <span className="msog__mark" aria-hidden="true">
-        {glyph(UsersRoundIcon, { size: 22 })}
-      </span>
+      <span className="msog__mark odx-art" style={artStyle("Guruh_video")} aria-hidden="true" />
       <div className="msog__body">
         <p className="msog__kicker">{t("kicker")}</p>
         <h3 className="msog__title" id={titleId}>
@@ -114,7 +113,7 @@ export function GroupPromotionCard({
         </div>
       </div>
       {promo.dismissible ? (
-        <IconButton className="msog__x" label={t("dismiss")} icon={glyph(XIcon, { size: 16 })} onClick={onDismiss} aiId={`${ai}.dismiss`} size="sm" />
+        <IconButton className="msog__x" label={t("dismiss")} icon={glyph(XIcon, { size: 16 })} onClick={onDismiss} aiId={`${ai}.dismiss`} size="sm" tipSide="bottom" tipAlign="end" />
       ) : null}
     </section>
   );

@@ -8,7 +8,7 @@ import { SxLinkButton } from "@/components/admin/studio/sx/Button";
 import type { MarketOrder, MarketPhase } from "@/lib/services/marketplace";
 import type { RuntimeConfig } from "@/lib/services/marketRuntime";
 import { DOC_ACTION_KEY, docKindOf, docLeadKey, docRouteOf, needsRecordId, roomDocumentRecordId, sellerRoleOf, templateOfRuntime, type DocKind, type DocRoute } from "./docs";
-import { FileTextIcon, glyph } from "./icons";
+import { FileTextIcon, artStyle, glyph } from "./icons";
 import { SECTION_ID, type OrderView } from "./types";
 
 export default function OrderDocuments({ o, phase, view, aiBase, runtime, listHref }: { o: MarketOrder; phase: MarketPhase; view: OrderView; aiBase: string; runtime: RuntimeConfig | null; listHref: string }): ReactElement | null {
@@ -51,9 +51,13 @@ export default function OrderDocuments({ o, phase, view, aiBase, runtime, listHr
         }
       >
         <div className="mdoc__body">
-          <span className="mdoc__icon" aria-hidden="true">
-            {glyph(FileTextIcon, { size: 22 })}
-          </span>
+          {view === "client" ? (
+            <span className="mdoc__icon odx-art" style={artStyle("Huquqiy_hujjatlar")} aria-hidden="true" />
+          ) : (
+            <span className="mdoc__icon" aria-hidden="true">
+              {glyph(FileTextIcon, { size: 22 })}
+            </span>
+          )}
           <p className="mdoc__lead">{t(docLeadKey(route.kind, view, route.action))}</p>
           {actionKey ? (
             <SxLinkButton href={route.href} variant={required ? "primary" : "secondary"} size="sm" icon={FileTextIcon} busy={pending} aiId={`${aiBase}.documents.open`} className="mdoc__open">

@@ -1,7 +1,8 @@
 "use client";
 
+import "./profile1920.css";
 import RatingBreakdown from "./RatingBreakdown";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth, hasAdminAccess } from "@/lib/auth";
@@ -18,7 +19,7 @@ import {
   type MarketService,
 } from "@/lib/services/marketplace";
 import { listActivePromotions } from "@/lib/services/promotions";
-import { IconArrowRight, IconBriefcase, IconCheck, IconChevronLeft, IconClock, IconLock, IconRefresh, IconShieldCheck, IconStar } from "@/components/icons";
+import { IconAlert, IconArrowRight, IconCheck, IconChevronLeft, IconClock, IconLock, IconRefresh } from "@/components/icons";
 import PurchaseDialog from "./PurchaseDialog";
 import CopilotLauncher from "@/components/copilot/CopilotLauncher";
 import "@/components/portal/clientCopilot.css";
@@ -39,6 +40,11 @@ import "./runtime/checkout.css";
 import { useBoughtServices } from "@/lib/useBoughtServices";
 
 type Status = "loading" | "ready" | "notfound" | "error";
+
+// The dashboard's pictures: a black line drawing in a white circle (--art),
+// a navy/blue drawing on a light plate (--img). image-catalog.md.
+const artStyle = (name: string, dir = "xizmatlar") => ({ "--art": `url(/img/${dir}/${name}.webp)` }) as CSSProperties;
+const plateStyle = (name: string) => ({ "--img": `url(/img/doc-catalog/${name}-sq.webp)` }) as CSSProperties;
 
 export default function SellerProfile({ userId, variant, preview }: { userId: string; variant: "public" | "portal"; preview?: ProfilePreview }) {
   const t = useTranslations("marketplace");
@@ -196,8 +202,15 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
   if (status === "loading") {
     return (
       <section className="mk mk-prof">
-        <div className="mk-prof__hero mk-prof__hero--ghost" aria-busy="true">
-          <span className="mk-prof__loading">{t("detail.loading")}</span>
+        <div className="lxp-skel" aria-busy="true">
+          <span className="sr-only" role="status">
+            {t("detail.loading")}
+          </span>
+          <i className="cx-skel lxp-skel__hero" aria-hidden="true" />
+          <div className="lxp-skel__body" aria-hidden="true">
+            <i className="cx-skel cx-skel--tall" />
+            <i className="cx-skel" />
+          </div>
         </div>
       </section>
     );
@@ -206,9 +219,16 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
   if (status === "notfound" || (status === "error" && !seller)) {
     return (
       <section className="mk mk-prof">
-        <div className="mk-empty">
+        <div className={`mk-empty lx-card cx-empty lxp-state${status === "error" ? " lxp-state--err" : ""}`}>
+          {status === "notfound" ? (
+            <span className="lxp-art lxp-art--lg" style={artStyle("Boshqa_holat", "sos")} aria-hidden="true" />
+          ) : (
+            <span className="cx-empty__ic lxp-state__ic" aria-hidden="true">
+              <IconAlert />
+            </span>
+          )}
           <b>{status === "notfound" ? t("detail.notFound") : t("error")}</b>
-          <span>{status === "notfound" ? t("detail.notFoundText") : ""}</span>
+          {status === "notfound" ? <p>{t("detail.notFoundText")}</p> : null}
           <div className="mk-buy__acts">
             {status === "error" ? (
               <button
@@ -291,9 +311,9 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
                 ) : null}
               </>
             ) : (
-              <div className="mk-empty mk-empty--flat">
-                <IconBriefcase />
-                <span>{t("detail.noServices")}</span>
+              <div className="mk-empty mk-empty--flat cx-empty lxp-empty">
+                <span className="lxp-art" style={artStyle("xizmatlar")} aria-hidden="true" />
+                <b>{t("detail.noServices")}</b>
               </div>
             )}
           </section>
@@ -325,10 +345,10 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
                 ))}
               </ul>
             ) : (
-              <div className="mk-empty mk-empty--flat">
-                <IconStar />
+              <div className="mk-empty mk-empty--flat cx-empty lxp-empty">
+                <span className="lxp-plate" style={plateStyle("Sharhlar")} aria-hidden="true" />
                 <b>{t("detail.noReviews")}</b>
-                <span>{t("detail.noReviewsText")}</span>
+                <p>{t("detail.noReviewsText")}</p>
               </div>
             )}
           </section>
@@ -385,7 +405,7 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
             {guarantees.length ? (
               <>
                 <b>
-                  <IconShieldCheck />
+                  <span className="lxp-art lxp-art--sm" style={artStyle("Kafolat")} aria-hidden="true" />
                   {rt("guaranteesTitle")}
                 </b>
                 <GuaranteeList items={guarantees} tone="side" />
@@ -393,7 +413,7 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
             ) : (
               <>
                 <b>
-                  <IconShieldCheck />
+                  <span className="lxp-art lxp-art--sm" style={artStyle("Xavfsiz_tolov")} aria-hidden="true" />
                   {t("detail.safeTitle")}
                 </b>
                 <ul>

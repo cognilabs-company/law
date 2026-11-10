@@ -1,5 +1,6 @@
 "use client";
 
+import "@/components/portal/sosIntake1920.css";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import type { Contract } from "@/lib/api";

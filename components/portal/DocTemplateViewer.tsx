@@ -1,5 +1,6 @@
 "use client";
 
+import "./builder1920.css";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
@@ -428,6 +429,7 @@ export default function DocTemplateViewer({
 
   return (
     <Modal open={open} onClose={onClose} title={title} wide>
+      <div className="bld-viewer">
       {status === "loading" ? (
         <Skeleton rows={8} />
       ) : status === "error" ? (
@@ -463,6 +465,7 @@ export default function DocTemplateViewer({
           </button>
         </>
       )}
+      </div>
     </Modal>
   );
 }

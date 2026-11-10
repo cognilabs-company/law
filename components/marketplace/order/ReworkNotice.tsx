@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { shortDateTime } from "@/lib/date";
 import { useCountdown } from "@/lib/useCountdown";
 import { isReworkOrder, type MarketOrder, type MarketSignal } from "@/lib/services/marketplace";
-import { RefreshCwIcon, CircleCheckIcon, HourglassIcon, TimerIcon, glyph } from "./icons";
+import { RefreshCwIcon, CircleCheckIcon, HourglassIcon, TimerIcon, artStyle, glyph } from "./icons";
 import type { OrderView } from "./types";
 
 // A finished order the call center sent back to work (complaint ruled
@@ -27,9 +27,13 @@ export default function ReworkNotice({ o, view, signal }: { o: MarketOrder; view
 
   return (
     <section className="mod-rework" role="status" aria-labelledby="mod-rework-t" data-ai-id={seller ? "marketplace.order.rework" : "marketplace.client.order.rework"}>
-      <span className="mod-rework__ico" aria-hidden="true">
-        {glyph(RefreshCwIcon, { size: 20 })}
-      </span>
+      {seller ? (
+        <span className="mod-rework__ico" aria-hidden="true">
+          {glyph(RefreshCwIcon, { size: 20 })}
+        </span>
+      ) : (
+        <span className="mod-rework__ico odx-art" style={artStyle("Advokat_tekshiruvi")} aria-hidden="true" />
+      )}
       <div className="mod-rework__body">
         <b id="mod-rework-t">{seller ? t("sellerTitle") : t("clientTitle")}</b>
         <ol className="mod-rework__flow" aria-label={t("flowLabel")}>

@@ -8,6 +8,9 @@
 .portal.lx{
   --lx-blue:#1668F0; --lx-blue-h:#0F57D6; --lx-link:#1460DC; --lx-blue-ink:#154CB0; --lx-blue-tint:#EFF4FE;
   --lx-navy:#0A1526; --lx-navy-2:#162131; --lx-navy-3:#1A2D49; --lx-navy-line:#232D3C;
+  /* the header search is at least as wide as its hint plus its padding and
+     icon (measured): "Ishlar, hujjatlar, xabarlar..." needs 249px; ru/en below */
+  --lx-search-min:250px;
   --lx-bg:#F5F9FF; --lx-card:#FFFFFF; --lx-line:#E4EBF5; --lx-line-2:#ECF0F7; --lx-chip:#F2F6FC;
   --lx-ink:#0A1526; --lx-gray:#4F5F75; --lx-gray2:#5D6E84;
   --lx-ok:#0E7A55; --lx-ok-bg:#E7F6EE; --lx-warn:#9A5B00; --lx-warn-bg:#FFF3D6; --lx-err:#D93B30; --lx-err-bg:#FDECEA;
@@ -143,6 +146,11 @@ html[data-theme="dark"] .portal.lx .psb.lx-sb{box-shadow:inset 0 0 0 1px var(--l
 }
 .lx-top__head{flex:1;min-width:0;display:grid;gap:6px}
 .lx-top__meta,.lx-top__crumbs{margin:0;font-size:.85rem;font-weight:500;color:var(--lx-gray);display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:20px}
+html[lang="ru"] .portal.lx{--lx-search-min:298px}
+html[lang="en"] .portal.lx{--lx-search-min:292px}
+/* the kicker as running text, so it can only break between its parts */
+.lx-top__meta{display:block;line-height:20px}
+.lx-top__meta > span{white-space:nowrap}
 .lx-top__crumbs a{color:var(--lx-gray);text-decoration:none}
 .lx-top__crumbs a:hover{color:var(--lx-link)}
 .lx-top__crumbs svg{width:14px;height:14px}
@@ -150,6 +158,27 @@ html[data-theme="dark"] .portal.lx .psb.lx-sb{box-shadow:inset 0 0 0 1px var(--l
 .portal.lx .lx-top h1{font-family:var(--fd);font-size:clamp(1.6rem,2.3vw,2.6rem);font-weight:800;letter-spacing:-.025em;line-height:1.12;color:var(--lx-ink);margin:0;overflow-wrap:anywhere}
 .lx-top__tools{margin-left:auto;display:flex;align-items:center;gap:10px;padding-top:20px;flex:none}
 .portal.lx .lx-top__burger{display:none}
+/* Laptop and up: the kicker (date · page · note, or the breadcrumb) runs
+   the full width over the title and the tools, which share the row under
+   it. Beside the tools it had ~430px on a 13-15" laptop and broke onto a
+   second line ("... 2 ta ish / jarayonda"). */
+@media (min-width:1101px){
+  .portal.lx .ptop.lx-top{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:20px;row-gap:6px;align-items:center}
+  .portal.lx .lx-top__head{display:contents}
+  .portal.lx .lx-top__meta,.portal.lx .lx-top__crumbs{grid-column:1 / -1}
+  .portal.lx .lx-top h1{grid-column:1;min-width:0}
+  .portal.lx .lx-top__tools{grid-column:2;grid-row:2;padding-top:0;margin-left:0}
+  .portal.lx .lx-top .lx-chips{grid-column:1 / -1}
+  /* Too little room beside the title for the tools (a 1101-1260px window,
+     or ru/en's wider search): they take their own line under it, as below
+     1101px, rather than squeeze the title until a word breaks in half. */
+  @container lxbody (max-width:899px){
+    .portal.lx .lx-top__tools{grid-column:1 / -1;grid-row:auto;justify-content:flex-end}
+    .portal.lx .lx-top__tools .lx-search{flex:1;width:auto;max-width:420px;margin-right:auto}
+  }
+}
+/* the page column is the query container for the header above */
+.portal.lx .pbody{container:lxbody / inline-size}
 
 /* header pills */
 .lx-pill,.portal.lx .psup__btn,.portal.lx .lx-top .ptop__bell{
@@ -161,7 +190,7 @@ html[data-theme="dark"] .portal.lx .psb.lx-sb{box-shadow:inset 0 0 0 1px var(--l
 .lx-pill svg{width:18px;height:18px;flex:none}
 /* Full width from ~1540px; on a 13"/14" MacBook it gives way to the title's
    date line, which otherwise wraps onto a second row. */
-.lx-search{position:relative;height:44px;width:clamp(200px,min(17vw,100vw - 1240px),296px);display:flex;align-items:center;gap:10px;padding:0 16px;border-radius:999px;background:var(--lx-card);border:1px solid var(--lx-line)}
+.lx-search{position:relative;height:44px;width:clamp(var(--lx-search-min),min(17vw,100vw - 1240px),296px);display:flex;align-items:center;gap:10px;padding:0 16px;border-radius:999px;background:var(--lx-card);border:1px solid var(--lx-line)}
 .lx-search:focus-within{border-color:var(--lx-blue);box-shadow:0 0 0 3px rgba(22,104,240,.12)}
 .lx-search > svg{width:18px;height:18px;color:var(--lx-gray2);flex:none}
 .lx-search input{flex:1;min-width:0;border:0;background:none;outline:0;font-size:.92rem;color:var(--lx-ink)}
@@ -241,7 +270,7 @@ html[data-theme="dark"] .portal.lx .btn--soft:hover{background:#22314F}
 /* ── Tablet / phone ────────────────────────────────────── */
 @media (max-width:1400px){
   .lx-top__tools{gap:8px}
-  .lx-search{width:200px}
+  .lx-search{width:var(--lx-search-min)}
   .lx-lang .lx-lang__t{display:none}
   .portal.lx .psup__txt{display:none}
   .portal.lx .psup__btn{width:44px;padding:0}
@@ -272,6 +301,8 @@ html[data-theme="dark"] .portal.lx .btn--soft:hover{background:#22314F}
 }
 @media (max-width:560px){
   .portal.lx .pbody{padding:12px 12px 28px}
+  /* a phone: the date and the note; the page is in the menu */
+  .lx-top__meta .lx-top__where{display:none}
   .portal.lx .ptop.lx-top{display:grid;grid-template-columns:44px minmax(0,1fr);row-gap:10px}
   .lx-top__head{grid-column:1 / -1;order:3}
   .lx-top__tools{grid-column:2;justify-self:end;gap:6px}
@@ -281,6 +312,13 @@ html[data-theme="dark"] .portal.lx .btn--soft:hover{background:#22314F}
   .portal.lx .lx-top h1{font-size:1.4rem}
   .lx-chips{gap:6px}
   .portal.lx .ppanel,.lx-card{padding:16px;border-radius:18px}
+}
+/* a 320px phone: the breadcrumb keeps only the way back ("Boshqaruv
+   paneli"); the page's own name is the title right under it */
+@media (max-width:360px){
+  .lx-top__crumbs > svg,.lx-top__crumbs [aria-current]{display:none}
+  /* "Tuesday, 10 November 2026 · 2 cases in progress" on one line */
+  .lx-top__meta{font-size:.72rem}
 }
 
 /* checkboxes: the design's filled blue square with a white tick */

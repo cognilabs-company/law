@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import "./profile1920.css";
+import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import {
   getIdentity,
@@ -16,9 +17,11 @@ import { useResourceOne } from "@/lib/useResource";
 import { Skeleton } from "./DataState";
 import { notify } from "@/lib/toast";
 import FieldError from "@/components/ui/FieldError";
-import { IconShieldCheck } from "@/components/icons";
+import { IconArrowRight, IconShieldCheck } from "@/components/icons";
 
 const provName = (p: IdentityProvider | null) => (p === "myid" ? "MyID" : "OneID");
+// The dashboard's identity picture (navy + blue line art) on a light plate.
+const ID_ART = { "--art": "url(/img/doc-catalog/ID_tasdiqlash-sq.webp)" } as CSSProperties;
 const NID = "identity-verify";
 
 // OneID / MyID identity verification through the backend provider interface.
@@ -133,12 +136,18 @@ export default function IdentityVerify() {
     <div className="idv__providers">
       {waiting ? <p className="advmuted" role="status">{t("retryIn", { time: fmtClock(wait.resendIn) })}</p> : null}
       <button className="idv__prov idv__prov--main" type="button" disabled={busy || waiting} onClick={() => start("myid")} data-ai-id="profile.identity.myid">
-        <b>MyID <em className="idv__tag">{t("primary")}</em></b>
-        <span>{t("myidSub")}</span>
+        <span className="idv__provtx">
+          <b>MyID <em className="idv__tag">{t("primary")}</em></b>
+          <span>{t("myidSub")}</span>
+        </span>
+        <span className="idv__go" aria-hidden="true"><IconArrowRight /></span>
       </button>
       <button className="idv__prov" type="button" disabled={busy || waiting} onClick={() => start("oneid")} data-ai-id="profile.identity.oneid">
-        <b>OneID</b>
-        <span>{t("oneidSub")}</span>
+        <span className="idv__provtx">
+          <b>OneID</b>
+          <span>{t("oneidSub")}</span>
+        </span>
+        <span className="idv__go" aria-hidden="true"><IconArrowRight /></span>
       </button>
       <p className="idv__privacy advmuted">{t("noBiometrics")}</p>
     </div>
@@ -147,7 +156,10 @@ export default function IdentityVerify() {
   return (
     <div className="ppanel" data-ai-target="profile:identity" data-ai-id="profile.identity" data-ai-type="section">
       <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconShieldCheck /></span>{t("title")}</b></div>
-      <p className="ppanel__note">{t("lead")}</p>
+      <div className="idv__intro">
+        <span className="idv__art" style={ID_ART} aria-hidden="true" />
+        <p className="ppanel__note">{t("lead")}</p>
+      </div>
 
       {res.status === "loading" && !id ? (
         <Skeleton rows={2} />
@@ -163,8 +175,9 @@ export default function IdentityVerify() {
         <div className="idv__flow" data-ai-private>
           <p className="advmuted">{t("codeHint", { provider: provName(prov) })}</p>
           <div>
-            <label>{t("codeLabel")}</label>
+            <label htmlFor={`${uid}-idcode`}>{t("codeLabel")}</label>
             <input
+              id={`${uid}-idcode`}
               value={code}
               onChange={(e) => {
                 setCode(e.target.value);
@@ -178,12 +191,14 @@ export default function IdentityVerify() {
             <FieldError id={`${uid}-code`} msg={codeErr} />
           </div>
           {waiting ? <p className="advmuted" role="status">{t("retryIn", { time: fmtClock(wait.resendIn) })}</p> : null}
-          <button className="btn btn--pri btn--full" type="button" disabled={busy || waiting || !code.trim()} onClick={verify}>
-            {busy ? t("verifying") : t("verify")}
-          </button>
-          <button className="rf__link rf__link--muted" type="button" onClick={() => { setFlow(null); setProv(null); setCodeErr(""); }}>
-            {t("cancel")}
-          </button>
+          <div className="idv__acts">
+            <button className="btn btn--pri" type="button" disabled={busy || waiting || !code.trim()} onClick={verify}>
+              {busy ? t("verifying") : t("verify")}
+            </button>
+            <button className="btn btn--line" type="button" onClick={() => { setFlow(null); setProv(null); setCodeErr(""); }}>
+              {t("cancel")}
+            </button>
+          </div>
         </div>
       ) : isIdentityPending(cur) ? (
         <div className="idv__flow">

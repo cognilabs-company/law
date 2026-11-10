@@ -252,7 +252,7 @@ export default function ComplaintDetail({ item }: { item: ComplaintItem }) {
               {t("reply.title")}
             </h3>
             <article className="shkd__reply">
-              <span className="shkd__av" aria-hidden>
+              <span className="shkd__av cx-av" aria-hidden>
                 {operatorName ? initials(operatorName) : <IconHeadset />}
               </span>
               <div className="shkd__bubble" data-ai-private>

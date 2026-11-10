@@ -1,3 +1,4 @@
+import { createElement, Fragment, type ReactNode } from "react";
 import { localDay, shortDate, dateOnly, timeOnly, weekdays } from "@/lib/date";
 import type { SecureParticipant, SecureRoom } from "@/lib/services/backend";
 
@@ -36,14 +37,34 @@ export function initialsOf(name: string): string {
   return (a + b).toUpperCase();
 }
 
-// A stable colour per person, so the same client reads the same in the list,
-// the header and on their bubbles. Six hues that hold contrast with white
-// initials in both themes.
-const HUES = [212, 262, 168, 24, 330, 190];
-export function hueOf(key: string): number {
-  let h = 0;
-  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
-  return HUES[Math.abs(h) % HUES.length];
+// A whole-word excerpt of a message for a row or a quote: the list shows a
+// short wrapped sentence rather than a line the browser cuts mid-word.
+export function excerpt(text: string, max = 90): string {
+  const s = text.replace(/\s+/g, " ").trim();
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max);
+  const at = cut.lastIndexOf(" ");
+  return `${(at > max * 0.6 ? cut.slice(0, at) : cut).replace(/[\s,.;:!?—–-]+$/, "")}…`;
+}
+
+// A file name may break after "_", "-" or "." (a <wbr>), so a long one
+// wraps at its own joints ("Ijara_shartnomasi_ / loyiha.pdf") rather than
+// mid-word; the text itself, and so copy and search, are unchanged.
+export function breakName(name: string): ReactNode {
+  const parts = name.split(/(?<=[_.-])(?=.)/);
+  if (parts.length < 2) return name;
+  return createElement(Fragment, null, ...parts.flatMap((p, i) => (i ? [createElement("wbr"), p] : [p])));
+}
+
+// A room's or a work's status in the dashboard's pill tones (.cx-pill--*):
+// finished work reads green, live work blue, waiting amber, and anything that
+// ended otherwise stays a quiet grey chip.
+export function toneOf(status: string): string {
+  const st = status.trim().toLowerCase();
+  if (/^(done|completed|closed|finished|resolved|claimed)$/.test(st)) return "cx-pill--ok";
+  if (/^(active|open|in_progress|meeting_active|scheduled|assigned|accepted)$/.test(st)) return "cx-pill--blue";
+  if (/^(pending|waiting|open_pool|awaiting_payment|payment_pending|new)$/.test(st)) return "cx-pill--warn";
+  return "mx-pill--muted";
 }
 
 export type Peer = { name: string; role: string; ids: string[]; group: boolean; count: number; others: SecureParticipant[] };

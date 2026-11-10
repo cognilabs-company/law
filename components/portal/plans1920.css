@@ -1,0 +1,533 @@
+/* ═══ LexGo 1920 — Tariflar, Sovg'alar, Do'stni taklif qilish, Akademiya ═══
+   The client dashboard (components/portal/dash/ClientHome.tsx + dash1920.css)
+   is the design every cabinet page follows; this file draws the plans group
+   in its vocabulary, the way urgent1920.css draws Tezkor Advokat:
+   - pictures instead of icon tiles: the dashboard's navy + blue drawings
+     (public/img/doc-catalog Tarif_*, Referal_*, public/img/category) on the
+     light plate of its area cards, and its black line drawings
+     (public/img/xizmatlar) in white circles on navy banners and in dialogs;
+   - white cards (radius 24 / inner 16, one hairline, no shadow, no gradient),
+     section heads as .cx-head, lists as .cx-work chip cards, status as
+     .cx-pill, empty states as .cx-empty, flat buttons;
+   - the navy .cx-gift banner for the gift tab, the referral hero and the
+     academy;
+   - the dialogs (portalled to <body>, outside .portal.lx; layers1920.css
+     gives them the tokens) with the same cards, pictures and footers.
+   Page rules are prefixed .portal.lx; dialog rules start at .amodal or at a
+   class only those dialogs carry. Old rules for these classes live in
+   app/globals.css; every selector here outweighs them. */
+
+/* ── pictures ────────────────────────────────────────────── */
+/* a black line drawing in a white circle (stays white in dark mode) */
+.plx-banner__art,.plx-refhero__art,.plx-giftcard__art,.plx-gift__art,.plx-kind__art,.plx-intro__art,.plx-made__art{
+  display:block;flex:none;border-radius:50%;background:var(--art) center/62% no-repeat,#fff;
+}
+/* a navy + blue drawing on the dashboard's light plate (stays light in dark mode) */
+.plx-plan__art,.plx-acct__plate,.plx-intro__plate,.plx-review__art,.plx-plate-sq,.myplan__art{
+  display:block;flex:none;
+  background:var(--img) center/contain no-repeat,linear-gradient(168deg,#F1F6FF 0%,#FAFCFF 56%,#E9F1FD 100%);
+}
+html[data-theme="dark"] :is(.plx-plan__art,.plx-acct__plate,.plx-intro__plate,.plx-review__art,.plx-plate-sq,.myplan__art){
+  background:var(--img) center/contain no-repeat,linear-gradient(168deg,#E8EFFA 0%,#F4F8FF 56%,#E1EAF8 100%);
+}
+/* square thumbnails use the -sq drawing, a little inside the plate */
+.plx-acct__plate,.plx-intro__plate,.plx-plate-sq,.myplan__art{background-size:86%,auto}
+html[data-theme="dark"] :is(.plx-acct__plate,.plx-intro__plate,.plx-plate-sq,.myplan__art){background-size:86%,auto}
+
+/* ── page columns ────────────────────────────────────────── */
+.portal.lx :is(.plx-subs,.plx-gifts,.plx-ref,.plx-acad){
+  display:grid;grid-template-columns:minmax(0,1fr);gap:24px;min-width:0;container:plx / inline-size;
+}
+.portal.lx :is(.plx-subs,.plx-gifts,.plx-ref,.plx-acad) > *{min-width:0;margin:0}
+
+/* section heads, as the dashboard's "Xizmatlar" */
+.portal.lx .plx-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px 20px;flex-wrap:nowrap;margin:0}
+.portal.lx .plx-head__t{min-width:0}
+.portal.lx .plx-head .lx-h1{margin:0;font-family:var(--fd);font-size:clamp(1.5rem,1.9vw,2rem);font-weight:800;letter-spacing:-.025em;line-height:1.15;color:var(--lx-ink);display:block}
+.portal.lx .plx-head .lx-sub{margin:6px 0 0;max-width:680px;font-size:.95rem;line-height:1.55;color:var(--lx-gray)}
+.portal.lx .plx-note{margin:0;font-size:.86rem;line-height:1.55;color:var(--lx-gray)}
+.portal.lx .plx-chk{margin:0}
+.portal.lx .plx-emptycard{padding:12px 24px}
+
+/* the term: a chip tray, the chosen term a white key */
+.portal.lx .plx-seg{display:inline-flex;flex:none;align-self:flex-end;gap:4px;padding:4px;margin:0;border-radius:14px;background:var(--lx-chip);box-shadow:inset 0 0 0 1px var(--lx-line-2)}
+.portal.lx .plx-seg button{padding:9px 16px;border-radius:10px;font-size:.88rem;font-weight:600;color:var(--lx-gray);background:transparent;box-shadow:none;white-space:nowrap}
+.portal.lx .plx-seg button:hover{color:var(--lx-ink)}
+.portal.lx .plx-seg button[aria-pressed=true]{background:var(--lx-card);color:var(--lx-ink);box-shadow:0 1px 2px rgba(10,21,38,.08),inset 0 0 0 1px var(--lx-line)}
+html[data-theme="dark"] .portal.lx .plx-seg button[aria-pressed=true]{background:#22314F;box-shadow:none}
+
+/* ── the plan card (page AND the upgrade dialogs) ────────── */
+/* A white card; the plan's drawing across its top on the light plate, the
+   "recommended" / "your plan" pill on that plate; the price in 800; one
+   flat button. Featured or picked: a 2px blue frame and nothing else. */
+.splan.plx-plan{
+  --plx-pad:20px;
+  position:relative;display:flex;flex-direction:column;min-width:0;overflow:hidden;
+  padding:var(--plx-pad) var(--plx-pad) calc(var(--plx-pad) + 2px);
+  background:var(--lx-card,#fff);border:1px solid var(--lx-line-2,#ECF0F7);border-radius:24px;
+  box-shadow:none;transform:none;transition:border-color .15s,box-shadow .15s;
+}
+html[data-theme="dark"] .splan.plx-plan{border-color:var(--lx-line)}
+.splan.plx-plan .plx-plan__art{
+  position:relative;margin:calc(var(--plx-pad) * -1) calc(var(--plx-pad) * -1) 16px;
+  aspect-ratio:2 / 1;max-height:176px;border-bottom:1px solid var(--lx-line,#E4EBF5);
+}
+html[data-theme="dark"] .splan.plx-plan .plx-plan__art{border-bottom-color:#26365A}
+.splan.plx-plan .splan__ribbon.cx-pill{
+  position:absolute;top:12px;left:12px;transform:none;z-index:1;
+  height:26px;padding:0 10px 0 7px;border-radius:999px;letter-spacing:0;text-transform:none;font-size:.74rem;font-weight:600;
+  /* on the light plate in both themes */
+  background:#1668F0;color:#fff;box-shadow:none;
+}
+.splan.plx-plan .splan__ribbon.cx-pill--ok{background:#E7F6EE;color:#0E7A55;box-shadow:inset 0 0 0 1px rgba(14,122,85,.18)}
+.splan.plx-plan .splan__ribbon svg{width:14px;height:14px}
+.splan.plx-plan .splan__h{display:flex;align-items:center;gap:8px;min-width:0}
+.splan.plx-plan .splan__name{display:block;font-family:var(--fd);font-size:1.14rem;font-weight:700;letter-spacing:-.015em;line-height:1.3;color:var(--lx-ink,#0A1526)}
+.splan.plx-plan .plx-plan__saves{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.splan.plx-plan .splan__save.cx-pill{margin:0;height:26px;padding:0 10px 0 7px;font-size:.74rem;font-weight:600;background:var(--lx-ok-bg,#E7F6EE);color:var(--lx-ok,#0E7A55)}
+.splan.plx-plan .splan__save.cx-pill:not(:has(svg)){padding:0 10px}
+.splan.plx-plan .splan__price{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;margin:14px 0 0}
+.splan.plx-plan .splan__price b{font-family:var(--fd);font-size:2rem;font-weight:800;letter-spacing:-.03em;line-height:1.1;color:var(--lx-ink,#0A1526)}
+.splan.plx-plan .splan__price span{font-size:.86rem;color:var(--lx-gray,#4F5F75)}
+.splan.plx-plan .splan__was{flex-basis:100%;margin:0;font-size:.82rem;color:var(--lx-gray2,#5D6E84)}
+.splan.plx-plan .splan__total{margin:6px 0 0;font-size:.82rem;line-height:1.45;color:var(--lx-gray,#4F5F75)}
+.splan.plx-plan .splan__usage{margin:10px 0 0;padding:8px 12px;border-radius:12px;font-size:.8rem;color:var(--lx-gray,#4F5F75);background:var(--lx-chip,#F2F6FC)}
+.splan.plx-plan .splan__feats{display:grid;gap:10px;flex:1;align-content:start;margin:16px 0 20px;padding:0;list-style:none}
+.splan.plx-plan .splan__feats li{display:flex;gap:9px;align-items:flex-start;font-size:.9rem;line-height:1.4;color:var(--lx-ink,#0A1526)}
+.splan.plx-plan .splan__feats svg{width:16px;height:16px;flex:none;margin-top:2px;stroke:var(--lx-blue,#1668F0);stroke-width:2.6}
+.splan.plx-plan > .btn{margin-top:auto;min-height:46px;white-space:nowrap}
+.splan.plx-plan.splan--feat{border-color:var(--lx-blue,#1668F0);box-shadow:inset 0 0 0 1px var(--lx-blue,#1668F0);transform:none}
+.splan.plx-plan.splan--current{border-color:var(--lx-line-2,#ECF0F7);box-shadow:none}
+html[data-theme="dark"] .splan.plx-plan.splan--current{border-color:var(--lx-line)}
+.splan.plx-plan.splan--pick{cursor:pointer}
+.splan.plx-plan.splan--pick:hover{border-color:#C7D6EC}
+html[data-theme="dark"] .splan.plx-plan.splan--pick:hover{border-color:#3A4E75}
+.splan.plx-plan.splan--sel,.splan.plx-plan.splan--pick.splan--sel:hover,.splan.plx-plan.splan--feat.splan--sel{
+  border-color:var(--lx-blue,#1668F0);background:var(--lx-card,#fff);box-shadow:inset 0 0 0 1px var(--lx-blue,#1668F0);
+}
+html[data-theme="dark"] .splan.plx-plan.splan--sel,html[data-theme="dark"] .splan.plx-plan.splan--pick.splan--sel:hover,html[data-theme="dark"] .splan.plx-plan.splan--feat.splan--sel{
+  border-color:var(--lx-blue);box-shadow:inset 0 0 0 1px var(--lx-blue);
+}
+/* in a dialog the blue frame means "picked": the recommended one keeps its pill */
+.pgate__grid .splan.plx-plan.splan--feat:not(.splan--sel){border-color:var(--lx-line-2,#ECF0F7);box-shadow:none}
+.pgate__grid .splan.plx-plan{--plx-pad:16px}
+.pgate__grid .splan.plx-plan .plx-plan__art{max-height:132px}
+.pgate__grid .splan.plx-plan .splan__name{font-size:1.04rem}
+.pgate__grid .splan.plx-plan .splan__price b{font-size:1.6rem}
+.pgate__grid .splan.plx-plan .splan__feats{gap:8px;margin:14px 0 16px}
+.pgate__grid .splan.plx-plan .splan__feats li{font-size:.84rem}
+.amodal .pgate__grid{padding-top:4px;gap:14px}
+
+/* ── Tariflar page ───────────────────────────────────────── */
+.portal.lx .plx-intent{padding:24px}
+/* the overview: the tariff (its picture), the next charge, the card; the
+   auto-pay switch in a chip strip under them */
+.portal.lx .plx-acct{display:grid;gap:0;padding:0;overflow:hidden}
+.portal.lx .plx-acct__top{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin:0}
+.portal.lx .plx-acct__cell{display:flex;align-items:center;gap:14px;min-width:0;padding:22px 24px;background:none;border-radius:0;box-shadow:none}
+.portal.lx .plx-acct__cell + .plx-acct__cell{border-left:1px solid var(--lx-line-2)}
+html[data-theme="dark"] .portal.lx .plx-acct__cell + .plx-acct__cell{border-left-color:var(--lx-line)}
+.portal.lx .plx-acct__cell > div{min-width:0}
+.portal.lx .plx-acct__plate{width:56px;height:56px;border-radius:14px;box-shadow:inset 0 0 0 1px var(--lx-line)}
+html[data-theme="dark"] .portal.lx .plx-acct__plate{box-shadow:none}
+.portal.lx .plx-acct__ic{width:44px;height:44px;flex:none;border-radius:12px;display:grid;place-items:center;background:var(--lx-card);border:1px solid var(--lx-line);color:var(--lx-ink)}
+.portal.lx .plx-acct__ic svg{width:20px;height:20px}
+.portal.lx .plx-acct .subs__topl{display:block;margin-bottom:3px;font-size:.82rem;font-weight:500;color:var(--lx-gray)}
+.portal.lx .plx-acct .subs__topcard b{display:block;font-family:var(--fd);font-size:1.06rem;font-weight:700;letter-spacing:-.01em;color:var(--lx-ink);overflow-wrap:anywhere}
+.portal.lx .plx-acct .subs__tops{display:block;margin-top:3px;font-size:.8rem;line-height:1.4;color:var(--lx-gray2)}
+.portal.lx .plx-acct .plx-acct__pay{margin:0;padding:18px 24px;border:0;border-top:1px solid var(--lx-line-2);border-radius:0;background:var(--lx-chip)}
+html[data-theme="dark"] .portal.lx .plx-acct .plx-acct__pay{border-top-color:var(--lx-line)}
+.portal.lx .plx-acct .apay__row{display:flex;align-items:center;justify-content:space-between;gap:12px 20px;flex-wrap:wrap}
+.portal.lx .plx-acct__tg{display:grid;gap:4px;min-width:0;flex:1 1 300px}
+.portal.lx .plx-acct .apay__tg,.portal.lx .plx-acct .apay__tg[aria-checked="true"]{
+  flex:none;justify-self:start;max-width:100%;gap:12px;padding:0;border:0;border-radius:0;background:none;
+  font-size:.98rem;font-weight:600;color:var(--lx-ink);
+}
+.portal.lx .plx-acct .apay__sw{background:#B9C5D6}
+html[data-theme="dark"] .portal.lx .plx-acct .apay__sw{background:#3A4E75}
+.portal.lx .plx-acct .apay__tg[aria-checked="true"] .apay__sw{background:var(--lx-blue)}
+.portal.lx .plx-acct .apay__state{color:var(--lx-gray)}
+.portal.lx .plx-acct .apay__tg[aria-checked="true"] .apay__state{color:var(--lx-link)}
+.portal.lx .plx-acct .apay__local{color:var(--lx-gray)}
+.portal.lx .plx-acct__sub{padding-left:56px;font-size:.84rem;line-height:1.45;color:var(--lx-gray)}
+.portal.lx .plx-acct__bind{flex:none;white-space:nowrap}
+.portal.lx .plx-acct__bind svg{width:16px;height:16px}
+.portal.lx .plx-acct .apay__note{margin:14px 0 0;padding:12px 14px;border-radius:12px;background:var(--lx-card);color:var(--lx-gray);font-size:.84rem}
+.portal.lx .plx-acct .apay__note svg{stroke:var(--lx-gray2)}
+
+/* the LexGo.AI plans beside "why it is safe" */
+.portal.lx .plx-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;align-items:start;margin:0}
+.portal.lx .plx-main{display:grid;gap:20px;min-width:0;align-content:start}
+.portal.lx .plx-subs .plans__grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr));gap:18px;margin:0;align-items:stretch}
+.portal.lx .plx-side{display:grid;gap:20px;align-content:start;padding:24px;border-radius:24px;background:var(--lx-card);border:1px solid var(--lx-line-2);box-shadow:none}
+html[data-theme="dark"] .portal.lx .plx-side{border-color:var(--lx-line)}
+.portal.lx .plx-side .benefit{display:flex;gap:12px;align-items:flex-start;min-width:0}
+.portal.lx .plx-side .benefit__ico{width:auto;height:auto;margin-top:1px;border-radius:0;background:none;color:var(--lx-blue)}
+.portal.lx .plx-side .benefit__ico svg{width:20px;height:20px}
+.portal.lx .plx-side .benefit b{display:block;margin-bottom:3px;font-size:.94rem;font-weight:600;color:var(--lx-ink)}
+.portal.lx .plx-side .benefit p{margin:0;font-size:.84rem;line-height:1.5;color:var(--lx-gray)}
+.portal.lx .plx-side__cta{white-space:nowrap}
+.portal.lx .plx-side__cta svg{width:16px;height:16px}
+
+/* comparison + questions */
+.portal.lx .plx-bottom{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:24px;align-items:start;margin:0}
+.portal.lx .plx-bottom > .ppanel{padding:26px 24px;min-width:0}
+.portal.lx .plx-bottom .ppanel__h{display:grid;gap:4px;margin-bottom:16px}
+.portal.lx .plx-faq__lead{margin:0;font-size:.86rem;color:var(--lx-gray)}
+.portal.lx .plx-bottom .ptable th{padding:10px 12px;background:var(--lx-chip);font-size:.72rem;font-weight:700;letter-spacing:.04em;color:var(--lx-gray)}
+.portal.lx .plx-bottom .ptable th:first-child{border-radius:12px 0 0 12px}
+.portal.lx .plx-bottom .ptable th:last-child{border-radius:0 12px 12px 0}
+.portal.lx .plx-bottom .ptable td{padding:13px 12px;border-top:1px solid var(--lx-line-2);color:var(--lx-ink)}
+.portal.lx .plx-bottom .ptable tbody tr:first-child td{border-top:0}
+.portal.lx .plx-bottom .ptable tbody tr:hover td{background:none}
+.portal.lx .plx-faq{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--lx-line-2);font-size:.92rem;font-weight:600;line-height:1.4;color:var(--lx-ink);text-decoration:none}
+html[data-theme="dark"] .portal.lx .plx-faq{border-bottom-color:var(--lx-line)}
+.portal.lx .plx-faq:last-child{border-bottom:0;padding-bottom:0}
+.portal.lx .plx-faq:hover{color:var(--lx-link)}
+.portal.lx .plx-faq svg{width:18px;height:18px;flex:none;stroke:currentColor;color:var(--lx-gray2)}
+
+/* the gift tariff: the dashboard's navy gift banner as a card */
+.portal.lx .splan.plx-giftcard{
+  display:flex;flex-direction:column;align-items:flex-start;min-width:0;padding:24px;
+  background:var(--lx-navy);color:#fff;border:0;border-radius:24px;box-shadow:none;transform:none;
+}
+html[data-theme="dark"] .portal.lx .splan.plx-giftcard{background:#0B1830;box-shadow:inset 0 0 0 1px var(--lx-navy-line)}
+.portal.lx .plx-giftcard__art{width:92px;height:92px;margin-bottom:18px}
+.portal.lx .plx-giftcard .splan__name{display:block;font-family:var(--fd);font-size:1.3rem;font-weight:700;letter-spacing:-.015em;color:#fff}
+/* .cx-gift p grows (flex:1) in the dashboard's banner; here the list does */
+.portal.lx .plx-giftcard .splan__total{flex:none;margin:6px 0 0;font-size:.88rem;line-height:1.5;color:#C9D4E3}
+.portal.lx .plx-giftcard .splan__feats{display:grid;gap:10px;flex:1;align-content:start;width:100%;margin:16px 0 20px;padding:0;list-style:none}
+.portal.lx .plx-giftcard .splan__feats li{display:flex;gap:9px;align-items:flex-start;font-size:.9rem;line-height:1.45;color:#C9D4E3}
+.portal.lx .plx-giftcard .splan__feats svg{width:16px;height:16px;flex:none;margin-top:2px;stroke:#fff;stroke-width:2.6}
+.portal.lx .plx-giftcard .cx-gift__cta{margin-top:auto;height:46px;white-space:nowrap}
+.portal.lx .plx-giftcard .cx-gift__cta svg{width:16px;height:16px}
+
+/* lists: the dashboard's .cx-work chip cards, no inner scroll */
+.portal.lx :is(.plx-bills,.plx-list){padding:28px 24px}
+.portal.lx :is(.plx-bills,.plx-list) .cx-works__h{margin-bottom:18px}
+.portal.lx .plx-rows{display:grid;gap:12px;max-height:none;overflow:visible;padding:0;margin:0}
+.portal.lx .plx-rows > .creq{margin:0;border:0;border-radius:16px;background:var(--lx-chip);box-shadow:none}
+.portal.lx .plx-rows .creq__m b{display:block;font-family:inherit;font-size:.96rem;font-weight:600;line-height:1.35;color:var(--lx-ink)}
+.portal.lx .plx-rows .creq__m > span{font-size:.82rem;line-height:1.45;color:var(--lx-gray)}
+.portal.lx .plx-rows .cx-pill{white-space:nowrap}
+.portal.lx .plx-rows .cx-pill.cx-pill--ok{background:var(--lx-ok-bg);color:var(--lx-ok)}
+.portal.lx .plx-rows .cx-pill.cx-pill--warn{background:var(--lx-warn-bg);color:var(--lx-warn)}
+.portal.lx .plx-rows .cx-pill.cx-pill--blue{background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
+.portal.lx .cx-pill.plx-pill--err{background:var(--lx-err-bg);color:var(--lx-err)}
+.portal.lx .cx-pill.plx-pill--off{background:var(--lx-card);color:var(--lx-gray);box-shadow:inset 0 0 0 1px var(--lx-line)}
+/* a payment */
+.portal.lx .plx-bill{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;grid-template-areas:"ic m sum pill";align-items:center;gap:6px 14px;padding:16px 18px}
+.portal.lx .plx-bill__ic{grid-area:ic;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--lx-card);border:1px solid var(--lx-line);color:var(--lx-ink)}
+.portal.lx .plx-bill__ic svg{width:18px;height:18px}
+.portal.lx .plx-bill .creq__m{grid-area:m}
+.portal.lx .plx-bill__sum{grid-area:sum;font-size:.98rem;font-weight:700;white-space:nowrap;color:var(--lx-ink)}
+.portal.lx .plx-bill .cx-pill{grid-area:pill;justify-self:end}
+
+/* ── Sovg'alar tab ───────────────────────────────────────── */
+/* the navy banner: picture, words, the one action */
+.portal.lx .plx-banner{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"art main cta";
+  align-items:center;gap:16px 24px;padding:24px 28px;border-radius:24px;
+}
+.portal.lx .plx-banner--acad{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"art main"}
+.portal.lx .plx-banner__art{grid-area:art;width:92px;height:92px}
+.portal.lx .plx-banner__main{grid-area:main;min-width:0}
+.portal.lx .plx-banner h2{margin:0;font-family:var(--fd);font-size:1.45rem;font-weight:700;letter-spacing:-.015em;line-height:1.25;color:#fff}
+.portal.lx .plx-banner p{margin:8px 0 0;max-width:64ch;font-size:.92rem;line-height:1.6;color:#C9D4E3;flex:none}
+.portal.lx .plx-banner__cta{grid-area:cta;height:48px;white-space:nowrap}
+.portal.lx .plx-banner__cta svg{width:18px;height:18px}
+/* a gift */
+.portal.lx .plx-gift{display:flex;align-items:flex-start;gap:14px;padding:16px 18px}
+.portal.lx .plx-gift__art{width:52px;height:52px;background-size:64%,auto;box-shadow:inset 0 0 0 1px var(--lx-line)}
+html[data-theme="dark"] .portal.lx .plx-gift__art{box-shadow:none}
+.portal.lx .plx-gift__m{display:grid;gap:6px;flex:1;min-width:0}
+.portal.lx .plx-gift__h{display:flex;align-items:flex-start;justify-content:space-between;gap:8px 12px}
+.portal.lx .plx-gift__h b{min-width:0;padding-top:2px}
+.portal.lx .plx-gift__tags{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.portal.lx .plx-gift :is(.wid,.cx-tag){
+  display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;margin:0;
+  background:var(--lx-card);color:var(--lx-gray);box-shadow:inset 0 0 0 1px var(--lx-line);font-size:.74rem;font-weight:600;letter-spacing:0;
+}
+.portal.lx .plx-gift .wid{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.02em}
+.portal.lx .plx-gift .gift__kind--in{background:var(--lx-ok-bg);color:var(--lx-ok);box-shadow:none}
+.portal.lx .plx-gift__meta{font-size:.84rem;line-height:1.45;color:var(--lx-gray)}
+.portal.lx .plx-gift .gift__list-link{justify-self:start;display:inline-flex;flex-direction:row;align-items:center;gap:6px;font-size:.86rem}
+.portal.lx .plx-gift .gift__list-link svg{display:block;width:16px;height:16px;flex:none}
+
+/* ── Do'stni taklif qilish ───────────────────────────────── */
+.portal.lx .plx-refhero{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"art main qr";
+  align-items:center;gap:20px 28px;padding:28px;text-align:left;border-radius:24px;
+}
+.portal.lx .plx-refhero__art{grid-area:art;align-self:start;width:104px;height:104px}
+.portal.lx .plx-refhero__main{grid-area:main;min-width:0}
+.portal.lx .plx-refhero .ref__title{margin:0;font-family:var(--fd);font-size:1.45rem;font-weight:700;letter-spacing:-.015em;line-height:1.25;color:#fff}
+.portal.lx .plx-refhero .ref__sub{margin:8px 0 0;max-width:66ch;font-size:.92rem;line-height:1.6;color:#C9D4E3;opacity:1}
+/* the code and the link: one tray, white fields, as the dashboard's search */
+.portal.lx .plx-reftray{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;margin-top:20px;padding:8px;border-radius:18px;background:var(--lx-navy-3)}
+html[data-theme="dark"] .portal.lx .plx-reftray{background:#16243C}
+.portal.lx .plx-reftray--wait{height:72px}
+.portal.lx .plx-reftray__code.ref__code{
+  display:grid;grid-template-columns:auto auto;grid-template-areas:"l b" "c b";align-items:center;column-gap:16px;row-gap:0;
+  margin:0;min-height:56px;padding:6px 6px 6px 16px;border:0;border-radius:12px;background:var(--lx-card);
+}
+.portal.lx .plx-reftray__l{grid-area:l;font-size:.72rem;font-weight:600;line-height:1.3;color:var(--lx-gray)}
+.portal.lx .plx-reftray__code .ref__codeval{grid-area:c;font-family:var(--fd);font-size:1.2rem;font-weight:800;letter-spacing:.08em;line-height:1.3;color:var(--lx-ink)}
+.portal.lx .plx-reftray__code .ref__copy{grid-area:b;height:44px;white-space:nowrap}
+.portal.lx .plx-reftray__code .ref__copy svg{width:16px;height:16px}
+.portal.lx .plx-reftray__link.ref__linkrow{display:flex;align-items:center;gap:8px;max-width:none;min-width:0;min-height:56px;margin:0;padding:6px 6px 6px 16px;border-radius:12px;background:var(--lx-card)}
+.portal.lx .plx-reftray__link .ref__link{flex:1;min-width:0;height:44px;padding:0;border:0;border-radius:0;background:none;box-shadow:none;font-size:.92rem;color:var(--lx-ink);outline:none}
+.portal.lx .plx-reftray__link .btn{flex:none;height:44px;white-space:nowrap}
+.portal.lx .plx-reftray__link .btn svg{width:16px;height:16px}
+/* the QR on a white plate */
+.portal.lx .plx-refqr.ref__qr{grid-area:qr;display:grid;justify-items:center;gap:8px;margin:0}
+.portal.lx .plx-refqr img{width:132px;height:132px;padding:8px;border-radius:16px;background:#fff}
+.portal.lx .plx-refqr span{max-width:150px;font-size:.78rem;line-height:1.4;text-align:center;color:#C9D4E3;opacity:1}
+/* the numbers, and the way to the discount */
+.portal.lx .plx-refstat{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:0;padding:0;overflow:hidden}
+.portal.lx .plx-kpis.ref__stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin:0}
+.portal.lx .plx-kpis .ref__stat{display:grid;gap:4px;align-content:center;min-width:0;padding:24px 20px;text-align:left;background:none;border:0;border-radius:0}
+.portal.lx .plx-kpis .ref__stat + .ref__stat{border-left:1px solid var(--lx-line-2)}
+html[data-theme="dark"] .portal.lx .plx-kpis .ref__stat + .ref__stat{border-left-color:var(--lx-line)}
+.portal.lx .plx-kpis .ref__stat b,.portal.lx .plx-kpis .ref__stat--reward b{font-family:var(--fd);font-size:1.7rem;font-weight:800;letter-spacing:-.02em;line-height:1.15;color:var(--lx-ink)}
+.portal.lx .plx-kpis .ref__stat span{font-size:.84rem;line-height:1.35;color:var(--lx-gray)}
+.portal.lx .plx-goal.ref__disc{display:grid;gap:8px;align-content:center;margin:0;padding:22px 24px;border-radius:0;background:var(--lx-chip);box-shadow:none;border-left:1px solid var(--lx-line-2)}
+html[data-theme="dark"] .portal.lx .plx-goal.ref__disc{border-left-color:var(--lx-line)}
+.portal.lx .plx-goal__h{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 12px}
+.portal.lx .plx-goal__h b{font-size:1rem;font-weight:700;color:var(--lx-ink)}
+.portal.lx .plx-goal__n{font-size:.84rem;font-weight:600;color:var(--lx-gray)}
+.portal.lx .plx-goal p{margin:0;font-size:.9rem;font-weight:500;line-height:1.5;color:var(--lx-ink)}
+.portal.lx .plx-goal__bar{margin-top:4px}
+/* how it works: three picture cards */
+.portal.lx .plx-how.ref__how{display:grid;gap:20px;padding:0;background:none;border:0;border-radius:0}
+.portal.lx .plx-how .ref__h2.lx-h1{margin:0}
+.portal.lx .plx-steps.ref__steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:0;padding:0;list-style:none}
+.portal.lx .plx-step.ref__step{position:static;flex:none;min-width:0;gap:0;padding:0;border-radius:16px;background:var(--lx-card);cursor:default}
+.portal.lx .plx-step.ref__step::after{display:none}
+.portal.lx .plx-step:hover{transform:none;box-shadow:none;border-color:var(--lx-line)}
+.portal.lx .plx-step:hover .cx-area__img{background-size:contain,auto}
+.portal.lx .plx-step .cx-area__img{max-height:210px;width:100%}
+.portal.lx .plx-step .cx-area__body{align-items:center;gap:12px;padding:16px 18px 18px}
+.portal.lx .plx-step .ref__num{width:32px;height:32px;flex:none;border-radius:50%;display:grid;place-items:center;background:var(--lx-blue);color:#fff;font-size:.9rem;font-weight:700}
+.portal.lx .plx-step .cx-area__txt b{font-size:.96rem;font-weight:600;line-height:1.4;color:var(--lx-ink)}
+/* an invite */
+.portal.lx .plx-inv{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;grid-template-areas:"av m sum pill";align-items:center;gap:6px 14px;padding:14px 18px}
+.portal.lx .plx-inv .cx-av{grid-area:av;width:40px;height:40px;font-size:.78rem}
+.portal.lx .plx-inv .cx-av svg{width:18px;height:18px}
+.portal.lx .plx-inv .creq__m{grid-area:m;min-width:0}
+.portal.lx .plx-inv__sum.ref__badge{grid-area:sum;padding:0;border-radius:0;background:none;font-size:.96rem;font-weight:700;white-space:nowrap;color:var(--lx-ink)}
+.portal.lx .plx-inv .cx-pill{grid-area:pill;justify-self:end}
+
+/* ── Akademiya ───────────────────────────────────────────── */
+.portal.lx .plx-acadlist{padding:28px}
+.portal.lx .plx-acadlist .cx-works__h{margin-bottom:18px}
+.portal.lx .plx-find.cx-find{grid-template-columns:minmax(0,1fr) minmax(220px,300px);margin:0 0 24px}
+.portal.lx .plx-find.cx-find:not(:has(.cx-find__q)){grid-template-columns:minmax(0,340px)}
+.portal.lx .plx-find.cx-find:not(:has(.cx-find__region)){grid-template-columns:minmax(0,1fr)}
+.portal.lx .plx-find .cx-find__q{cursor:text}
+.portal.lx .plx-find .cx-find__q input::-webkit-search-cancel-button{cursor:pointer}
+.portal.lx .plx-courses{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin:0;padding:0;list-style:none}
+.portal.lx .plx-courses > li{display:flex;min-width:0}
+.portal.lx .plx-course.course{width:100%;border-radius:16px;cursor:default}
+.portal.lx .plx-course.course:hover{transform:none;box-shadow:none;border-color:var(--lx-line)}
+.portal.lx .plx-course:hover .cx-area__img{background-size:contain,auto}
+.portal.lx .plx-course .course__cover{position:relative;display:block;height:auto;padding:0}
+.portal.lx .plx-course .course__level.cx-tag{
+  position:absolute;top:10px;left:10px;height:24px;display:inline-flex;align-items:center;padding:0 10px;
+  font-size:.74rem;font-weight:600;text-transform:none;background:#fff;color:#0A1526;box-shadow:inset 0 0 0 1px #E4EBF5;
+}
+.portal.lx .plx-course .course__b{display:flex;flex-direction:column;align-items:flex-start;gap:8px;flex:1;padding:14px 16px 16px}
+.portal.lx .plx-course .course__cat{padding:4px 10px;border-radius:999px;background:var(--lx-chip);font-size:.74rem;font-weight:600;letter-spacing:0;text-transform:none;color:var(--lx-ink)}
+.portal.lx .plx-course .course__t{font-size:.98rem;font-weight:600;line-height:1.35;color:var(--lx-ink)}
+.portal.lx .plx-course .course__meta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.82rem;color:var(--lx-gray)}
+.portal.lx .plx-course .course__meta svg{width:14px;height:14px}
+.portal.lx .plx-course__prog{display:grid;gap:4px;width:100%}
+.portal.lx .plx-course .course__prog{height:4px;border-radius:4px;background:#E1E8F2}
+html[data-theme="dark"] .portal.lx .plx-course .course__prog{background:#26365A}
+.portal.lx .plx-course .course__prog span{border-radius:inherit;background:var(--lx-blue)}
+.portal.lx .plx-course__prog small{font-size:.76rem;color:var(--lx-gray)}
+.portal.lx .plx-course__soon{margin-top:auto}
+
+/* ── by the width the page actually gets ─────────────────── */
+@container plx (max-width:1079px){
+  .portal.lx .plx-layout{grid-template-columns:minmax(0,1fr)}
+  .portal.lx .plx-side{grid-template-columns:repeat(3,minmax(0,1fr));column-gap:24px}
+  .portal.lx .plx-side__cta{grid-column:1 / -1;justify-self:start;width:auto}
+  .portal.lx .plx-courses{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@container plx (max-width:999px){
+  .portal.lx .plx-refstat{grid-template-columns:minmax(0,1fr)}
+  .portal.lx .plx-goal.ref__disc{border-left:0;border-top:1px solid var(--lx-line-2)}
+}
+@container plx (max-width:899px){
+  .portal.lx .plx-bottom{grid-template-columns:minmax(0,1fr)}
+  .portal.lx .plx-refhero{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"art main" "qr qr"}
+  .portal.lx .plx-refqr.ref__qr{justify-self:start;grid-auto-flow:column;align-items:center;gap:14px}
+  .portal.lx .plx-refqr span{text-align:left}
+}
+@container plx (max-width:859px){
+  .portal.lx .plx-courses{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+}
+@container plx (max-width:799px){
+  .portal.lx .plx-acct__top{grid-template-columns:minmax(0,1fr)}
+  .portal.lx .plx-acct__cell{padding:16px 20px}
+  .portal.lx .plx-acct__cell + .plx-acct__cell{border-left:0;border-top:1px solid var(--lx-line-2)}
+  .portal.lx .plx-banner{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"art main" "cta cta"}
+  .portal.lx .plx-banner__cta{justify-self:start}
+  .portal.lx .plx-reftray{grid-template-columns:minmax(0,1fr)}
+  .portal.lx .plx-reftray__code.ref__code{grid-template-columns:minmax(0,1fr) auto}
+}
+@container plx (max-width:699px){
+  .portal.lx .plx-head{flex-direction:column;align-items:stretch}
+  .portal.lx .plx-seg{align-self:flex-start}
+  .portal.lx .plx-side{grid-template-columns:minmax(0,1fr)}
+  .portal.lx .plx-steps.ref__steps{grid-template-columns:minmax(0,1fr);gap:14px}
+  .portal.lx .plx-step .cx-area__img{aspect-ratio:232 / 120}
+  .portal.lx .plx-bill{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"ic m m" "ic sum pill"}
+  .portal.lx .plx-bill .cx-pill{justify-self:start}
+  .portal.lx .plx-inv{grid-template-columns:auto auto minmax(0,1fr);grid-template-areas:"av m m" "av sum pill"}
+  .portal.lx .plx-inv .cx-pill{justify-self:start}
+  .portal.lx .plx-inv:not(:has(.plx-inv__sum)) .cx-pill{grid-column:2 / -1}
+  .portal.lx .plx-gift__h{flex-direction:column;gap:6px}
+}
+@container plx (max-width:599px){
+  .portal.lx .plx-banner,.portal.lx .plx-refhero{padding:20px;gap:14px 16px}
+  .portal.lx .plx-banner__art{width:72px;height:72px}
+  .portal.lx .plx-banner h2,.portal.lx .plx-refhero .ref__title{font-size:1.2rem}
+  .portal.lx .plx-refhero{grid-template-columns:minmax(0,1fr);grid-template-areas:"art" "main" "qr"}
+  .portal.lx .plx-refhero__art{width:72px;height:72px}
+  .portal.lx .plx-find.cx-find{grid-template-columns:minmax(0,1fr)}
+  .portal.lx .plx-kpis .ref__stat{padding:16px 12px}
+  .portal.lx .plx-kpis .ref__stat b,.portal.lx .plx-kpis .ref__stat--reward b{font-size:1.3rem}
+  .portal.lx .plx-kpis .ref__stat span{font-size:.78rem}
+  .portal.lx .plx-goal.ref__disc{padding:18px 16px}
+  .portal.lx :is(.plx-bills,.plx-list,.plx-acadlist){padding:18px 16px}
+  .portal.lx .plx-rows > .creq{padding:14px}
+  .portal.lx .plx-acct .plx-acct__pay{padding:16px}
+  .portal.lx .plx-acct__sub{padding-left:0}
+  .portal.lx .plx-bottom > .ppanel{padding:18px 16px}
+  .portal.lx .plx-side{padding:18px 16px}
+}
+@container plx (max-width:479px){
+  .portal.lx .plx-courses{grid-template-columns:minmax(0,1fr)}
+  .portal.lx .plx-reftray__code.ref__code{grid-template-columns:minmax(0,1fr);grid-template-areas:"l" "c" "b";row-gap:6px;padding:12px}
+  .portal.lx .plx-reftray__code .ref__copy{justify-self:stretch}
+  .portal.lx .plx-reftray__link.ref__linkrow{flex-wrap:wrap;padding:8px 8px 8px 14px}
+  .portal.lx .plx-reftray__link .btn{flex:1 1 100%}
+  .portal.lx .plx-gift{gap:12px}
+  .portal.lx .plx-gift__art{width:40px;height:40px}
+}
+@media (max-width:900px){
+  .portal.lx :is(.plx-acct,.plx-refstat){border-radius:20px}
+}
+@media (max-width:560px){
+  .portal.lx :is(.plx-acct,.plx-refstat,.plx-banner,.plx-refhero,.plx-side,.plx-giftcard){border-radius:18px}
+  .splan.plx-plan{border-radius:18px}
+}
+
+/* ── dialogs (portalled to <body>) ───────────────────────── */
+/* footers: the flat primary and the white outlined button */
+.plx-acts{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:10px;width:100%}
+.plx-acts .btn{white-space:nowrap}
+.plx-acts .btn svg{width:16px;height:16px}
+.amodal .plx-bind .plx-acts{margin-top:4px}
+@media (max-width:480px){.plx-acts > *{flex:1 1 100%}}
+/* the intro: the picture beside the lead, as the Tezkor Advokat form */
+.amodal .plx-intro{display:flex;align-items:center;gap:14px}
+.amodal .plx-intro__art{width:64px;height:64px;box-shadow:inset 0 0 0 1px var(--lx-line,#E4EBF5)}
+.amodal .plx-intro__plate{width:64px;height:64px;border-radius:16px;box-shadow:inset 0 0 0 1px var(--lx-line,#E4EBF5)}
+html[data-theme="dark"] .amodal :is(.plx-intro__art,.plx-intro__plate){box-shadow:none}
+.amodal .plx-intro > p,.amodal .plx-intro .apay__note{flex:1;min-width:0;margin:0;padding:0;background:none;font-size:.9rem;line-height:1.55;color:var(--lx-gray,#4F5F75)}
+/* the period / term chips: outline, the chosen one blue-tinted */
+.amodal :is(.plx-tg,.pgate,.gift__terms) .fchip{
+  padding:9px 16px;border-radius:20px;border:1px solid var(--lx-line,#E4EBF5);background:var(--lx-card,#fff);
+  color:var(--lx-ink,#0A1526);font-size:.88rem;font-weight:500;box-shadow:none;
+}
+.amodal :is(.plx-tg,.pgate,.gift__terms) .fchip:hover{border-color:var(--lx-blue,#1668F0)}
+.amodal :is(.plx-tg,.pgate,.gift__terms) .fchip[aria-pressed=true]{background:var(--lx-blue-tint,#EFF4FE);border-color:var(--lx-blue,#1668F0);color:var(--lx-blue-ink,#154CB0);box-shadow:none}
+/* sums: an inner chip card, the amount in 800 */
+.amodal .plx-tg .tgbuy__sum{padding:14px 16px;border:0;border-radius:16px;background:var(--lx-chip,#F2F6FC);box-shadow:none}
+.amodal .plx-tg .tgbuy__sum > span{font-size:.88rem;color:var(--lx-gray,#4F5F75)}
+.amodal .plx-tg .tgbuy__sum b{font-family:var(--fd);font-size:1.3rem;font-weight:800;color:var(--lx-ink,#0A1526)}
+.amodal .plx-tg .tgbuy__promo{padding:12px 14px;border-radius:16px;background:var(--lx-ok-bg,#E7F6EE);box-shadow:none}
+.amodal .plx-tg .tgbuy__promo > svg,.amodal .plx-tg .tgbuy__promo em{color:var(--lx-ok,#0E7A55)}
+.amodal .plx-tg .tgbuy__promo small{color:var(--lx-gray,#4F5F75)}
+/* sent: the dashboard's empty-state shape in the ok tone */
+.amodal .plx-done{display:grid;justify-items:center;gap:8px;padding:6px 0 2px;text-align:center}
+.amodal .plx-done__ic{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:var(--lx-ok-bg,#E7F6EE);color:var(--lx-ok,#0E7A55)}
+.amodal .plx-done__ic svg{width:24px;height:24px}
+.amodal .plx-done b{font-size:1.02rem;color:var(--lx-ink,#0A1526)}
+.amodal .plx-done p{margin:0;max-width:380px;font-size:.88rem;line-height:1.55;color:var(--lx-gray,#4F5F75)}
+.amodal .plx-done .cx-tag{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+/* the checkout review: the plan's picture, then the terms */
+.amodal .plx-review{display:grid;gap:16px}
+.amodal .plx-review__art{height:120px;border-radius:16px;box-shadow:inset 0 0 0 1px var(--lx-line,#E4EBF5)}
+html[data-theme="dark"] .amodal .plx-review__art{box-shadow:none}
+.amodal .pterms__acts .btn{white-space:nowrap}
+:where(html:has(.portal.lx)) .amodal .pterms__sum > div{padding:12px 16px;border-radius:16px;background:var(--lx-chip)}
+:where(html:has(.portal.lx)) .amodal .pterms__sum dt{font-size:.8rem;font-weight:600;letter-spacing:0;text-transform:none;color:var(--lx-gray)}
+:where(html:has(.portal.lx)) .amodal .pterms__sum dd{font-size:.98rem;font-weight:600;color:var(--lx-ink)}
+:where(html:has(.portal.lx)) .amodal .pterms__sum .pterms__now{background:var(--lx-blue-tint);box-shadow:none}
+:where(html:has(.portal.lx)) .amodal .pterms__now dd{font-family:var(--fd);font-size:1.45rem;font-weight:800}
+:where(html:has(.portal.lx)) .amodal .pterms__fees{color:var(--lx-ok)}
+:where(html:has(.portal.lx)) .amodal .pterms__promo{color:var(--lx-warn)}
+:where(html:has(.portal.lx)) .amodal .pterms__renew{padding:14px 16px;border:1px solid var(--lx-line);border-radius:16px;background:var(--lx-card);--cbx-bg:var(--lx-card)}
+:where(html:has(.portal.lx)) .amodal .pterms__docs{color:var(--lx-gray)}
+:where(html:has(.portal.lx)) .amodal .pterms__docs a{color:var(--lx-link)}
+/* the shell's checkbox (shell1920.css only reaches the page) */
+:where(html:has(.portal.lx)) .amodal .pterms .cbx__box{border-width:2px;border-color:#9AA8BC;border-radius:5px}
+:where(html:has(.portal.lx)) .amodal .pterms input.cbx__in:checked + .cbx__row .cbx__box{background:var(--lx-blue);border-color:var(--lx-blue)}
+:where(html:has(.portal.lx)) .amodal .pterms input.cbx__in:checked + .cbx__row .cbx__box::before,
+:where(html:has(.portal.lx)) .amodal .pterms input.cbx__in:checked + .cbx__row .cbx__box::after{background:#fff}
+:where(html:has(.portal.lx)) .amodal .pterms input.cbx__in:checked + .cbx__row .cbx__box::before{box-shadow:0 0 0 calc(var(--cbx-h) * .05) var(--lx-blue)}
+:where(html:has(.portal.lx)) .amodal .pterms .cbx__box::before{top:calc(var(--cbx-h) * .66);left:calc(var(--cbx-h) * .36)}
+:where(html:has(.portal.lx)) .amodal .pterms .cbx__box::after{top:calc(var(--cbx-h) * .34);left:calc(var(--cbx-h) * .1)}
+/* the bind-card form */
+.amodal .plx-bind{gap:16px}
+/* the gift form: plan or service as two picture cards */
+.amodal .plx-giftform{gap:18px}
+.amodal .plx-kinds.rolerow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;margin:0;padding:0;border:0;border-radius:0;background:none}
+.amodal .plx-kind.roletab{
+  display:flex;align-items:center;gap:14px;min-width:0;padding:14px 16px;text-align:left;cursor:pointer;
+  border:1px solid var(--lx-line,#E4EBF5);border-radius:16px;background:var(--lx-card,#fff);color:var(--lx-ink,#0A1526);box-shadow:none;
+  transition:border-color .15s,background .15s;
+}
+.amodal .plx-kind.roletab:hover{border-color:#C7D6EC;color:var(--lx-ink,#0A1526)}
+html[data-theme="dark"] .amodal .plx-kind.roletab:hover{border-color:#3A4E75}
+.amodal .plx-kind.roletab[aria-pressed="true"]{border-color:var(--lx-blue,#1668F0);background:var(--lx-blue-tint,#EFF4FE);box-shadow:inset 0 0 0 1px var(--lx-blue,#1668F0);color:var(--lx-ink,#0A1526)}
+.amodal .plx-kind__art{width:64px;height:64px;box-shadow:inset 0 0 0 1px var(--lx-line,#E4EBF5)}
+html[data-theme="dark"] .amodal .plx-kind__art{box-shadow:none}
+.amodal .plx-kind__t{display:grid;gap:3px;min-width:0}
+.amodal .plx-kind__t b{font-size:.98rem;font-weight:600;line-height:1.3;color:var(--lx-ink,#0A1526)}
+.amodal .plx-kind__t small{font-size:.8rem;font-weight:400;line-height:1.4;color:var(--lx-gray,#4F5F75)}
+.amodal .plx-giftform .gift__plan{gap:14px;padding:12px 14px;border-radius:16px;background:var(--lx-card,#fff);box-shadow:inset 0 0 0 1px var(--lx-line,#E4EBF5)}
+.amodal .plx-giftform .gift__plan-ic.plx-plate-sq{width:56px;height:56px;border-radius:14px;color:inherit}
+.amodal .plx-giftform .gift__plan-tx b{font-weight:600}
+.amodal .plx-giftform .gift__terms{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.amodal .plx-giftform .pgift__est{flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin:0;padding:14px 16px;border-radius:16px;background:var(--lx-chip,#F2F6FC)}
+.amodal .plx-giftform .pgift__est span{font-size:.86rem;font-weight:500;color:var(--lx-gray,#4F5F75)}
+.amodal .plx-giftform .pgift__est b{font-family:var(--fd);font-size:1.3rem;font-weight:800;color:var(--lx-ink,#0A1526)}
+/* the gift, made: its picture, the QR on a white plate, the link in a tray */
+.amodal .plx-made.gift__done{gap:10px}
+.amodal .plx-made__art.gift__done-ic{width:96px;height:96px;border-radius:50%;background:var(--art) center/62% no-repeat,#fff;color:inherit;box-shadow:inset 0 0 0 1px var(--lx-line,#E4EBF5)}
+html[data-theme="dark"] .amodal .plx-made__art.gift__done-ic{box-shadow:none}
+.amodal .plx-made > b{font-family:var(--fd);font-size:1.2rem;font-weight:700;color:var(--lx-ink,#0A1526)}
+.amodal .plx-made .advmuted{max-width:420px;margin:0;font-size:.9rem;line-height:1.55;color:var(--lx-gray,#4F5F75)}
+.amodal .plx-made .gift__qr{padding:10px;border-radius:16px;border:1px solid var(--lx-line,#E4EBF5);background:#fff}
+.amodal .plx-share.gift__share{display:flex;gap:8px;width:100%;margin-top:4px;padding:8px;border-radius:18px;background:var(--lx-chip,#F2F6FC)}
+.amodal .plx-share.gift__share input{flex:1;min-width:0;height:48px;padding:0 14px;border:1px solid var(--lx-line,#E4EBF5);border-radius:12px;background:var(--lx-card,#fff);box-shadow:none;font-size:.88rem;color:var(--lx-ink,#0A1526)}
+.amodal .plx-share.gift__share .btn{flex:none;height:48px;white-space:nowrap}
+.amodal .plx-share.gift__share .btn svg{width:16px;height:16px}
+@media (max-width:560px){
+  .amodal .plx-kind.roletab{flex-direction:column;align-items:center;gap:10px;padding:14px 10px;text-align:center}
+  .amodal .plx-kind__art{width:56px;height:56px}
+  .amodal .plx-intro__art,.amodal .plx-intro__plate{width:52px;height:52px}
+  .amodal .plx-review__art{height:96px}
+}
+@media (max-width:480px){
+  .amodal .plx-share.gift__share{flex-direction:column}
+  .amodal .plx-share.gift__share .btn{width:100%}
+}
+@media (prefers-reduced-motion:reduce){
+  .splan.plx-plan,.amodal .plx-kind.roletab{transition:none}
+}

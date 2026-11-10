@@ -17,7 +17,6 @@ import {
   Video,
   WifiOff,
   X,
-  Zap,
 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
@@ -27,7 +26,7 @@ import { statusLabel } from "@/lib/labels";
 import { aiId } from "@/lib/ai/ids";
 import { useAiField } from "@/lib/ai/registry";
 import { isLegacyReaction, type SecureRoom, type UrgentRequest } from "@/lib/services/backend";
-import { hueOf, initialsOf, listTime, peerOf, roleLabel } from "./format";
+import { breakName, excerpt, initialsOf, listTime, peerOf, roleLabel, toneOf } from "./format";
 import { reloadRooms, useRooms } from "./rooms";
 
 // The conversation list: who each room is with, what was said last and when,
@@ -59,6 +58,7 @@ export function ChatList({
   const ts = useTranslations("secureChat");
   const tc = useTranslations("portal.common");
   const tk = useTranslations("portal.client.urgent");
+  const tl = useTranslations("lxComms");
   const locale = useLocale();
   const { session } = useAuth();
   const me = session?.id ?? "";
@@ -93,7 +93,6 @@ export function ChatList({
   const kinds = KINDS.filter((k) => k === filter || rows.some((x) => x.kind === k));
   const unreadRooms = matched.filter((x) => x.room.unreadCount > 0 || x.room.hasUnread).length;
   const shown = filter === "unread" ? matched.filter((x) => x.room.unreadCount > 0 || x.room.hasUnread) : filter ? matched.filter((x) => x.kind === filter) : matched;
-  const unreadTotal = rooms.reduce((s, r) => s + (r.unreadCount || (r.hasUnread ? 1 : 0)), 0);
 
   const ai = session ? (session.role === "client" ? "marketplace.messages" : "advocate.messages") : "";
   const chips: { value: Filter; label: string; n: number }[] = [
@@ -152,28 +151,28 @@ export function ChatList({
         ))}
       </ul>
     ) : status === "error" ? (
-      <div className="mx-state" role="alert">
-        <span className="mx-state__i mx-state__i--err">{offline ? <WifiOff aria-hidden /> : <ServerCrash aria-hidden />}</span>
+      <div className="mx-state cx-empty" role="alert">
+        <span className="mx-state__i cx-empty__ic">{offline ? <WifiOff aria-hidden /> : <ServerCrash aria-hidden />}</span>
         <b>{t("errorTitle")}</b>
         <p>{offline ? t("errorText") : t("serverErrorText")}</p>
-        <button type="button" className="mx-btn mx-btn--pri" onClick={reloadRooms}>
+        <button type="button" className="mx-btn btn btn--pri btn--sm" onClick={reloadRooms}>
           <RefreshCw aria-hidden />
           {t("retry")}
         </button>
       </div>
     ) : !rooms.length ? (
-      <div className="mx-state">
-        <span className="mx-state__i"><MessagesSquare aria-hidden /></span>
+      <div className="mx-state cx-empty">
+        <span className="mx-state__i cx-empty__ic"><MessagesSquare aria-hidden /></span>
         <b>{t("empty")}</b>
         <p>{t("emptyText")}</p>
       </div>
     ) : !shown.length ? (
-      <div className="mx-state mx-state--sm">
-        <span className="mx-state__i"><Search aria-hidden /></span>
+      <div className="mx-state mx-state--sm cx-empty">
+        <span className="mx-state__i cx-empty__ic"><Search aria-hidden /></span>
         <b>{filter === "unread" && !needle ? t("unreadEmpty") : t("noMatch")}</b>
         <p>{filter === "unread" && !needle ? t("unreadEmptyText") : t("noMatchText")}</p>
         {needle || filter ? (
-          <button type="button" className="mx-btn" onClick={() => { setQ(""); setFilter(""); }}>
+          <button type="button" className="mx-btn btn btn--line btn--sm" onClick={() => { setQ(""); setFilter(""); }}>
             {t("clear")}
           </button>
         ) : null}
@@ -202,14 +201,16 @@ export function ChatList({
                 data-ai-label={[name, rec?.workId, unread ? t("unreadCount", { n: unread }) : ""].filter(Boolean).join(" · ")}
                 data-ai-private
               >
-                <span className={`mx-av${peer.group ? " mx-av--group" : ""}`} style={{ ["--h" as string]: hueOf(peer.ids[0] || r.id) }} aria-hidden>
+                <span className={`mx-av cx-av${peer.group ? " mx-av--group" : ""}`} aria-hidden>
                   {peer.group ? <Users /> : initialsOf(peer.name) || <Lock />}
                 </span>
                 <span className="mx-row__m">
                   <span className="mx-row__top">
+                    {/* first in the line so it can sit top-right while the
+                        name and role wrap beside it */}
+                    <time className="mx-row__t" dateTime={at || undefined}>{listTime(at, locale, ts)}</time>
                     <b className="mx-row__n">{name}</b>
                     {peer.role ? <span className="mx-row__role">{roleLabel(peer.role, ts)}</span> : null}
-                    <time className="mx-row__t" dateTime={at || undefined}>{listTime(at, locale, ts)}</time>
                   </span>
                   <span className="mx-row__bot">
                     <span className="mx-row__p">
@@ -222,7 +223,7 @@ export function ChatList({
                         <em className="mx-row__by">{r.lastMessage.senderName}:</em>
                       ) : null}
                       {p.icon}
-                      <span>{p.text}</span>
+                      <span>{excerpt(p.text)}</span>
                     </span>
                     {unread ? (
                       <span className="mx-badge" aria-label={t("unreadCount", { n: unread })}>{unread > 99 ? "99+" : unread}</span>
@@ -230,14 +231,15 @@ export function ChatList({
                   </span>
                   {rec || closed ? (
                     <span className="mx-row__tags">
-                      {rec ? (
-                        <span className="mx-tag mx-tag--urgent">
-                          <Zap aria-hidden />
+                      {/* the work's service and number, as the dashboard's grey meta line */}
+                      {rec && (service || rec.workId) ? (
+                        <span className="mx-row__meta">
                           {service}
+                          {service && rec.workId ? " · " : null}
+                          {rec.workId ? <span className="mx-row__wid" title={t("workId")}>{breakName(`#${rec.workId}`)}</span> : null}
                         </span>
                       ) : null}
-                      {rec?.workId ? <span className="mx-tag mx-tag--mono" title={t("workId")}>#{rec.workId}</span> : null}
-                      {closed ? <span className="mx-tag mx-tag--done">{statusLabel(tc, r.status)}</span> : null}
+                      {closed ? <span className={`mx-tag mx-tag--done cx-pill ${toneOf(st)}`}>{statusLabel(tc, r.status)}</span> : null}
                     </span>
                   ) : null}
                 </span>
@@ -252,15 +254,17 @@ export function ChatList({
     <div className="mx-list">
       <header className="mx-list__head">
         {backHref ? (
-          <Link href={backHref} className="mx-ib" aria-label={t("back")} title={t("back")}>
+          <Link href={backHref} className="mx-ib cx-iconbtn" aria-label={t("back")} title={t("back")}>
             <ArrowLeft aria-hidden />
           </Link>
         ) : null}
-        <h1 className="mx-list__title">
-          {t("title")}
-          {unreadTotal ? <span className="mx-badge mx-badge--soft">{unreadTotal > 99 ? "99+" : unreadTotal}</span> : null}
-        </h1>
-        <button type="button" className="mx-ib" onClick={reloadRooms} aria-label={t("refresh")} title={t("refresh")} disabled={status === "loading"}>
+        {/* The page's title is the shell's ("Xabarlar"); the list is one
+            section of it, titled like the dashboard's "Jarayondagi ishlar". */}
+        <h2 className="mx-list__title cx-h3">
+          {tl("listTitle")}
+          {rooms.length ? <span className="cx-count">{rooms.length}</span> : null}
+        </h2>
+        <button type="button" className="mx-ib cx-iconbtn" onClick={reloadRooms} aria-label={t("refresh")} title={t("refresh")} disabled={status === "loading"}>
           <RefreshCw aria-hidden className={status === "loading" ? "mx-spin" : undefined} />
         </button>
       </header>

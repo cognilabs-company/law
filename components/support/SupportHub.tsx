@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
+import "./support1920.css";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
@@ -21,7 +22,6 @@ import {
   SUPPORT_CATEGORIES,
   createSupportTicket,
   isActiveTicket,
-  isWaitingTicket,
   normSupportTicket,
   supportCategoryFor,
   ticketTitle,
@@ -36,7 +36,7 @@ import Select from "@/components/Select";
 import {
   IconAlert,
   IconArrowRight,
-  IconBell,
+  IconChatDots,
   IconCheckDouble,
   IconChevronLeft,
   IconClipboardCheck,
@@ -55,6 +55,7 @@ import CopilotLauncher from "@/components/copilot/CopilotLauncher";
 import { SupportStatus, TicketCard, agoText, lastPreview, useMinuteNow, useSupportHours, useSupportLabels } from "./bits";
 import { useMyChats } from "./useMyChats";
 import { SUPPORT_PHONE, SUPPORT_TEL } from "./contact";
+import { useFitPlaceholder } from "@/lib/useFitPlaceholder";
 
 type Tab = "active" | "closed";
 
@@ -149,32 +150,56 @@ function tabOf(raw: string): Tab | null {
   return null;
 }
 
+// The dashboard's black line drawings (public/img/xizmatlar), shown in white
+// circles: the channel arches, the composer's head and a chat no operator has
+// taken yet (the AI instructor's robot while the AI answers, else the operator).
+// (--img for the dashboard's own .cx-svc__ic, --art for this page's circles)
+const art = (name: string) => {
+  const url = `url(/img/xizmatlar/${name}.webp)`;
+  return { "--art": url, "--img": url } as CSSProperties;
+};
+
+// A chat still going, as the dashboard's "Jarayondagi ishlar" card (.cx-work):
+// title + status pill, id and time, the last line, who answers, the chat button.
 function OngoingRow({ ticket, now, unread, onOpen }: { ticket: SupportTicket; now: number | null; unread: number; onOpen: () => void }) {
   const t = useTranslations("support");
+  const tl = useTranslations("lxSupport");
   const locale = useLocale();
   const title = ticketTitle(ticket, t("untitled"));
   const when = ticket.lastMessageAt || ticket.updatedAt;
   const person = ticket.operatorName;
-  const last = lastPreview(ticket, title) || (person ? t("operatorIs", { name: person }) : "");
+  const ai = !person && ticket.status === "ai_handling";
+  const last = lastPreview(ticket, title);
   return (
-    <button type="button" className={`supcrow${unread ? " has-new" : ""}`} onClick={onOpen}>
-      <span className={`supcrow__av${!person && isWaitingTicket(ticket) ? " supcrow__av--wait" : ""}`} aria-hidden="true">
-        {person ? initials(person) : <IconHeadset />}
+    <button type="button" className={`supcrow cx-work${unread ? " has-new" : ""}`} onClick={onOpen}>
+      <span className="cx-work__h">
+        <b className="cx-work__t supcrow__t">{title}</b>
+        <SupportStatus status={ticket.status} />
       </span>
-      <span className="supcrow__body">
-        <b className="supcrow__t">{title}</b>
-        <span className="supcrow__sub">
-          <SupportStatus status={ticket.status} />
-          {last ? <span className="supcrow__last">{last}</span> : null}
+      {ticket.workId || when ? (
+        <span className="cx-work__meta supcrow__meta">
+          {ticket.workId}
+          {ticket.workId && when ? " · " : null}
+          {when ? <time dateTime={when}>{agoText(t, locale, when, now)}</time> : null}
         </span>
-      </span>
-      <span className="supcrow__side">
-        {when ? <time dateTime={when}>{agoText(t, locale, when, now)}</time> : null}
-        {unread ? (
-          <span className="supcrow__dot">
-            <span className="sr-only">{t("unreadAria", { n: unread })}</span>
-          </span>
-        ) : null}
+      ) : null}
+      {last ? <span className="cx-work__stage supcrow__last">{last}</span> : null}
+      <span className="cx-work__foot">
+        <span className="cx-work__who">
+          {person ? (
+            <span className="cx-av supcrow__av" aria-hidden="true">
+              {initials(person)}
+            </span>
+          ) : (
+            <span className="supcrow__art" style={art(ai ? "suniy-intelekt" : "Operator")} aria-hidden="true" />
+          )}
+          <span>{person ? t("operatorIs", { name: person }) : ai ? t("roles.ai") : tl("opSoon")}</span>
+        </span>
+        <span className="cx-iconbtn supcrow__go" aria-hidden="true">
+          <IconChatDots />
+          {unread ? <em className="supcrow__n">{unread > 99 ? "99+" : unread}</em> : null}
+        </span>
+        {unread ? <span className="sr-only">{t("unreadAria", { n: unread })}</span> : null}
       </span>
     </button>
   );
@@ -182,6 +207,7 @@ function OngoingRow({ ticket, now, unread, onOpen }: { ticket: SupportTicket; no
 
 export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: string }) {
   const t = useTranslations("support");
+  const [askPh, askRef] = useFitPlaceholder([t("hub.askPh"), t("hub.askPhShort")]);
   const tc = useTranslations("common");
   const tf = useTranslations("filterBar");
   const tp = useTranslations("portal.client.copilot");
@@ -239,6 +265,16 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
   const missing = chats.status === "error" && isRouteMissing(chats.error);
   const placeholder = useMemo(() => (selected ? normSupportTicket({ id: selected, status: "" }) : null), [selected]);
   const current = selected ? chats.map[selected] ?? placeholder : null;
+  // A chat opened from a link or the hub lives in "Faol" or "Yakunlangan":
+  // the side list beside it shows that group (once per chat and state, so the
+  // client can still switch the list by hand).
+  const sideOf = current && current.status ? `${current.id}|${isActiveTicket(current) ? "active" : "closed"}` : "";
+  const [sideFor, setSideFor] = useState("");
+  if (sideOf && sideOf !== sideFor) {
+    setSideFor(sideOf);
+    const want: Tab = sideOf.endsWith("|closed") ? "closed" : "active";
+    if (want !== tab) setTab(want);
+  }
   const latest = chats.active[0] ?? null;
   const ready = chats.status !== "loading";
   const loaded = chats.status === "ready";
@@ -351,7 +387,11 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
 
   useEffect(() => {
     if (!selected) return;
-    rootRef.current?.scrollIntoView({ block: "start" });
+    // The page's scroller back to its top: the shell's title stays in view
+    // (as on the dashboard) and the chat takes the height left under it.
+    const scroller = rootRef.current?.closest<HTMLElement>(".pbody");
+    if (scroller) scroller.scrollTop = 0;
+    else rootRef.current?.scrollIntoView({ block: "start" });
   }, [selected]);
 
   useEffect(() => {
@@ -498,10 +538,8 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
   if (missing) {
     return (
       <div className="sup sup--soon">
-        <div className="supsoon">
-          <span className="supsoon__ic">
-            <IconHeadset />
-          </span>
+        <div className="supsoon lx-card">
+          <span className="supsoon__ic supsoon__art" style={art("Operator")} aria-hidden="true" />
           <b>{t("title")}</b>
           <p>{tc("featureSoon")}</p>
           <div className="supsoon__acts">
@@ -544,11 +582,16 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
     },
   ];
 
+  // Loading, error and empty: the dashboard's skeleton and .cx-empty (a
+  // 48px tinted tile, a bold line, a grey line, at most one small button).
   const listBody =
     chats.status === "loading" ? (
-      [0, 1, 2].map((i) => <div key={i} className="supcard supcard--ghost" aria-hidden="true" />)
+      [0, 1, 2].map((i) => <div key={i} className="supcard supcard--ghost cx-skel" aria-hidden="true" />)
     ) : chats.status === "error" ? (
-      <div className="sup__empty">
+      <div className="sup__empty cx-empty">
+        <span className="cx-empty__ic supnone__ic--err" aria-hidden="true">
+          <IconAlert />
+        </span>
         <p>{errorText(chats.error, tc)}</p>
         <button type="button" className="btn btn--line btn--sm" onClick={chats.reload}>
           <IconRefresh />
@@ -558,45 +601,41 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
     ) : shown.length ? (
       shown.map((tk) => <TicketCard key={tk.id} ticket={tk} view="client" now={now} active={tk.id === selected} unread={unreadOf(tk)} onOpen={() => open(tk.id)} />)
     ) : needle ? (
-      <div className="supnone">
-        <span className="supnone__ic" aria-hidden="true">
+      <div className="supnone cx-empty">
+        <span className="supnone__ic cx-empty__ic" aria-hidden="true">
           <IconSearch />
         </span>
-        <span className="supnone__tx">
-          <b>{t("chats.noMatch")}</b>
-          <span>{t("chats.noMatchText")}</span>
-        </span>
+        <b>{t("chats.noMatch")}</b>
+        <p>{t("chats.noMatchText")}</p>
         <button type="button" className="btn btn--line btn--sm" onClick={() => setQ("")}>
           {tf("clearSearch")}
         </button>
       </div>
     ) : tab === "closed" ? (
-      <div className="supnone">
-        <span className="supnone__ic" aria-hidden="true">
+      <div className="supnone cx-empty">
+        <span className="supnone__ic cx-empty__ic" aria-hidden="true">
           <IconCheckDouble />
         </span>
-        <span className="supnone__tx">
-          <span>{t("chats.emptyClosed")}</span>
-        </span>
+        <p>{t("chats.emptyClosed")}</p>
       </div>
     ) : composer.open || selected ? (
-      <div className="supnone">
-        <span className="supnone__ic" aria-hidden="true">
+      <div className="supnone cx-empty">
+        <span className="supnone__ic cx-empty__ic" aria-hidden="true">
           <IconHeadset />
         </span>
-        <span className="supnone__tx">
-          <span>{t("chats.emptyActive")}</span>
-        </span>
+        <b>{t("chats.emptyActive")}</b>
       </div>
     ) : (
-      <div className="supnone">
-        <span className="supnone__ic" aria-hidden="true">
+      <div className="supnone cx-empty">
+        <span className="supnone__ic cx-empty__ic" aria-hidden="true">
           <IconInbox />
         </span>
-        <span className="supnone__tx">
-          <b>{hasAny ? t("chats.emptyActive") : t("chats.firstTitle")}</b>
-          <span>{hasAny ? t("chats.emptyActiveText") : t("chats.firstText")}</span>
-        </span>
+        <b>{hasAny ? t("chats.emptyActive") : t("chats.firstTitle")}</b>
+        <p>{hasAny ? t("chats.emptyActiveText") : t("chats.firstText")}</p>
+        <button type="button" className="btn btn--pri btn--sm" onClick={() => startChat(false)}>
+          <IconHeadset />
+          {t("chats.start")}
+        </button>
       </div>
     );
 
@@ -662,31 +701,22 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
   const resumeFirst = Boolean(latest) && !composer.force;
   const auto = topic ? "" : guessTopic(text, topics);
   const ongoing = loaded ? chats.active.slice(0, ONGOING) : [];
+  const activeCount = `${chats.active.length}${chats.more.active ? "+" : ""}`;
 
+  // The page title is the shell's ("Yordam markazi"); the hub draws no second
+  // one. In the dashboard's order and vocabulary: the chats still going (as
+  // "Jarayondagi ishlar"), the AI instructor as the dashboard's AI card, the
+  // ways to reach a person as its "Xizmatlar" arches, then every chat.
   return (
-    <div className="sup sup--hub" ref={rootRef}>
-      <header className="suphead">
-        <div className="suphead__tx">
-          <h2 className="suphead__t">{t("hub.title")}</h2>
-          <p className="suphead__l">{t("hub.lead")}</p>
-        </div>
-        <div className="suphead__hours">
-          <BusinessHoursBadge />
-        </div>
-        {client ? <CopilotLauncher surface="client_support" title={t("hub.title")} label={tp("draftWithAi")} /> : null}
-      </header>
-
+    <div className="sup sup--hub cx" ref={rootRef}>
       {ongoing.length ? (
-        <section className="supcont" aria-labelledby="supcont-title" data-ai-id="support.tickets.ongoing" data-ai-type="list" data-ai-label={t("hub.ongoing")}>
-          <div className="supcont__h">
-            <h3 id="supcont-title">
+        <section className="lx-card cx-works supcont" aria-labelledby="supcont-title" data-ai-id="support.tickets.ongoing" data-ai-type="list" data-ai-label={t("hub.ongoing")}>
+          <div className="cx-works__h supcont__h">
+            <h2 id="supcont-title" className="cx-h3">
               {t("hub.ongoing")}
-              <em>
-                {chats.active.length}
-                {chats.more.active ? "+" : ""}
-              </em>
-            </h3>
-            <button type="button" className="supcont__all" onClick={showAll}>
+              <span className="cx-count">{activeCount}</span>
+            </h2>
+            <button type="button" className="cx-link supcont__all" onClick={showAll}>
               {t("hub.all")}
               <IconArrowRight aria-hidden="true" />
             </button>
@@ -702,112 +732,109 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
       ) : null}
 
       <section className="supways" data-ai-target="support:channels" aria-label={t("hub.channels")} data-ai-id="support.channels" data-ai-label={t("hub.channels")}>
-        <div className="supways__main">
-          <article className="supopt supopt--ai" aria-labelledby="supopt-ai">
-            <div className="supopt__top">
-              <span className="supopt__art" aria-hidden="true" />
-              <span className="supopt__tag">
-                <i aria-hidden="true" />
-                {t("channels.ai.hint")}
-              </span>
-            </div>
-            <h3 className="supopt__t" id="supopt-ai">
+        <article className="lx-card cx-ai supopt supopt--ai" aria-labelledby="supopt-ai">
+          <div className="cx-ai__h">
+            <h2 className="cx-ai__badge" id="supopt-ai">
               {t("channels.ai.title")}
-            </h3>
-            <p className="supopt__l">{t("hub.aiText")}</p>
-            <form className="supopt__ask" onSubmit={askAi}>
-              <label className="supopt__field">
-                <IconSparkle aria-hidden="true" />
-                <input
-                  value={ask}
-                  onChange={(e) => setAsk(e.target.value)}
-                  placeholder={t("hub.askPh")}
-                  aria-label={t("hub.askBtn")}
-                  maxLength={1000}
-                  enterKeyHint="send"
-                  data-ai-id="support.ai-message-input"
-                  data-ai-label={t("hub.askBtn")}
-                />
-              </label>
-              <button type="submit" className="btn btn--pri btn--sm" data-ai-target="support:ai" data-ai-id="support.channels.ai">
-                <IconSend />
-                {t("hub.ask")}
+            </h2>
+            <span className="cx-ai__free">{t("channels.ai.hint")}</span>
+            {client ? <CopilotLauncher className="cx-ai__link supopt__cpl" surface="client_support" title={t("hub.title")} label={tp("draftWithAi")} /> : null}
+          </div>
+          <p className="cx-ai__lead">{t("hub.aiText")}</p>
+          <form className="cx-ai__f supopt__ask" onSubmit={askAi}>
+            <input
+              className="cx-ai__q supopt__q"
+              value={ask}
+              onChange={(e) => setAsk(e.target.value)}
+              ref={askRef}
+              placeholder={askPh}
+              aria-label={t("hub.askBtn")}
+              maxLength={1000}
+              enterKeyHint="send"
+              data-ai-id="support.ai-message-input"
+              data-ai-label={t("hub.askBtn")}
+            />
+            <button type="submit" className="cx-ai__go" data-ai-target="support:ai" data-ai-id="support.channels.ai">
+              {t("hub.ask")}
+              <IconArrowRight aria-hidden="true" />
+            </button>
+          </form>
+          <div className="cx-ai__chips" role="group" aria-label={t("hub.quick")}>
+            <span className="cx-ai__chipsL" aria-hidden="true">
+              {t("hub.quick")}
+            </span>
+            {asks.map((k) => (
+              <button key={k} type="button" className="cx-ai__chip" onClick={() => openInstructor({ text: t(`hub.topics.${k}.q`), send: true })}>
+                {t(`hub.topics.${k}.label`)}
               </button>
-            </form>
-            <div className="supopt__chips" role="group" aria-label={t("hub.quick")}>
-              <span aria-hidden="true">{t("hub.quick")}</span>
-              {asks.map((k) => (
-                <button key={k} type="button" className="supopt__chip" onClick={() => openInstructor({ text: t(`hub.topics.${k}.q`), send: true })}>
-                  {t(`hub.topics.${k}.label`)}
-                </button>
-              ))}
-            </div>
-          </article>
+            ))}
+          </div>
+        </article>
 
-          <article className="supopt supopt--op" aria-labelledby="supopt-op">
-            <div className="supopt__top">
-              <span className="supopt__art" aria-hidden="true" />
+        <div className="supways__ch">
+          <div className="cx-head cx-head--bare supways__h">
+            <div>
+              <h2 className="lx-h1">{t("hub.channels")}</h2>
+              <p className="lx-sub">{t("hub.lead")}</p>
             </div>
-            <h3 className="supopt__t" id="supopt-op">
-              {t("channels.operator.title")}
-            </h3>
-            <p className="supopt__l">{t("hub.opText")}</p>
-            <p className="supopt__note">
-              <IconBell aria-hidden="true" />
-              {t("channels.operator.hintIdle")}
-            </p>
-            <div className="supopt__acts">
-              <button type="button" className="btn btn--pri btn--sm" onClick={() => startChat(false)} data-ai-target="button:operator-support" data-ai-id="support.operator-handoff.button">
-                <IconHeadset />
-                {t("chats.start")}
-              </button>
-            </div>
-          </article>
-        </div>
-
-        <aside className="supways__side" aria-labelledby="supways-other">
-          <h3 className="supways__st" id="supways-other">
-            {t("hub.other")}
-          </h3>
-          <ul className="supalt">
+            <span className="suphead__hours">
+              <BusinessHoursBadge />
+            </span>
+          </div>
+          {/* The dashboard's arches: navy, a dome top, the drawing in a white
+              circle, the name and one line; the whole arch is the action. */}
+          <ul className="cx-svcs__grid supways__grid">
             <li>
-              <a href={`tel:${SUPPORT_TEL}`} className="supalt__row" data-ai-target="support:call" data-ai-id="support.channels.call">
-                <span className="supalt__ic supalt__ic--call" aria-hidden="true">
-                  <IconPhone />
+              <button type="button" className="cx-svc supway" onClick={() => openInstructor()}>
+                <span className="cx-svc__247" title={t("channels.ai.hint")}>
+                  <span aria-hidden="true">24/7</span>
+                  <span className="sr-only">{t("channels.ai.hint")}</span>
                 </span>
-                <span className="supalt__tx">
-                  <b>{t("channels.call.title")}</b>
-                  <span className="supalt__tel">{SUPPORT_PHONE}</span>
-                  {hours ? <small>{hours.schedule}</small> : null}
+                <span className="cx-svc__ic" style={art("suniy-intelekt")} aria-hidden="true" />
+                <b className="cx-svc__t">{t("channels.ai.title")}</b>
+                <span className="cx-svc__s">{t("channels.ai.sub")}</span>
+              </button>
+            </li>
+            <li>
+              <button type="button" className="cx-svc supway" onClick={() => startChat(false)} data-ai-target="button:operator-support" data-ai-id="support.operator-handoff.button">
+                <span className="cx-svc__ic" style={art("Operator")} aria-hidden="true" />
+                <b className="cx-svc__t">{t("channels.operator.title")}</b>
+                <span className="cx-svc__s">{t("hub.opText")}</span>
+                {loaded && chats.active.length ? <span className="supway__note">{t("channels.operator.hintActive", { count: chats.active.length })}</span> : null}
+              </button>
+            </li>
+            <li>
+              <a href={`tel:${SUPPORT_TEL}`} className="cx-svc supway" data-ai-target="support:call" data-ai-id="support.channels.call">
+                <span className="cx-svc__ic" style={art("Telefon_liniya")} aria-hidden="true" />
+                <b className="cx-svc__t">{t("channels.call.title")}</b>
+                <span className="cx-svc__s">
+                  <span className="supway__tel">{SUPPORT_PHONE}</span>
+                  {hours ? <span className="supway__hrs">{hours.schedule}</span> : null}
                 </span>
-                <IconArrowRight className="supalt__go" aria-hidden="true" />
               </a>
             </li>
             {client ? (
               <li>
-                <Link href={profileTabHref("complaints")} className="supalt__row" data-ai-target="support:complaints" data-ai-id="support.channels.complaint">
-                  <span className="supalt__ic supalt__ic--case" aria-hidden="true">
-                    <IconAlert />
-                  </span>
-                  <span className="supalt__tx">
-                    <b>{t("channels.complaint.title")}</b>
-                    <small>{t("channels.complaint.sub")}</small>
-                  </span>
-                  <IconArrowRight className="supalt__go" aria-hidden="true" />
+                <Link href={profileTabHref("complaints")} className="cx-svc supway" data-ai-target="support:complaints" data-ai-id="support.channels.complaint">
+                  <span className="cx-svc__ic" style={art("Shikoyat")} aria-hidden="true" />
+                  <b className="cx-svc__t">{t("channels.complaint.title")}</b>
+                  <span className="cx-svc__s">{t("channels.complaint.sub")}</span>
                 </Link>
               </li>
             ) : null}
           </ul>
-        </aside>
+        </div>
       </section>
 
-      <section className="suplist" ref={listRef} aria-labelledby="suplist-title">
+      <section className="lx-card suplist" ref={listRef} aria-labelledby="suplist-title">
         <div className="suplist__h">
           <div className="suplist__tt">
-            <h3 id="suplist-title">{t("chats.title")}</h3>
-            <p>{t("chats.lead")}</p>
+            <h2 id="suplist-title" className="cx-h3">
+              {t("chats.title")}
+            </h2>
+            <p className="lx-sub">{t("chats.lead")}</p>
           </div>
-          <button type="button" className="btn btn--line btn--sm" onClick={() => startChat(false)} data-ai-id="support.tickets.new">
+          <button type="button" className="btn btn--line btn--pill suplist__new" onClick={() => startChat(false)} data-ai-id="support.tickets.new">
             <IconPlus />
             {t("newTicket")}
           </button>
@@ -823,11 +850,11 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
             data-ai-label={resumeFirst ? t("compose.resumeTitle") : t("compose.title")}
           >
             <div className="supnew__h">
-              <span className="supnew__ic" aria-hidden="true">
-                <IconHeadset />
-              </span>
+              <span className="supnew__ic" style={art("Operator")} aria-hidden="true" />
               <div>
-                <h4 id="supnew-title">{resumeFirst ? t("compose.resumeTitle") : t("compose.title")}</h4>
+                <h3 id="supnew-title" className="cx-h4">
+                  {resumeFirst ? t("compose.resumeTitle") : t("compose.title")}
+                </h3>
                 <p>{resumeFirst ? t("compose.resumeText") : t("compose.lead")}</p>
               </div>
               {client ? <CopilotLauncher variant="icon" surface="client_support" title={t("compose.title")} label={tp("draftWithAi")} aiId="support.new-ticket.copilot" /> : null}
@@ -836,16 +863,16 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
               </button>
             </div>
             {!ready ? (
-              <div className="supcard supcard--ghost" aria-hidden="true" />
+              <div className="supcard supcard--ghost cx-skel" aria-hidden="true" />
             ) : resumeFirst && latest ? (
               <div className="supnew__resume">
                 <TicketCard ticket={latest} view="client" now={now} active={false} unread={unreadOf(latest)} onOpen={() => open(latest.id)} noAiId />
                 <div className="supnew__acts">
-                  <button type="button" className="btn btn--pri btn--sm" onClick={() => open(latest.id)} data-ai-id="support.new-ticket.resume">
-                    <IconArrowRight />
+                  <button type="button" className="btn btn--pri" onClick={() => open(latest.id)} data-ai-id="support.new-ticket.resume">
                     {t("compose.resume")}
+                    <IconArrowRight />
                   </button>
-                  <button type="button" className="btn btn--line btn--sm" onClick={() => setComposer((c) => ({ ...c, force: true, nonce: c.nonce + 1 }))}>
+                  <button type="button" className="btn btn--line" onClick={() => setComposer((c) => ({ ...c, force: true, nonce: c.nonce + 1 }))}>
                     {t("compose.newAnyway")}
                   </button>
                 </div>
@@ -913,11 +940,11 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
                   </p>
                 ) : null}
                 <div className="supnew__acts">
-                  <button type="submit" className="btn btn--pri btn--sm" disabled={sending || text.trim().length < 3} data-ai-id="support.new-ticket.submit">
+                  <button type="submit" className="btn btn--pri" disabled={sending || text.trim().length < 3} data-ai-id="support.new-ticket.submit">
                     <IconSend />
                     {t("submit")}
                   </button>
-                  <button type="button" className="btn btn--line btn--sm" onClick={closeComposer}>
+                  <button type="button" className="btn btn--line" onClick={closeComposer}>
                     {t("cancel")}
                   </button>
                 </div>

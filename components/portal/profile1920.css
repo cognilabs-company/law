@@ -1,0 +1,540 @@
+/* ═══ LexGo 1920 — the client profile (Profil) ═══
+   app/[locale]/portal/client/profile/page.tsx with its five tabs and the
+   cards it is built from (IdentityVerify, ClientPayments, ClientWarranty,
+   components/complaints/*, OtpDeliveryCard + OtpMethodPicker, TwoFactorCard,
+   TelegramLinkCard, AccountAudit, AccountDataCard, NotificationPrefsCard),
+   drawn in the client dashboard's vocabulary (components/portal/dash/
+   ClientHome.tsx + dash1920.css), as Tezkor Advokat (urgent1920.css) was:
+   - white 24px cards with a hairline, no shadow, no gradient;
+   - section titles as .cx-h3 with the .cx-count bubble, actions as pills;
+   - list rows as the dashboard's chip cards (.cx-work): a navy initials
+     avatar or a white 40px icon tile, a 600 title, a grey line, status in
+     the .cx-pill tones, square white .cx-iconbtn buttons;
+   - pictures from public/img (image-catalog): a black line drawing in a
+     white circle, a navy + blue one on a light plate (light in dark mode);
+   - LexGo Kafolati as the dashboard's flat navy banner (.cx-gift);
+   - the dialogs (portalled to <body>; shell/layers1920.css gives them the
+     tokens) with the same cards, pictures, pills and flat buttons.
+   The old rules for these classes live in app/globals.css (.cprof, .creq,
+   .famshare, .idv__*, .csub, .war__*, .shk*, .tfa__*, .prefs*) and
+   components/auth/otpMethod.css; the selectors here outrank them. Rules for
+   the shared cards are scoped to .portal.lx (every cabinet), the sign-up's
+   PhotoUpload and OtpMethodPicker are left as they are. */
+
+/* ── the page column ─────────────────────────────────────── */
+.portal.lx .cprofile{gap:20px}
+.portal.lx .cprofile__stack{gap:20px}
+.portal.lx .cprofile .pgrid2{gap:20px}
+
+/* ── profile head: a white card with the navy initials avatar ── */
+.portal.lx .cprofile .cprof{
+  padding:24px 28px;gap:14px 22px;border-radius:var(--lx-r);
+  background:var(--lx-card);border:1px solid var(--lx-line-2);box-shadow:none;
+}
+html[data-theme="dark"] .portal.lx .cprofile .cprof{border-color:var(--lx-line)}
+.portal.lx .cprofile .cprof .phup__av{
+  width:76px;height:76px;border:0;background:var(--lx-navy);color:#fff;box-shadow:none;
+  font-family:var(--fd);font-size:1.4rem;font-weight:700;letter-spacing:-.01em;
+}
+html[data-theme="dark"] .portal.lx .cprofile .cprof .phup__av{background:var(--lx-blue)}
+.portal.lx .cprofile .cprof__name h2{font-weight:800;font-size:clamp(1.25rem,1.7vw,1.6rem);letter-spacing:-.02em;color:var(--lx-ink)}
+.portal.lx .cprofile .cprof__meta{gap:8px 18px;color:var(--lx-gray)}
+.portal.lx .cprofile .cprof__meta svg{color:var(--lx-gray2)}
+/* "Mening ID" as the dashboard's grey chip */
+.portal.lx .cprofile .cprof__id{gap:6px;padding:3px 11px;border-radius:999px;background:var(--lx-chip)}
+.portal.lx .cprofile .cprof__id span{font-size:.76rem;font-weight:600;letter-spacing:0;text-transform:none;color:var(--lx-gray)}
+.portal.lx .cprofile .cprof__id b{font-family:inherit;font-size:.84rem;font-weight:700;letter-spacing:.02em;color:var(--lx-ink)}
+/* the plan, as a blue .cx-pill */
+.portal.lx .cprofile .cprof__sub{
+  min-height:28px;padding:3px 12px 3px 10px;gap:6px;background:var(--lx-blue-tint);box-shadow:none;
+  color:var(--lx-blue-ink);font-size:.8rem;font-weight:600;
+}
+.portal.lx .cprofile .cprof__sub:hover{background:#E3ECFD;box-shadow:none}
+html[data-theme="dark"] .portal.lx .cprofile .cprof__sub:hover{background:rgba(96,165,250,.22)}
+.portal.lx .cprofile .cprof__sub b{font-weight:700}
+.portal.lx .cprofile .cprof__sub span{color:var(--lx-blue-ink)}
+.portal.lx .cprofile .cprof__edit svg{width:16px;height:16px}
+
+/* the "on" badges (verified, 2FA on, Telegram linked) as .cx-pill--ok */
+.portal.lx .tfa__on{
+  display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px 0 8px;border-radius:999px;
+  background:var(--lx-ok-bg);color:var(--lx-ok);font-size:.74rem;font-weight:600;font-style:normal;white-space:nowrap;
+}
+.portal.lx .tfa__on svg{width:14px;height:14px;flex:none}
+
+/* ── section titles: .cx-h3 + .cx-count, no icon tile ───── */
+.portal.lx .cprofile .ppanel__h{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 16px;margin-bottom:16px}
+.portal.lx .cprofile .ppanel__t{
+  display:flex;align-items:center;gap:10px;margin:0;min-width:0;
+  font-family:var(--fd);font-size:1.18rem;font-weight:700;letter-spacing:-.015em;line-height:1.3;color:var(--lx-ink);
+}
+.portal.lx .cprofile .ppanel__t .cx-count{font-family:var(--fb, inherit);letter-spacing:0}
+.portal.lx .cprofile .ppanel__h .btn svg{width:16px;height:16px}
+.portal.lx .cprofile .ppanel__note,.portal.lx .cprofile .advmuted{color:var(--lx-gray)}
+.portal.lx .cprofile .ppanel__note{font-size:.88rem;line-height:1.55}
+
+/* ── list rows: the dashboard's chip cards ───────────────── */
+.portal.lx .pf-list{display:grid;gap:10px;margin:0;container:pflist / inline-size}
+.portal.lx .creq.pf-row{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px 14px;
+  margin:0;padding:14px 16px;border:0;border-radius:16px;background:var(--lx-chip);color:inherit;text-decoration:none;min-width:0;
+}
+.portal.lx .creq.pf-row:last-child{padding-bottom:14px}
+.portal.lx .creq.pf-row:not(:has(> .pf-row__av,> .pf-row__ic)){grid-template-columns:minmax(0,1fr) auto}
+.portal.lx .pf-row > .creq__m{display:grid;gap:3px;min-width:0}
+.portal.lx .pf-row .creq__m b{
+  display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;font-family:inherit;font-size:.96rem;font-weight:600;line-height:1.35;
+  color:var(--lx-ink);overflow-wrap:anywhere;
+}
+.portal.lx .pf-row .creq__m > span{font-size:.82rem;line-height:1.45;color:var(--lx-gray);overflow-wrap:anywhere}
+.portal.lx .pf-row > .pf-row__av{width:40px;height:40px;font-size:.78rem;letter-spacing:.02em}
+.portal.lx .pf-row__ic{
+  width:40px;height:40px;flex:none;border-radius:12px;display:grid;place-items:center;
+  background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);color:var(--lx-ink);
+}
+.portal.lx .pf-row__ic svg{width:18px;height:18px}
+.portal.lx .pf-row.is-current .pf-row__ic{color:var(--lx-ok)}
+.portal.lx .pf-row__end{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;min-width:0}
+/* the row is chip-coloured, so its buttons are the white ones */
+.portal.lx .pf-row__end .btn--soft{background:var(--lx-card);border:1px solid var(--lx-line)}
+.portal.lx .pf-row--link{cursor:pointer;transition:background .15s,box-shadow .15s}
+.portal.lx .pf-row--link:hover{background:#ECF2FB;box-shadow:inset 0 0 0 1px #C7D6EC}
+html[data-theme="dark"] .portal.lx .pf-row--link:hover{background:#1C2B47;box-shadow:inset 0 0 0 1px #2E4268}
+.portal.lx .pf-row--link:focus-visible{outline:3px solid var(--lx-blue);outline-offset:2px}
+/* remove: the dashboard's square white icon button */
+.portal.lx .pf-row .pf-row__x{
+  width:40px;height:40px;border-radius:12px;border:1px solid var(--lx-line);background:var(--lx-card);color:var(--lx-ink);
+}
+.portal.lx .pf-row .pf-row__x:hover{border-color:var(--lx-err);background:var(--lx-card);color:var(--lx-err)}
+.portal.lx .pf-row .pf-row__x svg{width:16px;height:16px}
+/* family access: off = a white outlined pill, on = the green .cx-pill */
+.portal.lx .pf-row .famshare{
+  height:32px;padding:0 12px;gap:6px;border:1px solid var(--lx-line);border-radius:999px;background:var(--lx-card);
+  color:var(--lx-ink);font-size:.8rem;font-weight:600;
+}
+.portal.lx .pf-row .famshare:hover{border-color:#C7D6EC;color:var(--lx-ink)}
+.portal.lx .pf-row .famshare.on{border-color:transparent;background:var(--lx-ok-bg);color:var(--lx-ok)}
+.portal.lx .pf-row .famshare svg{width:14px;height:14px}
+/* "Shu qurilma", "Asosiy", the activity group: pills that never break */
+.portal.lx .pf-row .csess__now{
+  display:inline-flex;align-items:center;height:24px;margin:0;padding:0 10px;border-radius:999px;
+  background:var(--lx-ok-bg);color:var(--lx-ok);font-size:.74rem;font-weight:600;font-style:normal;white-space:nowrap;vertical-align:baseline;
+}
+.portal.lx .pf-row .pf-tag{
+  display:inline-flex;align-items:center;height:24px;margin:0;padding:0 10px;border-radius:999px;
+  background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);color:var(--lx-ink);
+  font-family:inherit;font-size:.74rem;font-weight:600;font-style:normal;letter-spacing:0;text-transform:none;white-space:nowrap;
+}
+/* a narrow list: the buttons go under the text */
+@container pflist (max-width:440px){
+  .portal.lx .creq.pf-row{grid-template-columns:auto minmax(0,1fr);padding:12px 14px}
+  .portal.lx .creq.pf-row:not(:has(> .pf-row__av,> .pf-row__ic)){grid-template-columns:minmax(0,1fr)}
+  .portal.lx .pf-row > .pf-row__end{grid-column:2;justify-content:flex-start}
+  .portal.lx .creq.pf-row:not(:has(> .pf-row__av,> .pf-row__ic)) > .pf-row__end{grid-column:1}
+  .portal.lx .pf-row > .pf-row__av,.portal.lx .pf-row > .pf-row__ic{align-self:start}
+}
+
+/* status pills by meaning (payments, warranty) */
+.portal.lx .pf-pill{padding:0 10px}
+.portal.lx .pf-pill--ok{background:var(--lx-ok-bg);color:var(--lx-ok)}
+.portal.lx .pf-pill--warn{background:var(--lx-warn-bg);color:var(--lx-warn)}
+.portal.lx .pf-pill--blue{background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
+.portal.lx .pf-pill--err{background:var(--lx-err-bg);color:var(--lx-err)}
+.portal.lx .pf-pill--mute{background:var(--lx-chip);color:var(--lx-gray)}
+
+/* empty states with a picture instead of the icon tile */
+.portal.lx .pf-empty .pf-emptyart{display:block;flex:none;margin-bottom:6px}
+.pf-emptyart--circle{
+  width:96px;height:96px;border-radius:50%;
+  background:var(--art) center/62% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line);
+}
+.pf-emptyart--plate{
+  width:150px;height:104px;border-radius:16px;
+  background:var(--art) center/contain no-repeat,linear-gradient(168deg,#F1F6FF 0%,#FAFCFF 56%,#E9F1FD 100%);
+  box-shadow:inset 0 0 0 1px var(--lx-line);
+}
+html[data-theme="dark"] :is(.pf-emptyart--circle,.pf-emptyart--plate){box-shadow:none}
+.portal.lx .pf-empty .btn{margin-top:6px}
+
+/* ── Shaxsiy: identity ───────────────────────────────────── */
+.portal.lx .idv__intro{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.portal.lx .idv__intro .ppanel__note{margin:0}
+.idv__art{
+  width:88px;height:88px;flex:none;border-radius:16px;
+  background:var(--art) center/92% no-repeat,linear-gradient(168deg,#F1F6FF 0%,#FAFCFF 56%,#E9F1FD 100%);
+  box-shadow:inset 0 0 0 1px var(--lx-line, #E4EBF5);
+}
+html[data-theme="dark"] .idv__art{box-shadow:none}
+.portal.lx .idv__providers{gap:12px}
+.portal.lx .idv__prov{
+  flex-direction:row;align-items:center;justify-content:space-between;gap:12px;padding:16px;
+  border:1px solid var(--lx-line);border-radius:16px;background:var(--lx-card);color:var(--lx-ink);
+  transition:border-color .15s,transform .15s,box-shadow .15s;
+}
+.portal.lx .idv__prov.idv__prov--main{border-color:var(--lx-line);background:var(--lx-card)}
+.portal.lx .idv__prov:hover:not(:disabled){border-color:#C7D6EC;background:var(--lx-card);transform:translateY(-2px);box-shadow:0 14px 28px -20px rgba(10,21,38,.35)}
+html[data-theme="dark"] .portal.lx .idv__prov:hover:not(:disabled){border-color:#3A4E75}
+.portal.lx .idv__prov:disabled{opacity:.6;cursor:default}
+.portal.lx .idv__provtx{display:grid;gap:3px;min-width:0;text-align:left}
+.portal.lx .idv__prov b{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-family:var(--fd);font-size:1.05rem;font-weight:700;color:var(--lx-ink)}
+.portal.lx .idv__provtx > span{font-size:.82rem;color:var(--lx-gray)}
+.portal.lx .idv__tag{
+  display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:999px;
+  background:var(--lx-blue-tint);color:var(--lx-blue-ink);font-family:var(--fb, inherit);font-size:.72rem;font-weight:600;letter-spacing:0;text-transform:none;white-space:nowrap;
+}
+.portal.lx .idv__go{
+  width:32px;height:32px;flex:none;border-radius:50%;display:grid;place-items:center;
+  background:var(--lx-chip);color:var(--lx-ink);transition:background .15s,color .15s;
+}
+.portal.lx .idv__go svg{width:16px;height:16px}
+.portal.lx .idv__prov:hover:not(:disabled) .idv__go{background:var(--lx-blue);color:#fff}
+.portal.lx .idv__privacy{color:var(--lx-gray)}
+/* verified (also Telegram "linked"): a chip card with the green pill */
+.portal.lx .idv__ok{gap:14px;padding:14px 16px;border-radius:16px;background:var(--lx-chip)}
+.portal.lx .idv__oki{width:40px;height:40px;border-radius:12px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);color:var(--lx-ok)}
+.portal.lx .idv__ok > div{display:grid;justify-items:start;gap:4px;min-width:0}
+.portal.lx .idv__ok b{
+  display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;
+  background:var(--lx-ok-bg);color:var(--lx-ok);font-size:.76rem;font-weight:600;
+}
+.portal.lx .idv__ok span{font-size:.88rem;font-weight:500;color:var(--lx-ink);overflow-wrap:anywhere}
+/* the demo provider's code entry */
+.portal.lx .idv__flow{max-width:none;gap:12px}
+.portal.lx .idv__flow label{font-size:.88rem;font-weight:600;letter-spacing:0;text-transform:none;color:var(--lx-ink);margin-bottom:8px}
+.portal.lx .idv__flow input{
+  height:52px;max-width:360px;padding:0 16px;border:0;border-radius:12px;background:var(--lx-chip);
+  box-shadow:inset 0 0 0 1px var(--lx-line);font-size:1rem;color:var(--lx-ink);
+}
+.portal.lx .idv__flow input:focus{background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-blue),0 0 0 3px rgba(22,104,240,.12)}
+.portal.lx .idv__flow input[aria-invalid="true"]{box-shadow:inset 0 0 0 1px var(--lx-err)}
+.portal.lx .idv__acts{display:flex;flex-wrap:wrap;gap:10px}
+
+/* ── To'lovlar ───────────────────────────────────────────── */
+.portal.lx .cprofile .csub{gap:10px}
+.portal.lx .cprofile .csub div{gap:4px;padding:12px 14px;border-radius:16px;background:var(--lx-chip)}
+.portal.lx .cprofile .csub dt{font-size:.8rem;font-weight:500;letter-spacing:0;text-transform:none;color:var(--lx-gray)}
+.portal.lx .cprofile .csub dd{font-weight:700;color:var(--lx-ink)}
+.portal.lx .cprofile .ptable .pf-receipt{width:34px;height:34px;padding:0;justify-content:center;border-radius:10px;flex:none}
+.portal.lx .cprofile .ptable .pf-receipt svg{width:15px;height:15px}
+
+/* ── Shikoyatlar: one white card, head + steps + list ────── */
+.portal.lx .cprofile__stack > .shk{
+  gap:20px;padding:28px;border-radius:var(--lx-r);background:var(--lx-card);border:1px solid var(--lx-line-2);box-shadow:none;
+}
+html[data-theme="dark"] .portal.lx .cprofile__stack > .shk{border-color:var(--lx-line)}
+.portal.lx .shk .shk__head{gap:18px;padding:0;border-radius:0;background:none;box-shadow:none}
+.portal.lx .shk .shk__headtop{align-items:flex-start;gap:14px 24px}
+.portal.lx .shk .shk__headtx{gap:0}
+.portal.lx .shk .shk__title{font-size:clamp(1.5rem,1.9vw,2rem);font-weight:800;letter-spacing:-.025em;line-height:1.2;color:var(--lx-ink)}
+.portal.lx .shk .shk__lead{margin:4px 0 0;max-width:640px;font-size:.95rem;line-height:1.55;color:var(--lx-gray)}
+.portal.lx .shk .shk__new svg{width:16px;height:16px}
+.portal.lx .shk .ccp-acts--head{align-items:center}
+/* the AI helper beside it: a round white button like the header's, no glow */
+.portal.lx .shk .ccp-acts--head .cpl-launch{width:44px;height:44px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);color:var(--lx-link)}
+.portal.lx .shk .ccp-acts--head .cpl-launch:hover{background:var(--lx-card);box-shadow:inset 0 0 0 1px #C7D6EC}
+.portal.lx .shk .ccp-acts--head .cpl-launch .cpl-launch__ic{width:auto;height:auto;background:none;color:var(--lx-link)}
+.portal.lx .shk .ccp-acts--head .cpl-launch .cpl-launch__ic svg{width:20px;height:20px}
+/* the three steps: a chip tray, flat white circles */
+.portal.lx .shk .shk__flow{padding:12px 16px;border-radius:16px;background:var(--lx-chip);box-shadow:none}
+.portal.lx .shk .shk__flowic{background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);color:var(--lx-link)}
+.portal.lx .shk .shk__flow li:not(:last-child)::after{background:#D5DEEA}
+html[data-theme="dark"] .portal.lx .shk .shk__flow li:not(:last-child)::after{background:#2C3D60}
+.portal.lx .shk .shk__flowtx small{letter-spacing:.06em;color:var(--lx-gray2)}
+.portal.lx .shk .shk__flowtx b{font-weight:600;color:var(--lx-ink)}
+.portal.lx .shk .shk__auto{color:var(--lx-gray)}
+.portal.lx .shk .shk__auto svg{color:var(--lx-link)}
+.portal.lx .shk .shk__chat{color:var(--lx-link);font-weight:600}
+/* notes after a send / a missing link / a partial load */
+.portal.lx .shk .shk__note{border-radius:16px;box-shadow:none}
+.portal.lx .shk .shk__note--ok{background:var(--lx-ok-bg)}
+.portal.lx .shk .shk__note--info{background:var(--lx-blue-tint)}
+.portal.lx .shk .shk__note--warn{background:var(--lx-warn-bg)}
+.portal.lx .shk .shk__noteic{border-radius:12px;background:var(--lx-card)}
+.portal.lx .shk .shk__note .btn--line{background:var(--lx-card)}
+.portal.lx .shk .shk__panel{gap:16px}
+.portal.lx .shk .shk__card{padding:0;border-radius:0;background:none;box-shadow:none}
+/* rows: chip cards with the category picture on a light plate */
+.portal.lx .shk .shk__list{gap:12px}
+.portal.lx .shk .shk__row{
+  grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:16px;padding:16px 18px;border-radius:16px;
+  background:var(--lx-chip);box-shadow:none;transition:background .15s,box-shadow .15s;
+}
+.portal.lx .shk .shk__row:hover{background:#ECF2FB;box-shadow:inset 0 0 0 1px #C7D6EC;transform:none}
+html[data-theme="dark"] .portal.lx .shk .shk__row:hover{background:#1C2B47;box-shadow:inset 0 0 0 1px #2E4268}
+.portal.lx .shk .shk__row.is-hl{box-shadow:inset 0 0 0 1.5px var(--lx-blue);animation:none}
+.portal.lx .shk .shk__row:focus-visible{outline:3px solid var(--lx-blue);outline-offset:2px}
+.portal.lx .shk .shk__t{font-weight:600;color:var(--lx-ink)}
+.portal.lx .shk .shk__meta{color:var(--lx-gray)}
+/* the description is read whole, never cut to a line */
+.portal.lx .shk .shk__desc{display:block;-webkit-line-clamp:unset;line-clamp:unset;overflow:visible;color:var(--lx-gray)}
+.portal.lx .shk .shk__meta .wid{background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);color:var(--lx-gray)}
+/* the arrow: the dashboard's round chip that turns blue (white on the chip row) */
+.portal.lx .shk .shk__go--chip{
+  width:32px;height:32px;border-radius:50%;display:grid;place-items:center;align-self:center;
+  background:var(--lx-card);color:var(--lx-ink);transform:none;transition:background .15s,color .15s;
+}
+.portal.lx .shk .shk__go--chip svg{width:16px;height:16px}
+.portal.lx .shk .shk__row:hover .shk__go--chip{background:var(--lx-blue);color:#fff;transform:none}
+/* empty / error, as .cx-empty (the picture on a light plate) */
+.portal.lx .shk .shk__state{gap:8px;padding:24px 12px 8px;border-radius:0;background:none;box-shadow:none}
+.portal.lx .shk .shk__state > b{font-family:inherit;font-size:.98rem;font-weight:700;color:var(--lx-ink)}
+.portal.lx .shk .shk__state > p{max-width:340px;font-size:.86rem;color:var(--lx-gray)}
+.portal.lx .shk .shk__state--flt{padding:20px 12px 4px}
+.portal.lx .shk .shk__stateic{width:48px;height:48px;border-radius:14px;background:var(--lx-err-bg);color:var(--lx-err)}
+.portal.lx .shk .shk__stateic svg{width:22px;height:22px}
+.shk__art.shk__art--pic{
+  display:block;width:200px;height:139px;margin:0 0 6px;border-radius:16px;
+  background:var(--art) center/contain no-repeat,linear-gradient(168deg,#F1F6FF 0%,#FAFCFF 56%,#E9F1FD 100%);
+  box-shadow:inset 0 0 0 1px var(--lx-line, #E4EBF5);
+}
+html[data-theme="dark"] .shk__art.shk__art--pic{box-shadow:none}
+
+/* the category picture (rows here, the detail dialog's rail) */
+:where(html:has(.portal.lx)) .shk__tile.shk__tile--art{
+  width:64px;height:64px;border-radius:14px;
+  background:var(--art) center/88% no-repeat,linear-gradient(168deg,#F1F6FF 0%,#FAFCFF 56%,#E9F1FD 100%);
+  box-shadow:inset 0 0 0 1px var(--lx-line);color:inherit;
+}
+html[data-theme="dark"] :where(html:has(.portal.lx)) .shk__tile.shk__tile--art{box-shadow:none}
+/* status pills in the .cx-pill shape and tones — page and dialog */
+:where(html:has(.portal.lx)) .shk__st{height:26px;padding:0 10px 0 8px;font-size:.74rem;font-weight:600;box-shadow:none}
+:where(html:has(.portal.lx)) .shk__st.shk__st--new,
+:where(html:has(.portal.lx)) .shk__st.shk__st--review{background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
+:where(html:has(.portal.lx)) .shk__st.shk__st--rework{background:var(--lx-warn-bg);color:var(--lx-warn)}
+:where(html:has(.portal.lx)) .shk__st.shk__st--resolved{background:var(--lx-ok-bg);color:var(--lx-ok)}
+:where(html:has(.portal.lx)) .shk__st.shk__st--rejected{background:var(--lx-err-bg);color:var(--lx-err)}
+:where(html:has(.portal.lx)) .shk__st.shk__st--closed{background:var(--lx-card);color:var(--lx-gray);box-shadow:inset 0 0 0 1px var(--lx-line)}
+/* "Sifat bo'yicha": a white tag with a blue star, never violet */
+:where(html:has(.portal.lx)) .shk__kind.shk__kind{
+  height:24px;padding:0 10px 0 8px;background:var(--lx-card);color:var(--lx-ink);box-shadow:inset 0 0 0 1px var(--lx-line);font-weight:600;
+}
+:where(html:has(.portal.lx)) .shk__kind.shk__kind svg{color:var(--lx-blue)}
+
+/* ── LexGo Kafolati: the dashboard's navy banner ─────────── */
+.portal.lx .war{gap:20px;container:war / inline-size}
+.portal.lx .war .war__hero{
+  display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-areas:"art main" "pts pts";
+  align-items:center;gap:20px 24px;padding:24px 28px;border-radius:var(--lx-r);
+  background:var(--lx-navy);color:#fff;box-shadow:none;
+}
+html[data-theme="dark"] .portal.lx .war .war__hero{background:#0B1830;box-shadow:inset 0 0 0 1px var(--lx-navy-line)}
+.war__art{grid-area:art;width:88px;height:88px;flex:none;border-radius:50%;background:var(--art) center/62% no-repeat,#fff}
+.portal.lx .war .war__heromain{grid-area:main;min-width:0}
+.portal.lx .war .war__title{margin:0;font-family:var(--fd);font-size:1.45rem;font-weight:700;letter-spacing:-.015em;line-height:1.25;color:#fff}
+.portal.lx .war .war__sub{margin:8px 0 0;max-width:62ch;font-size:.92rem;line-height:1.6;color:#C9D4E3;opacity:1}
+/* the three promises, as quiet tiles on the navy */
+.portal.lx .war .war__points{grid-area:pts;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0;padding:0;list-style:none}
+.portal.lx .war .war__point{
+  display:flex;align-items:center;gap:10px;min-width:0;padding:12px 16px;border:0;border-radius:16px;
+  background:rgba(255,255,255,.07);color:#fff;font-size:.88rem;font-weight:500;line-height:1.4;
+}
+.portal.lx .war .war__check{width:26px;height:26px;background:rgba(74,222,159,.16);color:#4ADE9F}
+.portal.lx .war .war__empty{padding:18px 12px 8px}
+.portal.lx .war .war__empty p{max-width:340px}
+@container war (max-width:899px){
+  .portal.lx .war .war__points{grid-template-columns:minmax(0,1fr)}
+}
+@container war (max-width:519px){
+  .portal.lx .war .war__hero{padding:20px;gap:16px}
+  .war__art{width:64px;height:64px}
+  .portal.lx .war .war__title{font-size:1.2rem}
+}
+
+/* ── Xavfsizlik: the code channel ────────────────────────── */
+.portal.lx .otpd__cur{
+  display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px 0 8px;border-radius:999px;
+  background:var(--lx-ok-bg);color:var(--lx-ok);font-size:.74rem;font-weight:600;white-space:nowrap;
+}
+.portal.lx .otpd__cur svg{width:14px;height:14px;color:currentColor}
+.portal.lx .otpd__phone{padding:14px 16px;border-radius:16px;background:var(--lx-chip)}
+.portal.lx .otpd__phone small{font-size:.8rem;color:var(--lx-gray)}
+.portal.lx .otpd__phone b{color:var(--lx-ink)}
+.portal.lx .otpd__note{color:var(--lx-gray)}
+.portal.lx .otpd__skel{border-radius:16px;background:linear-gradient(90deg,var(--lx-chip),#E9EFF8,var(--lx-chip));background-size:200% 100%}
+/* the channels, as the 1c kind cards: a chip tile that turns blue */
+.portal.lx .otpm__lg{font-size:.88rem;font-weight:600;color:var(--lx-ink)}
+.portal.lx .otpm__list{gap:10px}
+.portal.lx .otpm .otpm__o{gap:14px;padding:14px 16px;border:1px solid var(--lx-line);border-radius:16px;background:var(--lx-card);box-shadow:none}
+.portal.lx .otpm .otpm__o:hover{border-color:#C7D6EC}
+html[data-theme="dark"] .portal.lx .otpm .otpm__o:hover{border-color:#3A4E75}
+.portal.lx .otpm .otpm__o.is-on{border-color:var(--lx-blue);background:var(--lx-blue-tint);box-shadow:0 0 0 1px var(--lx-blue)}
+.portal.lx .otpm .otpm__ic{width:40px;height:40px;border-radius:12px;background:var(--lx-chip);color:var(--lx-ink)}
+.portal.lx .otpm .otpm__o.is-on .otpm__ic{background:var(--lx-blue);color:#fff}
+.portal.lx .otpm .otpm__t b{font-weight:600;color:var(--lx-ink)}
+.portal.lx .otpm .otpm__tx small{color:var(--lx-gray)}
+.portal.lx .otpm .otpm__badge{
+  display:inline-flex;align-items:center;height:22px;padding:0 9px;
+  background:var(--lx-chip);color:var(--lx-ink);font-weight:600;white-space:nowrap;
+}
+.portal.lx .otpm .otpm__o.is-on .otpm__badge{background:var(--lx-card)}
+.portal.lx .otpm .otpm__badge.otpm__badge--cur{background:var(--lx-ok-bg);color:var(--lx-ok)}
+.portal.lx .otpm .otpm__o.is-on .otpm__dot{border-color:var(--lx-blue)}
+.portal.lx .otpm .otpm__o.is-on .otpm__dot::after{background:var(--lx-blue)}
+@media (max-width:420px){
+  .portal.lx .otpm .otpm__o{gap:10px;padding:12px}
+  .portal.lx .otpm .otpm__ic{width:36px;height:36px}
+}
+/* its confirmation dialog */
+:where(html:has(.portal.lx)) .otpd__dlg .otpd__sent{border-radius:16px;background:var(--lx-chip)}
+
+/* ── Xavfsizlik: two-factor + Telegram ───────────────────── */
+.portal.lx .tfa__method{gap:14px;margin:0 0 14px;padding:16px;border:0;border-radius:16px;background:var(--lx-chip)}
+.portal.lx .tfa__method .tfa__method-ic{
+  width:40px;height:40px;border-radius:12px;background:var(--lx-card);color:var(--lx-ink);box-shadow:inset 0 0 0 1px var(--lx-line);
+}
+.portal.lx .tfa__method small{letter-spacing:.06em;color:var(--lx-gray2)}
+.portal.lx .tfa__method b{font-family:inherit;font-size:.98rem;font-weight:600;color:var(--lx-ink)}
+.portal.lx .tfa__method > div > span{color:var(--lx-gray)}
+.portal.lx .tfa__qr{border-radius:16px;border-color:var(--lx-line)}
+.portal.lx .tglink__timer{color:var(--lx-link)}
+/* CodeSlots inside a .cform: the cabinet's field look must not cover the slots */
+.portal.lx .cform .cslots .cslots__input,
+.portal.lx .cform .cslots .cslots__input:focus{background:transparent;box-shadow:none;border-radius:var(--cslot-radius)}
+.portal.lx .cform .cslots{--cslot-size:52px;--cslot-radius:12px;max-width:372px}
+.portal.lx .cform .cslots .cslots__slots{justify-content:flex-start}
+.portal.lx .cform .cslots .cslots__slot{background:var(--lx-chip);box-shadow:inset 0 0 0 1px var(--lx-line)}
+.portal.lx .cform .cslots .cslots__slot[data-at]{background:var(--lx-card);box-shadow:inset 0 0 0 2px var(--lx-blue),0 0 0 4px rgba(22,104,240,.12)}
+
+/* ── Xavfsizlik: my data ─────────────────────────────────── */
+.portal.lx .accdata__lead{color:var(--lx-gray)}
+.portal.lx .accdata .accdata__i{gap:4px 14px;padding:16px;border-radius:16px;background:var(--lx-chip);align-content:start}
+.portal.lx .accdata .accdata__ic,
+.portal.lx .accdata .accdata__i--del .accdata__ic{
+  width:40px;height:40px;border-radius:12px;background:var(--lx-card);color:var(--lx-ink);box-shadow:inset 0 0 0 1px var(--lx-line);
+}
+.portal.lx .accdata .accdata__i b{font-weight:600;color:var(--lx-ink)}
+.portal.lx .accdata .accdata__i p{color:var(--lx-gray)}
+.portal.lx .accdata .accdata__soon{
+  display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:999px;
+  background:var(--lx-warn-bg);color:var(--lx-warn);font-size:.72rem;font-weight:600;
+}
+.portal.lx .accdata .accdata__acts .btn--soft{background:var(--lx-card);border:1px solid var(--lx-line)}
+.portal.lx .accdata .accdata__del{color:var(--lx-err);box-shadow:none}
+.portal.lx .accdata .accdata__del:hover{border-color:var(--lx-err);background:var(--lx-err-bg);color:var(--lx-err)}
+
+/* ── Bildirishnomalar: channels and topics, two chip cards ── */
+.portal.lx .prefs.prefs--groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:16px}
+.portal.lx .prefs__group{min-width:0;padding:18px 20px 10px;border-radius:16px;background:var(--lx-chip)}
+.portal.lx .prefs__gh{margin:0}
+.portal.lx .prefs__gl{margin:3px 0 6px;font-size:.84rem;line-height:1.45;color:var(--lx-gray)}
+.portal.lx .prefs__rows{display:grid}
+.portal.lx .prefs__group .prefs__row{width:100%;padding:12px 0;border-bottom:1px solid var(--lx-line);font-size:.94rem;font-weight:500;color:var(--lx-ink)}
+.portal.lx .prefs__group .prefs__row:last-child{border-bottom:0}
+.portal.lx .prefs__group .prefs__hint{color:var(--lx-gray)}
+.portal.lx .prefs__sw{background:#D5DEEA}
+html[data-theme="dark"] .portal.lx .prefs__sw{background:#2C3D60}
+.portal.lx .prefs__row.on .prefs__sw{background:var(--lx-blue)}
+
+/* ── the dialogs ─────────────────────────────────────────── */
+/* profile edit: the navy initials avatar and a white outlined photo button
+   (.pfdlg is only on the profile's own dialogs; sign-up keeps its look) */
+.pfdlg .phup{gap:16px;margin:0 0 4px}
+.pfdlg .phup__av{width:72px;height:72px;border:0;background:var(--lx-navy, #0A1526);color:#fff;box-shadow:none;font-family:var(--fd);font-size:1.3rem;font-weight:700}
+html[data-theme="dark"] .pfdlg .phup__av{background:var(--lx-blue, #1F66E5)}
+.pfdlg .phup__m{gap:8px}
+.pfdlg .phup__m .btn--soft{background:var(--lx-card, #fff);border:1px solid var(--lx-line, #E4EBF5);color:var(--lx-ink, #0A1526)}
+.pfdlg .phup__m .btn--soft:hover{border-color:#C7D6EC;background:var(--lx-card, #fff)}
+.pfdlg .phup__m span{font-size:.8rem;color:var(--lx-gray, #4F5F75)}
+
+/* "Yangi shikoyat": category cards with the pictures, a footer that stays */
+.shkf .shkf__cats{gap:12px}
+.shkf .shkf__cats .shkf__cat{
+  align-items:center;gap:14px;padding:12px 40px 12px 12px;border-radius:16px;
+  background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);
+}
+.shkf .shkf__cats .shkf__cat:hover{box-shadow:inset 0 0 0 1px #C7D6EC}
+html[data-theme="dark"] .shkf .shkf__cats .shkf__cat:hover{box-shadow:inset 0 0 0 1px #3A4E75}
+.shkf .shkf__cats .shkf__cat.on{background:var(--lx-blue-tint);box-shadow:inset 0 0 0 1.5px var(--lx-blue)}
+.shkf .shkf__cat .shkf__catic--art,
+.shkf .shkf__cat.on .shkf__catic--art{
+  width:64px;height:64px;border-radius:14px;color:inherit;
+  background:var(--art) center/88% no-repeat,linear-gradient(168deg,#F1F6FF 0%,#FAFCFF 56%,#E9F1FD 100%);
+  box-shadow:inset 0 0 0 1px var(--lx-line);
+}
+html[data-theme="dark"] .shkf .shkf__cat .shkf__catic--art{box-shadow:none}
+.shkf .shkf__cattx{gap:3px}
+.shkf .shkf__cattx b{font-weight:600;color:var(--lx-ink)}
+.shkf .shkf__cattx small{color:var(--lx-gray)}
+.shkf .shkf__cat .shkf__radio{top:50%;right:14px;margin-top:-9px}
+.shkf .shkf__cat.on .shkf__radio{box-shadow:inset 0 0 0 5px var(--lx-blue)}
+.shkf .shkf__set.is-bad .shkf__cat:not(.on){box-shadow:inset 0 0 0 1px var(--lx-err)}
+.shkf .shkf__assure{border-radius:16px;background:var(--lx-chip);color:var(--lx-gray)}
+.shkf .shkf__assure svg{color:var(--lx-link)}
+.amodal__b:has(> .shkf){padding-bottom:0}
+.amodal__c:has(.shkf) > .amodal__cue{display:none}
+.shkf .shkf__acts{
+  position:sticky;bottom:0;z-index:2;margin:0 -24px;padding:14px 24px;
+  background:var(--lx-card);border-top:1px solid var(--lx-line-2);
+}
+@media (max-width:560px){
+  .shkf .shkf__acts{margin:0 -18px;padding:12px 18px}
+  .shkf .shkf__acts .btn{flex:1 1 calc(50% - 5px);justify-content:center}
+  .shkf .shkf__cats .shkf__cat{gap:12px;padding:10px 36px 10px 10px}
+  .shkf .shkf__cat .shkf__catic--art,.shkf .shkf__cat.on .shkf__catic--art{width:52px;height:52px;border-radius:12px}
+}
+
+/* "Shikoyat tafsilotlari" */
+.shkd .shkd__rail{border-right-color:var(--lx-line-2)}
+.shkd .shkd__idtx b{font-weight:700;color:var(--lx-ink)}
+.shkd .shkd__h{color:var(--lx-gray)}
+.shkd .shkd__rel{padding:14px;border-radius:16px;background:var(--lx-chip);box-shadow:none}
+.shkd .shkd__relic{width:40px;height:40px;border-radius:12px;background:var(--lx-card);color:var(--lx-ink);box-shadow:inset 0 0 0 1px var(--lx-line)}
+.shkd .shkd__relic svg{width:18px;height:18px}
+.shkd .shkd__relt b{font-weight:600}
+.shkd .shkd__relgo{border-top-color:var(--lx-line);color:var(--lx-link);font-weight:600}
+.shkd .shkd__state{border-radius:16px;box-shadow:none;background:var(--lx-chip)}
+.shkd .shkd__state--review{background:var(--lx-blue-tint)}
+.shkd .shkd__state--review > svg{color:var(--lx-link)}
+.shkd .shkd__state--rework{background:var(--lx-warn-bg)}
+.shkd .shkd__state--resolved{background:var(--lx-ok-bg)}
+.shkd .shkd__state--rejected{background:var(--lx-err-bg)}
+.shkd .shkd__state :is(.shk__st--new,.shk__st--review){background:var(--lx-card)}
+.shkd .shkd__av.cx-av{width:36px;height:36px;font-size:.74rem;background:var(--lx-navy);color:#fff}
+html[data-theme="dark"] .shkd .shkd__av.cx-av{background:var(--lx-blue)}
+.shkd .shkd__bubble{box-shadow:inset 0 0 0 1px var(--lx-line)}
+/* the footer's AI helper as the white outlined button, no gradient or glow */
+.shkd__foot .cpl-launch{
+  height:44px;padding:0 16px 0 12px;border-radius:12px;background:var(--lx-card);
+  box-shadow:inset 0 0 0 1px var(--lx-line);color:var(--lx-ink);font-size:.9rem;font-weight:600;
+}
+.shkd__foot .cpl-launch:hover{background:var(--lx-card);box-shadow:inset 0 0 0 1px #C7D6EC}
+.shkd__foot .cpl-launch .cpl-launch__ic{width:auto;height:auto;background:none;color:var(--lx-link)}
+.shkd__foot .cpl-launch .cpl-launch__ic svg{width:18px;height:18px}
+.shkd .shkd__mine{border-radius:16px;background:var(--lx-chip);box-shadow:none}
+.shkd .shks__s--done::after{background:var(--lx-blue)}
+.shkd .shks__s--done .shks__dot{background:var(--lx-blue)}
+.shkd .shks__s--now .shks__dot{box-shadow:inset 0 0 0 2px var(--lx-blue)}
+.shkd .shks__s--now .shks__dot::after{background:var(--lx-blue)}
+@media (max-width:560px){
+  /* on a phone the status goes above the hint, which keeps the full width */
+  .shkd .shkd__state{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px 12px}
+  .shkd .shkd__state > .shk__st{grid-column:1 / -1;grid-row:1;justify-self:start;margin:0}
+  .shkd .shk__tile.shk__tile--art{width:52px;height:52px;border-radius:12px}
+}
+
+/* ── phones ──────────────────────────────────────────────── */
+@media (max-width:900px){
+  .portal.lx .cprofile .cprof{padding:20px}
+  .portal.lx .cprofile__stack > .shk{padding:20px}
+}
+@media (max-width:640px){
+  .portal.lx .cprofile .cprof .phup__av{width:60px;height:60px;font-size:1.15rem}
+}
+@media (max-width:560px){
+  .portal.lx .cprofile,.portal.lx .cprofile__stack,.portal.lx .cprofile .pgrid2{gap:16px}
+  .portal.lx .cprofile .cprof{padding:16px}
+  .portal.lx .cprofile__stack > .shk{padding:16px 14px;gap:16px}
+  /* the whole card is the button: the arrow gives its width to the text */
+  .portal.lx .shk .shk__row{grid-template-columns:auto minmax(0,1fr);align-items:start;gap:12px;padding:14px}
+  .portal.lx .shk .shk__go--chip{display:none}
+  .portal.lx .shk .shk__tile.shk__tile--art{width:52px;height:52px;border-radius:12px}
+  .portal.lx .shk .shk__state{padding-top:12px}
+  .shk__art.shk__art--pic{width:168px;height:117px}
+  .portal.lx .idv__intro{align-items:flex-start;gap:12px}
+  .idv__art{width:64px;height:64px;border-radius:14px}
+  .portal.lx .accdata .accdata__ic{grid-row:auto}
+}
+@media (prefers-reduced-motion:reduce){
+  .portal.lx .idv__prov,.portal.lx .shk .shk__row{transition:none}
+  .portal.lx .idv__prov:hover:not(:disabled){transform:none}
+}

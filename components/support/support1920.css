@@ -1,0 +1,447 @@
+/* ═══ LexGo 1920 — Yordam markazi (support hub + chat) ═══
+   components/support/SupportHub.tsx (+ SupportChat.tsx, bits.tsx) drawn in
+   the client dashboard's vocabulary (components/portal/dash/ClientHome.tsx +
+   dash1920.css), the design every cabinet page now follows:
+   - no second page title: the shell's "Yordam markazi" is the only one;
+   - chats still going = the dashboard's "Jarayondagi ishlar" (.cx-works with
+     .cx-work chip cards, .cx-pill statuses, navy .cx-av initials);
+   - the AI instructor = the dashboard's AI card (.cx-ai composer + chips);
+   - the ways to reach a person = the dashboard's "Xizmatlar" arches (.cx-svc)
+     with the black line drawings of public/img/xizmatlar in white circles
+     (suniy-intelekt, Operator, Telefon_liniya, Shikoyat) — not the old glossy
+     3D card pictures, not pastel green / orange tiles;
+   - every chat, the composer, the filter tray and the empty states as the
+     dashboard's white card, chip rows, .cx-find tray and .cx-empty;
+   - the chat itself: flat blue own bubbles, chip AI bubbles (no violet), navy
+     avatars, a square blue send button, the navy call strip.
+   The old rules live in app/globals.css (.sup*, .spill*); every selector here
+   is scoped to the cabinet (.portal.lx) — the call-centre queue that shares
+   SupportChat/TicketCard keeps its own look — and carries enough weight to win. */
+
+/* ── page column (.cx: one column, 24px apart, the query container) ── */
+.portal.lx .sup--hub{gap:24px}
+.portal.lx .sup--hub > *{min-width:0}
+.portal.lx .sup .supways{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;align-items:start}
+
+/* ── status pills, in the shape and tones of .cx-pill ──
+   The dot becomes the pill's icon (a lucide drawing as a mask), so the
+   markup the call-centre queue shares stays as it is. */
+.portal.lx .spill{
+  --ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0L14.06 8.5a2 2 0 0 0 1.44 1.44l6.14 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0z'/%3E%3Cpath d='M20 3v4M22 5h-4M4 17v2M5 18H3'/%3E%3C/svg%3E");
+  display:inline-flex;align-items:center;gap:5px;flex:none;height:26px;padding:0 10px 0 7px;border-radius:999px;
+  background:var(--lx-blue-tint);color:var(--lx-blue-ink);box-shadow:none;
+  font-size:.74rem;font-weight:600;line-height:1;letter-spacing:0;white-space:nowrap;
+}
+.portal.lx .spill i{
+  flex:none;width:14px;height:14px;border-radius:0;background:currentColor;animation:none;
+  -webkit-mask:var(--ic) center/contain no-repeat;mask:var(--ic) center/contain no-repeat;
+}
+.portal.lx .spill--waiting_operator,.portal.lx .spill--waiting_client_confirm,.portal.lx .spill--reopened{background:var(--lx-warn-bg);color:var(--lx-warn)}
+.portal.lx .spill--waiting_operator,.portal.lx .spill--waiting_client_confirm{
+  --ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 2v4M16.2 7.8l2.9-2.9M18 12h4M16.2 16.2l2.9 2.9M12 18v4M4.9 19.1l2.9-2.9M2 12h4M4.9 4.9l2.9 2.9'/%3E%3C/svg%3E");
+}
+.portal.lx .spill--reopened{
+  --ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8'/%3E%3Cpath d='M3 3v5h5'/%3E%3C/svg%3E");
+}
+.portal.lx .spill--claimed,.portal.lx .spill--resolved{
+  --ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='m9 12 2 2 4-4'/%3E%3C/svg%3E");
+  background:var(--lx-ok-bg);color:var(--lx-ok);
+}
+.portal.lx .spill--transferred{
+  --ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m16 3 4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16'/%3E%3C/svg%3E");
+}
+.portal.lx .spill--closed,.portal.lx .spill--cancelled{
+  --ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6 7 17l-5-5M22 10l-7.5 7.5L13 16'/%3E%3C/svg%3E");
+  background:var(--lx-card);color:var(--lx-gray);box-shadow:inset 0 0 0 1px var(--lx-line);
+}
+.portal.lx .spill--cancelled{
+  --ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='m15 9-6 6M9 9l6 6'/%3E%3C/svg%3E");
+}
+
+/* ── "Davom etayotgan suhbatlar", as "Jarayondagi ishlar" ── */
+.portal.lx .supcont{display:flex;flex-direction:column;gap:0;padding:28px 24px}
+.portal.lx .supcont__h{padding:0;margin-bottom:20px}
+.portal.lx .supcont__h .cx-h3{white-space:normal}
+.portal.lx .supcont__all{padding:0;border-radius:0;background:none;font-size:.88rem;font-weight:600;color:var(--lx-link)}
+.portal.lx .supcont__all:hover{background:none;text-decoration:underline}
+.portal.lx .supcont__all svg{width:16px;height:16px}
+.portal.lx .supcont__list{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:16px;
+  margin:0;padding:0;list-style:none;border-radius:0;background:none;box-shadow:none;
+}
+.portal.lx .supcont__list > li{display:flex;min-width:0}
+.portal.lx .supcrow.cx-work{
+  display:flex;flex-direction:column;align-items:stretch;gap:8px;width:100%;min-width:0;
+  padding:18px 18px 16px;border:0;border-radius:16px;background:var(--lx-chip);color:var(--lx-ink);
+  font:inherit;text-align:left;cursor:pointer;transition:background .15s,box-shadow .15s;
+}
+.portal.lx .supcrow.cx-work:hover{background:#ECF2FB;box-shadow:inset 0 0 0 1px #C7D6EC}
+html[data-theme="dark"] .portal.lx .supcrow.cx-work:hover{background:#1C2B47;box-shadow:inset 0 0 0 1px #2E4268}
+.portal.lx .supcrow.cx-work:focus-visible{outline:3px solid var(--lx-blue);outline-offset:2px}
+/* the pill beside the title while the title keeps ~160px, else under it */
+.portal.lx .supcrow .cx-work__h{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:8px 10px;min-width:0}
+.portal.lx .supcrow__t{display:block;flex:1 1 160px;min-width:0;overflow:visible;-webkit-line-clamp:unset;line-clamp:unset;font-size:.98rem;font-weight:600;line-height:1.35;color:var(--lx-ink);overflow-wrap:break-word}
+.portal.lx .supcrow__meta{font-size:.82rem;color:var(--lx-gray)}
+.portal.lx .supcrow__last{display:block;overflow:visible;white-space:normal;text-overflow:clip;font-size:.84rem;line-height:1.45;color:var(--lx-gray);overflow-wrap:anywhere}
+.portal.lx .supcrow.has-new .supcrow__last{font-weight:600;color:var(--lx-ink)}
+.portal.lx .supcrow .cx-work__foot{margin-top:auto;padding-top:6px}
+.portal.lx .supcrow .cx-work__who{font-size:.88rem;font-weight:500;line-height:1.35}
+.portal.lx .supcrow__av.cx-av{width:32px;height:32px;background:var(--lx-navy);font-family:inherit;font-size:.7rem;font-weight:700;color:#fff}
+html[data-theme="dark"] .portal.lx .supcrow__av.cx-av{background:var(--lx-blue)}
+.supcrow__art{
+  flex:none;width:36px;height:36px;border-radius:50%;
+  background:var(--art) center/70% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line);
+}
+html[data-theme="dark"] .supcrow__art{box-shadow:none}
+.portal.lx .supcrow__go{position:relative}
+.portal.lx .supcrow:hover .supcrow__go{border-color:var(--lx-blue);color:var(--lx-link)}
+.portal.lx .supcrow__n{
+  position:absolute;top:-7px;right:-7px;display:grid;place-items:center;min-width:20px;height:20px;padding:0 6px;
+  border-radius:999px;background:var(--lx-blue);color:#fff;font-size:.7rem;font-weight:700;font-style:normal;
+  box-shadow:0 0 0 2px var(--lx-chip);
+}
+
+/* ── the AI instructor: the dashboard's AI card ── */
+.portal.lx .supopt.cx-ai{display:block;padding:26px 28px 24px;overflow:visible;border-radius:24px;box-shadow:none;isolation:auto}
+.portal.lx .supopt.cx-ai::before{display:none}
+.portal.lx .supopt .cx-ai__badge{font-size:1.38rem}
+.portal.lx .supopt__q{
+  field-sizing:fixed;width:100%;height:50px;min-height:50px;padding:0;border:0;border-radius:0;
+  background:none;box-shadow:none;font-size:.98rem;line-height:24px;color:var(--lx-ink);
+}
+.portal.lx .supopt__q:focus{outline:0;box-shadow:none;background:none}
+.portal.lx .supopt .cx-ai__go svg{width:18px;height:18px}
+/* "AI bilan matn tayyorlash" as one of the card's header links */
+.portal.lx .supopt .cpl-launch.supopt__cpl{
+  height:auto;max-width:100%;margin-left:auto;padding:0;border-radius:0;gap:6px;
+  background:none;box-shadow:none;color:var(--lx-link);font-size:.86rem;font-weight:600;line-height:1.3;white-space:nowrap;
+}
+.portal.lx .supopt .cpl-launch.supopt__cpl:hover{background:none;box-shadow:none;text-decoration:underline}
+.portal.lx .supopt .cpl-launch.supopt__cpl:active{transform:none}
+.portal.lx .supopt .supopt__cpl .cpl-launch__ic{width:auto;height:auto;border-radius:0;background:none;color:inherit;transform:none}
+.portal.lx .supopt .supopt__cpl .cpl-launch__ic svg{width:16px;height:16px}
+
+/* ── the ways to reach a person: head + the dashboard's arches ── */
+.portal.lx .supways__h{flex-wrap:wrap;gap:12px 20px;margin-bottom:20px}
+.portal.lx .supways__h > div{flex:1 1 320px;min-width:0}
+.portal.lx .supways__h .lx-sub{max-width:640px}
+.portal.lx .suphead__hours{
+  display:inline-flex;align-items:center;flex:none;align-self:center;max-width:100%;min-height:40px;
+  padding:8px 16px;border:1px solid var(--lx-line);border-radius:20px;background:var(--lx-card);box-shadow:none;
+}
+.portal.lx .suphead__hours .bhours{gap:2px 8px;font-size:.84rem;line-height:1.4;color:var(--lx-gray)}
+.portal.lx .suphead__hours .bhours__st{font-weight:600;color:var(--lx-ink)}
+.portal.lx .suphead__hours .bhours__dot{background:var(--lx-gray2)}
+.portal.lx .suphead__hours .bhours--open .bhours__dot{background:var(--lx-ok)}
+.portal.lx .suphead__hours :is(.bhours--closed,.bhours--dayOff) .bhours__dot{background:var(--lx-warn)}
+.portal.lx .sup .supways__grid{grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-flow:row;justify-content:stretch;gap:18px}
+.portal.lx .sup .supways__grid:not(:has(> li:nth-child(4))){grid-template-columns:repeat(3,minmax(0,1fr))}
+.portal.lx .sup .supways__grid > li{grid-column:auto;display:flex;min-width:0}
+.portal.lx .supway{border:0;font:inherit;cursor:pointer}
+.portal.lx .supway:focus-visible{outline:3px solid var(--lx-blue);outline-offset:3px}
+.portal.lx .supway .cx-svc__s{display:block}
+.portal.lx .supway__tel{display:block;font-size:.92rem;font-weight:700;letter-spacing:.01em;white-space:nowrap;color:#fff}
+.portal.lx .supway__hrs{display:block;margin-top:2px}
+.portal.lx .supway__note{
+  display:inline-block;margin-top:12px;padding:5px 11px;border-radius:12px;background:rgba(255,255,255,.1);
+  color:#fff;font-size:.74rem;font-weight:600;line-height:1.35;
+}
+
+/* ── "Mening suhbatlarim": a white card, chats as chip rows ── */
+.portal.lx .suplist{display:flex;flex-direction:column;gap:18px;padding:28px 24px;scroll-margin-top:16px}
+.portal.lx .suplist__h{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px 20px;padding:0}
+.portal.lx .suplist__tt{flex:1 1 260px;min-width:0}
+.portal.lx .suplist__tt .lx-sub{margin:4px 0 0;font-size:.9rem;color:var(--lx-gray)}
+.portal.lx .suplist__new{flex:none}
+.portal.lx .suplist__new svg{width:16px;height:16px}
+.portal.lx .suplist__items{gap:12px}
+.portal.lx .sup .sup__more{align-self:center}
+
+/* a chat in a list (TicketCard): the dashboard's chip row */
+.portal.lx .supitem{border-radius:16px;background:var(--lx-chip);box-shadow:none;transition:background .15s,box-shadow .15s}
+.portal.lx .supitem:hover{background:#ECF2FB;box-shadow:inset 0 0 0 1px #C7D6EC}
+html[data-theme="dark"] .portal.lx .supitem:hover{background:#1C2B47;box-shadow:inset 0 0 0 1px #2E4268}
+.portal.lx .supitem.is-on{background:var(--lx-blue-tint);box-shadow:inset 0 0 0 1.5px var(--lx-blue)}
+.portal.lx .supitem.has-new::before{display:none}
+.portal.lx .supitem.is-closed .supitem__av{opacity:1;filter:none}
+.portal.lx .supitem__main{grid-template-columns:40px minmax(0,1fr);gap:14px;padding:16px 18px}
+.portal.lx .supitem__main:focus-visible{outline:3px solid var(--lx-blue);outline-offset:-3px}
+.portal.lx .supitem__av{width:40px;height:40px;background:var(--lx-navy);font-family:inherit;font-size:.74rem;font-weight:700;color:#fff}
+html[data-theme="dark"] .portal.lx .supitem__av{background:var(--lx-blue)}
+/* nobody has taken the chat yet: the operator's drawing (the robot while the
+   AI answers) in a white circle, not a pastel headset */
+.portal.lx .supitem__av:has(svg){background:url(/img/xizmatlar/Operator.webp) center/68% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line)}
+.portal.lx .supitem:has(.spill--ai_handling) .supitem__av:has(svg){background-image:url(/img/xizmatlar/suniy-intelekt.webp)}
+.portal.lx .supitem__av svg{display:none}
+html[data-theme="dark"] .portal.lx .supitem__av:has(svg){box-shadow:none}
+/* the time beside the title while the title keeps ~130px, else under it */
+.portal.lx .supitem__top{flex-wrap:wrap;gap:2px 10px}
+.portal.lx .supitem__t{display:block;flex:1 1 130px;overflow:visible;-webkit-line-clamp:unset;line-clamp:unset;font-size:.98rem;font-weight:600;line-height:1.35;color:var(--lx-ink);overflow-wrap:break-word}
+.portal.lx .supitem__top time{font-size:.76rem;color:var(--lx-gray)}
+.portal.lx .supitem__sub{overflow:visible;white-space:normal;text-overflow:clip;color:var(--lx-gray)}
+.portal.lx .supitem__last{display:block;overflow:visible;-webkit-line-clamp:unset;line-clamp:unset;font-size:.86rem;line-height:1.45;color:var(--lx-gray)}
+.portal.lx .supitem__last--new{font-weight:600;color:var(--lx-ink)}
+.portal.lx .supitem__meta{gap:6px 10px;margin-top:4px;font-size:.78rem;color:var(--lx-gray)}
+.portal.lx .supitem__urgent{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;background:var(--lx-err-bg);color:var(--lx-err);font-size:.72rem;font-weight:600}
+.portal.lx .supitem__new{min-width:22px;height:22px;background:var(--lx-blue);font-weight:700}
+.portal.lx .supitem__res{border-radius:12px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);color:var(--lx-gray)}
+.portal.lx .supitem__res svg{color:var(--lx-ok)}
+
+/* the new-chat composer, inside the card: a line-bordered inner card */
+.portal.lx .supnew{gap:18px;padding:20px;border:1px solid var(--lx-line);border-radius:16px;background:var(--lx-card);box-shadow:none}
+.portal.lx .supnew__h{align-items:center;gap:14px}
+.portal.lx .supnew__ic{width:56px;height:56px;border-radius:50%;background:var(--art) center/62% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line);color:transparent}
+html[data-theme="dark"] .portal.lx .supnew__ic{box-shadow:none}
+.portal.lx .supnew__h .cx-h4{margin:0}
+.portal.lx .supnew__h p{margin:3px 0 0;font-size:.88rem;line-height:1.5;color:var(--lx-gray)}
+.portal.lx .supnew__x,.portal.lx .supnew__h .cpl-launch--icon{
+  display:grid;place-items:center;flex:none;width:40px;height:40px;padding:0;border:1px solid var(--lx-line);border-radius:12px;
+  background:var(--lx-card);box-shadow:none;color:var(--lx-ink);
+}
+.portal.lx .supnew__x:hover,.portal.lx .supnew__h .cpl-launch--icon:hover{border-color:var(--lx-blue);background:var(--lx-card);color:var(--lx-link);box-shadow:none}
+.portal.lx .supnew__x svg{width:18px;height:18px}
+.portal.lx .supnew__h .cpl-launch--icon .cpl-launch__ic{width:auto;height:auto;border-radius:0;background:none;color:inherit;transform:none}
+.portal.lx .supnew__h .cpl-launch--icon .cpl-launch__ic svg{width:18px;height:18px}
+.portal.lx .supnew__form,.portal.lx .supnew__resume{gap:18px}
+.portal.lx .supnew__msg{gap:8px}
+.portal.lx .supnew__msg > span,.portal.lx .supnew__topics legend{font-size:.92rem;font-weight:600;color:var(--lx-ink)}
+.portal.lx .supnew__topics legend{margin-bottom:10px}
+.portal.lx .supnew__msg textarea{
+  min-height:120px;padding:14px 18px;border:1px solid var(--lx-line);border-radius:18px;background:var(--lx-card);box-shadow:none;
+  font-size:.98rem;line-height:1.55;color:var(--lx-ink);
+}
+.portal.lx .supnew__msg textarea::placeholder{color:var(--lx-gray2)}
+.portal.lx .supnew__msg textarea:focus{border-color:var(--lx-blue);background:var(--lx-card);box-shadow:0 0 0 3px rgba(22,104,240,.12)}
+.portal.lx .supnew__count{color:var(--lx-gray)}
+.portal.lx .supnew__chips{gap:10px}
+.portal.lx .supchip{
+  min-height:40px;padding:9px 16px;border:1px solid var(--lx-line);border-radius:20px;background:var(--lx-card);box-shadow:none;
+  font-size:.88rem;font-weight:500;line-height:1.3;color:var(--lx-ink);
+}
+.portal.lx .supchip:hover{border-color:var(--lx-blue);background:var(--lx-blue-tint);box-shadow:none;color:var(--lx-blue-ink)}
+.portal.lx .supchip[aria-pressed="true"]{border-color:var(--lx-blue);background:var(--lx-blue-tint);box-shadow:inset 0 0 0 1px var(--lx-blue);color:var(--lx-blue-ink)}
+.portal.lx .supchip:focus-visible{outline:3px solid var(--lx-blue);outline-offset:2px}
+.portal.lx .supnew__auto{font-size:.8rem;color:var(--lx-gray)}
+.portal.lx .supnew__urgent{padding:14px 16px;border-radius:16px;background:var(--lx-chip);box-shadow:none}
+.portal.lx .supnew__switch{background:#C9D4E3;box-shadow:none}
+html[data-theme="dark"] .portal.lx .supnew__switch{background:#2E4268}
+.portal.lx .supnew__urgent input:checked + .supnew__switch{background:var(--lx-blue)}
+.portal.lx .supnew__urgtx b{font-weight:600;color:var(--lx-ink)}
+.portal.lx .supnew__urgtx small{color:var(--lx-gray)}
+.portal.lx .supnew__ai{display:flex;align-items:center;gap:8px;margin:0;font-size:.86rem;line-height:1.45;color:var(--lx-gray)}
+.portal.lx .supnew__ai svg{flex:none;width:16px;height:16px;color:var(--lx-link)}
+.portal.lx .supnew__err{color:var(--lx-err)}
+.portal.lx .supnew__acts{gap:10px}
+.portal.lx .supnew__acts .btn svg{width:16px;height:16px}
+.portal.lx .supnew .supitem{background:var(--lx-chip)}
+
+/* the filter bar as the dashboard's search tray (.cx-find): chip tray,
+   white 56px fields, no labels on show (still read out) */
+@media (min-width:901px){
+  .portal.lx .suplist .uf-card{grid-template-columns:minmax(0,1fr) minmax(170px,238px);align-items:center;gap:10px;padding:8px;border-radius:18px;background:var(--lx-chip);box-shadow:none}
+  .portal.lx .suplist .uf-fld{gap:0}
+  .portal.lx .suplist .uf-fld--wide{grid-column:auto}
+  .portal.lx .suplist .uf-fld > .uf-fld__l,.portal.lx .suplist .uf-fld > label{
+    position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0;
+  }
+  .portal.lx .suplist .uf-search > svg{left:18px;width:20px;height:20px}
+  .portal.lx .suplist .uf-search input{min-height:56px;padding-left:50px;border-radius:12px;font-size:1rem}
+  .portal.lx .suplist .uf-card .dsel__btn{min-height:56px;border-radius:12px;font-weight:600}
+}
+.portal.lx .suplist .uf-chosen__c{background:var(--lx-blue-tint);color:var(--lx-blue-ink);font-weight:600}
+.portal.lx .suplist .uf-chosen__c svg{background:rgba(22,104,240,.12)}
+.portal.lx .suplist .uf-count{font-weight:600;color:var(--lx-gray)}
+
+/* empty / no match / error / loading: .cx-empty and .cx-skel */
+.portal.lx .supnone.cx-empty,.portal.lx .sup__empty.cx-empty{
+  display:grid;justify-items:center;align-content:center;gap:8px;padding:28px 12px;
+  border-radius:0;background:none;box-shadow:none;text-align:center;color:var(--lx-gray);
+}
+.portal.lx .supnone.cx-empty b{font-size:.98rem;color:var(--lx-ink)}
+.portal.lx .supnone.cx-empty p,.portal.lx .sup__empty.cx-empty p{margin:0;max-width:320px;font-size:.88rem;line-height:1.5;color:var(--lx-gray)}
+.portal.lx .sup .cx-empty__ic{width:48px;height:48px;border-radius:14px;background:var(--lx-blue-tint);color:var(--lx-link)}
+.portal.lx .sup .cx-empty__ic svg{width:22px;height:22px;color:inherit}
+.portal.lx .sup .cx-empty__ic.supnone__ic--err{background:var(--lx-err-bg);color:var(--lx-err)}
+.portal.lx .sup .cx-empty .btn{margin-top:6px}
+.portal.lx .sup .cx-empty .btn svg{width:16px;height:16px}
+.portal.lx .supcard--ghost.cx-skel{
+  height:96px;border-radius:16px;box-shadow:none;
+  background:linear-gradient(90deg,var(--lx-chip),#E9EFF8,var(--lx-chip));background-size:200% 100%;animation:cxsk 1.2s ease-in-out infinite;
+}
+html[data-theme="dark"] .portal.lx .supcard--ghost.cx-skel{background:linear-gradient(90deg,#18253E,#1E2D4A,#18253E);background-size:200% 100%}
+
+/* the feature not live yet: a white card with the operator's drawing */
+.portal.lx .supsoon.lx-card{max-width:520px;margin:24px auto;padding:36px 28px;gap:10px;border-radius:24px;box-shadow:none}
+.portal.lx .supsoon__art{width:96px;height:96px;margin-bottom:4px;border-radius:50%;background:var(--art) center/62% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line)}
+html[data-theme="dark"] .portal.lx .supsoon__art{box-shadow:none}
+.portal.lx .supsoon b{font-size:1.2rem;font-weight:700;color:var(--lx-ink)}
+.portal.lx .supsoon p{max-width:340px;color:var(--lx-gray)}
+
+/* ── a chat, opened ── */
+/* The chat fills the height left under the shell's header (globals.css gave
+   the column 100% of the scroller, so the header was pushed out of view). */
+.portal.lx .pbody:has(.sup--chat) > .pbody__in{flex:1 1 0;height:auto;min-height:0}
+.portal.lx .sup--chat{gap:16px}
+.portal.lx .supbar__back{padding:8px 12px 8px 6px;border-radius:12px;color:var(--lx-link);font-weight:600}
+.portal.lx .supbar__back:hover{background:var(--lx-blue-tint)}
+.portal.lx .supbar .btn svg{width:16px;height:16px}
+.portal.lx .supwork{gap:20px}
+/* the list beside the chat: a white dashboard card, the title on its own line */
+.portal.lx .sup--chat .supwork__side{gap:14px;padding:20px 16px 16px;border:1px solid var(--lx-line-2);border-radius:24px;background:var(--lx-card)}
+html[data-theme="dark"] .portal.lx .sup--chat .supwork__side{border-color:var(--lx-line)}
+.portal.lx .supside{flex-wrap:wrap;gap:12px;padding:0 4px}
+.portal.lx .supside__t{flex:1 1 100%;overflow:visible;white-space:normal;text-overflow:clip;font-size:1.18rem;font-weight:700;letter-spacing:-.015em;color:var(--lx-ink)}
+.portal.lx .supside__sel{flex:1 1 100%}
+.portal.lx .supside .dsel__btn{min-height:44px;border-radius:12px;background:var(--lx-chip);box-shadow:inset 0 0 0 1px var(--lx-line)}
+.portal.lx .supwork__list{gap:10px}
+.portal.lx .supwork__list .supitem__main{padding:14px}
+.portal.lx .supwork__list .supitem__main{grid-template-columns:36px minmax(0,1fr);gap:12px}
+.portal.lx .supwork__list .supitem__av{width:36px;height:36px}
+
+.portal.lx .supchat{border:1px solid var(--lx-line-2);border-radius:24px;background:var(--lx-card);box-shadow:none}
+html[data-theme="dark"] .portal.lx .supchat{border-color:var(--lx-line)}
+.portal.lx .supchat__head{gap:12px;padding:16px 20px;border-bottom:1px solid var(--lx-line-2)}
+.portal.lx .supchat__av{width:40px;height:40px;background:var(--lx-navy);font-family:inherit;font-size:.76rem;font-weight:700;color:#fff}
+html[data-theme="dark"] .portal.lx .supchat__av{background:var(--lx-blue)}
+.portal.lx .supchat__av:has(svg){background:url(/img/xizmatlar/Operator.webp) center/68% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line)}
+.portal.lx .supchat__av--ai:has(svg){background-image:url(/img/xizmatlar/suniy-intelekt.webp)}
+.portal.lx .supchat__av svg{display:none}
+html[data-theme="dark"] .portal.lx .supchat__av:has(svg){box-shadow:none}
+.portal.lx .supchat__av--wait::after{display:none}
+.portal.lx .supchat__who b{overflow:visible;white-space:normal;text-overflow:clip;font-size:1rem;font-weight:600;color:var(--lx-ink)}
+.portal.lx .supchat__who small{overflow:visible;white-space:normal;text-overflow:clip;font-size:.8rem;color:var(--lx-gray)}
+.portal.lx .supchat__line::before{background:var(--lx-gray2)}
+.portal.lx .supchat__line.is-open::before{background:var(--lx-ok)}
+.portal.lx .supchat__ghost{background:var(--lx-chip)}
+.portal.lx .supchat__banner{border-bottom-color:var(--lx-line-2);background:var(--lx-chip);color:var(--lx-gray)}
+.portal.lx .supwait{gap:12px;padding:12px 20px;border-bottom:1px solid var(--lx-line-2);background:var(--lx-blue-tint)}
+.portal.lx .supwait__ic{width:40px;height:40px;border-radius:12px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);color:var(--lx-link)}
+.portal.lx .supwait__ic::after{display:none}
+.portal.lx .supwait__tx b{font-weight:600;color:var(--lx-ink)}
+.portal.lx .supwait__tx span{color:var(--lx-gray)}
+
+.portal.lx .supchat__msgs{padding:20px;background:var(--lx-bg)}
+.portal.lx .supchat__older{background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);color:var(--lx-link);font-weight:600}
+.portal.lx .supchat__day{background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);color:var(--lx-gray);font-weight:600}
+.portal.lx .supchat__start{color:var(--lx-gray)}
+.portal.lx .supchat__sk span{background:linear-gradient(90deg,var(--lx-chip),#E9EFF8,var(--lx-chip));background-size:200% 100%}
+html[data-theme="dark"] .portal.lx .supchat__sk span{background:linear-gradient(90deg,#18253E,#1E2D4A,#18253E);background-size:200% 100%}
+.portal.lx .supchat__state > svg{box-sizing:border-box;width:48px;height:48px;padding:13px;border-radius:14px;background:var(--lx-blue-tint);color:var(--lx-link)}
+.portal.lx .supchat__state p{color:var(--lx-gray)}
+.portal.lx .supchat__empty{margin:auto}
+.portal.lx .supchat__empty .cx-empty__ic{width:48px;height:48px;border-radius:14px;background:var(--lx-blue-tint);color:var(--lx-link)}
+.portal.lx .supchat__empty .cx-empty__ic svg{width:22px;height:22px}
+
+/* bubbles: white for them, flat blue for me, chip for the AI */
+.portal.lx .supmsg{padding:10px 14px 7px;border-radius:16px 16px 16px 6px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);color:var(--lx-ink)}
+.portal.lx .supmsg--cont{border-top-left-radius:6px}
+.portal.lx .supmsg--me{border-radius:16px 16px 6px 16px;background:var(--lx-blue);box-shadow:none;color:#fff}
+.portal.lx .supmsg--me.supmsg--cont{border-top-right-radius:6px}
+.portal.lx .supmsg--sys{background:transparent;box-shadow:none;color:var(--lx-gray)}
+.portal.lx .supmsg--ai{background:var(--lx-chip);box-shadow:inset 0 0 0 1px var(--lx-line)}
+.portal.lx .supmsg__who{gap:6px;font-weight:600;color:var(--lx-ink)}
+.portal.lx .supmsg__who em{font-weight:500;color:var(--lx-gray)}
+.portal.lx .supmsg__ai{gap:5px;height:24px;padding:0 9px 0 7px;border-radius:999px;background:var(--lx-blue-tint);box-shadow:none;color:var(--lx-blue-ink);font-size:.72rem;font-weight:600}
+.portal.lx .supmsg__ai svg{width:13px;height:13px}
+.portal.lx .supmsg .ailbl__b{background:var(--lx-blue-tint);color:var(--lx-blue-ink);font-weight:600}
+.portal.lx .supmsg .ailbl__t{color:var(--lx-gray)}
+.portal.lx .supmsg time{opacity:1;color:var(--lx-gray)}
+.portal.lx .supmsg--me time{color:rgba(255,255,255,.82)}
+.portal.lx .supmsg--sys time{opacity:.8}
+
+/* LexGo's steps inside the chat (an order, a document, a plan) */
+.portal.lx .supassist{border-radius:16px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line)}
+.portal.lx .supassist__ic,.portal.lx .supassist--info .supassist__ic{border-radius:12px;background:var(--lx-blue-tint);color:var(--lx-link)}
+.portal.lx .supassist--ok .supassist__ic{background:var(--lx-ok-bg);color:var(--lx-ok)}
+.portal.lx .supassist--wait .supassist__ic{background:var(--lx-warn-bg);color:var(--lx-warn)}
+.portal.lx .supassist--err .supassist__ic{background:var(--lx-err-bg);color:var(--lx-err)}
+.portal.lx .supassist__kick{color:var(--lx-gray)}
+.portal.lx .supassist__tx b{font-weight:600}
+.portal.lx .supassist__what{color:var(--lx-blue-ink)}
+.portal.lx .supassist__meta span{background:var(--lx-chip);font-weight:600}
+.portal.lx .supassist__go{color:var(--lx-link);font-weight:600}
+
+/* the write box: one box, a square blue send button */
+.portal.lx .supchat__form{padding:14px 16px;border-top:1px solid var(--lx-line-2);background:var(--lx-card)}
+.portal.lx .supchat__field{padding:6px 6px 6px 8px;border:1px solid var(--lx-line);border-radius:18px;background:var(--lx-card);box-shadow:none}
+.portal.lx .supchat__field:focus-within{border-color:var(--lx-blue);background:var(--lx-card);box-shadow:0 0 0 3px rgba(22,104,240,.12)}
+.portal.lx .supchat__form textarea{color:var(--lx-ink)}
+.portal.lx .supchat__form textarea::placeholder{color:var(--lx-gray2)}
+.portal.lx .supchat__send{width:42px;height:42px;border-radius:12px;background:var(--lx-blue);box-shadow:none}
+.portal.lx .supchat__send:hover:not(:disabled){background:var(--lx-blue-h);transform:none}
+.portal.lx .supchat__send:disabled{opacity:.45}
+.portal.lx .supchat__keys{color:var(--lx-gray)}
+.portal.lx .supchat__err{color:var(--lx-err)}
+
+/* an operator calls: the dashboard's navy strip, a white icon tile, a white button */
+.portal.lx .supchat__ring{padding:12px 60px 12px 20px;border-bottom:0;background:var(--lx-navy)}
+html[data-theme="dark"] .portal.lx .supchat__ring{background:#0B1830;box-shadow:inset 0 -1px 0 var(--lx-navy-line)}
+.portal.lx .supchat__ringic{width:40px;height:40px;border-radius:12px;background:#fff;color:var(--lx-navy)}
+.portal.lx .supchat__ringic::after{display:none}
+.portal.lx .supchat__ringtx b{font-weight:600}
+.portal.lx .supchat__ringtx small{color:#C9D4E3}
+.portal.lx .supchat__ring .supchat__join{padding:10px 18px;border-radius:12px;background:#fff;box-shadow:none;color:var(--lx-navy)}
+.portal.lx .supchat__ring .supchat__join:hover{background:#E9EFF8}
+.portal.lx .supchat__ringx{top:14px;right:14px;width:36px;height:36px;border-radius:12px;background:rgba(255,255,255,.08)}
+.portal.lx .supchat__ringx:hover{background:rgba(255,255,255,.16)}
+.portal.lx .supchat__ring .supchat__join:focus-visible,.portal.lx .supchat__ringx:focus-visible{outline-color:#fff}
+/* the operator's own call buttons, flat */
+.portal.lx .supchat__call{border-radius:12px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);color:var(--lx-ink)}
+.portal.lx .supchat__call--video{background:var(--lx-blue);box-shadow:none;color:#fff}
+.portal.lx .supchat__call--ra{background:var(--lx-navy);box-shadow:none;color:#fff}
+.portal.lx .supchat__call:hover:not(:disabled){transform:none;box-shadow:inset 0 0 0 1px #C7D6EC}
+.portal.lx :is(.supchat__call--video,.supchat__call--ra):hover:not(:disabled){box-shadow:none;filter:brightness(1.08)}
+
+/* closed: the summary, then reopen or a new chat */
+.portal.lx .supchat__end{gap:12px 14px;padding:18px 20px;border-top:1px solid var(--lx-line-2);background:var(--lx-card)}
+.portal.lx .supchat__endic{width:40px;height:40px;border-radius:12px;background:var(--lx-ok-bg);color:var(--lx-ok)}
+.portal.lx .supchat__endtx b{font-weight:600;color:var(--lx-ink)}
+.portal.lx .supchat__endtx small{color:var(--lx-gray)}
+.portal.lx .supchat__endtx p{color:var(--lx-gray)}
+.portal.lx .supchat__endtx .supchat__res{padding:12px 14px;border-radius:16px;background:var(--lx-chip);box-shadow:none;color:var(--lx-ink)}
+.portal.lx .supchat__endtx em{margin-bottom:4px;font-size:.78rem;font-weight:600;letter-spacing:0;text-transform:none;color:var(--lx-gray)}
+.portal.lx .supchat__reopen{gap:12px;padding:16px;border:1px solid var(--lx-line);border-radius:16px;background:var(--lx-card);box-shadow:none}
+.portal.lx .supchat__reopenfield span{font-size:.88rem;font-weight:600;color:var(--lx-ink)}
+.portal.lx .supchat__reopenfield textarea{border:1px solid var(--lx-line);border-radius:12px;background:var(--lx-chip);box-shadow:none;color:var(--lx-ink)}
+.portal.lx .supchat__reopenfield textarea:focus{border-color:var(--lx-blue);background:var(--lx-card);box-shadow:0 0 0 3px rgba(22,104,240,.12)}
+.portal.lx .supchat__reopenerr{color:var(--lx-err)}
+
+/* ── by the width the hub actually gets (.cx is the container) ── */
+@container cx (max-width:1311px){
+  .portal.lx .sup .supways__grid{gap:14px}
+}
+/* the input stays one line tall when the composer stacks its button */
+@container cx (max-width:599px){
+  .portal.lx .supopt__q{height:50px;min-height:50px}
+}
+/* four arches in a row down to ~170px each, then two by two */
+@container cx (max-width:759px){
+  .portal.lx .sup .supways__grid,.portal.lx .sup .supways__grid:not(:has(> li:nth-child(4))){grid-template-columns:repeat(2,minmax(0,1fr))}
+  .portal.lx .sup .supways__grid:not(:has(> li:nth-child(4))) > li:nth-child(3){grid-column:1 / -1;justify-self:center;width:calc(50% - 7px)}
+}
+@media (max-width:900px){
+  .portal.lx .supways__h .suphead__hours{align-self:flex-start}
+  .portal.lx .sup--chat .supchat{border:0;border-radius:0}
+}
+@media (max-width:640px){
+  .portal.lx .supcont,.portal.lx .suplist{padding:18px}
+  .portal.lx .supitem__main{gap:12px;padding:14px}
+  .portal.lx .supnew{padding:16px}
+  .portal.lx .supnew__h{align-items:flex-start}
+  .portal.lx .supnew__ic{width:48px;height:48px}
+  .portal.lx .supnew__acts .btn{flex:1 1 auto}
+  .portal.lx .suplist__new{flex:1 1 auto}
+}
+@media (max-width:560px){
+  /* the number stays one line in a phone's half-width arch */
+  .portal.lx .supway__tel{font-size:.8rem;letter-spacing:0}
+  .portal.lx .supopt.cx-ai{padding:18px 16px}
+  .portal.lx .supopt .cx-ai__badge{font-size:1.16rem}
+  .portal.lx .supopt .cpl-launch.supopt__cpl{margin-left:0}
+  .portal.lx .supchat__head{padding:12px 14px}
+  .portal.lx .supchat__msgs{padding:14px}
+}
+@media (prefers-reduced-motion:reduce){
+  .portal.lx .supcard--ghost.cx-skel{animation:none}
+  .portal.lx .supcrow.cx-work,.portal.lx .supitem{transition:none}
+}

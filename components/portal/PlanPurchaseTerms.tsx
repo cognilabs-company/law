@@ -1,6 +1,7 @@
 "use client";
 
 import "./planTerms.css";
+import "./plans1920.css";
 import type { ReactElement, ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -9,6 +10,7 @@ import { renewalTerms } from "@/lib/planCheckout";
 import CheckBox from "@/components/CheckBox";
 import Modal from "@/components/admin/Modal";
 import { IconCheck, IconExternal, IconShieldCheck } from "@/components/icons";
+import { planPlate } from "./PlanCard";
 
 // The refund rules and the offer, as the backend publishes them
 // (/legal/consents slugs payment_refund_warranty and terms).
@@ -24,6 +26,8 @@ export type PlanPurchase = {
   // The plan's listed price for the period (what a renewal charges); only
   // differs from total while a promotion lowers the first period.
   listed?: number;
+  // The tariff's slug: the review dialog shows its picture. Absent → none.
+  slug?: string;
 };
 
 // Everything the subscriber agrees to, shown before any payment: the amount
@@ -125,17 +129,23 @@ export function PlanCheckoutReview({
       footer={
         purchase ? (
           <div className="pterms__acts">
-            <button type="button" className="btn btn--ghost" onClick={onClose} disabled={busy}>
+            <button type="button" className="btn btn--line" onClick={onClose} disabled={busy}>
               {t("back")}
             </button>
-            <button type="button" className="btn btn--grad" onClick={onConfirm} disabled={busy} data-ai-id="pricing.checkout-review.pay">
+            <button type="button" className="btn btn--pri" onClick={onConfirm} disabled={busy} data-ai-id="pricing.checkout-review.pay">
               {busy ? t("paying") : t("pay", { amount: fmtUzs(purchase.total) })}
             </button>
           </div>
         ) : null
       }
     >
-      {purchase ? <PlanPurchaseTerms purchase={purchase} autoRenew={autoRenew} onAutoRenew={onAutoRenew} /> : null}
+      {purchase ? (
+        <div className="plx-review">
+          {/* The plan's own picture on the dashboard's light plate. */}
+          {purchase.slug ? <span className="plx-review__art" style={planPlate(purchase.slug)} aria-hidden /> : null}
+          <PlanPurchaseTerms purchase={purchase} autoRenew={autoRenew} onAutoRenew={onAutoRenew} />
+        </div>
+      ) : null}
     </Modal>
   );
 }

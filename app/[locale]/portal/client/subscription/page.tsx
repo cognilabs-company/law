@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import PlansPanel from "@/components/portal/PlansPanel";
 import ClientGiftsPanel from "@/components/portal/ClientGiftsPanel";
 import Tabs from "@/components/ui/Tabs";
-import { IconGem, IconGift } from "@/components/icons";
+import { CreditCard, Gift } from "lucide-react";
 import { useUrlTab } from "@/lib/useUrlTab";
 
 const PLAN_TABS = ["plans", "gifts"] as const;
@@ -17,8 +17,8 @@ function PlanTabs() {
   return (
     <Tabs<PlanTab>
       items={[
-        { key: "plans", label: t("subscription"), icon: <IconGem aria-hidden="true" />, panel: <PlansPanel variant="personal" />, aiId: "client.plans.tabs.plans" },
-        { key: "gifts", label: t("gifts"), icon: <IconGift aria-hidden="true" />, panel: <ClientGiftsPanel />, lazy: true, aiId: "client.plans.tabs.gifts" },
+        { key: "plans", label: t("subscription"), icon: <CreditCard aria-hidden="true" />, panel: <PlansPanel variant="personal" />, aiId: "client.plans.tabs.plans" },
+        { key: "gifts", label: t("gifts"), icon: <Gift aria-hidden="true" />, panel: <ClientGiftsPanel />, lazy: true, aiId: "client.plans.tabs.gifts" },
       ]}
       value={tab}
       onChange={pick}

@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import "./ordersList1920.css";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { ArrowRight, ArrowUpRight, CircleCheck, CircleX, Loader, MessageSquareText, Sparkles, Video } from "lucide-react";
 import {
   listClientWorks,
   getClientWork,
@@ -24,19 +26,16 @@ import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import { Skeleton, EmptyState } from "./DataState";
 import {
   IconBriefcase,
-  IconFileText,
-  IconBolt,
   IconAlert,
   IconScale,
-  IconUser,
-  IconClock,
   IconChat,
   IconArrowRight,
-  IconVideo,
   IconLayers,
   IconCircleCheck,
   IconSearch,
 } from "@/components/icons";
+import { initials } from "@/lib/lawyers";
+import { personName } from "@/lib/labels";
 import { useAiReveal } from "@/lib/guide/targets";
 import { profileTabHref } from "@/lib/profileTabs";
 import { aiId, aiSeg } from "@/lib/ai/ids";
@@ -56,14 +55,27 @@ import { useAiField, useAiSelection } from "@/lib/ai/registry";
 // which also means the type labels below come from that same list rather
 // than from a map this file would have to keep in step.
 
-const TYPE_ICON: Record<string, typeof IconBriefcase> = {
-  document_lawyer_work: IconFileText,
-  urgent_advokat: IconBolt,
-  quality_complaint: IconAlert,
-  complaint: IconAlert,
-  service_order: IconScale,
-  legal_case: IconBriefcase,
+// Each kind of work by its picture, drawn like the client dashboard's (black
+// line art in a white circle — public/img/xizmatlar, public/img/sos).
+const TYPE_ART: Record<string, string> = {
+  document_lawyer_work: "/img/xizmatlar/Huquqiy_hujjatlar.webp",
+  urgent_advokat: "/img/xizmatlar/Tezkor_Advokat.webp",
+  quality_complaint: "/img/xizmatlar/Shikoyat.webp",
+  complaint: "/img/xizmatlar/Shikoyat.webp",
+  service_order: "/img/xizmatlar/xizmatlar.webp",
+  legal_case: "/img/sos/Sud_jarayoni.webp",
 };
+const artOf = (type: string) => ({ "--art": `url(${TYPE_ART[type] ?? "/img/xizmatlar/xizmatlar.webp"})` }) as CSSProperties;
+
+// The dashboard's status pill (.cx-pill) per tone: finished green, waiting
+// amber, moving blue, closed grey.
+const PILL = { done: "ok", waiting: "warn", working: "blue", closed: "mute" } as const;
+function ToneIcon({ tone: tn }: { tone: keyof typeof PILL }) {
+  if (tn === "done") return <CircleCheck aria-hidden />;
+  if (tn === "waiting") return <Loader aria-hidden />;
+  if (tn === "closed") return <CircleX aria-hidden />;
+  return <Sparkles aria-hidden />;
+}
 
 // Where a work of each type is actually worked on. The row links there
 // rather than this screen re-implementing five detail views.
@@ -117,6 +129,7 @@ const URGENT_ROW = /^urgent_advokat\.request\.(?!(?:form|direction|description|s
 export default function ClientWorks() {
   const t = useTranslations("portal.client.works");
   const tcm = useTranslations("portal.common");
+  const tl = useTranslations("lxOrders");
   const locale = useLocale();
 
   const [tab, setTab] = useState("all");
@@ -312,23 +325,26 @@ export default function ClientWorks() {
   const filtered = tab !== "all" || Boolean(pick);
 
   return (
-    <div className="ppanel" data-ai-target={status === "ready" && shown.length ? undefined : "works:list"}>
-      <div className="ppanel__h">
-        <b className="ppanel__t"><span className="pico"><IconBriefcase /></span>{t("title")}</b>
-        <span className="ppanel__hact">
-          <span className="advmuted">{total}</span>
-          <CopilotLauncher surface="client_work_detail" title={t("title")} />
+    <div className="ppanel cwk" data-ai-target={status === "ready" && shown.length ? undefined : "works:list"}>
+      {/* The dashboard's section head ("Jarayondagi ishlar"): a small title
+          with its count, the way out on the right — the page's big title is
+          the shell's. */}
+      <div className="ppanel__h cwk__h">
+        <h2 className="ppanel__t cx-h3">
+          {t("title")}
+          {status === "ready" ? <span className="cx-count">{total}</span> : null}
+        </h2>
+        <span className="ppanel__hact cwk__tools">
+          {/* §9's separation, said once where a client might otherwise wonder
+              why their documents are not here. */}
+          <Link href="/portal/client/documents" className="cwork__sep cx-link">
+            {t("documentsLink")}
+            <ArrowRight aria-hidden />
+          </Link>
+          <CopilotLauncher surface="client_work_detail" title={t("title")} className="olx-ai" />
         </span>
       </div>
-      {/* §9's separation, said once where a client might otherwise wonder why
-          their documents are not here. */}
-      <p className="ppanel__note">
-        {t("lead")}{" "}
-        <Link href="/portal/client/documents" className="cwork__sep">
-          {t("documentsLink")}
-          <IconArrowRight />
-        </Link>
-      </p>
+      <p className="ppanel__note lx-sub cwk__lead">{t("lead")}</p>
 
       <FilterBar
         className="cwk-filters"
@@ -342,26 +358,38 @@ export default function ClientWorks() {
       {status === "loading" ? (
         <Skeleton rows={4} />
       ) : status === "error" ? (
-        <EmptyState icon={<IconAlert />} title={tcm("loadError")} text={tcm("loadErrorText")} />
+        <EmptyState className="pempty--err" icon={<IconAlert />} title={tcm("loadError")} text={tcm("loadErrorText")} action={{ label: tl("retry"), onClick: refresh }} />
       ) : !rows.length ? (
         filtered ? (
           <EmptyState icon={<IconSearch />} title={t("searchEmpty")} text={t("filterEmptyText")} />
         ) : (
-          <EmptyState icon={<IconBriefcase />} title={t("empty")} text={t("emptyText")} />
+          <EmptyState
+            icon={<IconBriefcase />}
+            title={t("empty")}
+            text={t("emptyText")}
+            action={
+              <Link href="/portal/client/lawyers" className="btn btn--pri btn--sm">
+                {tl("emptyCta")}
+                <ArrowRight aria-hidden />
+              </Link>
+            }
+          />
         )
       ) : (
         <>
           {shown.length ? (
             <div className="cworks" data-ai-target="works:list" data-ai-id="works.list" data-ai-type="list">
               {shown.map((r) => {
-                const Icon = TYPE_ICON[r.type] ?? IconBriefcase;
                 const tn = tone(r.status);
                 const st = statusText(r.status, r.type, r.statusLabel);
                 const rowId = rowAiId(r);
+                const lawyer = personName(r.assignedLawyer?.name);
+                const operator = personName(r.operator?.name);
+                const who = lawyer || operator;
                 return (
                   <button
                     type="button"
-                    className="cwork"
+                    className="cwork cwk-row"
                     key={r.id}
                     onClick={() => setOpenId(r.workId)}
                     data-ai-target={r.id ? `works.item.${r.id}` : undefined}
@@ -372,21 +400,43 @@ export default function ClientWorks() {
                     data-ai-entity-id={r.id || undefined}
                     data-ai-private
                   >
-                    <span className={`cwork__i cwork__i--${r.type.replace(/[^a-z_]/g, "")}`} aria-hidden><Icon /></span>
-                    <span className="cwork__m">
-                      <span className="cwork__top">
+                    {/* The dashboard's work card (.cx-work): the kind's picture,
+                        title, grey meta line and status pill; the next step;
+                        who has it, and the way in. */}
+                    <span className="cwork__top cwk-row__h">
+                      <span className="cwk-art" style={artOf(r.type)} aria-hidden />
+                      <span className="cwork__m cwk-row__ht">
                         <b className="cwork__t">{r.title || typeName(r.type)}</b>
-                        <em className={`cwork__st cwork__st--${tn}`}>{st}</em>
+                        <span className="cwork__row cwk-row__meta">
+                          {[r.workId, typeName(r.type), r.createdAt ? shortDateTime(r.createdAt, locale) : ""].filter(Boolean).join(" · ")}
+                        </span>
                       </span>
-                      <span className="cwork__row">
-                        {r.workId ? <small className="cwork__wid">{r.workId}</small> : null}
-                        <small className="cwork__type">{typeName(r.type)}</small>
-                        {r.assignedLawyer?.name ? <small><IconUser />{r.assignedLawyer.name}</small> : null}
-                        {r.hasChat ? <small><IconChat />{t("hasChat")}</small> : null}
-                        {r.hasMeeting ? <small><IconVideo />{t("hasMeeting")}</small> : null}
-                        {r.createdAt ? <small><IconClock />{shortDateTime(r.createdAt, locale)}</small> : null}
+                      <em className={`cwork__st cwork__st--${tn} cx-pill cx-pill--${PILL[tn]}`}>
+                        <ToneIcon tone={tn} />
+                        {st}
+                      </em>
+                    </span>
+                    {r.nextAction ? <span className="cwork__next">{r.nextAction}</span> : null}
+                    <span className="cwk-row__foot">
+                      <span className="cx-work__who">
+                        {who ? <span className="cx-av" aria-hidden>{initials(who)}</span> : null}
+                        {lawyer ? tl("who", { name: lawyer }) : operator ? tl("operator", { name: operator }) : null}
                       </span>
-                      {r.nextAction ? <span className="cwork__next"><IconArrowRight />{r.nextAction}</span> : null}
+                      <span className="cwk-row__ics">
+                        {r.hasChat ? (
+                          <span className="cwk-ic" role="img" aria-label={t("hasChat")} title={t("hasChat")}>
+                            <MessageSquareText aria-hidden />
+                          </span>
+                        ) : null}
+                        {r.hasMeeting ? (
+                          <span className="cwk-ic" role="img" aria-label={t("hasMeeting")} title={t("hasMeeting")}>
+                            <Video aria-hidden />
+                          </span>
+                        ) : null}
+                        <span className="cx-iconbtn cwk-row__go" aria-hidden>
+                          <ArrowUpRight />
+                        </span>
+                      </span>
                     </span>
                   </button>
                 );
@@ -475,15 +525,28 @@ function WorkDetail({ row, typeName }: { row: ClientWork; typeName: (k: string) 
   const entityId = entityType === "secure_chat" ? roomId : row.id;
   const copilotEntity = entityType && entityId ? { type: entityType, id: entityId, code: row.workId || undefined, title: workTitle } : null;
 
+  const tn = tone(row.status);
+  // The operator's ruling as a status pill: settled green, refused grey,
+  // anything still open amber.
+  const verdictTone = /^(resolved|closed|completed)$/.test(review.action) ? "ok" : /^(rejected|cancelled)$/.test(review.action) ? "mute" : "warn";
+
   return (
     <div className="cwdet">
+      {/* The kind's picture, its name and where it stands — the dashboard's
+          work card head, opened out. */}
+      <div className="cwdet__intro">
+        <span className="cwk-art cwk-art--lg" style={artOf(row.type)} aria-hidden />
+        <span className="cwdet__kind">{typeName(row.type)}</span>
+        <em className={`cx-pill cx-pill--${PILL[tn]}`}>
+          <ToneIcon tone={tn} />
+          {workStatusText(t, tcm, row.status, row.type, row.statusLabel)}
+        </em>
+      </div>
       <dl className="cwdet__facts">
-        {row.workId ? (<><dt>{t("fWorkId")}</dt><dd className="cwdet__wid">{row.workId}</dd></>) : null}
-        <dt>{t("fType")}</dt><dd>{typeName(row.type)}</dd>
-        <dt>{t("fStatus")}</dt><dd>{workStatusText(t, tcm, row.status, row.type, row.statusLabel)}</dd>
-        {row.assignedLawyer?.name ? (<><dt>{t("fLawyer")}</dt><dd>{row.assignedLawyer.name}</dd></>) : null}
-        {row.operator?.name ? (<><dt>{t("fOperator")}</dt><dd>{row.operator.name}</dd></>) : null}
-        {row.createdAt ? (<><dt>{t("fCreated")}</dt><dd>{shortDateTime(row.createdAt, locale)}</dd></>) : null}
+        {row.workId ? (<div><dt>{t("fWorkId")}</dt><dd className="cwdet__wid">{row.workId}</dd></div>) : null}
+        {row.assignedLawyer?.name ? (<div><dt>{t("fLawyer")}</dt><dd>{row.assignedLawyer.name}</dd></div>) : null}
+        {row.operator?.name ? (<div><dt>{t("fOperator")}</dt><dd>{row.operator.name}</dd></div>) : null}
+        {row.createdAt ? (<div><dt>{t("fCreated")}</dt><dd>{shortDateTime(row.createdAt, locale)}</dd></div>) : null}
       </dl>
 
       {row.nextAction ? (
@@ -504,8 +567,13 @@ function WorkDetail({ row, typeName }: { row: ClientWork; typeName: (k: string) 
           ) : null}
           {review.action || review.note ? (
             <section className="cwdet__b cwdet__b--ok">
-              <b><IconScale />{t("bReview")}</b>
-              {review.action ? <span className="advmuted">{t.has(`qcAction.${review.action}`) ? t(`qcAction.${review.action}`) : review.action}</span> : null}
+              <b>
+                <IconScale />
+                {t("bReview")}
+                {review.action ? (
+                  <em className={`cx-pill cx-pill--${verdictTone}`}>{t.has(`qcAction.${review.action}`) ? t(`qcAction.${review.action}`) : review.action}</em>
+                ) : null}
+              </b>
               {review.note ? <p>{review.note}</p> : null}
             </section>
           ) : null}
@@ -519,14 +587,15 @@ function WorkDetail({ row, typeName }: { row: ClientWork; typeName: (k: string) 
           title={workTitle}
           label={row.hasMeeting ? tp("meetingPrep") : undefined}
           context={copilotEntity ? undefined : { label: [row.workId, workTitle].filter(Boolean).join(" · "), work_id: row.workId || undefined }}
+          className="olx-ai"
         />
         {roomId ? (
-          <Link href={`/portal/chat/${roomId}`} className="btn btn--line btn--sm">
+          <Link href={`/portal/chat/${roomId}`} className="btn btn--line">
             <IconChat />{t("openChat")}
           </Link>
         ) : null}
         {href ? (
-          <Link href={href} className="btn btn--grad btn--sm">
+          <Link href={href} className="btn btn--pri">
             {t("openWork")}<IconArrowRight />
           </Link>
         ) : null}

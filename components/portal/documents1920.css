@@ -1,0 +1,474 @@
+/* ═══ LexGo 1920 — "Mening hujjatlarim" (client) + the document wait cards ═══
+   components/portal/ClientDocumentRequests.tsx, DocumentRequestPanel.tsx,
+   DocumentRequestChat.tsx and DocRatingBox.tsx drawn in the client
+   dashboard's vocabulary (components/portal/dash/ClientHome.tsx +
+   dash1920.css), the design every cabinet page now follows:
+   - no second page title: the shell header says "Mening hujjatlarim"; under
+     it the dashboard's flat navy feature card, the "Huquqiy hujjatlar"
+     drawing in a white circle and the four counts as quiet tiles that filter;
+   - the search and filters are the dashboard's .cx-find tray;
+   - a document is a chip-coloured card like "Jarayondagi ishlar": the kind's
+     duotone drawing on a light plate, a .cx-pill status, the 4-segment
+     .cx-steps bar with "n/total · what happens now", plain price text and
+     flat r12 buttons — no gradient tiles, pulse dots, violet or HOZIR strips;
+   - the status cards of a document request (the template page reached with
+     ?request=) are white cards with the dashboard's black line drawings in
+     white circles, .cx-pill statuses and flat buttons;
+   - the dialogs (portalled to <body>; shell/layers1920.css gives them the
+     tokens) use the same pictures, chips and buttons.
+   The old rules live in app/globals.css (.mydocs*, .mdc*, .docpend*,
+   .docdone*, .docoffer, .docchat*, .drate*, .dexit*, .docreview, .uf-*);
+   the selectors here carry enough weight to win over every one of them. */
+
+/* ── page column ─────────────────────────────────────────── */
+.portal.lx .lxd{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;min-width:0;container:lxd / inline-size}
+.portal.lx .lxd > *{min-width:0}
+
+/* ── hero: the dashboard's navy feature card ─────────────── */
+.portal.lx .lxd-hero{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"art main tools" "views views views";
+  align-items:center;gap:20px 24px;padding:24px 28px;border-radius:24px;background:var(--lx-navy);color:#fff;
+}
+html[data-theme="dark"] .portal.lx .lxd-hero{background:#16243C;box-shadow:inset 0 0 0 1px var(--lx-navy-line)}
+.lxd-hero__art{grid-area:art;display:block;width:88px;height:88px;flex:none;border-radius:50%;background:var(--art) center/62% no-repeat,#fff}
+.portal.lx .lxd-hero__main{grid-area:main;min-width:0}
+.portal.lx .lxd-hero__t{margin:0;font-family:var(--fd);font-size:1.45rem;font-weight:700;letter-spacing:-.015em;line-height:1.25;color:#fff}
+.portal.lx .lxd-hero__s{margin:8px 0 0;font-size:.92rem;line-height:1.6;color:#C9D4E3;max-width:68ch}
+.portal.lx .lxd-hero__tools{grid-area:tools;align-self:start;display:flex;justify-content:flex-end}
+/* the AI helper, as the white button of the dashboard's navy cards */
+.portal.lx .lxd-hero .cpl-launch.lxd-hero__ai{
+  height:44px;padding:0 18px 0 14px;gap:8px;border-radius:12px;background:#fff;color:#0A1526;
+  box-shadow:none;font-size:.9rem;font-weight:600;
+}
+.portal.lx .lxd-hero .cpl-launch.lxd-hero__ai:hover{background:#E9F0FB;box-shadow:none}
+.portal.lx .lxd-hero .lxd-hero__ai .cpl-launch__ic{width:auto;height:auto;border-radius:0;background:none;color:#1668F0;box-shadow:none}
+.portal.lx .lxd-hero .lxd-hero__ai:hover .cpl-launch__ic{transform:none}
+.portal.lx .lxd-hero .lxd-hero__ai .cpl-launch__ic svg{width:18px;height:18px}
+.portal.lx .lxd-hero .lxd-hero__ai:focus-visible{outline:2px solid #fff;outline-offset:2px}
+/* the four counts: quiet tiles on the navy, the picked one blue like the
+   sidebar's active link */
+.portal.lx .lxd-hero .lxd-views{
+  grid-area:views;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;
+  margin:0;padding:0;border-radius:0;background:none;box-shadow:none;
+}
+.portal.lx .lxd-views .lxd-view{
+  display:grid;gap:6px;align-content:start;justify-items:start;min-width:0;min-height:0;
+  padding:12px 16px;border:0;border-radius:16px;background:rgba(255,255,255,.07);box-shadow:none;
+  color:#fff;font:inherit;text-align:left;cursor:pointer;transition:background .15s;
+}
+.portal.lx .lxd-views .lxd-view:hover{background:rgba(255,255,255,.12)}
+.portal.lx .lxd-views .lxd-view.is-on{background:var(--lx-blue);box-shadow:none}
+.portal.lx .lxd-views .lxd-view:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.portal.lx .lxd-view__k{font-size:.7rem;font-weight:600;letter-spacing:.06em;line-height:1.35;text-transform:uppercase;color:#8494AB;overflow-wrap:break-word}
+.portal.lx .lxd-view.is-on .lxd-view__k{color:rgba(255,255,255,.85)}
+.portal.lx .lxd-view__n{font-family:var(--fd);font-size:1.3rem;font-weight:700;line-height:1.1;color:#fff;font-variant-numeric:tabular-nums}
+
+/* ── the list card ───────────────────────────────────────── */
+.portal.lx .lxd-box{display:flex;flex-direction:column;gap:22px;padding:24px 24px 28px}
+
+/* the search and the two filters: the dashboard's .cx-find tray */
+.portal.lx .lxd-find{margin:0;gap:12px}
+@media (min-width:901px){
+  .portal.lx .lxd-find .uf-card{
+    display:grid;grid-template-columns:minmax(0,1fr) minmax(170px,240px);gap:10px;align-items:stretch;
+    padding:8px;border-radius:18px;background:var(--lx-chip);box-shadow:none;
+  }
+  /* the status filter only appears once the list has two statuses to pick */
+  .portal.lx .lxd-find .uf-card:has(> .uf-fld + .uf-fld + .uf-fld){grid-template-columns:minmax(0,1fr) minmax(170px,240px) minmax(170px,240px)}
+  .portal.lx .lxd-find .uf-card.uf-card--search{grid-template-columns:minmax(0,1fr)}
+  .portal.lx .lxd-find .uf-fld--wide{grid-column:auto}
+  .portal.lx .lxd-find .uf-fld{gap:0}
+  /* the field names stay for the screen reader (aria-label), as in the
+     dashboard's tray the hint inside the field says what it is */
+  .portal.lx .lxd-find .uf-card .uf-fld__l,.portal.lx .lxd-find .uf-card .uf-fld > label{display:none}
+  .portal.lx .lxd-find .uf-card .uf-search input{min-height:56px;height:56px;padding-left:46px}
+  .portal.lx .lxd-find .uf-card .uf-search > svg{left:16px;width:20px;height:20px}
+  .portal.lx .lxd-find .uf-card .dsel__btn{min-height:56px;padding:0 14px 0 16px}
+}
+.portal.lx .lxd-find .uf-search input{
+  border:1px solid var(--lx-line);border-radius:12px;background:var(--lx-card);box-shadow:none;
+  font-size:.96rem;font-weight:500;color:var(--lx-ink);
+}
+.portal.lx .lxd-find .uf-search input:hover{border-color:#C7D6EC;background:var(--lx-card);box-shadow:none}
+.portal.lx .lxd-find .uf-search input:focus{border-color:var(--lx-blue);background:var(--lx-card);box-shadow:none}
+.portal.lx .lxd-find .uf-search > svg{color:var(--lx-gray2)}
+.portal.lx .lxd-find .uf-search__x{background:var(--lx-chip);color:var(--lx-ink)}
+.portal.lx .lxd-find .dsel__btn{
+  border:1px solid var(--lx-line);border-radius:12px;background:var(--lx-card);box-shadow:none;
+  font-size:.94rem;font-weight:600;color:var(--lx-ink);
+}
+.portal.lx .lxd-find .dsel__btn:hover{border-color:#C7D6EC;background:var(--lx-card);box-shadow:none}
+.portal.lx .lxd-find .dsel[data-open="true"] .dsel__btn,.portal.lx .lxd-find .dsel__btn:focus-visible{border-color:var(--lx-blue);box-shadow:none}
+.portal.lx .lxd-find .dsel__cv{background:none}
+.portal.lx .lxd-find .dsel__cv::after{border-color:var(--lx-gray)}
+/* the chosen filters under the tray, as the dashboard's grey chips */
+.portal.lx .lxd-find .uf-chosen__c{background:var(--lx-chip);color:var(--lx-ink);font-weight:600}
+.portal.lx .lxd-find .uf-chosen__c svg{background:var(--lx-card);color:var(--lx-gray)}
+.portal.lx .lxd-find .uf-chosen__c:hover svg{background:var(--lx-line)}
+.portal.lx .lxd-find .uf-count{color:var(--lx-gray);font-weight:600}
+/* The select's visually hidden name (components/Select.tsx, kept for screen
+   readers) hidden with clip-path instead of a 1px box, so the box keeps its
+   own width and nothing in the tray is text squeezed into 1px. */
+.portal.lx .lxd-find .dsel .sr-only{top:0;left:0;width:auto;height:auto;margin:0;padding:0;clip:auto;clip-path:inset(50%);overflow:hidden;white-space:nowrap}
+/* a 320px phone: FilterBar squeezes the word "Filtrlar" into 1px there;
+   the tray leaves the search enough room to keep it */
+@media (max-width:359px){
+  .portal.lx .lxd-find .uf-bar:not(.uf-bar--solo) .uf-toggle > span:not(.uf-toggle__n){position:static;width:auto;height:auto;margin:0;overflow:visible;clip:auto;white-space:nowrap}
+  .portal.lx .lxd-find .uf-toggle{padding:0 12px;gap:6px}
+}
+/* a phone: the search + "Filtrlar" pair in the same tray, and the sheet */
+@media (max-width:900px){
+  .portal.lx .lxd-find .uf-bar{padding:8px;border-radius:18px;background:var(--lx-chip)}
+  .portal.lx .lxd-find .uf-bar .uf-search input{min-height:48px}
+  .portal.lx .lxd-find .uf-toggle{min-height:48px;border-radius:12px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);color:var(--lx-ink);font-weight:600}
+  .portal.lx .lxd-find .uf-toggle svg{color:var(--lx-ink)}
+  .portal.lx .lxd-find .uf-toggle__n{background:var(--lx-blue)}
+  .portal.lx .lxd-find .uf-card.is-open{border-radius:24px 24px 0 0;background:var(--lx-card);padding:18px 18px calc(18px + env(safe-area-inset-bottom));gap:14px}
+  .portal.lx .lxd-find .uf-card__head b{font-weight:700;color:var(--lx-ink)}
+  .portal.lx .lxd-find .uf-card__head button{width:40px;height:40px;border-radius:12px;background:var(--lx-chip);color:var(--lx-ink)}
+  .portal.lx .lxd-find .uf-card.is-open .uf-fld__l{font-size:.86rem;font-weight:600;color:var(--lx-ink)}
+  .portal.lx .lxd-find .uf-card.is-open .uf-fld__l svg{display:none}
+  .portal.lx .lxd-find .uf-card.is-open .dsel__btn{min-height:52px}
+  .portal.lx .lxd-find .uf-card__apply{min-height:48px;border-radius:12px}
+}
+
+/* ── states ──────────────────────────────────────────────── */
+.portal.lx .lxd-skels{display:grid;gap:16px}
+.portal.lx .lxd-skels .lxd-skel{height:176px}
+/* "no documents yet": the dashboard's "Huquqiy hujjatlar" drawing */
+.portal.lx .lxd-empty .lxd-empty__art{
+  display:block;width:96px;height:96px;margin-bottom:6px;border-radius:50%;
+  background:var(--art) center/62% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line);
+}
+html[data-theme="dark"] .portal.lx .lxd-empty .lxd-empty__art{box-shadow:none}
+.portal.lx .lxd-box .pempty .pempty__a{display:flex;justify-content:center;margin-top:6px}
+
+/* ── the list ────────────────────────────────────────────── */
+.portal.lx .lxd .lxd-list{display:grid;gap:28px;container:lxdl / inline-size}
+.portal.lx .lxd .lxd-sec{display:grid;gap:14px;min-width:0}
+.portal.lx .lxd .lxd-sec + .lxd-sec{margin-top:0}
+.portal.lx .lxd .lxd-sec__h{display:grid;gap:2px;padding:0}
+.portal.lx .lxd .lxd-sec__h h3.cx-h3{margin:0;font-family:var(--fd);font-size:1.18rem;font-weight:700;letter-spacing:-.015em;color:var(--lx-ink)}
+.portal.lx .lxd .lxd-sec__h h3.cx-h3::before{display:none}
+.portal.lx .lxd .lxd-sec__h .lx-sub{margin:0;font-size:.88rem}
+.portal.lx .lxd .lxd-sec__h .cx-count{font-family:var(--fb, inherit);font-size:.8rem;font-weight:700;padding:0 8px;background:var(--lx-chip);color:var(--lx-ink)}
+.portal.lx .lxd .lxd-sec__h .cx-count.lxd-count--warn{background:var(--lx-warn-bg);color:var(--lx-warn)}
+.portal.lx .lxd .lxd-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.portal.lx .lxd .lxd-list .ntmore{justify-self:center;width:auto;min-width:240px;height:44px;margin:0;border-radius:12px}
+
+/* a document: the dashboard's "Jarayondagi ishlar" card */
+.portal.lx .lxd .mdc.lxd-doc{
+  display:grid;grid-template-columns:60px minmax(0,1fr);column-gap:16px;row-gap:12px;
+  padding:18px 20px;border:0;border-radius:16px;background:var(--lx-chip);box-shadow:none;opacity:1;
+  transition:box-shadow .15s;
+}
+.portal.lx .lxd .mdc.lxd-doc:hover{border-color:transparent;box-shadow:none}
+.portal.lx .lxd .mdc.lxd-doc > *{grid-column:2;min-width:0}
+.portal.lx .lxd .mdc.lxd-doc > .lxd-doc__h{grid-column:1 / -1}
+/* the row the notification opened, and a row that just arrived */
+.portal.lx .lxd .mdc.lxd-doc.mdc--flag,.portal.lx .lxd .mdc.lxd-doc.mdc--fresh{box-shadow:inset 0 0 0 1.5px var(--lx-blue)}
+.portal.lx .lxd .mdc.lxd-doc.mdc--closed .lxd-doc__art{opacity:.7}
+.portal.lx .lxd .lxd-doc__h{display:grid;grid-template-columns:60px minmax(0,1fr) auto;column-gap:16px;row-gap:10px;align-items:start}
+/* the kind's duotone drawing on the dashboard's light plate; the plate stays
+   light in dark mode — navy line art on a dark card would disappear */
+.lxd-doc__art{
+  display:block;width:60px;height:60px;flex:none;border-radius:16px;
+  background:var(--img) center/86% no-repeat,linear-gradient(168deg,#F1F6FF 0%,#FAFCFF 56%,#E9F1FD 100%);
+  box-shadow:inset 0 0 0 1px var(--lx-line);
+}
+html[data-theme="dark"] .lxd-doc__art{background:var(--img) center/86% no-repeat,linear-gradient(168deg,#E8EFFA 0%,#F4F8FF 56%,#E1EAF8 100%);box-shadow:none}
+.portal.lx .lxd .lxd-doc__main{display:grid;gap:8px;min-width:0;padding-top:2px}
+.portal.lx .lxd .mdc__t.lxd-doc__t{font-size:1rem;font-weight:600;line-height:1.4;letter-spacing:-.005em;color:var(--lx-ink);overflow-wrap:anywhere}
+.portal.lx .lxd .lxd-doc__meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;font-size:.8rem;line-height:1.35;color:var(--lx-gray);min-width:0}
+.portal.lx .lxd .lxd-doc__meta > span{display:inline-flex;align-items:center;gap:5px;min-width:0;overflow-wrap:anywhere}
+.portal.lx .lxd .lxd-doc__meta svg{width:14px;height:14px;flex:none}
+.portal.lx .lxd .lxd-doc__meta .lxd-tag{
+  height:24px;padding:0 10px;gap:5px;border-radius:999px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);
+  font-size:.74rem;font-weight:600;color:var(--lx-ink);white-space:nowrap;overflow-wrap:normal;
+}
+.portal.lx .lxd .lxd-doc__meta .lxd-tag svg{width:13px;height:13px}
+.portal.lx .lxd .lxd-doc__meta .lxd-tag--id{color:var(--lx-gray);font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.portal.lx .lxd .lxd-doc__meta .lxd-doc__live{color:var(--lx-ok);font-weight:600}
+.portal.lx .lxd .lxd-doc__side{display:grid;justify-items:end;gap:8px;min-width:0}
+.portal.lx .lxd .lxd-doc__side .cx-pill{font-style:normal}
+.portal.lx .lxd .lxd-doc__side .cx-pill.lxd-pill--err{background:var(--lx-err-bg);color:var(--lx-err)}
+.portal.lx .lxd .lxd-doc__side .cx-pill.lxd-pill--mute{background:var(--lx-card);color:var(--lx-gray);box-shadow:inset 0 0 0 1px var(--lx-line)}
+.portal.lx .lxd .lxd-doc__side .mdc__stars .drated{margin:0}
+/* where it has got to: the dashboard's bar, one segment per step it goes through */
+.portal.lx .lxd .lxd-doc__flow{display:grid;gap:8px;max-width:600px}
+.portal.lx .lxd .lxd-doc__flow .lxd-steps{grid-template-columns:repeat(var(--n,4),minmax(0,1fr));margin:0}
+.portal.lx .lxd .lxd-steps i{height:5px}
+.portal.lx .lxd .lxd-steps i.on{background:var(--lx-blue)}
+.portal.lx .lxd .lxd-steps.cx-steps--warn i.now{background:#D9A21B}
+.portal.lx .lxd .lxd-steps i.fail{background:var(--lx-err)}
+.portal.lx .lxd .lxd-doc__stage{display:block;font-size:.84rem;line-height:1.45;color:var(--lx-gray)}
+.portal.lx .lxd .lxd-doc__stage b{font-weight:600;color:var(--lx-ink);font-variant-numeric:tabular-nums}
+.portal.lx .lxd .lxd-doc__note{font-size:.8rem;line-height:1.45;color:var(--lx-gray)}
+/* price and actions: plain text and flat buttons */
+.portal.lx .lxd .mdc__f.lxd-doc__foot{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px 16px;padding:2px 0 0;border:0}
+.portal.lx .lxd .lxd-price{display:grid;gap:2px;min-width:0}
+.portal.lx .lxd .lxd-price b{font-family:var(--fd);font-size:1.05rem;font-weight:700;line-height:1.2;color:var(--lx-ink);white-space:nowrap;font-variant-numeric:tabular-nums}
+.portal.lx .lxd .lxd-price b i{font-style:normal;font-family:var(--fb, inherit);font-size:.8rem;font-weight:600;color:var(--lx-gray)}
+.portal.lx .lxd .lxd-price small{font-size:.78rem;font-weight:500;line-height:1.35;color:var(--lx-gray)}
+.portal.lx .lxd .lxd-price--wait small{color:var(--lx-warn);font-weight:600}
+.portal.lx .lxd .lxd-price--paid small{color:var(--lx-ok);font-weight:600}
+.portal.lx .lxd .lxd-price--off small{color:var(--lx-err);font-weight:600}
+.portal.lx .lxd .lxd-price--off b{text-decoration:line-through;text-decoration-thickness:1.5px;color:var(--lx-gray)}
+.portal.lx .lxd .mdc__acts.lxd-doc__acts{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-left:auto}
+.portal.lx .lxd .btn.lxd-btn{height:40px;min-height:40px;padding:0 16px;gap:7px;border-radius:12px;font-size:.88rem;font-weight:600;white-space:nowrap}
+.portal.lx .lxd .btn.lxd-btn svg{width:16px;height:16px;flex:none}
+/* the AI helper on each card: the dashboard's square icon button */
+.portal.lx .lxd .cpl-launch.lxd-ai{
+  width:40px;height:40px;padding:0;border-radius:12px;background:var(--lx-card);border:1px solid var(--lx-line);
+  box-shadow:none;color:var(--lx-ink);
+}
+.portal.lx .lxd .cpl-launch.lxd-ai:hover,.portal.lx .lxd .cpl-launch.lxd-ai[data-cpl-on]{background:var(--lx-card);border-color:var(--lx-blue);color:var(--lx-link);box-shadow:none}
+.portal.lx .lxd .lxd-ai .cpl-launch__ic{width:auto;height:auto;border-radius:0;background:none;color:inherit;box-shadow:none}
+.portal.lx .lxd .lxd-ai:hover .cpl-launch__ic{transform:none}
+.portal.lx .lxd .lxd-ai .cpl-launch__ic svg{width:18px;height:18px}
+/* "why can't I send it": the same square button, and a plain card under it */
+.portal.lx .lxd .mdc__why.lxd-why summary{width:40px;height:40px;border-radius:12px;background:var(--lx-card);border:1px solid var(--lx-line);box-shadow:none;color:var(--lx-gray)}
+.portal.lx .lxd .mdc__why.lxd-why summary:hover,.portal.lx .lxd .mdc__why.lxd-why[open] summary{border-color:var(--lx-blue);color:var(--lx-link)}
+.portal.lx .lxd .mdc__why.lxd-why summary svg{width:18px;height:18px}
+.portal.lx .lxd .mdc__why.lxd-why p{
+  border-radius:12px;padding:12px 14px;background:var(--lx-card);color:var(--lx-ink);font-size:.8rem;line-height:1.5;
+  box-shadow:0 20px 40px -18px rgba(10,21,38,.35),inset 0 0 0 1px var(--lx-line-2);
+}
+
+/* the 15-minute rating, a white block inside the chip card */
+.portal.lx .lxd-doc .drate{
+  display:grid;gap:10px;justify-items:start;margin:0;padding:14px 16px;border-radius:16px;
+  background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);
+}
+.portal.lx .lxd-doc .drate__h{gap:8px 12px}
+.portal.lx .lxd-doc .drate__h b{gap:8px;font-size:.92rem;font-weight:600;color:var(--lx-ink)}
+.portal.lx .lxd-doc .drate__h > b svg{width:16px;height:16px;color:#D9A21B;fill:#D9A21B}
+.portal.lx .lxd-doc .drate__left.cx-pill{margin-left:auto;height:26px;padding:0 10px 0 8px;font-size:.74rem;font-weight:600;letter-spacing:0;background:var(--lx-warn-bg);color:var(--lx-warn);box-shadow:none}
+.portal.lx .lxd-doc .drate__left.cx-pill svg{width:13px;height:13px;fill:none}
+.portal.lx .lxd-doc .drate__s{color:var(--lx-gray2)}
+.portal.lx .lxd-doc .drate__s:not(.set) svg{stroke-dasharray:0;animation:none;stroke:var(--lx-gray2);stroke-linejoin:round}
+.portal.lx .lxd-doc .drate__s.on,.portal.lx .lxd-doc .drate__s.on:not(.set) svg{color:#D9A21B;stroke:#D9A21B;fill:#D9A21B}
+.portal.lx .lxd-doc .drate__word{color:var(--lx-warn)}
+.portal.lx .lxd-doc .drate__c{height:44px;border:1px solid var(--lx-line);border-radius:12px;background:var(--lx-card);box-shadow:none;color:var(--lx-ink)}
+.portal.lx .lxd-doc .drate__c:focus{border-color:var(--lx-blue);box-shadow:0 0 0 3px var(--lx-blue-tint)}
+.portal.lx .lxd-doc .drate__lowt{border:1px solid var(--lx-line);border-radius:12px;background:var(--lx-card);box-shadow:none}
+.portal.lx .lxd-doc .btn.drate__go{height:40px;padding:0 18px;border-radius:12px;font-weight:600}
+.portal.lx .lxd-doc .drate--shut{padding:0;background:none;box-shadow:none;color:var(--lx-gray)}
+.portal.lx .lxd-doc .drate--qc{background:var(--lx-warn-bg);box-shadow:none}
+
+/* ── by the width the list actually gets ─────────────────── */
+/* A wide screen (1728px and up): two cards a row, so a card never stretches
+   its title and its status pill 1500px apart. */
+@container lxdl (min-width:1240px){
+  .portal.lx .lxd .lxd-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+}
+@container lxd (max-width:999px){
+  .portal.lx .lxd-hero{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"art main" "tools tools" "views views"}
+  .portal.lx .lxd-hero__tools{justify-content:flex-start}
+  .portal.lx .lxd-hero .lxd-views{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@container lxd (max-width:599px){
+  .portal.lx .lxd-hero{padding:20px;gap:16px 16px}
+  .lxd-hero__art{width:64px;height:64px}
+  .portal.lx .lxd-hero__t{font-size:1.18rem}
+  .portal.lx .lxd-hero__s{font-size:.86rem}
+  .portal.lx .lxd-box{padding:16px 14px 18px;gap:18px}
+}
+/* a phone: one count per row, its name on the left and the number on the right */
+@container lxd (max-width:439px){
+  .portal.lx .lxd-hero{grid-template-columns:minmax(0,1fr);grid-template-areas:"art" "main" "tools" "views"}
+  .portal.lx .lxd-hero .lxd-views{grid-template-columns:minmax(0,1fr);gap:8px}
+  .portal.lx .lxd-views .lxd-view{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px}
+  .portal.lx .lxd-view__k{min-width:0}
+  .portal.lx .lxd-view__n{font-size:1.1rem}
+  .portal.lx .lxd-hero .cpl-launch.lxd-hero__ai{width:100%;justify-content:center}
+  .portal.lx .lxd-hero__tools{display:block}
+}
+@container lxdl (max-width:639px){
+  .portal.lx .lxd .mdc.lxd-doc{grid-template-columns:minmax(0,1fr);padding:16px 14px;row-gap:12px}
+  .portal.lx .lxd .mdc.lxd-doc > *{grid-column:1}
+  .portal.lx .lxd .lxd-doc__h{grid-template-columns:48px minmax(0,1fr);column-gap:12px}
+  .lxd-doc__art{width:48px;height:48px;border-radius:14px}
+  .portal.lx .lxd .lxd-doc__side{grid-column:1 / -1;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start}
+  .portal.lx .lxd .mdc__f.lxd-doc__foot{flex-direction:column;align-items:stretch}
+  .portal.lx .lxd .mdc__acts.lxd-doc__acts{margin-left:0;justify-content:flex-start}
+  .portal.lx .lxd .mdc__acts.lxd-doc__acts .btn.lxd-btn{flex:1 1 auto;justify-content:center}
+  .portal.lx .lxd .mdc__why.lxd-why p{right:auto;left:0}
+}
+@container lxdl (max-width:379px){
+  .portal.lx .lxd .lxd-doc__meta{gap:6px 10px}
+  /* a 21-character work id must not push the card wider than a phone */
+  .portal.lx .lxd .lxd-doc__meta .lxd-tag--id{white-space:normal;overflow-wrap:anywhere;height:auto;min-height:24px;padding:3px 10px}
+}
+
+/* ── the status cards of a document request (DocumentRequestPanel) ──
+   The panel also opens inside dialogs (portalled), so these rules key on
+   the panel's own .lxdp and fall back to the light tokens. */
+/* one column that never grows past the panel: a long button label or file
+   name must not push the card wider than a phone */
+.lxdp:not(.cform--doc){grid-template-columns:minmax(0,1fr)}
+.lxdp > :is(.lxdp-card,.lxdp-chat,.lxdp-chatwait){min-width:0}
+.lxdp .lxdp-card{
+  display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;
+  padding:32px 28px;border-radius:24px;background:var(--lx-card, #fff);border:1px solid var(--lx-line-2, #ECF0F7);
+  box-shadow:none;animation:none;
+}
+html[data-theme="dark"] .lxdp .lxdp-card{border-color:var(--lx-line, #26365A)}
+.lxdp .lxdp-art{
+  display:block;width:96px;height:96px;flex:none;margin-bottom:4px;border-radius:50%;
+  background:var(--art) center/62% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line, #E4EBF5);animation:none;
+}
+html[data-theme="dark"] .lxdp .lxdp-art{box-shadow:none}
+.lxdp .lxdp-ic{display:grid;place-items:center;width:56px;height:56px;flex:none;border-radius:16px;box-shadow:none;animation:none}
+.lxdp .lxdp-ic svg{width:26px;height:26px}
+.lxdp .lxdp-ic--err{background:var(--lx-err-bg, #FDECEA);color:var(--lx-err, #D93B30)}
+.lxdp .lxdp-t{font-family:var(--fd);font-size:1.25rem;font-weight:700;line-height:1.3;letter-spacing:-.015em;color:var(--lx-ink, #0A1526)}
+.lxdp .lxdp-card .docpend__sub{max-width:460px;font-size:.92rem;line-height:1.55;color:var(--lx-gray, #4F5F75)}
+.lxdp .lxdp-card .docpend__badge.cx-pill{gap:6px;height:28px;padding:0 12px 0 9px;font-size:.78rem;font-weight:600;box-shadow:none}
+.lxdp .lxdp-card .docpend__badge.cx-pill svg{width:14px;height:14px}
+.lxdp .lxdp-card .docpend__badge.cx-pill--blue{background:var(--lx-blue-tint, #EFF4FE);color:var(--lx-blue-ink, #154CB0)}
+.lxdp .lxdp-card .docpend__badge.cx-pill--warn{background:var(--lx-warn-bg, #FFF3D6);color:var(--lx-warn, #9A5B00)}
+.lxdp .lxdp-card .docpend__badge.lxdp-pill--err{background:var(--lx-err-bg, #FDECEA);color:var(--lx-err, #D93B30)}
+.lxdp .lxdp-acts{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:4px;animation:none}
+.lxdp .lxdp-acts .btn{height:44px;padding:0 18px;border-radius:12px;font-weight:600;white-space:nowrap}
+.lxdp .lxdp-acts .btn svg{width:16px;height:16px}
+.lxdp .lxdp-why{
+  display:flex;align-items:flex-start;gap:8px;max-width:480px;margin:0;padding:10px 14px;border-radius:12px;
+  background:var(--lx-chip, #F2F6FC);color:var(--lx-gray, #4F5F75);font-size:.84rem;font-weight:500;line-height:1.5;text-align:left;
+}
+.lxdp .lxdp-why svg{width:16px;height:16px;flex:none;margin-top:2px}
+.lxdp .lxdp-card .advmuted{max-width:460px;color:var(--lx-gray, #4F5F75)}
+/* the payment gate: amount, the page breakdown as chips, the Telegram fact */
+.lxdp .docpend--gate{gap:12px}
+.lxdp .docpend--gate .pgate__amt{font-family:var(--fd);font-size:1.6rem;font-weight:700;line-height:1.15;color:var(--lx-ink, #0A1526)}
+.lxdp .pgate__meta{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+.lxdp .pgate__meta .cx-tag{padding:4px 10px;border-radius:999px;background:var(--lx-chip, #F2F6FC);color:var(--lx-ink, #0A1526);font-size:.78rem;font-weight:500;white-space:nowrap}
+.lxdp .pgate__meta .cx-tag.pgate__meta--x{background:var(--lx-warn-bg, #FFF3D6);color:var(--lx-warn, #9A5B00);font-weight:600}
+.lxdp .pgate__tg{max-width:460px;margin:0;font-size:.84rem;line-height:1.5;color:var(--lx-ok, #0E7A55)}
+.lxdp .pgate__tg.pgate__tg--bad{padding:10px 14px;border-radius:12px;background:var(--lx-warn-bg, #FFF3D6);color:var(--lx-warn, #9A5B00);font-weight:600;box-shadow:none}
+.lxdp .pgate__none{max-width:460px;color:var(--lx-gray, #4F5F75)}
+/* done */
+.lxdp .lxdp-file{
+  display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:6px 12px;border-radius:999px;
+  background:var(--lx-chip, #F2F6FC);color:var(--lx-ink, #0A1526);font-size:.84rem;font-weight:500;line-height:1.35;overflow-wrap:anywhere;text-align:left;
+}
+.lxdp .lxdp-file svg{width:15px;height:15px;flex:none;color:var(--lx-gray, #4F5F75)}
+.lxdp .lxdp-link{color:var(--lx-link, #1460DC);font-weight:600}
+.lxdp .lxdp-card .docdone__act{margin-top:4px}
+.lxdp .lxdp-card--done > .btn--sm{height:40px;padding:0 16px;border-radius:12px;font-weight:600}
+.lxdp .lxdp-review{
+  width:100%;max-width:560px;gap:10px;padding:16px;border:0;border-radius:16px;background:var(--lx-chip, #F2F6FC);text-align:left;
+}
+.lxdp .lxdp-review label{font-size:.88rem;font-weight:600;letter-spacing:0;text-transform:none;color:var(--lx-ink, #0A1526)}
+.lxdp .lxdp-review textarea{border:1px solid var(--lx-line, #E4EBF5);border-radius:12px;background:var(--lx-card, #fff);box-shadow:none;min-height:88px}
+.lxdp .lxdp-review textarea:focus{border-color:var(--lx-blue, #1668F0);box-shadow:0 0 0 3px var(--lx-blue-tint, #EFF4FE)}
+.lxdp .lxdp-review .btn{height:40px;border-radius:12px}
+.lxdp .docgate--inline{
+  display:flex;flex-direction:column;align-items:flex-start;gap:8px;width:100%;max-width:560px;
+  padding:14px 16px;border-radius:16px;background:var(--lx-chip, #F2F6FC);text-align:left;
+}
+.lxdp .docgate--inline .pgate__meta{justify-content:flex-start}
+.lxdp .docgate--inline .pgate__amt{font-family:var(--fd);font-size:1.25rem;font-weight:700;color:var(--lx-ink, #0A1526)}
+.lxdp .docgate--pooled,.lxdp .docgate--rejected{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:12px;row-gap:2px;align-items:start}
+.lxdp .docgate--pooled{background:var(--lx-ok-bg, #E7F6EE)}
+.lxdp .docgate--rejected{background:var(--lx-err-bg, #FDECEA)}
+.lxdp .docgate--pooled .pgate__icon{color:var(--lx-ok, #0E7A55)}
+.lxdp .docgate--rejected .pgate__icon{color:var(--lx-err, #D93B30)}
+.lxdp .docgate--inline .pgate__icon{grid-row:span 2;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--lx-card, #fff)}
+.lxdp .docgate--inline .pgate__icon svg{width:18px;height:18px}
+.lxdp .lxdp-offer{
+  display:grid;justify-items:center;gap:6px;width:100%;max-width:600px;margin-top:8px;padding:18px 20px;
+  border-radius:16px;background:var(--lx-chip, #F2F6FC);text-align:center;
+}
+.lxdp .lxdp-offer > b{font-size:.98rem;font-weight:600;color:var(--lx-ink, #0A1526)}
+.lxdp .lxdp-offer > span{font-size:.84rem;line-height:1.5;color:var(--lx-gray, #4F5F75)}
+/* the two next steps: the dashboard's picture cards */
+.lxdp .lxdp-offer__opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%;margin-top:8px}
+.lxdp .lxdp-opt{
+  display:flex;align-items:center;gap:12px;min-width:0;padding:12px;border:1px solid var(--lx-line, #E4EBF5);border-radius:16px;
+  background:var(--lx-card, #fff);color:var(--lx-ink, #0A1526);text-align:left;text-decoration:none;
+  transition:border-color .15s,transform .15s,box-shadow .15s;
+}
+.lxdp .lxdp-opt:hover{border-color:#C7D6EC;transform:translateY(-2px);box-shadow:0 14px 28px -20px rgba(10,21,38,.35)}
+html[data-theme="dark"] .lxdp .lxdp-opt:hover{border-color:#3A4E75}
+.lxdp .lxdp-opt:focus-visible{outline:3px solid var(--lx-blue, #1668F0);outline-offset:2px}
+.lxdp-opt__art{display:block;width:44px;height:44px;flex:none;border-radius:50%;background:var(--art) center/62% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line, #E4EBF5)}
+html[data-theme="dark"] .lxdp-opt__art{box-shadow:none}
+.lxdp .lxdp-opt__t{flex:1;min-width:0;font-size:.88rem;font-weight:600;line-height:1.4;color:var(--lx-ink, #0A1526)}
+.lxdp .lxdp-opt__go{display:grid;place-items:center;width:32px;height:32px;flex:none;border-radius:50%;background:var(--lx-chip, #F2F6FC);color:var(--lx-ink, #0A1526);transition:background .15s,color .15s}
+.lxdp .lxdp-opt__go svg{width:16px;height:16px}
+.lxdp .lxdp-opt:hover .lxdp-opt__go{background:var(--lx-blue, #1668F0);color:#fff}
+/* the advocate's chat and call: a card of its own under the status card */
+.lxdp .docchat.lxdp-chat{
+  display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:14px 16px;width:100%;margin:0;
+  padding:18px 20px;border-radius:24px;background:var(--lx-card, #fff);border:1px solid var(--lx-line-2, #ECF0F7);
+}
+html[data-theme="dark"] .lxdp .docchat.lxdp-chat{border-color:var(--lx-line, #26365A)}
+.lxdp-chat__art{
+  display:block;width:56px;height:56px;flex:none;border-radius:50%;
+  background:var(--art) center/62% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line, #E4EBF5);
+}
+html[data-theme="dark"] .lxdp-chat__art{box-shadow:none}
+.lxdp .lxdp-chat__txt{display:grid;gap:2px;flex:1 1 220px;min-width:0}
+.lxdp .lxdp-chat__txt b{font-size:.98rem;font-weight:600;color:var(--lx-ink, #0A1526)}
+.lxdp .lxdp-chat__txt small{font-size:.84rem;line-height:1.45;color:var(--lx-gray, #4F5F75)}
+.lxdp .docchat__acts.lxdp-chat__acts{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.lxdp .lxdp-chat__acts .btn{height:44px;padding:0 16px;border-radius:12px;font-weight:600;white-space:nowrap}
+.lxdp .lxdp-chat__acts .btn svg{width:16px;height:16px}
+.lxdp .docchat__wait.lxdp-chatwait{
+  display:flex;align-items:center;justify-content:center;gap:8px;margin:0;padding:12px 16px;border-radius:16px;
+  background:var(--lx-chip, #F2F6FC);color:var(--lx-gray, #4F5F75);font-size:.86rem;line-height:1.45;text-align:center;
+}
+@media (max-width:640px){
+  .lxdp .lxdp-card{padding:24px 16px;border-radius:20px}
+  .lxdp .lxdp-art{width:80px;height:80px}
+  .lxdp .lxdp-t{font-size:1.12rem}
+  .lxdp .lxdp-acts{flex-direction:column;align-self:stretch}
+  .lxdp .lxdp-acts .btn{width:100%;justify-content:center}
+  .lxdp .docchat.lxdp-chat{padding:16px;border-radius:20px}
+  .lxdp .docchat__acts.lxdp-chat__acts{width:100%;justify-content:stretch}
+  .lxdp .lxdp-chat__acts .btn{flex:1 1 auto;justify-content:center}
+  .lxdp .lxdp-offer{padding:14px}
+  .lxdp .lxdp-offer__opts{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:420px){
+  .lxdp .lxdp-card{padding:22px 14px}
+  .lxdp .lxdp-acts .btn{padding:0 14px}
+  .lxdp .lxdp-offer{padding:12px}
+  .lxdp .lxdp-opt{gap:10px;padding:10px}
+  .lxdp-opt__art{width:40px;height:40px}
+  .lxdp .docchat.lxdp-chat{padding:14px}
+}
+@media (prefers-reduced-motion:reduce){.lxdp .lxdp-opt{transition:none}.lxdp .lxdp-opt:hover{transform:none}}
+
+/* ── the dialogs (portalled, so not under .portal.lx) ─────── */
+.lxd-dlg{gap:18px}
+.lxd-dlg .lxd-dlg__intro{display:flex;align-items:center;gap:16px}
+.lxd-dlg__art{
+  display:block;width:72px;height:72px;flex:none;border-radius:50%;
+  background:var(--art) center/62% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line, #E4EBF5);
+}
+html[data-theme="dark"] .lxd-dlg__art{box-shadow:none}
+.lxd-dlg .lxd-dlg__lead{display:block;margin:0;font-size:.95rem;line-height:1.55;color:var(--lx-ink, #0A1526)}
+.lxd-dlg .lxd-dlg__note{
+  display:flex;align-items:flex-start;gap:8px;margin:0;padding:10px 14px;border-radius:12px;
+  background:var(--lx-chip, #F2F6FC);color:var(--lx-gray, #4F5F75);font-size:.84rem;font-weight:500;line-height:1.5;
+}
+.lxd-dlg .lxd-dlg__note svg{width:16px;height:16px;flex:none;margin-top:2px}
+.lxd-dlg .lxd-dlg__field{display:flex;flex-direction:column;gap:8px;padding:0;border:0;border-radius:0;background:none}
+.lxd-dlg .lxd-dlg__field label{margin:0;font-size:.88rem;font-weight:600;letter-spacing:0;text-transform:none;color:var(--lx-ink, #0A1526)}
+.lxd-dlg .lxd-dlg__field textarea{min-height:112px;border:1px solid var(--lx-line, #E4EBF5);border-radius:12px;background:var(--lx-card, #fff);box-shadow:none;color:var(--lx-ink, #0A1526)}
+.lxd-dlg .lxd-dlg__field textarea:focus{border-color:var(--lx-blue, #1668F0);box-shadow:0 0 0 3px var(--lx-blue-tint, #EFF4FE)}
+.lxd-dlg .lxd-dlg__btns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:2px}
+.lxd-dlg .lxd-dlg__btns .btn{height:48px;padding:0 16px;gap:8px;border-radius:12px;justify-content:center;font-weight:600;white-space:nowrap}
+.lxd-dlg .lxd-dlg__btns .btn svg{width:17px;height:17px;flex:none}
+@media (max-width:640px){
+  .lxd-dlg .lxd-dlg__intro{align-items:flex-start;gap:14px}
+  .lxd-dlg__art{width:56px;height:56px}
+  .lxd-dlg .lxd-dlg__btns{grid-template-columns:minmax(0,1fr)}
+  .lxd-dlg .lxd-dlg__btns .btn:last-child{order:-1}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .portal.lx .lxd-views .lxd-view{transition:none}
+}

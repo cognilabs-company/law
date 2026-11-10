@@ -1,5 +1,6 @@
 "use client";
 
+import "./profile1920.css";
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth";

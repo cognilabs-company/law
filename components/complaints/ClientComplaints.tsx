@@ -1,5 +1,6 @@
 "use client";
 
+import "@/components/portal/profile1920.css";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
@@ -30,7 +31,6 @@ import {
   IconArrowRight,
   IconChat,
   IconCircleCheck,
-  IconFileText,
   IconClipboardCheck,
   IconClock,
   IconClose,
@@ -355,17 +355,17 @@ export default function ClientComplaints() {
       <section className="shk__head" aria-labelledby={headId}>
         <div className="shk__headtop">
           <div className="shk__headtx">
-            <h2 id={headId} className="shk__title">
+            <h2 id={headId} className="shk__title lx-h1">
               {t("title")}
             </h2>
-            <p className="shk__lead">{t("lead")}</p>
+            <p className="shk__lead lx-sub">{t("lead")}</p>
           </div>
           <div className="ccp-acts ccp-acts--head">
             <CopilotLauncher variant="icon" surface="client_support" title={t("title")} label={tp("draftWithAi")} aiId="complaints.copilot" />
             {canFile ? (
             <button
               type="button"
-              className="btn btn--grad shk__new"
+              className="btn btn--pri btn--pill shk__new"
               data-ai-target="button:new-complaint"
               data-ai-id="complaints.new"
               aria-haspopup="dialog"
@@ -527,7 +527,6 @@ export default function ClientComplaints() {
         onClose={closeDetail}
         size="lg"
         title={t("detailTitle")}
-        icon={<IconFileText />}
         description={openItem?.workId ? <span className="wid">{openItem.workId}</span> : undefined}
         footer={
           openItem ? (
@@ -559,7 +558,7 @@ export default function ClientComplaints() {
       >
         {openItem ? <ComplaintDetail key={openItem.key} item={openItem} /> : null}
       </Modal>
-      <Modal open={formOpen && canFile} onClose={closeForm} title={t("new")} aiId="complaints.new-modal">
+      <Modal open={formOpen && canFile} onClose={closeForm} title={t("new")} description={t("lead")} aiId="complaints.new-modal">
         <NewComplaintForm
           draft={draft}
           onDraft={setDraft}

@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useTranslations } from "next-intl";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import DatePicker from "@/components/DatePicker";
 import ListPager from "@/components/ui/ListPager";
@@ -36,7 +37,13 @@ import TaskDetail from "./TaskDetail";
 import TaskForm, { type TaskFormMode } from "./TaskForm";
 import ReasonDialog from "./ReasonDialog";
 import { useAuth } from "@/lib/auth";
+import { useLxHeader } from "@/components/portal/shell/lxHeader";
 import "./tasks.css";
+import "./tasks1920.css";
+
+// The empty list's picture in the cabinet (public/img/xizmatlar, the
+// dashboard's line drawings): a team of three, for a team's task list.
+const EMPTY_ART = { "--art": "url(/img/xizmatlar/Advokatlar_guruhi.webp)" } as CSSProperties;
 
 const PAGE = 30;
 const ZERO: TaskCounts = { new: 0, in_progress: 0, testing: 0, ready: 0 };
@@ -81,6 +88,10 @@ function writeTaskParam(id: string) {
 
 export default function TeamTasksPage() {
   const { t, status: statusLabel, when } = useTaskText();
+  const lx = useTranslations("lxTasks");
+  // The cabinet header names the page itself, also for an account the menu
+  // has no row for (no tasks.view): it used to read "Boshqaruv paneli".
+  useLxHeader(t("title"));
   const simple = usesSimpleTaskFlow(useAuth().session?.id);
   const [blocked, setBlocked] = useState<Blocked>({});
   const [createBlocked, setCreateBlocked] = useState(false);
@@ -539,6 +550,14 @@ export default function TeamTasksPage() {
         </div>
 
         <section className="ttk-list" aria-busy={list.loading} aria-label={t("title")}>
+          {/* The list card's head in the cabinet, as the dashboard's
+              "Jarayondagi ishlar" (hidden outside it, see tasks1920.css). */}
+          <div className="ttk-list__h ttk-lx">
+            <h2 className="cx-h3">
+              {lx("list")}
+              {list.ready ? <span className="cx-count">{list.total}</span> : null}
+            </h2>
+          </div>
           {list.error && !list.items.length ? (
             <div className="ttk-empty">
               <span className="ttk-empty__i ttk-empty__i--bad">
@@ -557,11 +576,13 @@ export default function TeamTasksPage() {
               ))}
             </ul>
           ) : !list.items.length ? (
-            <div className="ttk-empty">
+            <div className={filtered ? "ttk-empty" : "ttk-empty ttk-empty--art"}>
+              {filtered ? null : <span className="ttk-empty__art ttk-lx" aria-hidden style={EMPTY_ART} />}
               <span className="ttk-empty__i">
                 <Inbox aria-hidden strokeWidth={STROKE} />
               </span>
               <p className="ttk-empty__t">{filtered ? t("emptyFiltered") : t("empty")}</p>
+              <p className="ttk-empty__s ttk-lx">{filtered ? lx("emptyFilteredText") : createBtn ? lx("emptyText") : lx("emptyWait")}</p>
               {filtered ? (
                 <button type="button" className="ttk-btn ttk-btn--line" onClick={resetFilters}>
                   <X aria-hidden strokeWidth={STROKE} />

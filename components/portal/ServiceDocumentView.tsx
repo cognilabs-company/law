@@ -1,5 +1,6 @@
 "use client";
 
+import "./builder1920.css";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
@@ -8,7 +9,7 @@ import { docxToTree } from "@/lib/docxParse";
 import type { DocTree } from "@/lib/docTemplate";
 import { renderDocTree } from "@/lib/docTreeRender";
 import { useCatalogBackHref } from "@/lib/catalogNav";
-import ManualDocPlanGate from "./ManualDocPlanGate";
+import { ManualDocPlanNotice } from "./ManualDocPlanGate";
 import { EmptyState, ErrorState, Skeleton } from "./DataState";
 import { ApiError, errDetail } from "@/lib/http";
 // The preview guard lives next to the other viewer rather than in a file of
@@ -16,7 +17,7 @@ import { ApiError, errDetail } from "@/lib/http";
 // the same sheet from the same DOCX pipeline, and two copies of a security
 // rule is how one of them quietly stops matching the other.
 import { DocCloak, DocGuardNote, DocPrintNotice, DocWatermark, useDocGuard } from "./DocTemplateViewer";
-import { IconChevronLeft, IconEye, IconFileText, IconLock } from "@/components/icons";
+import { IconChevronLeft, IconEye, IconFileText } from "@/components/icons";
 import InstructorButton from "@/components/guide/InstructorButton";
 import { aiId } from "@/lib/ai/ids";
 
@@ -37,11 +38,11 @@ export default function ServiceDocumentView({ serviceId }: { serviceId: string }
   const td = useTranslations("portal.client.documents");
   const router = useRouter();
   const backHref = useCatalogBackHref();
+  const goBack = () => (backHref ? router.push(backHref) : router.back());
   const [fields, setFields] = useState<ServiceDocumentFields | null>(null);
   const [tree, setTree] = useState<DocTree[] | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "empty" | "error">("loading");
   const [planRequired, setPlanRequired] = useState("");
-  const [planGateOpen, setPlanGateOpen] = useState(false);
   const [loadErr, setLoadErr] = useState<unknown>(null);
   const [loadKey, setLoadKey] = useState(0);
   // Only while a document is actually on screen: the plan gate below is a
@@ -94,47 +95,50 @@ export default function ServiceDocumentView({ serviceId }: { serviceId: string }
 
   return (
     <div className="docbuild docbuild--full">
-      <div className="docbuild__top">
+      {/* The page head as the dashboard draws it: the way back as the small
+          line above, the document's name as the title, the tools on the right. */}
+      <div className="docbuild__top bld-top">
         <button
           type="button"
           className="docbuild__back"
-          onClick={() => (backHref ? router.push(backHref) : router.back())}
+          onClick={goBack}
           data-ai-target="button:document-back"
           data-ai-id={viewAi ? aiId(viewAi, "back") : undefined}
         >
           <IconChevronLeft />
           {t("back")}
         </button>
-        <b className="docbuild__title">{fields?.title || t("docViewTitle")}</b>
-        <InstructorButton className="docbuild__ai" />
+        <h1 className="docbuild__title">{fields?.title || t("docViewTitle")}</h1>
+        <div className="bld-top__tools">
+          <InstructorButton className="docbuild__ai" labelClassName="docbuild__ailbl" />
+        </div>
       </div>
 
       {status === "loading" ? (
-        <Skeleton rows={8} />
+        <section className="bld-card">
+          <Skeleton rows={8} />
+        </section>
       ) : planRequired ? (
-        <div className="cform" style={{ maxWidth: "none" }}>
-          <div className="docassist__head">
-            <span className="docassist__i docassist__i--lawyer"><IconLock /></span>
-            <div>
-              <b>{td("planGateTitle")}</b>
-              <p className="advmuted">{planRequired}</p>
+        <ManualDocPlanNotice message={planRequired} />
+      ) : status === "error" ? (
+        <section className="bld-card">
+          <ErrorState title={t("docViewError")} error={loadErr} onRetry={() => setLoadKey((k) => k + 1)} />
+        </section>
+      ) : status === "empty" ? (
+        <section className="bld-card">
+          <EmptyState icon={<IconFileText />} title={t("docViewNoFile")} action={{ label: t("back"), onClick: goBack }} />
+        </section>
+      ) : (
+        <section className="bld-card bld-view">
+          <div className="bld-head">
+            <div className="bld-head__t">
+              <h2 className="cx-h3">{t("docViewTitle")}</h2>
+              <p className="lx-sub docview__hint">
+                <IconEye />
+                {t("docViewHint")}
+              </p>
             </div>
           </div>
-          <button className="btn btn--grad btn--full btn--lg" type="button" onClick={() => setPlanGateOpen(true)}>
-            {td("choosePlan")}
-          </button>
-          <ManualDocPlanGate open={planGateOpen} onClose={() => setPlanGateOpen(false)} message={planRequired} />
-        </div>
-      ) : status === "error" ? (
-        <ErrorState title={t("docViewError")} error={loadErr} onRetry={() => setLoadKey((k) => k + 1)} />
-      ) : status === "empty" ? (
-        <EmptyState icon={<IconFileText />} title={t("docViewNoFile")} />
-      ) : (
-        <>
-          <p className="docview__hint">
-            <IconEye />
-            {t("docViewHint")}
-          </p>
           <DocGuardNote blocked={guard.blocked} />
           <div
             className={`docpaper__scroll docguard__paper${guard.cls}`}
@@ -154,7 +158,7 @@ export default function ServiceDocumentView({ serviceId }: { serviceId: string }
             </article>
           </div>
           <DocPrintNotice />
-        </>
+        </section>
       )}
     </div>
   );

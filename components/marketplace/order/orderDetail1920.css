@@ -1,0 +1,794 @@
+/* ═══ LexGo 1920 — the client's order page ═══
+   /portal/client/marketplace-orders/<id> (OrderDetailPage, view="client")
+   drawn in the client dashboard's vocabulary (components/portal/dash/
+   ClientHome.tsx + dash1920.css), like the reference Tezkor Advokat page
+   (components/portal/urgent1920.css):
+   - the order banner is the dashboard's flat navy card with the services
+     picture in a white circle, the status as a pill and the price as a tile;
+   - the stages are the dashboard's 4px segment bar (.cx-steps) in a white
+     card with the deadline and the chat lock;
+   - every section is a white .lx-card (radius 24, hairline, no shadow), the
+     notes are tinted inner cards, statuses the .cx-pill tones only (no
+     violet, amber or orange accents), people the navy initials avatar;
+   - feature and option tiles carry the dashboard's line drawings
+     (public/img/xizmatlar, the image catalog's family M) in white circles;
+   - the dialogs (SxDialog → components/admin/Modal, portalled to <body>,
+     framed by components/portal/shell/layers1920.css) use the same cards,
+     pictures, pills and flat buttons.
+   The page runs on the Studio "sx" kit (components/admin/studio/sx) plus
+   order.css / orderLook.css, which the lawyer's and advocate's order pages
+   and the Studio preview keep using; so every rule here is scoped to the
+   client's page in the cabinet (.portal.lx .sx.mod[data-view="client"]) or
+   to dialogs opened from it (data-ai-id "marketplace.orders.detail.*"), and
+   the sx tokens are re-pointed to the lx ones instead of editing the kit. */
+
+/* ── pictures: the dashboard's line drawings in a white circle ── */
+.odx-art{
+  display:block;flex:none;width:64px;height:64px;border-radius:50%;
+  background:var(--art) center/62% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line, #E4EBF5);
+}
+html[data-theme="dark"] .odx-art{box-shadow:none}
+/* the Studio preview shows this page outside the cabinet: the old tiles'
+   sizes stay, their tinted fills give way to the picture */
+.sx.mod .odx-art{border-radius:50%;background:var(--art) center/62% no-repeat,#fff;color:transparent}
+.sx.mod .odx-art > svg{display:none}
+
+/* On the seller's page the header keeps its old layout: the client's track
+   card is only a wrapper there, and the phone stage line is not drawn. */
+.mod .mod-head__track{display:contents}
+.mod .mod-head__stage{display:none}
+
+/* ── the page: lx tokens under the sx names ──────────────── */
+.portal.lx .sx.mod[data-view="client"]{
+  --sx-bg:var(--lx-bg);--sx-surface:var(--lx-card);--sx-surface-2:var(--lx-chip);
+  --sx-line:var(--lx-line-2);--sx-line-strong:var(--lx-line);--sx-control-line:var(--lx-line);
+  --sx-ink:var(--lx-ink);--sx-ink-2:var(--lx-gray);--sx-muted:var(--lx-gray);--sx-placeholder:var(--lx-gray2);
+  --sx-accent:var(--lx-blue);--sx-accent-ink:var(--lx-link);--sx-accent-soft:var(--lx-blue-tint);--sx-on-accent:#fff;
+  --sx-danger:var(--lx-err);--sx-danger-soft:var(--lx-err-bg);
+  --sx-draft-fg:var(--lx-gray);--sx-draft-bg:var(--lx-chip);--sx-draft-line:transparent;
+  --sx-submitted-fg:var(--lx-warn);--sx-submitted-bg:var(--lx-warn-bg);--sx-submitted-line:transparent;
+  --sx-review-fg:var(--lx-blue-ink);--sx-review-bg:var(--lx-blue-tint);--sx-review-line:transparent;
+  --sx-approved-fg:var(--lx-blue-ink);--sx-approved-bg:var(--lx-blue-tint);--sx-approved-line:transparent;
+  --sx-published-fg:var(--lx-ok);--sx-published-bg:var(--lx-ok-bg);--sx-published-line:transparent;
+  --sx-returned-fg:var(--lx-err);--sx-returned-bg:var(--lx-err-bg);--sx-returned-line:transparent;
+  --sx-archived-fg:var(--lx-gray);--sx-archived-bg:var(--lx-chip);--sx-archived-line:transparent;
+  --sx-r-sm:10px;--sx-r:12px;--sx-r-lg:16px;
+  --sx-ring:0 0 0 3px color-mix(in srgb,var(--lx-blue) 22%,transparent);
+  --mod-brand:var(--lx-blue);--mod-cyan:var(--lx-blue);--mod-grad:var(--lx-blue);--mod-grad-solid:var(--lx-blue);
+  --mod-hero:var(--lx-navy);--mod-card-shadow:none;
+  max-width:none;gap:24px;container:odx / inline-size;
+}
+/* text kept for screen readers only: still read, but it neither overflows a
+   1px box nor runs past its line (a clipped box reads as cut text) */
+.portal.lx .sx.mod[data-view="client"] :is(.sx-vh,.sr-only){overflow:visible !important;font-size:1px !important;line-height:1px !important;letter-spacing:0 !important}
+/* a closed rule keeps its text out of the layout, not just out of sight */
+.portal.lx .sx.mod[data-view="client"] .mkrt-rl__item:not([open]) > .mkrt-rl__body{display:none}
+/* nothing rises, drifts, pulses or shines */
+.portal.lx .sx.mod[data-view="client"] :is(.mod-head,.mod__main > *,.mod__aside > *,.mret__item,.msog,.mko__sup,.mko__rate,.mkc__menu,.mck-item,.mrp__glow,.mko__left){animation:none}
+
+/* ── header: the way back, the navy banner, the stages ───── */
+.portal.lx .sx.mod[data-view="client"] .mod-head{gap:16px;padding:0;border:0;border-radius:0;background:none;box-shadow:none;overflow:visible}
+.portal.lx .sx.mod[data-view="client"] .mod-head::before{content:none}
+.portal.lx .sx.mod[data-view="client"] .mod-head__bar{margin:0;flex-wrap:wrap;gap:10px}
+.portal.lx .sx.mod[data-view="client"] .mod-head__bar .sx-btn{
+  height:40px;padding:0 16px 0 14px;border:1px solid var(--lx-line);border-radius:999px;background:var(--lx-card);color:var(--lx-ink);font:600 .88rem/1 var(--fb)}
+.portal.lx .sx.mod[data-view="client"] .mod-head__bar .sx-btn:not(:disabled,[aria-disabled="true"]):hover{border-color:#C7D6EC;background:var(--lx-card);color:var(--lx-ink)}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mod-head__bar .sx-btn:not(:disabled,[aria-disabled="true"]):hover{border-color:#3A4E75}
+
+/* the banner: the dashboard's navy feature card */
+.portal.lx .sx.mod[data-view="client"] .mod-head__hero{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"art titles money" "art lead money";
+  align-items:center;gap:8px 24px;padding:26px 28px;border-radius:24px;background:var(--lx-navy);box-shadow:none;isolation:auto;overflow:visible;color:#fff;
+}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mod-head__hero{background:#0B1830;box-shadow:inset 0 0 0 1px var(--lx-navy-line)}
+.portal.lx .sx.mod[data-view="client"] .mod-head__orbs{display:none}
+.portal.lx .sx.mod[data-view="client"] .mod-head__art{grid-area:art;width:88px;height:88px;box-shadow:none}
+.portal.lx .sx.mod[data-view="client"] .mod-head__main{display:contents}
+.portal.lx .sx.mod[data-view="client"] .mod-head__titles{grid-area:titles;align-self:end;gap:8px;min-width:0}
+.portal.lx .sx.mod[data-view="client"] .mod-head__title{color:#fff;font:700 1.45rem/1.25 var(--fd);letter-spacing:-.015em;text-wrap:pretty}
+.portal.lx .sx.mod[data-view="client"] .mod-head__lead{grid-area:lead;align-self:start;max-width:62ch;margin:0;color:#C9D4E3;font-size:.92rem;line-height:1.6}
+/* the work number: a quiet chip that still copies itself */
+.portal.lx .sx.mod[data-view="client"] .mod-head__wid{
+  height:26px;padding:0 10px;gap:6px;border:0;border-radius:999px;background:rgba(255,255,255,.08);color:#C9D4E3;font:600 .76rem/1 var(--fb);letter-spacing:.02em}
+.portal.lx .sx.mod[data-view="client"] .mod-head__wid:hover{border:0;background:rgba(255,255,255,.14)}
+.portal.lx .sx.mod[data-view="client"] .mod-head__wid[data-copied]{border:0;background:rgba(74,222,159,.16);color:#7EE2B8}
+/* the status: the dashboard's pill, in the tones the arches use on navy */
+.portal.lx .sx.mod[data-view="client"] .mod-head__hero .mod-pill{
+  height:26px;padding:0 10px 0 7px;gap:5px;border:0;border-radius:999px;background:rgba(110,168,255,.18);color:#BFD7FF;
+  font:600 .74rem/1 var(--fb);-webkit-backdrop-filter:none;backdrop-filter:none}
+.portal.lx .sx.mod[data-view="client"] .mod-head__hero .mod-pill::before{content:none}
+.portal.lx .sx.mod[data-view="client"] .mod-head__hero .mod-pill > svg{display:block;width:14px;height:14px;color:currentColor}
+.portal.lx .sx.mod[data-view="client"] .mod-head__hero .mod-pill:is([data-phase="pending"],[data-phase="accepting"],[data-phase="review"]){background:rgba(251,193,94,.16);color:#FBC15E}
+.portal.lx .sx.mod[data-view="client"] .mod-head__hero .mod-pill:is([data-phase="completed"],[data-phase="rated"]){background:rgba(74,222,159,.14);color:#7EE2B8}
+.portal.lx .sx.mod[data-view="client"] .mod-head__hero .mod-pill[data-phase="cancelled"]{background:rgba(255,255,255,.1);color:#C9D4E3}
+/* the price: a quiet tile on the navy, as the Tezkor banner's numbers */
+.portal.lx .sx.mod[data-view="client"] .mod-head__money{
+  grid-area:money;align-self:center;justify-items:start;gap:4px;min-width:0;padding:16px 20px;border:0;border-radius:16px;
+  background:rgba(255,255,255,.07);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+.portal.lx .sx.mod[data-view="client"] .mod-head__money-label{color:#8494AB;font:600 .7rem/1.3 var(--fb);letter-spacing:.06em;text-transform:uppercase}
+.portal.lx .sx.mod[data-view="client"] .mod-head__price{margin:0;color:#fff;white-space:nowrap}
+.portal.lx .sx.mod[data-view="client"] .mod-head__price b{font:800 1.6rem/1.2 var(--fd);letter-spacing:-.02em}
+.portal.lx .sx.mod[data-view="client"] .mod-head__price small{color:#C9D4E3;font-size:.86rem;font-weight:600}
+.portal.lx .sx.mod[data-view="client"] .mod-head__safe{display:inline-flex;align-items:center;gap:6px;margin:2px 0 0;padding:0;border-radius:0;background:none;color:#C9D4E3;font:500 .8rem/1.3 var(--fb)}
+.portal.lx .sx.mod[data-view="client"] .mod-head__safe svg{flex:none;color:#4ADE9F}
+
+/* the stages, the deadline and the lock: one white card */
+.portal.lx .sx.mod[data-view="client"] .mod-head__track{
+  display:grid;gap:16px;padding:20px 24px;border:1px solid var(--lx-line-2);border-radius:24px;background:var(--lx-card);container:odxtrack / inline-size}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mod-head__track{border-color:var(--lx-line)}
+.portal.lx .sx.mod[data-view="client"] .mod-head__track:not(:has(.mod-head__progress,.mod-deadline,.mko-rc,.mod-lock)){display:none}
+.portal.lx .sx.mod[data-view="client"] .mod-head__progress{gap:12px;padding:0;border:0;border-radius:0;background:none}
+.portal.lx .sx.mod[data-view="client"] .mod-head__progress-top{padding:0;color:var(--lx-ink);font:600 .98rem/1.35 var(--fb);letter-spacing:0;text-transform:none}
+.portal.lx .sx.mod[data-view="client"] .mod-head__progress-top b{
+  display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 10px;border-radius:999px;background:var(--lx-chip);color:var(--lx-ink);
+  font:700 .78rem/1 var(--fb);letter-spacing:0;white-space:nowrap}
+/* the rail as the dashboard's segment bar, each stage named under its part */
+.portal.lx .sx.mod[data-view="client"] .mod-rail{grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+.portal.lx .sx.mod[data-view="client"] .mod-rail__step{justify-items:stretch;gap:8px;text-align:left}
+.portal.lx .sx.mod[data-view="client"] .mod-rail__step::before{content:none}
+.portal.lx .sx.mod[data-view="client"] .mod-rail__dot{width:auto;height:4px;border:0;border-radius:4px;background:#E1E8F2;box-shadow:none;color:transparent}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mod-rail__dot{background:#26365A}
+.portal.lx .sx.mod[data-view="client"] .mod-rail__dot > svg,
+.portal.lx .sx.mod[data-view="client"] .mod-rail__step .mod-rail__dot::after{display:none}
+.portal.lx .sx.mod[data-view="client"] .mod-rail__step:is([data-state="done"],[data-state="now"]) .mod-rail__dot{border:0;background:var(--lx-blue)}
+.portal.lx .sx.mod[data-view="client"] .mod-rail__step[data-state="paused"] .mod-rail__dot{border:0;background:#D9A21B}
+.portal.lx .sx.mod[data-view="client"] .mod-rail__label{color:var(--lx-gray);font:500 .82rem/1.35 var(--fb);overflow-wrap:normal}
+.portal.lx .sx.mod[data-view="client"] .mod-rail__step[data-state="done"] .mod-rail__label{color:var(--lx-ink)}
+.portal.lx .sx.mod[data-view="client"] .mod-rail__step[data-state="now"] .mod-rail__label{color:var(--lx-ink);font-weight:700}
+.portal.lx .sx.mod[data-view="client"] .mod-rail__step[data-state="paused"] .mod-rail__label{color:var(--lx-warn);font-weight:700}
+.portal.lx .sx.mod[data-view="client"] .mod-head__stage{margin:0;color:var(--lx-gray);font-size:.82rem;line-height:1.4}
+/* a phone: the bar and one line under it, as the dashboard's work cards */
+@container odxtrack (max-width:420px){
+  .portal.lx .sx.mod[data-view="client"] .mod-rail__label{position:absolute;inset:0 auto auto 0;width:1px;height:1px;overflow:visible;white-space:nowrap;clip-path:inset(50%);font-size:1px;line-height:1px}
+  .portal.lx .sx.mod[data-view="client"] .mod-head__stage{display:block}
+}
+/* the deadline: a tinted strip; red when late, amber while paused */
+.portal.lx .sx.mod[data-view="client"] .mod-head__time{display:flex;flex-wrap:wrap;gap:8px}
+.portal.lx .sx.mod[data-view="client"] .mod-deadline{
+  justify-self:start;align-items:center;gap:10px;padding:10px 14px;border:0;border-radius:12px;background:var(--lx-blue-tint);color:var(--lx-ink)}
+.portal.lx .sx.mod[data-view="client"] .mod-deadline__icon{margin:0;color:var(--lx-link)}
+.portal.lx .sx.mod[data-view="client"] .mod-deadline__main{color:var(--lx-ink);font:600 .9rem/1.4 var(--fb)}
+.portal.lx .sx.mod[data-view="client"] .mod-deadline__label{color:var(--lx-gray);font-weight:500}
+.portal.lx .sx.mod[data-view="client"] .mod-deadline__hint{color:var(--lx-gray);font-size:.82rem;line-height:1.4}
+.portal.lx .sx.mod[data-view="client"] .mod-deadline[data-tone="returned"]{background:var(--lx-err-bg)}
+.portal.lx .sx.mod[data-view="client"] .mod-deadline[data-tone="returned"] :is(.mod-deadline__icon,.mod-deadline__main){color:var(--lx-err)}
+.portal.lx .sx.mod[data-view="client"] .mod-deadline[data-tone="paused"]{background:var(--lx-warn-bg)}
+.portal.lx .sx.mod[data-view="client"] .mod-deadline[data-tone="paused"] :is(.mod-deadline__icon,.mod-deadline__main){color:var(--lx-warn)}
+/* the time left to rate: the dashboard's amber pill */
+.portal.lx .sx.mod[data-view="client"] .mod-head__rating{
+  display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px 0 8px;border:0;border-radius:999px;background:var(--lx-warn-bg);color:var(--lx-warn);font:600 .74rem/1 var(--fb);animation:none}
+.portal.lx .sx.mod[data-view="client"] .mod-lock{align-items:flex-start;gap:8px;margin:0;color:var(--lx-gray);font-size:.86rem;line-height:1.45}
+.portal.lx .sx.mod[data-view="client"] .mod-lock > svg{margin-top:1px;color:var(--lx-gray)}
+
+/* ── the two columns ─────────────────────────────────────── */
+.portal.lx .sx.mod[data-view="client"] .mod__grid{grid-template-columns:minmax(0,1fr) 340px;gap:24px}
+/* one track that content can never widen past the page */
+.portal.lx .sx.mod[data-view="client"] :is(.mod__main,.mod__aside,.mod__facts){grid-template-columns:minmax(0,1fr);gap:24px}
+.portal.lx .sx.mod[data-view="client"] .mod__aside{top:24px}
+
+/* every section: the dashboard's white card */
+.portal.lx .sx.mod[data-view="client"] :is(.mod__main,.mod__aside) .sx-panel:not(.sx-panel .sx-panel){
+  padding:28px;border:1px solid var(--lx-line-2);border-radius:24px;background:var(--lx-card);box-shadow:none}
+.portal.lx .sx.mod[data-view="client"] .mod__aside .sx-panel:not(.sx-panel .sx-panel){padding:24px}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] :is(.mod__main,.mod__aside) .sx-panel:not(.sx-panel .sx-panel){border-color:var(--lx-line)}
+.portal.lx .sx.mod[data-view="client"] .sx-panel__head{margin-bottom:18px;gap:10px 14px}
+.portal.lx .sx.mod[data-view="client"] .sx-panel__titles{gap:6px}
+.portal.lx .sx.mod[data-view="client"] .sx-panel .sx-panel__title{color:var(--lx-ink);font:700 1.18rem/1.3 var(--fd);letter-spacing:-.015em}
+.portal.lx .sx.mod[data-view="client"] .sx-panel__lead{color:var(--lx-gray);font:400 .92rem/1.55 var(--fb)}
+.portal.lx .sx.mod[data-view="client"] .mod__main [id^="mod-"]:focus-visible{border-radius:24px}
+
+/* a panel with a picture: the dashboard's feature row (picture | title, text, button) */
+.portal.lx .sx.mod[data-view="client"] .sx-panel:has(> .odx-feat){display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:20px;align-items:start}
+.portal.lx .sx.mod[data-view="client"] .sx-panel > .odx-feat{grid-column:1;grid-row:1 / span 6;width:64px;height:64px}
+.portal.lx .sx.mod[data-view="client"] .sx-panel:has(> .odx-feat) > :not(.odx-feat){grid-column:2;min-width:0}
+.portal.lx .sx.mod[data-view="client"] .sx-panel:has(> .odx-feat) > .sx-panel__head{align-self:center;min-height:64px;margin-bottom:14px;align-items:center}
+.portal.lx .sx.mod[data-view="client"] .sx-panel:has(> .odx-feat) > .sx-btn{justify-self:start;max-width:100%}
+
+/* notes: tinted inner cards without a border */
+.portal.lx .sx.mod[data-view="client"] .sx-note{padding:14px 16px;border:0;border-radius:16px;background:var(--lx-blue-tint);color:var(--lx-ink)}
+.portal.lx .sx.mod[data-view="client"] .sx-note__icon{color:var(--lx-link)}
+.portal.lx .sx.mod[data-view="client"] .sx-note[data-note="warn"]{background:var(--lx-warn-bg)}
+.portal.lx .sx.mod[data-view="client"] .sx-note[data-note="warn"] .sx-note__icon{color:var(--lx-warn)}
+.portal.lx .sx.mod[data-view="client"] .sx-note[data-note="error"]{background:var(--lx-err-bg)}
+.portal.lx .sx.mod[data-view="client"] .sx-note[data-note="error"] .sx-note__icon{color:var(--lx-err)}
+.portal.lx .sx.mod[data-view="client"] .sx-note[data-note="success"]{background:var(--lx-ok-bg)}
+.portal.lx .sx.mod[data-view="client"] .sx-note[data-note="success"] .sx-note__icon{color:var(--lx-ok)}
+.portal.lx .sx.mod[data-view="client"] .sx-note__title{color:var(--lx-ink);font-weight:600}
+.portal.lx .sx.mod[data-view="client"] .sx-note__text{color:var(--lx-ink);font-size:.9rem;line-height:1.5}
+
+/* buttons: primary blue, white outlined, red text for "cancel" — radius 12, no glow */
+.portal.lx .sx.mod[data-view="client"] .sx-btn{height:44px;padding:0 18px;gap:8px;border-radius:12px;font:600 .9rem/1.2 var(--fb);box-shadow:none;transform:none}
+.portal.lx .sx.mod[data-view="client"] .sx-btn--sm{height:38px;padding:0 14px;border-radius:10px;font-size:.86rem}
+.portal.lx .sx.mod[data-view="client"] .sx-btn--primary,
+.portal.lx .sx.mod[data-view="client"] :is(.mod-start__acts,.mod-actions__list) > .sx-btn--primary:not(:disabled,[aria-disabled="true"]){border-color:transparent;background:var(--lx-blue);color:#fff;box-shadow:none;filter:none}
+.portal.lx .sx.mod[data-view="client"] .sx-btn--primary:not(:disabled,[aria-disabled="true"]):hover,
+.portal.lx .sx.mod[data-view="client"] :is(.mod-start__acts,.mod-actions__list) > .sx-btn--primary:not(:disabled,[aria-disabled="true"]):hover{background:var(--lx-blue-h);box-shadow:none;filter:none;transform:none}
+.portal.lx .sx.mod[data-view="client"] .sx-btn--primary::after{content:none}
+.portal.lx .sx.mod[data-view="client"] :is(.sx-btn--secondary,.sx-btn--ghost){border:1px solid var(--lx-line);background:var(--lx-card);color:var(--lx-ink)}
+.portal.lx .sx.mod[data-view="client"] :is(.sx-btn--secondary,.sx-btn--ghost):not(:disabled,[aria-disabled="true"]):hover{border-color:#C7D6EC;background:var(--lx-card);color:var(--lx-ink)}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] :is(.sx-btn--secondary,.sx-btn--ghost):not(:disabled,[aria-disabled="true"]):hover{border-color:#3A4E75}
+.portal.lx .sx.mod[data-view="client"] .sx-btn--danger{border:1px solid var(--lx-line);background:var(--lx-card);color:var(--lx-err)}
+.portal.lx .sx.mod[data-view="client"] .sx-btn--danger:not(:disabled,[aria-disabled="true"]):hover{border-color:transparent;background:var(--lx-err-bg);color:var(--lx-err)}
+.portal.lx .sx.mod[data-view="client"] .sx-btn:is(:disabled,[aria-disabled="true"]):not([aria-busy="true"]){border-color:var(--lx-line-2);background:var(--lx-chip);color:var(--lx-gray2)}
+.portal.lx .sx.mod[data-view="client"] .sx-btn > svg{width:16px;height:16px}
+.portal.lx .sx.mod[data-view="client"] .sx-link{color:var(--lx-link);font-weight:600;text-decoration:none}
+.portal.lx .sx.mod[data-view="client"] .sx-link:hover{text-decoration:underline}
+
+/* fields on the page (the price offer): the dashboard's 12px controls */
+.portal.lx .sx.mod[data-view="client"] .sx-field__label{color:var(--lx-ink);font:600 .86rem/1.35 var(--fb)}
+.portal.lx .sx.mod[data-view="client"] :is(.sx-input,.sx-textarea){border:1px solid var(--lx-line);border-radius:12px;background:var(--lx-card);color:var(--lx-ink)}
+.portal.lx .sx.mod[data-view="client"] .sx-input{height:48px;padding:0 14px}
+.portal.lx .sx.mod[data-view="client"] .sx-textarea{padding:12px 14px}
+.portal.lx .sx.mod[data-view="client"] :is(.sx-input:hover,.sx-textarea:hover){border-color:#C7D6EC}
+.portal.lx .sx.mod[data-view="client"] :is(.sx-input:focus-within,.sx-textarea:focus){border-color:var(--lx-blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--lx-blue) 18%,transparent)}
+.portal.lx .sx.mod[data-view="client"] .sx-field__help{color:var(--lx-gray)}
+
+/* loading: the dashboard's quiet skeleton blocks */
+.portal.lx .sx.mod[data-view="client"] .sx-sk{border-radius:16px;background:var(--lx-line-2)}
+.portal.lx .sx.mod[data-view="client"] .mod-sk__panel{border-radius:24px}
+
+/* missing / failed: the dashboard's empty state in a card */
+.portal.lx .sx.mod[data-view="client"] .mod-empty{padding:36px 24px;border:1px solid var(--lx-line-2);border-radius:24px;background:var(--lx-card)}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mod-empty{border-color:var(--lx-line)}
+.portal.lx .sx.mod[data-view="client"] .sx-empty{gap:8px;padding:12px}
+.portal.lx .sx.mod[data-view="client"] .sx-empty__icon{box-sizing:content-box;width:22px;height:22px;margin:0 0 4px;padding:13px;border-radius:14px;background:var(--lx-blue-tint);color:var(--lx-link)}
+.portal.lx .sx.mod[data-view="client"] .sx-empty[data-kind="error"] .sx-empty__icon{background:var(--lx-err-bg);color:var(--lx-err)}
+.portal.lx .sx.mod[data-view="client"] .sx-empty__title{color:var(--lx-ink);font:700 .98rem/1.4 var(--fb)}
+.portal.lx .sx.mod[data-view="client"] .sx-empty__text{max-width:300px;color:var(--lx-gray);font:400 .86rem/1.5 var(--fb)}
+
+/* a cancelled order: what happened and the way on, with a picture */
+.mod .mod-find.odx-empty,.odx-empty{display:grid;justify-items:center;gap:8px;padding:32px 24px;text-align:center;border:1px solid var(--lx-line-2, #ECF0F7);border-radius:24px;background:var(--lx-card, #fff)}
+html[data-theme="dark"] .odx-empty{border-color:var(--lx-line, #26365A)}
+.odx-empty__art{width:88px;height:88px;margin-bottom:6px}
+.odx-empty__t{color:var(--lx-ink, #0A1526);font-size:1.02rem;font-weight:700}
+.odx-empty__p{max-width:360px;margin:0 0 6px;color:var(--lx-gray, #4F5F75);font-size:.9rem;line-height:1.55}
+
+/* ── the actions ─────────────────────────────────────────── */
+.portal.lx .sx.mod[data-view="client"] .mod-actions__list{gap:10px}
+.portal.lx .sx.mod[data-view="client"] .mod-actions__list .sx-btn{min-height:0;height:48px;border-radius:12px}
+.portal.lx .sx.mod[data-view="client"] .mkc__trigger.sx-btn{height:48px;font-size:.94rem}
+/* the contact menu: plain rows with neutral icons, no tinted tiles */
+.portal.lx .sx.mod[data-view="client"] .mkc__menu{gap:2px;padding:6px;border:1px solid var(--lx-line);border-radius:16px;background:var(--lx-card);box-shadow:none}
+.portal.lx .sx.mod[data-view="client"] .mkc__opt{gap:12px;min-height:52px;padding:10px 12px;border-radius:12px;background:transparent;box-shadow:none;color:var(--lx-ink)}
+.portal.lx .sx.mod[data-view="client"] .mkc__opt:hover:not(:disabled){background:var(--lx-chip);box-shadow:none}
+.portal.lx .sx.mod[data-view="client"] .mkc__ico{width:auto;height:auto;border-radius:0;background:none;color:var(--lx-gray)}
+.portal.lx .sx.mod[data-view="client"] .mkc__ico svg{width:20px;height:20px}
+.portal.lx .sx.mod[data-view="client"] .mkc__opt:hover:not(:disabled) .mkc__ico{color:var(--lx-link)}
+.portal.lx .sx.mod[data-view="client"] .mkc__txt b{font-size:.9rem;font-weight:600}
+.portal.lx .sx.mod[data-view="client"] .mkc__txt small{color:var(--lx-gray);font-size:.78rem}
+.portal.lx .sx.mod[data-view="client"] .mkc__note{margin:4px 6px 2px;color:var(--lx-gray)}
+.portal.lx .sx.mod[data-view="client"] .mkc__lock{color:var(--lx-gray2)}
+
+/* ── "Buyurtma haqida": the other side as the dashboard's person row ── */
+.portal.lx .sx.mod[data-view="client"] .mod-facts__who{gap:12px;margin-bottom:14px;padding:14px 16px;border:0;border-radius:16px;background:var(--lx-chip)}
+.portal.lx .sx.mod[data-view="client"] .mod-facts__ava{width:40px;height:40px;border-radius:50%;background:var(--lx-navy);color:#fff;font:700 .8rem/1 var(--fb);letter-spacing:0;box-shadow:none}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mod-facts__ava{background:var(--lx-blue)}
+.portal.lx .sx.mod[data-view="client"] .mod-facts__who-text dt{color:var(--lx-gray);font:500 .78rem/1.3 var(--fb);letter-spacing:0;text-transform:none}
+.portal.lx .sx.mod[data-view="client"] .mod-facts__who-text dd{color:var(--lx-ink);font:600 .98rem/1.35 var(--fb)}
+.portal.lx .sx.mod[data-view="client"] .mod-facts__row{align-items:baseline;gap:12px;padding:11px 0;border-top:1px solid var(--lx-line-2)}
+.portal.lx .sx.mod[data-view="client"] .mod-facts__row:first-child{border-top:0;padding-top:0}
+.portal.lx .sx.mod[data-view="client"] .mod-facts__row dt{color:var(--lx-gray);font-size:.84rem;line-height:1.4}
+.portal.lx .sx.mod[data-view="client"] .mod-facts__row dd{color:var(--lx-ink);font-size:.88rem;font-weight:600;line-height:1.4}
+.portal.lx .sx.mod[data-view="client"] .mod-facts__hint{color:var(--lx-gray);font-size:.78rem;font-weight:400;line-height:1.4}
+/* the "no contact yet" note needs the card's width, not the value column */
+.portal.lx .sx.mod[data-view="client"] .mod-facts__row:has(.mcs__none){grid-template-columns:minmax(0,1fr);gap:6px}
+.portal.lx .sx.mod[data-view="client"] .mcs > svg{color:var(--lx-ok)}
+.portal.lx .sx.mod[data-view="client"] :is(.mcs__left,.mcs__via){height:auto;min-height:22px;padding:2px 8px;border-radius:999px;font-size:.74rem;font-weight:600;line-height:1.3}
+.portal.lx .sx.mod[data-view="client"] .mcs__left{background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
+.portal.lx .sx.mod[data-view="client"] .mcs__left[data-warn]{background:var(--lx-warn-bg);color:var(--lx-warn)}
+.portal.lx .sx.mod[data-view="client"] .mcs__left[data-late]{background:var(--lx-err-bg);color:var(--lx-err)}
+.portal.lx .sx.mod[data-view="client"] .mcs__via{background:var(--lx-ok-bg);color:var(--lx-ok)}
+.portal.lx .sx.mod[data-view="client"] :is(.mcs__zone,.mcs__hint){color:var(--lx-gray);opacity:1;font-weight:500}
+.portal.lx .sx.mod[data-view="client"] .mcs__none{gap:10px;margin-top:4px;padding:12px 14px;border:0;border-radius:12px;background:var(--lx-blue-tint);color:var(--lx-ink);font-size:.82rem;font-weight:400;line-height:1.45;overflow-wrap:break-word}
+.portal.lx .sx.mod[data-view="client"] .mcs__none[data-state="late"]{background:var(--lx-err-bg)}
+.portal.lx .sx.mod[data-view="client"] .mcs__none > svg{color:var(--lx-link)}
+.portal.lx .sx.mod[data-view="client"] .mcs__none[data-state="late"] > svg{color:var(--lx-err)}
+.portal.lx .sx.mod[data-view="client"] .mcs__none b{font-weight:600}
+.portal.lx .sx.mod[data-view="client"] .mcs__none > span > span{color:var(--lx-gray);opacity:1}
+/* chosen options as the dashboard's grey chips; the note as an inner card */
+.portal.lx .sx.mod[data-view="client"] .mko__opts small{color:var(--lx-gray);font-size:.8rem;font-weight:600;letter-spacing:0;text-transform:none}
+.portal.lx .sx.mod[data-view="client"] .mko__opts li{padding:5px 12px;border-radius:999px;background:var(--lx-chip);color:var(--lx-ink);font-size:.8rem;font-weight:500}
+.portal.lx .sx.mod[data-view="client"] .mko__opts li svg{color:var(--lx-ok)}
+.portal.lx .sx.mod[data-view="client"] .mko__opts li b{color:var(--lx-ink);font-weight:700}
+.portal.lx .sx.mod[data-view="client"] .mod-facts__note{gap:6px;margin-top:14px;padding:14px 16px;border:0;border-radius:16px;background:var(--lx-chip);color:var(--lx-ink);font-size:.88rem;line-height:1.5}
+.portal.lx .sx.mod[data-view="client"] .mod-facts__note small{color:var(--lx-gray);font-size:.78rem;font-weight:600}
+
+/* ── "Narx qanday belgilangan" ───────────────────────────── */
+.portal.lx .sx.mod[data-view="client"] .mod-price .mod-price__sub{color:var(--lx-gray);font-size:.8rem;font-weight:600;letter-spacing:0;text-transform:none}
+.portal.lx .sx.mod[data-view="client"] .mod-price .mod-price__row{color:var(--lx-gray);font-size:.86rem}
+.portal.lx .sx.mod[data-view="client"] .mod-price .mod-price__row > b{color:var(--lx-ink);font-weight:600}
+.portal.lx .sx.mod[data-view="client"] .mod-price .mod-price__row--total{color:var(--lx-ink);font-weight:600}
+.portal.lx .sx.mod[data-view="client"] .mod-price .mod-price__row--total > b{font:800 1.12rem/1.3 var(--fd)}
+.portal.lx .sx.mod[data-view="client"] .mod-price__why{padding:14px 16px;border:0;border-radius:16px;background:var(--lx-blue-tint)}
+.portal.lx .sx.mod[data-view="client"] .mod-price__why .mod-price__sub{color:var(--lx-blue-ink)}
+.portal.lx .sx.mod[data-view="client"] .mod-price__why li,
+.portal.lx .sx.mod[data-view="client"] .mod-price__why > p{color:var(--lx-ink)}
+.portal.lx .sx.mod[data-view="client"] .mod-price__why li::before,
+.portal.lx .sx.mod[data-view="client"] .mod-price__why > p::before{background:var(--lx-blue)}
+.portal.lx .sx.mod[data-view="client"] .mod-price .mod-price__st{display:inline-flex;align-items:center;height:22px;padding:0 8px;border:0;border-radius:999px;font-size:.72rem;font-weight:600;font-style:normal}
+.portal.lx .sx.mod[data-view="client"] .mod-price .mod-price__st[data-tone="ok"]{background:var(--lx-ok-bg);color:var(--lx-ok)}
+.portal.lx .sx.mod[data-view="client"] .mod-price .mod-price__st[data-tone="wait"]{background:var(--lx-warn-bg);color:var(--lx-warn)}
+.portal.lx .sx.mod[data-view="client"] .mod-price .mod-price__st[data-tone="bad"]{background:var(--lx-err-bg);color:var(--lx-err)}
+.portal.lx .sx.mod[data-view="client"] .mod-price .mod-price__foot{color:var(--lx-gray);font-size:.78rem;line-height:1.5}
+
+/* ── the rules ───────────────────────────────────────────── */
+.portal.lx .sx.mod[data-view="client"] .mod-rules .mkrt-rl__title,
+.portal.lx .sx.mod[data-view="client"] .mod-rules :is(h2,h3).mkrt-h{color:var(--lx-ink);font:700 1.18rem/1.3 var(--fd);letter-spacing:-.015em;text-transform:none}
+.portal.lx .sx.mod[data-view="client"] .mod-rules .mkrt-lead{color:var(--lx-gray);font-size:.88rem}
+.portal.lx .sx.mod[data-view="client"] .mod-rules .mkrt-rl__item{border:0;border-radius:12px;background:var(--lx-chip);box-shadow:none}
+.portal.lx .sx.mod[data-view="client"] .mod-rules .mkrt-rl__item > summary{color:var(--lx-ink);font-weight:600}
+.portal.lx .sx.mod[data-view="client"] .mod-rules .mkrt-rl__item > summary::before{background:var(--lx-blue)}
+.portal.lx .sx.mod[data-view="client"] .mod-rules .mkrt-rl__body{color:var(--lx-gray)}
+
+/* ── the price offer (before payment) ────────────────────── */
+.portal.lx .sx.mod[data-view="client"] .mng-facts dt{color:var(--lx-gray);font-size:.84rem}
+.portal.lx .sx.mod[data-view="client"] .mng-facts dd{color:var(--lx-ink);font:800 1.3rem/1.3 var(--fd)}
+.portal.lx .sx.mod[data-view="client"] .mng-offer{padding:16px 18px;border:0;border-radius:16px;background:var(--lx-chip);box-shadow:none}
+.portal.lx .sx.mod[data-view="client"] .mng-offer__label{color:var(--lx-gray);font-size:.84rem;font-weight:600}
+.portal.lx .sx.mod[data-view="client"] .mng-offer__amount{color:var(--lx-ink);font:800 1.3rem/1.3 var(--fd)}
+.portal.lx .sx.mod[data-view="client"] .mng-offer__note{border:0;border-radius:12px;background:var(--lx-card);color:var(--lx-ink)}
+.portal.lx .sx.mod[data-view="client"] .mng-chip{height:26px;padding:0 10px 0 7px;border:0;border-radius:999px;font-size:.74rem;font-weight:600}
+.portal.lx .sx.mod[data-view="client"] .mng-expiry__left > svg{color:var(--lx-link)}
+.portal.lx .sx.mod[data-view="client"] .mng-expiry__remind[data-tone="warn"]{color:var(--lx-warn)}
+.portal.lx .sx.mod[data-view="client"] .mng-line{color:var(--lx-gray)}
+
+/* status pills anywhere on the page: the .cx-pill shape */
+.portal.lx .sx.mod[data-view="client"] .sx-pill{border:0;font-weight:600}
+.portal.lx .sx.mod[data-view="client"] .sx-pill__text{overflow:visible;text-overflow:clip}
+
+/* ── "Hujjat" ─────────────────────────────────────────────── */
+.portal.lx .sx.mod[data-view="client"] .mdoc__body{gap:16px}
+.portal.lx .sx.mod[data-view="client"] .mdoc__icon.odx-art{width:56px;height:56px;border-radius:50%;background:var(--art) center/62% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line)}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mdoc__icon.odx-art{box-shadow:none}
+.portal.lx .sx.mod[data-view="client"] .mdoc__lead{color:var(--lx-ink);font:400 .92rem/1.5 var(--fb)}
+.portal.lx .sx.mod[data-view="client"] .mdoc-chip{height:26px;padding:0 10px;border-radius:999px;font-size:.74rem}
+.portal.lx .sx.mod[data-view="client"] .mdoc__open.sx-btn{border:1px solid var(--lx-line);background:var(--lx-card);color:var(--lx-ink)}
+.portal.lx .sx.mod[data-view="client"] .mdoc__open.sx-btn:not(:disabled,[aria-disabled="true"]):hover{border-color:#C7D6EC;background:var(--lx-card);color:var(--lx-ink)}
+
+/* ── the checklist: chip inner cards, status pills, the segment bar ── */
+.portal.lx .sx.mod[data-view="client"] .mck-progress{gap:10px;padding:0;border:0;background:none}
+.portal.lx .sx.mod[data-view="client"] .mck-progress .sx-progress{height:4px;border-radius:4px;background:#E1E8F2;box-shadow:none}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mck-progress .sx-progress{background:#26365A}
+.portal.lx .sx.mod[data-view="client"] .mck-progress .sx-progress > i{border-radius:4px;background:var(--lx-blue)}
+.portal.lx .sx.mod[data-view="client"] .mck-progress__text{color:var(--lx-gray);font-size:.82rem;font-weight:500}
+.portal.lx .sx.mod[data-view="client"] .mck-progress__text > span:first-child{color:var(--lx-ink);font-weight:600}
+.portal.lx .sx.mod[data-view="client"] .mck-list{gap:12px}
+.portal.lx .sx.mod[data-view="client"] .mck-item,
+.portal.lx .sx.mod[data-view="client"] .mck-item:is([data-status="done"],[data-status="skipped_with_reason"]){padding:16px 18px;border:0;border-radius:16px;background:var(--lx-chip);box-shadow:none}
+.portal.lx .sx.mod[data-view="client"] .mck-dot{width:32px;height:32px;border:0;background:var(--lx-card);color:var(--lx-gray2);box-shadow:inset 0 0 0 1px var(--lx-line)}
+.portal.lx .sx.mod[data-view="client"] .mck-item[data-status="done"] .mck-dot{border:0;background:var(--lx-ok);color:#fff;box-shadow:none;animation:none}
+.portal.lx .sx.mod[data-view="client"] .mck-item[data-status="pending"] .mck-dot{border:0}
+.portal.lx .sx.mod[data-view="client"] .mck-item > :not(.mck-item__head){margin-inline-start:44px}
+.portal.lx .sx.mod[data-view="client"] .mck-item__title{color:var(--lx-ink);font:600 .96rem/1.4 var(--fb)}
+.portal.lx .sx.mod[data-view="client"] .mck-item[data-status="done"] .mck-item__title{color:var(--lx-ink)}
+.portal.lx .sx.mod[data-view="client"] :is(.mck-status,.mck-mark){height:24px;padding:0 10px;border:0;border-radius:999px;font-size:.74rem;font-weight:600;line-height:24px}
+.portal.lx .sx.mod[data-view="client"] .mck-mark,
+.portal.lx .sx.mod[data-view="client"] .mck-mark[data-mark="required"]{background:var(--lx-card);color:var(--lx-ink);font-weight:500}
+.portal.lx .sx.mod[data-view="client"] .mck-mark > svg{color:var(--lx-gray)}
+.portal.lx .sx.mod[data-view="client"] .mck-item__comment{border:0;border-radius:12px;background:var(--lx-card);color:var(--lx-ink)}
+.portal.lx .sx.mod[data-view="client"] .mck-item__meta{color:var(--lx-gray);font-size:.78rem}
+.portal.lx .sx.mod[data-view="client"] .mck-note{border-radius:16px}
+
+/* ── "Nega LexGo ichida qolish kerak": three picture tiles ── */
+.portal.lx .sx.mod[data-view="client"] .mret__g{gap:10px;margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--lx-line-2)}
+.portal.lx .sx.mod[data-view="client"] .mret__h{color:var(--lx-ink);font:600 .94rem/1.35 var(--fb)}
+.portal.lx .sx.mod[data-view="client"] .mret__h svg{color:var(--lx-ok)}
+.portal.lx .sx.mod[data-view="client"] .mret .mkrt-gl b{color:var(--lx-ink);font-weight:600}
+.portal.lx .sx.mod[data-view="client"] .mret .mkrt-gl small{color:var(--lx-gray)}
+.portal.lx .sx.mod[data-view="client"] .mret .mkrt-gl svg{color:var(--lx-ok)}
+.portal.lx .sx.mod[data-view="client"] .mret__list{gap:12px}
+.portal.lx .sx.mod[data-view="client"] .mret__item{flex-direction:column;align-items:flex-start;gap:12px;padding:18px;border:0;border-radius:16px;background:var(--lx-chip)}
+.portal.lx .sx.mod[data-view="client"] .mret__ico.odx-art{width:56px;height:56px;border-radius:50%;background:var(--art) center/62% no-repeat,#fff;box-shadow:none;color:inherit}
+.portal.lx .sx.mod[data-view="client"] .mret__txt{gap:4px}
+.portal.lx .sx.mod[data-view="client"] .mret__txt b{color:var(--lx-ink);font:600 .94rem/1.35 var(--fb)}
+.portal.lx .sx.mod[data-view="client"] .mret__txt small{color:var(--lx-gray);font:400 .84rem/1.5 var(--fb)}
+.portal.lx .sx.mod[data-view="client"] .mret__foot{margin-top:16px}
+
+/* ── the group second opinion: the dashboard's navy banner ── */
+.portal.lx .sx.mod[data-view="client"] .msog{
+  grid-template-columns:auto minmax(0,1fr);gap:20px;padding:24px 72px 24px 24px;border:0;border-radius:24px;background:var(--lx-navy);color:#fff}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .msog{background:#0B1830;box-shadow:inset 0 0 0 1px var(--lx-navy-line)}
+.portal.lx .sx.mod[data-view="client"] .msog__mark.odx-art{width:72px;height:72px;border-radius:50%;background:var(--art) center/62% no-repeat,#fff;box-shadow:none;color:inherit}
+.portal.lx .sx.mod[data-view="client"] .msog__body{gap:10px;padding:0}
+.portal.lx .sx.mod[data-view="client"] .msog__kicker{color:#8494AB;font:600 .74rem/1.3 var(--fb);letter-spacing:.06em;text-transform:uppercase}
+.portal.lx .sx.mod[data-view="client"] .msog__title{color:#fff;font:700 1.3rem/1.3 var(--fd);letter-spacing:-.015em}
+.portal.lx .sx.mod[data-view="client"] .msog__desc{color:#C9D4E3;font:400 .92rem/1.6 var(--fb)}
+.portal.lx .sx.mod[data-view="client"] .msog__benefits li{color:#fff;font:500 .88rem/1.45 var(--fb)}
+.portal.lx .sx.mod[data-view="client"] .msog__tick{color:#4ADE9F}
+.portal.lx .sx.mod[data-view="client"] .msog__acts{margin-top:8px}
+.portal.lx .sx.mod[data-view="client"] .msog__cta.sx-btn--primary,
+.portal.lx .sx.mod[data-view="client"] .msog__cta.sx-btn--primary:not(:disabled,[aria-disabled="true"]){height:48px;padding:0 20px;background:#fff;color:var(--lx-navy)}
+.portal.lx .sx.mod[data-view="client"] .msog__cta.sx-btn--primary:not(:disabled,[aria-disabled="true"]):hover{background:#E9EFF8;color:var(--lx-navy)}
+.portal.lx .sx.mod[data-view="client"] .msog__x{top:16px;right:16px;width:40px;height:40px;border:0;border-radius:12px;background:rgba(255,255,255,.08);color:#fff}
+.portal.lx .sx.mod[data-view="client"] .msog__x:hover{background:rgba(255,255,255,.16);color:#fff}
+
+/* ── "Ikkinchi fikr": the dashboard's specialist cards ──── */
+.portal.lx .sx.mod[data-view="client"] .mso-note{color:var(--lx-gray);font-size:.86rem}
+.portal.lx .sx.mod[data-view="client"] .mso-grid{grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.portal.lx .sx.mod[data-view="client"] .mso-card{
+  display:flex;flex-direction:row;align-items:stretch;gap:16px;min-width:0;padding:16px;border:1px solid var(--lx-line);border-radius:16px;background:var(--lx-card);box-shadow:none}
+.mso-card__ph{display:none}
+.portal.lx .sx.mod[data-view="client"] .mso-card__ph{
+  display:grid;place-items:center;align-self:stretch;flex:none;width:96px;min-height:120px;border:1px dashed #C9D4E3;border-radius:12px;background:var(--lx-chip)}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mso-card__ph{border-color:#2C3D60}
+.portal.lx .sx.mod[data-view="client"] .mso-card__ph > span{display:grid;place-items:center;width:52px;height:52px;border-radius:50%;background:var(--lx-navy);color:#fff;font-size:1rem;font-weight:700}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mso-card__ph > span{background:var(--lx-blue)}
+.portal.lx .sx.mod[data-view="client"] .mso-card__b{display:grid;align-content:start;gap:7px;flex:1;min-width:0}
+.portal.lx .sx.mod[data-view="client"] .mso-card__head{display:grid;gap:4px;min-width:0}
+.portal.lx .sx.mod[data-view="client"] .mso-card__name{margin:0;color:var(--lx-ink);font:600 1.02rem/1.35 var(--fb)}
+.portal.lx .sx.mod[data-view="client"] .mso-card__role{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin:0;color:var(--lx-gray);font-size:.86rem}
+.portal.lx .sx.mod[data-view="client"] .mso-card__verified{height:auto;padding:0;gap:4px;border:0;background:none;color:var(--lx-ok);font-size:.86rem;font-weight:600}
+.portal.lx .sx.mod[data-view="client"] .mso-card__verified > svg{width:15px;height:15px;color:var(--lx-ok)}
+.portal.lx .sx.mod[data-view="client"] .mso-card__rating{margin:0;color:var(--lx-gray);font-size:.84rem}
+.portal.lx .sx.mod[data-view="client"] .mso-card__star{color:#D9A21B}
+.portal.lx .sx.mod[data-view="client"] .mso-card__price{margin:0;color:var(--lx-ink);font-size:.9rem;font-weight:700}
+.portal.lx .sx.mod[data-view="client"] .mso-card__region{display:flex;align-items:center;gap:6px;margin:0;color:var(--lx-gray);font-size:.84rem}
+.portal.lx .sx.mod[data-view="client"] .mso-card__region > svg{flex:none;color:var(--lx-gray)}
+.portal.lx .sx.mod[data-view="client"] .mso-card__foot{margin-top:4px}
+.portal.lx .sx.mod[data-view="client"] .mso-card__view.sx-btn{width:100%;height:40px;border:0;background:var(--lx-navy);color:#fff}
+.portal.lx .sx.mod[data-view="client"] .mso-card__view.sx-btn:not(:disabled,[aria-disabled="true"]):hover{border:0;background:#1B2A42;color:#fff}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mso-card__view.sx-btn{background:#E7EEF8;color:#0A1526}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mso-card__view.sx-btn:not(:disabled,[aria-disabled="true"]):hover{background:#fff;color:#0A1526}
+
+/* ── the result, the rating and the complaint (OrderExtras) ── */
+.portal.lx .sx.mod[data-view="client"] .mod-sec--legacy{padding:28px;border:1px solid var(--lx-line-2);border-radius:24px;background:var(--lx-card)}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mod-sec--legacy{border-color:var(--lx-line)}
+.portal.lx .sx.mod[data-view="client"] .mod-sec--legacy:not(:has(*)){display:none}
+.portal.lx .sx.mod[data-view="client"] #mod-result:has(> .mod-sec__art){display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:20px;align-items:start}
+.portal.lx .sx.mod[data-view="client"] .mod-sec__art{width:64px;height:64px}
+.portal.lx .sx.mod[data-view="client"] .mod-sec--legacy > .mko__res{gap:10px;padding:0;border-radius:0;background:none;box-shadow:none}
+.portal.lx .sx.mod[data-view="client"] .mko__resh{gap:8px;color:var(--lx-ink);font:700 1.18rem/1.3 var(--fd);letter-spacing:-.015em}
+.portal.lx .sx.mod[data-view="client"] .mko__resh svg{display:none}
+.portal.lx .sx.mod[data-view="client"] .mko__rest{color:var(--lx-ink);font-size:.92rem;line-height:1.6}
+.portal.lx .sx.mod[data-view="client"] .mko__files{gap:8px;margin-top:4px}
+.portal.lx .sx.mod[data-view="client"] .mko__files li{gap:12px;padding:10px 10px 10px 14px;border-radius:12px;background:var(--lx-chip)}
+.portal.lx .sx.mod[data-view="client"] .mko__files li > svg{color:var(--lx-gray)}
+.portal.lx .sx.mod[data-view="client"] .mko__files li > span{flex:1 1 140px;min-width:0;overflow:visible;white-space:normal;text-overflow:clip;overflow-wrap:anywhere;color:var(--lx-ink);font-weight:500}
+.portal.lx .sx.mod[data-view="client"] .mko__files .btn{flex:none;white-space:nowrap}
+/* rating: a chip inner card, amber stars, the time left as a pill */
+.portal.lx .sx.mod[data-view="client"] .mod-sec--legacy > .mko__rate{gap:12px;padding:18px;border-radius:16px;background:var(--lx-chip);box-shadow:none}
+.portal.lx .sx.mod[data-view="client"] .mko__rateh b{color:var(--lx-ink);font:700 1.05rem/1.3 var(--fd)}
+.portal.lx .sx.mod[data-view="client"] .mko__ratel{color:var(--lx-gray);font-size:.86rem}
+.portal.lx .sx.mod[data-view="client"] .mko__left{height:26px;padding:0 10px 0 8px;border-radius:999px;background:var(--lx-warn-bg);color:var(--lx-warn);font-size:.74rem;font-weight:600}
+.portal.lx .sx.mod[data-view="client"] .mko__left.is-warn{background:var(--lx-err-bg);color:var(--lx-err)}
+.portal.lx .sx.mod[data-view="client"] .mko__stars button{width:44px;height:44px;border-radius:12px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);color:#9AA8BC}
+.portal.lx .sx.mod[data-view="client"] .mko__stars button:hover{transform:none;box-shadow:inset 0 0 0 1px #D9A21B}
+.portal.lx .sx.mod[data-view="client"] .mko__stars button.is-on{background:var(--lx-warn-bg);box-shadow:inset 0 0 0 1px transparent;color:#D9A21B}
+.portal.lx .sx.mod[data-view="client"] .mko__stars.is-static svg.is-on{color:#D9A21B}
+.portal.lx .sx.mod[data-view="client"] .mko__starl{color:var(--lx-ink);font-weight:600}
+.portal.lx .sx.mod[data-view="client"] .mko__ratec textarea{border:1px solid var(--lx-line);border-radius:12px;background:var(--lx-card);color:var(--lx-ink);box-shadow:none}
+.portal.lx .sx.mod[data-view="client"] .mko__ratec.is-low textarea{border-color:var(--lx-err);box-shadow:none}
+.portal.lx .sx.mod[data-view="client"] .mko__lowhint{color:var(--lx-err)}
+.portal.lx .sx.mod[data-view="client"] .mod-sec--legacy > .mko__rated{gap:6px 12px;padding:16px 18px;border-radius:16px;background:var(--lx-chip);color:var(--lx-ink);font-size:.9rem;font-weight:600}
+.portal.lx .sx.mod[data-view="client"] .mko__rated small{color:var(--lx-gray);font-weight:400}
+/* the complaint row: inside the same card, a white outlined button */
+.portal.lx .sx.mod[data-view="client"] .mko__cmp{margin-top:12px;padding:14px 16px;border:0;border-radius:16px;background:var(--lx-chip);color:var(--lx-ink);font-size:.88rem}
+.portal.lx .sx.mod[data-view="client"] .mko__cmp.is-open textarea{border:1px solid var(--lx-line);border-radius:12px;background:var(--lx-card)}
+.portal.lx .sx.mod[data-view="client"] .mko__cmp.is-filed{background:var(--lx-chip)}
+/* the supplemental request: an amber inner card, no rings */
+.portal.lx .sx.mod[data-view="client"] .mko__sup{gap:12px;padding:18px;border-radius:24px;background:var(--lx-warn-bg);box-shadow:none}
+.portal.lx .sx.mod[data-view="client"] .mko__sup.is-approved{background:var(--lx-ok-bg)}
+.portal.lx .sx.mod[data-view="client"] .mko__sup:is(.is-rejected,.is-cancelled){background:var(--lx-err-bg)}
+.portal.lx .sx.mod[data-view="client"] .mko__sup.is-pending.is-warn{box-shadow:none}
+.portal.lx .sx.mod[data-view="client"] .mko__supi{width:40px;height:40px;border-radius:12px;background:var(--lx-card);color:var(--lx-warn)}
+/* the head wraps: the time left goes under the text rather than past the card */
+.portal.lx .sx.mod[data-view="client"] .mko__suph{flex-wrap:wrap}
+.portal.lx .sx.mod[data-view="client"] .mko__suph > div{flex:1 1 180px;min-width:0}
+.portal.lx .sx.mod[data-view="client"] .mko__opts li{flex-wrap:wrap;min-width:0;max-width:100%}
+.portal.lx .sx.mod[data-view="client"] .mko__suph b{color:var(--lx-ink);font-size:.98rem}
+.portal.lx .sx.mod[data-view="client"] .mko__suph p{color:var(--lx-gray)}
+.portal.lx .sx.mod[data-view="client"] .mko__sup .mko__left{background:var(--lx-card)}
+.portal.lx .sx.mod[data-view="client"] .mko__supnote{border:0;border-radius:12px;background:var(--lx-card);padding:10px 12px}
+
+/* ── a rework, a replacement, the change history ──────────── */
+.portal.lx .sx.mod[data-view="client"] .mod-rework{
+  gap:18px;padding:24px 28px;border:1px solid var(--lx-line-2);border-radius:24px;background:var(--lx-card);box-shadow:none;color:var(--lx-ink)}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mod-rework{border-color:var(--lx-line)}
+.portal.lx .sx.mod[data-view="client"] .mod-rework__ico.odx-art{width:64px;height:64px;border-radius:50%;background:var(--art) center/62% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line);color:inherit}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mod-rework__ico.odx-art{box-shadow:none}
+.portal.lx .sx.mod[data-view="client"] .mod-rework__body > b{color:var(--lx-ink);font:700 1.18rem/1.3 var(--fd);letter-spacing:-.015em}
+.portal.lx .sx.mod[data-view="client"] .mod-rework__body > p{color:var(--lx-gray);font-size:.92rem;line-height:1.55}
+.portal.lx .sx.mod[data-view="client"] .mod-rework__flow li{height:26px;padding:0 10px 0 7px;border:0;border-radius:999px;font-size:.74rem;font-weight:600}
+.portal.lx .sx.mod[data-view="client"] .mod-rework__flow li[data-step="was"]{background:var(--lx-chip);color:var(--lx-gray)}
+.portal.lx .sx.mod[data-view="client"] .mod-rework__flow li[data-step="was"]::after{color:var(--lx-gray2)}
+.portal.lx .sx.mod[data-view="client"] .mod-rework__flow li[data-step="now"]{background:var(--lx-warn-bg);color:var(--lx-warn)}
+.portal.lx .sx.mod[data-view="client"] .mod-rework__due{padding:10px 14px;border:0;border-radius:12px;background:var(--lx-warn-bg);color:var(--lx-ink)}
+.portal.lx .sx.mod[data-view="client"] .mod-rework__due > svg{color:var(--lx-warn)}
+.portal.lx .sx.mod[data-view="client"] .mod-rework__due b{color:var(--lx-warn)}
+.portal.lx .sx.mod[data-view="client"] .mod-rework__due[data-late] b{color:var(--lx-err)}
+.portal.lx .sx.mod[data-view="client"] .mod-rework__note{border:0;border-radius:16px;background:var(--lx-chip);color:var(--lx-ink)}
+.portal.lx .sx.mod[data-view="client"] .mod-rework__note small{color:var(--lx-gray)}
+.portal.lx .sx.mod[data-view="client"] .mod-rework__fine{color:var(--lx-gray)}
+
+.portal.lx .sx.mod[data-view="client"] .mrp{gap:18px;padding:24px 28px;border:1px solid var(--lx-line-2);border-radius:24px;background:var(--lx-card);box-shadow:none;isolation:auto}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mrp{border-color:var(--lx-line)}
+.portal.lx .sx.mod[data-view="client"] .mrp__glow{display:none}
+.portal.lx .sx.mod[data-view="client"] .mrp__head{gap:18px}
+.portal.lx .sx.mod[data-view="client"] .mrp__orb.odx-art{width:64px;height:64px;border-radius:50%;background:var(--art) center/62% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line);color:inherit}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mrp__orb.odx-art{box-shadow:none}
+.portal.lx .sx.mod[data-view="client"] .mrp__titles h2{color:var(--lx-ink);font:700 1.18rem/1.3 var(--fd);letter-spacing:-.015em}
+.portal.lx .sx.mod[data-view="client"] .mrp__titles p{color:var(--lx-gray);font-size:.92rem;line-height:1.55}
+.portal.lx .sx.mod[data-view="client"] .mrp__clock{height:26px;padding:0 10px 0 8px;border:0;border-radius:999px;background:var(--lx-blue-tint);color:var(--lx-blue-ink);font-size:.78rem;font-weight:700;box-shadow:none}
+.portal.lx .sx.mod[data-view="client"] .mrp__facts{gap:10px}
+.portal.lx .sx.mod[data-view="client"] .mrp__facts li{padding:12px 14px;border:0;border-radius:12px;background:var(--lx-chip);color:var(--lx-ink);font-size:.88rem}
+.portal.lx .sx.mod[data-view="client"] .mrp__facts li svg{color:var(--lx-link)}
+
+.portal.lx .sx.mod[data-view="client"] .mrh{padding:24px 28px;border:1px solid var(--lx-line-2);border-radius:24px;background:var(--lx-card);box-shadow:none}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mrh{border-color:var(--lx-line)}
+.portal.lx .sx.mod[data-view="client"] .mrh__title{color:var(--lx-ink);font:700 1.18rem/1.3 var(--fd);letter-spacing:-.015em}
+.portal.lx .sx.mod[data-view="client"] .mrh__title svg{color:var(--lx-gray)}
+.portal.lx .sx.mod[data-view="client"] .mrh__count{min-width:26px;height:26px;padding:0 8px;border-radius:999px;background:var(--lx-chip);color:var(--lx-ink);font-size:.8rem;font-weight:700}
+.portal.lx .sx.mod[data-view="client"] .mrh__row:not(:last-child)::before{background:var(--lx-line)}
+.portal.lx .sx.mod[data-view="client"] .mrh__dot{border:0;background:var(--lx-blue-tint);color:var(--lx-link);box-shadow:none}
+.portal.lx .sx.mod[data-view="client"] .mrh__row[data-tone="bad"] .mrh__dot{background:var(--lx-err-bg);color:var(--lx-err)}
+.portal.lx .sx.mod[data-view="client"] .mrh__line{color:var(--lx-ink)}
+.portal.lx .sx.mod[data-view="client"] .mrh__line time,
+.portal.lx .sx.mod[data-view="client"] :is(.mrh__reason,.mrh__people,.mrh__meta){color:var(--lx-gray)}
+.portal.lx .sx.mod[data-view="client"] .mrh__chip{height:24px;padding:0 10px;border:0;border-radius:999px;background:var(--lx-blue-tint);color:var(--lx-blue-ink);font-size:.74rem;font-weight:600}
+.portal.lx .sx.mod[data-view="client"] .mrh__chip[data-tone="ok"]{background:var(--lx-ok-bg);color:var(--lx-ok)}
+.portal.lx .sx.mod[data-view="client"] .mrh__chip[data-tone="bad"]{background:var(--lx-err-bg);color:var(--lx-err)}
+
+/* the paid order waiting for the specialist: a banner with the on-duty lawyer */
+.odx-wait{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:18px;padding:24px 28px;border:1px solid var(--lx-line-2, #ECF0F7);border-radius:24px;background:var(--lx-card, #fff);color:var(--lx-ink, #0A1526)}
+html[data-theme="dark"] .odx-wait{border-color:var(--lx-line, #26365A)}
+.odx-wait__body{display:grid;gap:6px;min-width:0}
+.odx-wait__top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.odx-wait__t{margin:0;color:var(--lx-ink, #0A1526);font:700 1.18rem/1.3 var(--fd);letter-spacing:-.015em}
+.odx-wait__body p{margin:0;color:var(--lx-gray, #4F5F75);font-size:.92rem;line-height:1.55}
+.odx-wait__body .odx-wait__over{color:var(--lx-warn, #9A5B00);font-weight:600}
+.odx-wait__clock{font-variant-numeric:tabular-nums}
+
+/* ── no suitable specialist: the choice, then the chosen path ── */
+.portal.lx .sx.mod[data-view="client"] .mrs{gap:18px;padding:28px;border:1px solid var(--lx-line-2);border-radius:24px;background:var(--lx-card);box-shadow:none}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mrs{border-color:var(--lx-line)}
+.portal.lx .sx.mod[data-view="client"] .mrs::before{content:none}
+.portal.lx .sx.mod[data-view="client"] .mrs__head{align-items:center;gap:18px}
+.portal.lx .sx.mod[data-view="client"] .mrs .mrs__ico.odx-art{width:64px;height:64px;border-radius:50%;background:var(--art) center/62% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line);color:inherit}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mrs .mrs__ico.odx-art{box-shadow:none}
+.portal.lx .sx.mod[data-view="client"] .mrs__titles h2{color:var(--lx-ink);font:700 1.18rem/1.3 var(--fd);letter-spacing:-.015em}
+.portal.lx .sx.mod[data-view="client"] .mrs__titles p{color:var(--lx-gray);font-size:.92rem;line-height:1.55}
+.portal.lx .sx.mod[data-view="client"] .mrs-chip{height:26px;padding:0 10px 0 8px;border-radius:999px;background:var(--lx-blue-tint);color:var(--lx-blue-ink);font:600 .78rem/1 var(--fb)}
+.portal.lx .sx.mod[data-view="client"] .mrs-chip[data-tone="wait"]{background:var(--lx-warn-bg);color:var(--lx-warn)}
+.portal.lx .sx.mod[data-view="client"] .mrs-chip[data-tone="ok"]{background:var(--lx-ok-bg);color:var(--lx-ok)}
+.portal.lx .sx.mod[data-view="client"] .mrs-chip[data-tone="bad"]{background:var(--lx-err-bg);color:var(--lx-err)}
+.portal.lx .sx.mod[data-view="client"] .mrs-quote{padding:14px 16px;border-radius:16px;background:var(--lx-chip)}
+.portal.lx .sx.mod[data-view="client"] .mrs-quote figcaption{color:var(--lx-gray)}
+.portal.lx .sx.mod[data-view="client"] .mrs-quote blockquote{color:var(--lx-ink)}
+.portal.lx .sx.mod[data-view="client"] .mrs-meta{color:var(--lx-gray)}
+/* the two choices: the dashboard's option cards, picture | text | round arrow */
+.portal.lx .sx.mod[data-view="client"] .mrs-choices{gap:14px}
+.portal.lx .sx.mod[data-view="client"] .mrs-choice{
+  grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:1fr auto auto auto 1fr;align-items:center;justify-items:start;column-gap:16px;row-gap:4px;
+  padding:18px;border:1px solid var(--lx-line);border-radius:16px;background:var(--lx-card);box-shadow:none;transform:none}
+.portal.lx .sx.mod[data-view="client"] .mrs-choice:hover:not(:disabled){border-color:#C7D6EC;background:var(--lx-card);box-shadow:0 14px 28px -20px rgba(10,21,38,.35);transform:translateY(-2px)}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mrs-choice:hover:not(:disabled){border-color:#3A4E75}
+.portal.lx .sx.mod[data-view="client"] .mrs-choice:focus-visible{border-color:var(--lx-blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--lx-blue) 22%,transparent)}
+.portal.lx .sx.mod[data-view="client"] .mrs-choice > .mrs-choice__ico.odx-art{grid-column:1;grid-row:1 / -1;width:64px;height:64px;margin:0;border-radius:50%;background:var(--art) center/62% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line);transition:background-size .2s ease}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mrs-choice > .mrs-choice__ico.odx-art{box-shadow:none}
+.portal.lx .sx.mod[data-view="client"] .mrs-choice:hover:not(:disabled) > .mrs-choice__ico.odx-art{background-size:68%,auto}
+.portal.lx .sx.mod[data-view="client"] .mrs-choice > b{grid-column:2;grid-row:2;color:var(--lx-ink);font:600 1rem/1.35 var(--fb)}
+.portal.lx .sx.mod[data-view="client"] .mrs-choice > span:not(.mrs-choice__ico,.mrs-choice__go){grid-column:2;grid-row:3;color:var(--lx-gray);font:400 .86rem/1.5 var(--fb)}
+.portal.lx .sx.mod[data-view="client"] .mrs-choice > small{grid-column:2;grid-row:4;margin-top:4px;padding:3px 10px;border-radius:999px;background:var(--lx-chip);color:var(--lx-ink);font:600 .78rem/1.4 var(--fb)}
+.portal.lx .sx.mod[data-view="client"] .mrs-choice > .mrs-choice__go{grid-column:3;grid-row:1 / -1;display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:var(--lx-chip);color:var(--lx-ink);transition:background-color .15s,color .15s}
+.portal.lx .sx.mod[data-view="client"] .mrs-choice > .mrs-choice__go svg{width:16px;height:16px}
+.portal.lx .sx.mod[data-view="client"] .mrs-choice:hover:not(:disabled) > .mrs-choice__go{background:var(--lx-blue);color:#fff}
+/* the chosen path: the dashboard's segment bar with the step names under it */
+.portal.lx .sx.mod[data-view="client"] :is(.mrs-refund,.mrs-path){gap:14px;padding:18px;border-radius:16px;background:var(--lx-chip)}
+.portal.lx .sx.mod[data-view="client"] .mrs-refund__ico{width:40px;height:40px;border-radius:12px;background:var(--lx-card);color:var(--lx-link)}
+.portal.lx .sx.mod[data-view="client"] .mrs-refund:is([data-step="refunded"],[data-step="none"]) .mrs-refund__ico{background:var(--lx-ok-bg);color:var(--lx-ok)}
+.portal.lx .sx.mod[data-view="client"] .mrs-refund[data-step="rejected"] .mrs-refund__ico{background:var(--lx-err-bg);color:var(--lx-err)}
+.portal.lx .sx.mod[data-view="client"] .mrs-refund__txt small{color:var(--lx-gray);font-size:.78rem;font-weight:600;letter-spacing:0;text-transform:none}
+.portal.lx .sx.mod[data-view="client"] .mrs-refund__txt b{color:var(--lx-ink);font:800 1.3rem/1.3 var(--fd)}
+.portal.lx .sx.mod[data-view="client"] .mrs-steps{gap:4px}
+.portal.lx .sx.mod[data-view="client"] .mrs-steps li{justify-items:stretch;gap:8px;text-align:left;color:var(--lx-gray);font:500 .82rem/1.35 var(--fb)}
+.portal.lx .sx.mod[data-view="client"] .mrs-steps li::before{content:none}
+.portal.lx .sx.mod[data-view="client"] .mrs-steps li > i{width:auto;height:4px;border-radius:4px;background:#E1E8F2;box-shadow:none;color:transparent;animation:none}
+html[data-theme="dark"] .portal.lx .sx.mod[data-view="client"] .mrs-steps li > i{background:#26365A}
+.portal.lx .sx.mod[data-view="client"] .mrs-steps li > i svg{display:none}
+.portal.lx .sx.mod[data-view="client"] .mrs .mrs-steps li:is([data-state="done"],[data-state="now"]) > i{background:var(--lx-blue);box-shadow:none}
+.portal.lx .sx.mod[data-view="client"] .mrs .mrs-steps li[data-state="bad"] > i{background:var(--lx-err)}
+.portal.lx .sx.mod[data-view="client"] .mrs-steps li[data-state="done"]{color:var(--lx-ink)}
+.portal.lx .sx.mod[data-view="client"] .mrs-steps li[data-state="now"]{color:var(--lx-ink);font-weight:700}
+.portal.lx .sx.mod[data-view="client"] .mrs-steps li[data-state="bad"]{color:var(--lx-err);font-weight:700}
+.portal.lx .sx.mod[data-view="client"] .mrs-closed li{border-radius:12px;background:var(--lx-chip);box-shadow:none;color:var(--lx-ink)}
+.portal.lx .sx.mod[data-view="client"] .mrs-closed svg{color:var(--lx-gray)}
+.portal.lx .sx.mod[data-view="client"] .mrs-h{color:var(--lx-ink);font:600 .98rem/1.35 var(--fb)}
+.portal.lx .sx.mod[data-view="client"] .mrs-h svg{color:var(--lx-gray)}
+.portal.lx .sx.mod[data-view="client"] .mrs-tl li::before{background:var(--lx-line)}
+.portal.lx .sx.mod[data-view="client"] .mrs-tl li > i{background:var(--lx-blue);box-shadow:0 0 0 3px var(--lx-blue-tint)}
+.portal.lx .sx.mod[data-view="client"] .mrs-tl b{color:var(--lx-ink);font-weight:600}
+.portal.lx .sx.mod[data-view="client"] .mrs-tl small{color:var(--lx-gray)}
+.portal.lx .sx.mod[data-view="client"] .mrs-tl p{border-radius:12px;background:var(--lx-chip);color:var(--lx-ink)}
+.portal.lx .sx.mod[data-view="client"] .mrs-link{color:var(--lx-link)}
+
+/* ── a review of the seller's cancellation request, the outcome ── */
+.portal.lx .sx.mod[data-view="client"] .mcr-quote{padding:14px 16px;border:0;border-radius:16px;background:var(--lx-chip)}
+.portal.lx .sx.mod[data-view="client"] .mcr-quote figcaption{color:var(--lx-gray)}
+.portal.lx .sx.mod[data-view="client"] .mcr-quote blockquote{color:var(--lx-ink)}
+.portal.lx .sx.mod[data-view="client"] :is(.mcr-meta,.mcr-group p){color:var(--lx-gray)}
+.portal.lx .sx.mod[data-view="client"] .mcr-outcome{color:var(--lx-ink);font-weight:600}
+.portal.lx .sx.mod[data-view="client"] .mcr-group{padding:14px 16px;border:0;border-radius:16px;background:var(--lx-blue-tint)}
+
+/* ── by the width the page actually gets ─────────────────── */
+/* one column below ~960px: the actions first, then the order, then the facts */
+@container odx (max-width:959px){
+  .portal.lx .sx.mod[data-view="client"] .mod__grid{display:flex;flex-direction:column;align-items:stretch}
+  .portal.lx .sx.mod[data-view="client"] .mod__aside{display:contents}
+  .portal.lx .sx.mod[data-view="client"] .mod__actions{order:-1}
+  .portal.lx .sx.mod[data-view="client"] .mod__main{order:0}
+  .portal.lx .sx.mod[data-view="client"] .mod__facts{order:1}
+}
+@container odx (max-width:899px){
+  .portal.lx .sx.mod[data-view="client"] .mod-head__hero{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"art titles" "lead lead" "money money";row-gap:14px;padding:22px 24px}
+  .portal.lx .sx.mod[data-view="client"] .mod-head__art{width:72px;height:72px}
+  .portal.lx .sx.mod[data-view="client"] .mod-head__titles{align-self:center}
+  .portal.lx .sx.mod[data-view="client"] .mod-head__money{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:14px;row-gap:4px;padding:14px 18px}
+  .portal.lx .sx.mod[data-view="client"] .mod-head__money-label{flex:1 1 100%}
+}
+@container odx (max-width:699px){
+  .portal.lx .sx.mod[data-view="client"] :is(.mod__main,.mod__aside) .sx-panel:not(.sx-panel .sx-panel),
+  .portal.lx .sx.mod[data-view="client"] :is(.mod-sec--legacy,.mod-rework,.mrp,.mrh,.mrs,.odx-wait,.odx-empty){padding:20px;border-radius:20px}
+  .portal.lx .sx.mod[data-view="client"] .mod-head__track{padding:18px 20px;border-radius:20px}
+  .portal.lx .sx.mod[data-view="client"] .mod-head__hero{border-radius:20px}
+  .portal.lx .sx.mod[data-view="client"] .msog{padding:20px 64px 20px 20px;border-radius:20px}
+  .portal.lx .sx.mod[data-view="client"] .mso-grid{grid-template-columns:minmax(0,1fr)}
+}
+@container odx (max-width:520px){
+  .portal.lx .sx.mod[data-view="client"] :is(.mod__main,.mod__aside) .sx-panel:not(.sx-panel .sx-panel),
+  .portal.lx .sx.mod[data-view="client"] :is(.mod-sec--legacy,.mod-rework,.mrp,.mrh,.mrs,.odx-wait,.odx-empty){padding:16px;border-radius:18px}
+  .portal.lx .sx.mod[data-view="client"] .mod-head__track{padding:16px;border-radius:18px}
+  /* a phone: the number and the status beside the picture, the title under them */
+  .portal.lx .sx.mod[data-view="client"] .mod-head__hero{
+    grid-template-columns:auto minmax(0,1fr);grid-template-areas:"art wid" "art pill" "title title" "lead lead" "money money";
+    column-gap:14px;row-gap:8px;padding:18px;border-radius:18px}
+  .portal.lx .sx.mod[data-view="client"] .mod-head__titles{display:contents}
+  .portal.lx .sx.mod[data-view="client"] .mod-head__wid{grid-area:wid;justify-self:start;align-self:end}
+  .portal.lx .sx.mod[data-view="client"] .mod-head__titles > .mod-pill{grid-area:pill;justify-self:start;align-self:start;max-width:100%}
+  .portal.lx .sx.mod[data-view="client"] .mod-head__title{grid-area:title;margin-top:6px;font-size:1.2rem}
+  .portal.lx .sx.mod[data-view="client"] .mod-head__art{width:56px;height:56px}
+  .portal.lx .sx.mod[data-view="client"] .mod-head__price b{font-size:1.35rem}
+  .portal.lx .sx.mod[data-view="client"] .sx-panel > .odx-feat,
+  .portal.lx .sx.mod[data-view="client"] :is(.mod-sec__art,.mrs .mrs__ico.odx-art,.mrp__orb.odx-art,.mod-rework__ico.odx-art){width:48px;height:48px}
+  .portal.lx .sx.mod[data-view="client"] .sx-panel:has(> .odx-feat){column-gap:14px}
+  .portal.lx .sx.mod[data-view="client"] .sx-panel > .odx-feat{grid-row:1}
+  .portal.lx .sx.mod[data-view="client"] .sx-panel:has(> .odx-feat) > .sx-panel__head{min-height:48px}
+  /* under the picture and the title, the card's full width */
+  .portal.lx .sx.mod[data-view="client"] .sx-panel:has(> .odx-feat) > :not(.odx-feat,.sx-panel__head){grid-column:1 / -1}
+  .portal.lx .sx.mod[data-view="client"] .sx-panel:has(> .odx-feat) > .sx-btn{justify-self:stretch}
+  .portal.lx .sx.mod[data-view="client"] #mod-result:has(> .mod-sec__art){column-gap:14px}
+  .portal.lx .sx.mod[data-view="client"] .msog{grid-template-columns:minmax(0,1fr);padding:18px;border-radius:18px}
+  .portal.lx .sx.mod[data-view="client"] .msog__mark.odx-art{width:56px;height:56px}
+  .portal.lx .sx.mod[data-view="client"] .msog__cta.sx-btn--primary{width:100%;justify-content:center}
+  .portal.lx .sx.mod[data-view="client"] .msog__x{top:14px;right:14px}
+  .portal.lx .sx.mod[data-view="client"] .mso-card{flex-direction:column}
+  .portal.lx .sx.mod[data-view="client"] .mso-card__ph{width:100%;min-height:88px}
+  .portal.lx .sx.mod[data-view="client"] .mrs-choice{grid-template-columns:auto minmax(0,1fr);column-gap:12px;padding:14px}
+  .portal.lx .sx.mod[data-view="client"] .mrs-choice > .mrs-choice__ico.odx-art{width:48px;height:48px}
+  .portal.lx .sx.mod[data-view="client"] .mrs-choice > .mrs-choice__go{display:none}
+  .portal.lx .sx.mod[data-view="client"] .mrs__head{flex-wrap:wrap;column-gap:14px}
+  .portal.lx .sx.mod[data-view="client"] .mrp__head{grid-template-columns:auto minmax(0,1fr);column-gap:14px}
+  .portal.lx .sx.mod[data-view="client"] .mrp__clock{grid-column:1 / -1;justify-self:start}
+  .portal.lx .sx.mod[data-view="client"] .mod-rework{flex-direction:column;gap:14px}
+  .portal.lx .sx.mod[data-view="client"] .mret__item{flex-direction:row;align-items:center}
+  .portal.lx .sx.mod[data-view="client"] .mret__ico.odx-art{width:48px;height:48px}
+  .odx-wait{grid-template-columns:minmax(0,1fr);gap:14px}
+  .odx-wait__art{width:56px;height:56px}
+  .portal.lx .sx.mod[data-view="client"] .mko__files li{flex-wrap:wrap}
+  /* "Advokat bilan bog'lanish" on one line in a 264px card */
+  .portal.lx .sx.mod[data-view="client"] .mkc__trigger.sx-btn{gap:6px;padding:0 12px;font-size:.86rem}
+}
+
+/* ══ the dialogs opened from this page ═══════════════════════
+   SxDialog → .amodal__c[data-ai-id="marketplace.orders.detail.…"], outside
+   .portal.lx: the sx tokens re-pointed to the lx ones (the layer already
+   carries them, layers1920.css), then the parts. */
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."]{
+  --sx-bg:var(--lx-bg);--sx-surface:var(--lx-card);--sx-surface-2:var(--lx-chip);
+  --sx-line:var(--lx-line-2);--sx-line-strong:var(--lx-line);--sx-control-line:var(--lx-line);
+  --sx-ink:var(--lx-ink);--sx-ink-2:var(--lx-gray);--sx-muted:var(--lx-gray);--sx-placeholder:var(--lx-gray2);
+  --sx-accent:var(--lx-blue);--sx-accent-ink:var(--lx-link);--sx-accent-soft:var(--lx-blue-tint);--sx-on-accent:#fff;
+  --sx-danger:var(--lx-err);--sx-danger-soft:var(--lx-err-bg);
+  --sx-submitted-fg:var(--lx-warn);--sx-submitted-bg:var(--lx-warn-bg);--sx-submitted-line:transparent;
+  --sx-review-fg:var(--lx-blue-ink);--sx-review-bg:var(--lx-blue-tint);--sx-review-line:transparent;
+  --sx-r-sm:10px;--sx-r:12px;--sx-r-lg:16px;
+  --sx-ring:0 0 0 3px color-mix(in srgb,var(--lx-blue) 22%,transparent);
+}
+/* a picture beside the title, as the dashboard's dialogs */
+html:has(.portal.lx) .amodal__c:is([data-ai-id$=".cancel-review.modal"],[data-ai-id$=".warranty.dialog"],[data-ai-id$=".resolution.dialog"],[data-ai-id$=".second-opinion.group.modal"]) .amodal__h{align-items:center;gap:14px}
+html:has(.portal.lx) .amodal__c:is([data-ai-id$=".cancel-review.modal"],[data-ai-id$=".warranty.dialog"],[data-ai-id$=".resolution.dialog"],[data-ai-id$=".second-opinion.group.modal"]) .amodal__h::before{
+  content:"";flex:none;width:56px;height:56px;border-radius:50%;background:var(--art) center/62% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line)}
+html[data-theme="dark"]:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .amodal__h::before{box-shadow:none}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".cancel-review.modal"]{--art:url(/img/xizmatlar/Muammo_tahlili.webp)}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".warranty.dialog"]{--art:url(/img/xizmatlar/Kafolat.webp)}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".resolution.dialog"]{--art:url(/img/xizmatlar/Boshqa_mutaxassis.webp)}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".resolution.dialog"]:has(.mrs-sum){--art:url(/img/xizmatlar/Pul_qaytarish.webp)}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".second-opinion.group.modal"]{--art:url(/img/xizmatlar/Guruh_video.webp)}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .amodal__d{color:var(--lx-gray);font-size:.9rem;line-height:1.55}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] :is(.sx-vh,.sr-only){overflow:visible !important;font-size:1px !important;line-height:1px !important;letter-spacing:0 !important}
+/* the footer: the action in blue (red when it cancels), "back" white outlined */
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-dlg__acts{gap:10px}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-btn{height:44px;padding:0 18px;gap:8px;border-radius:12px;font:600 .9rem/1.2 var(--fb);box-shadow:none}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-btn--sm{height:36px;padding:0 12px;border-radius:10px;font-size:.84rem}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-btn--primary{border-color:transparent;background:var(--lx-blue);color:#fff}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-btn--primary:not(:disabled,[aria-disabled="true"]):hover{background:var(--lx-blue-h)}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] :is(.sx-btn--secondary,.sx-btn--ghost){border:1px solid var(--lx-line);background:var(--lx-card);color:var(--lx-ink)}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] :is(.sx-btn--secondary,.sx-btn--ghost):not(:disabled,[aria-disabled="true"]):hover{border-color:#C7D6EC;background:var(--lx-card);color:var(--lx-ink)}
+html[data-theme="dark"]:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] :is(.sx-btn--secondary,.sx-btn--ghost):not(:disabled,[aria-disabled="true"]):hover{border-color:#3A4E75}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-btn--danger{border-color:transparent;background:var(--lx-err);color:#fff}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-btn--danger:not(:disabled,[aria-disabled="true"]):hover{border-color:transparent;background:#B8302A;color:#fff}
+/* the dark theme's red is a light text colour: a filled button keeps the deep red under white */
+html[data-theme="dark"]:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-btn--danger{background:#D93B30;color:#fff}
+html[data-theme="dark"]:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-btn--danger:not(:disabled,[aria-disabled="true"]):hover{background:#E5483D;color:#fff}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-btn:is(:disabled,[aria-disabled="true"]):not([aria-busy="true"]){border-color:var(--lx-line-2);background:var(--lx-chip);color:var(--lx-gray2)}
+/* fields: sentence-case labels, 12px chip-bordered controls */
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-dlg{gap:18px}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] :is(.sx-field__label,.sx-field__legend){color:var(--lx-ink);font:600 .9rem/1.35 var(--fb)}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-field__help{color:var(--lx-gray)}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] :is(.sx-input,.sx-textarea){border:1px solid var(--lx-line);border-radius:12px;background:var(--lx-card);color:var(--lx-ink)}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-textarea{padding:12px 14px}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] :is(.sx-input:hover,.sx-textarea:hover){border-color:#C7D6EC}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] :is(.sx-input:focus-within,.sx-textarea:focus){border-color:var(--lx-blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--lx-blue) 18%,transparent)}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-dlg__err{border:0;border-radius:12px;background:var(--lx-err-bg)}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-note{border:0;border-radius:12px}
+/* choices: the dashboard's option rows — hairline, radius 16, blue when picked */
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-choice{padding:14px 44px 14px 16px;border:1px solid var(--lx-line);border-radius:16px;background:var(--lx-card);box-shadow:none;transform:none}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-choice:not([data-checked],[data-disabled]):hover{border-color:#C7D6EC;background:var(--lx-card);box-shadow:none;transform:none}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-choice[data-checked]{border-color:var(--lx-blue);background:var(--lx-blue-tint);box-shadow:inset 0 0 0 .5px var(--lx-blue)}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-choice:not([data-checked]):not(:has(.sx-choice__box))::after{border-color:#B9C6D8}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-choice__title{color:var(--lx-ink);font:600 .92rem/1.4 var(--fb)}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-choice__desc{color:var(--lx-gray);font:400 .84rem/1.45 var(--fb)}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-choice__check{color:var(--lx-blue)}
+/* the group opinion's two ways to meet: picture cards */
+html:has(.portal.lx) .amodal__c[data-ai-id$=".second-opinion.group.modal"] .sx-choice{grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:14px;padding:14px 44px 14px 14px}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".second-opinion.group.modal"] .sx-choice__icon{
+  grid-row:1 / span 2;width:56px;height:56px;margin:0;border-radius:50%;background:var(--art, none) center/62% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line);color:var(--lx-gray)}
+html[data-theme="dark"]:has(.portal.lx) .amodal__c[data-ai-id$=".second-opinion.group.modal"] .sx-choice__icon{box-shadow:none}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".second-opinion.group.modal"] .sx-choice:has(input[value="video"]){--art:url(/img/xizmatlar/Guruh_video.webp)}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".second-opinion.group.modal"] .sx-choice:has(input[value="chat"]){--art:url(/img/xizmatlar/Guruh_chat.webp)}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".second-opinion.group.modal"] .sx-choice:has(input:is([value="video"],[value="chat"])) .sx-choice__icon > svg{display:none}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".second-opinion.group.modal"] .sx-choice[data-checked] .sx-choice__icon{background:var(--art, none) center/62% no-repeat,#fff;box-shadow:inset 0 0 0 1.5px var(--lx-blue)}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".second-opinion.group.modal"] .sx-choice__desc{grid-column:2}
+/* the count: two square white buttons around the value */
+html:has(.portal.lx) .amodal__c[data-ai-id$=".second-opinion.group.modal"] .msog-count .ibtn,
+html:has(.portal.lx) .amodal__c[data-ai-id$=".second-opinion.group.modal"] .msog-count button{width:40px;height:40px;border:1px solid var(--lx-line);border-radius:12px;background:var(--lx-card);color:var(--lx-ink);box-shadow:none}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".second-opinion.group.modal"] .msog-count button:not(:disabled):hover{border-color:var(--lx-blue);color:var(--lx-link)}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".second-opinion.group.modal"] .msog-count__val{min-width:120px;height:40px;padding:0 14px;display:inline-grid;place-items:center;border:0;border-radius:12px;background:var(--lx-chip);color:var(--lx-ink);font-weight:600}
+/* directions: the dashboard's outline chips (the AI prompts) */
+html:has(.portal.lx) .amodal__c[data-ai-id$=".second-opinion.group.modal"] .msog-chip{min-height:36px;padding:6px 14px;border:1px solid var(--lx-line);border-radius:20px;background:var(--lx-card);color:var(--lx-ink);font:500 .86rem/1.35 var(--fb);transform:none}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".second-opinion.group.modal"] .msog-chip:hover{border-color:var(--lx-blue);background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".second-opinion.group.modal"] .msog-chip[aria-pressed="true"]{border-color:var(--lx-blue);background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".second-opinion.group.modal"] .msog-dlg__svc{color:var(--lx-gray)}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".second-opinion.group.modal"] .msog-sum{border:0;border-radius:16px;background:var(--lx-chip)}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".second-opinion.group.modal"] .msog-sum > div + div{border-top-color:var(--lx-line)}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".second-opinion.group.modal"] .msog-price{border:0;border-radius:16px;background:var(--lx-blue-tint)}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".second-opinion.group.modal"] .msog-price__value{color:var(--lx-ink)}
+/* the warranty: the remedies as grey chips, the consent as a chip card */
+html:has(.portal.lx) .amodal__c[data-ai-id$=".warranty.dialog"] .wrt-outcomes .mcr-meta{color:var(--lx-gray)}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".warranty.dialog"] .wrt-outcomes li{padding:4px 12px;border:0;border-radius:999px;background:var(--lx-chip);color:var(--lx-ink);font-size:.8rem;font-weight:500}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".warranty.dialog"] .wrt-consent{gap:14px;padding:14px 16px;border:0;border-radius:16px;background:var(--lx-chip)}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".warranty.dialog"] .wrt-consent[data-on]{background:var(--lx-blue-tint)}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".warranty.dialog"] .wrt-consent b{color:var(--lx-ink);font-weight:600}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".warranty.dialog"] .wrt-consent p{color:var(--lx-gray)}
+/* a switch must stay visible on a white or chip card */
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-switch__track{background:#B9C6D8}
+html[data-theme="dark"]:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-switch__track{background:#3A4E75}
+html:has(.portal.lx) .amodal__c[data-ai-id^="marketplace.orders.detail."] .sx-switch[aria-checked="true"] .sx-switch__track{background:var(--lx-blue)}
+/* the refund confirm: the amount as a chip card */
+html:has(.portal.lx) .amodal__c[data-ai-id$=".resolution.dialog"] .mrs-sum{gap:4px;margin-bottom:4px;padding:16px 18px;border-radius:16px;background:var(--lx-chip)}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".resolution.dialog"] .mrs-sum small{color:var(--lx-gray);font-size:.8rem;font-weight:600;letter-spacing:0;text-transform:none}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".resolution.dialog"] .mrs-sum b{color:var(--lx-ink);font:800 1.45rem/1.3 var(--fd)}
+html:has(.portal.lx) .amodal__c[data-ai-id$=".resolution.dialog"] .mrs-sum span{color:var(--lx-gray)}
+/* order.css hides the AI button's word on a phone (icon only): hidden the
+   same way as the screen-reader text above, not as an ellipsis */
+@media (max-width:480px){
+  .portal.lx .sx.mod[data-view="client"] .mod-head__tools .cpl-launch__t{overflow:visible;text-overflow:clip;font-size:1px;line-height:1px}
+}
+@media (max-width:560px){
+  html:has(.portal.lx) .amodal__c:is([data-ai-id$=".cancel-review.modal"],[data-ai-id$=".warranty.dialog"],[data-ai-id$=".resolution.dialog"],[data-ai-id$=".second-opinion.group.modal"]) .amodal__h::before{width:44px;height:44px}
+  html:has(.portal.lx) .amodal__c[data-ai-id$=".second-opinion.group.modal"] .sx-choice__icon{width:48px;height:48px}
+}
+@media (prefers-reduced-motion:reduce){
+  .portal.lx .sx.mod[data-view="client"] .mrs-choice,
+  .portal.lx .sx.mod[data-view="client"] .mrs-choice > *{transition:none}
+  .portal.lx .sx.mod[data-view="client"] .mrs-choice:hover:not(:disabled){transform:none}
+}

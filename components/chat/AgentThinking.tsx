@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { IconDocLines, IconEdit, IconLightbulb, IconSearch, IconShieldCheck, IconTarget } from "../icons";
+// The dashboard's icon set (lucide), as everywhere in the cabinet.
+import {
+  FileText as IconDocLines,
+  Lightbulb as IconLightbulb,
+  PenLine as IconEdit,
+  Search as IconSearch,
+  ShieldCheck as IconShieldCheck,
+  Target as IconTarget,
+} from "lucide-react";
 
 // What the legal agent is doing while an answer is pending. The backend sends
 // no progress events and does not stream (md/FRONTEND_LEGAL_AGENT.md §2.1), so

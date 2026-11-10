@@ -16,7 +16,7 @@ import { notify } from "@/lib/toast";
 import { markRefused, useRefused } from "./refused";
 import { marketChatHref, type MarketSignal } from "@/lib/services/marketplace";
 import { marketErrorInfo, requestCancellationReview, type CancellationReview } from "@/lib/services/marketRuntime";
-import { MessageSquareTextIcon, LifeBuoyIcon } from "./icons";
+import { MessageSquareTextIcon, LifeBuoyIcon, artStyle } from "./icons";
 import { SECTION_ID, type OrderSectionProps } from "./types";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
@@ -151,8 +151,13 @@ export default function CancellationRequest({ o, phase, view, aiBase, onChanged,
     </div>
   ) : null;
 
+  // The client's page draws these panels as the dashboard's feature rows, a
+  // picture beside the title (orderDetail1920.css).
+  const art = (name: "Operator" | "Muammo_tahlili") => (view === "client" ? <span className="odx-feat odx-art" style={artStyle(name)} aria-hidden="true" /> : null);
+
   const reviewPanel = showReview ? (
     <SxPanel id={SECTION_ID.cancel} className="mcr mcr-review" title={t("cancel.reviewTitle")} lead={view === "client" ? o.clientMessage || t("cancel.reviewClient") : t("cancel.reviewSeller")} aiId={ai}>
+      {art("Operator")}
       {review?.reason ? (
         <figure className="mcr-quote">
           <figcaption>{t("cancel.reviewReason")}</figcaption>
@@ -166,6 +171,7 @@ export default function CancellationRequest({ o, phase, view, aiBase, onChanged,
 
   const resolutionPanel = showResolution ? (
     <SxPanel id={showReview ? undefined : SECTION_ID.cancel} className="mcr mcr-resolved" title={t("cancel.resolvedTitle")} aiId={`${ai}.resolution`}>
+      {art("Operator")}
       <p className="mcr-outcome">{tOutcome(outcome)}</p>
       {newPrice > 0 ? <p className="mcr-price sx-num">{t("cancel.newPrice", { price: cur(newPrice) })}</p> : null}
       {resolvedNote ? (
@@ -180,6 +186,7 @@ export default function CancellationRequest({ o, phase, view, aiBase, onChanged,
 
   const requestPanel = showRequest ? (
     <SxPanel id={showReview || showResolution ? undefined : SECTION_ID.cancel} className="mcr mcr-request" title={t("cancel.problemTitle")} lead={t("cancel.problemLead")} aiId={`${ai}.problem`}>
+      {art("Muammo_tahlili")}
       <div className="mcr-actions">
         <SxButton
           variant="secondary"

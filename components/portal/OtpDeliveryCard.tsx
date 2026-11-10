@@ -1,6 +1,7 @@
 "use client";
 
 import "@/components/auth/otpMethod.css";
+import "./profile1920.css";
 import { useCallback, useEffect, useId, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { CircleCheck, KeyRound } from "lucide-react";

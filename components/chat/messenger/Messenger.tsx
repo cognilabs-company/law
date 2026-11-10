@@ -1,10 +1,10 @@
 "use client";
 
 import "./messenger.css";
-import { useEffect, type ReactElement } from "react";
+import "./comms1920.css";
+import { useEffect, type CSSProperties, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
-import { MessagesSquare, ShieldCheck } from "lucide-react";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { useAuth, type Role } from "@/lib/auth";
 import type { SecureRoom, UrgentRequest } from "@/lib/services/backend";
@@ -87,10 +87,8 @@ export default function Messenger({
           <SecureChat key={active} roomId={active} embedded onClose={back} urgentRecordId={ua || undefined} workId={wid || undefined} serviceTitle={svc || undefined} />
         ) : (
           <div className="mx-pick">
-            <span className="mx-pick__art" aria-hidden>
-              <MessagesSquare />
-              <i><ShieldCheck /></i>
-            </span>
+            {/* the dashboard's line drawing of a private, locked conversation */}
+            <span className="mx-pick__art" style={{ "--art": "url(/img/xizmatlar/Maxfiy_yozishma.webp)" } as CSSProperties} aria-hidden />
             <b>{t("selectTitle")}</b>
             <p>{t("selectText")}</p>
           </div>

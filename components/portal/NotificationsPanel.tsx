@@ -1,7 +1,8 @@
 "use client";
 
+import "@/components/chat/messenger/comms1920.css";
 import { can } from "@/lib/permissions";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { hasAdminAccess, isCallCenterUser, useAuth } from "@/lib/auth";
@@ -18,7 +19,7 @@ import { useAiField, useAiSelection } from "@/lib/ai/registry";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import { notify } from "@/lib/toast";
 import { Skeleton, EmptyState, ErrorState } from "./DataState";
-import { IconBell, IconChat, IconCheckDouble, IconLayers, IconRefresh, IconSearch } from "@/components/icons";
+import { IconArrowRight, IconBell, IconCheckDouble, IconLayers, IconRefresh, IconSearch } from "@/components/icons";
 
 // Fired whenever notifications are read so the header bell can refresh its
 // unread count without a full reload.
@@ -46,7 +47,18 @@ function aiPick(opts: { value: string; label: string }[], raw: string): string |
   return hit ? hit.value : null;
 }
 
-type SampleNotif = { title: string; body: string; category: NotifCategory; hoursAgo: number };
+// Each category's picture: the dashboard's line drawings (public/img/xizmatlar),
+// shown in a white circle at the start of the row as Tezkor Advokat's
+// request rows do.
+const CAT_ART: Record<NotifCategory, string> = {
+  orders: "xizmatlar",
+  payments: "Xavfsiz_karta",
+  chat: "Chat_konsultatsiya",
+  documents: "Huquqiy_hujjatlar",
+  system: "Kafolat",
+  marketing: "Sovga",
+};
+const artOf = (c: NotifCategory): CSSProperties => ({ "--art": `url(/img/xizmatlar/${CAT_ART[c] ?? "xizmatlar"}.webp)` }) as CSSProperties;
 
 // Delivery chips ("Telegram · Waiting for delivery"); queued/not configured
 // read as waiting, unknown statuses stay neutral. `channels` limits which
@@ -113,6 +125,7 @@ export default function NotificationsPanel({ internal = false }: { internal?: bo
   const readOneCall = internal ? readInternalNotification : markNotificationRead;
   const readAllCall = internal ? readAllInternalNotifications : markAllNotificationsRead;
   const t = useTranslations("portal.notifications");
+  const tl = useTranslations("lxComms");
   const locale = useLocale();
   const { session } = useAuth();
   const role = session?.role ?? "";
@@ -334,17 +347,20 @@ export default function NotificationsPanel({ internal = false }: { internal?: bo
   useAiSelection("notifications_category", tab === "all" ? "" : tab);
   useAiSelection("notifications_read", filter === "all" ? "" : filter);
 
+  // The page's title is the shell header's ("Bildirishnomalar"): the card
+  // opens with what is new and the actions, as the dashboard's sections do.
   return (
-    <div className="ppanel">
-      <div className="ppanel__h">
-        <b className="ppanel__t"><span className="pico"><IconBell /></span>{t("title")}</b>
-        <span className="ahdr">
-          {unreadBy.all ? <span className="advmuted">{t("unreadN", { n: unreadBy.all })}</span> : null}
-          <button className="btn btn--line btn--sm" type="button" onClick={refresh} disabled={refreshing} aria-label={t("refresh")} title={t("refresh")}>
-            <IconRefresh />
+    <div className="ppanel ntl">
+      <div className="ppanel__h ntl__h">
+        <p className="lx-sub ntl__sum" role="status">
+          {unreadBy.all ? <><i className="ntl__dot" aria-hidden />{t("unreadN", { n: unreadBy.all })}</> : catCounts ? tl("notifAllRead") : null}
+        </p>
+        <span className="ahdr ntl__acts">
+          <button className="cx-iconbtn ntl__refresh" type="button" onClick={refresh} disabled={refreshing} aria-label={t("refresh")} title={t("refresh")}>
+            <IconRefresh className={refreshing ? "mx-spin" : undefined} />
           </button>
           {shownUnread.length ? (
-            <button className="btn btn--soft btn--sm" type="button" onClick={readAll} data-ai-target="button:notifications-read-all">
+            <button className="btn btn--soft btn--pill btn--sm ntl__all" type="button" onClick={readAll} data-ai-target="button:notifications-read-all">
               <IconCheckDouble />
               {narrowed ? t("markShown") : t("markAll")}
             </button>
@@ -372,26 +388,10 @@ export default function NotificationsPanel({ internal = false }: { internal?: bo
         <Skeleton rows={4} />
       ) : status === "error" ? (
         <ErrorState title={t("loadError")} onRetry={refresh} />
-      ) : !items.length && !narrowed ? (
-        <div className="ntlist" data-ai-target="notifications:list">
-          {(t.raw("sample") as SampleNotif[]).map((s, i) => (
-            <div key={i} className="ntrow">
-              <div className="ntitem ntitem--static">
-                <span className="ntitem__dot" aria-hidden />
-                <div className="ntitem__m">
-                  <div className="ntitem__top">
-                    <b>{s.title}</b>
-                    <i className={`atag ntitem__cat ntitem__cat--${s.category}`}>{catLabel(s.category)}</i>
-                  </div>
-                  <span>{s.body}</span>
-                  <em>{fmt(new Date(new Date().getTime() - s.hoursAgo * 3600_000).toISOString())}</em>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
       ) : !items.length ? (
-        <EmptyState icon={<IconChat />} title={t("empty")} text={t("emptyText")} />
+        // An account with nothing yet is told so — no made-up rows standing
+        // in for real ones. A view narrowed to unread says that instead.
+        <EmptyState icon={<IconBell />} title={filter === "unread" && tab === "all" && !needle ? tl("notifUnreadNone") : t("empty")} text={t("emptyText")} />
       ) : !shown.length ? (
         <EmptyState icon={<IconSearch />} title={t("noMatch")} text={t("noMatchText")} />
       ) : (
@@ -400,17 +400,18 @@ export default function NotificationsPanel({ internal = false }: { internal?: bo
             const link = notifLink(n.event, n.category, n.data, role, staff, callCenter, (code) => can(session, code));
             const via = n.channels.filter((c) => VIA_CHANNELS.includes(c)).map(chLabel);
             return (
-              <div key={n.id} className="ntrow">
+              <div key={n.id} className={`ntrow${n.read ? "" : " ntrow--unread"}${link ? " ntrow--go" : ""}`}>
                 <button
                   type="button"
                   className={`ntitem${n.read ? "" : " ntitem--unread"}`}
                   onClick={() => readOne(n)}
                 >
-                  <span className="ntitem__dot" aria-hidden />
+                  <span className="ntitem__art" style={artOf(n.category)} aria-hidden />
                   <div className="ntitem__m">
                     <div className="ntitem__top">
+                      <span className="ntitem__dot" aria-hidden />
                       <b>{title}</b>
-                      <i className={`atag ntitem__cat ntitem__cat--${n.category}`}>{catLabel(n.category)}</i>
+                      <i className={`atag ntitem__cat ntitem__cat--${n.category} cx-tag`}>{catLabel(n.category)}</i>
                     </div>
                     {body ? <span>{body}</span> : null}
                     <DeliveryChips items={n.deliveries} channels={INBOX_CHANNELS} />
@@ -421,8 +422,9 @@ export default function NotificationsPanel({ internal = false }: { internal?: bo
                   </div>
                 </button>
                 {link ? (
-                  <Link href={link} className="btn btn--line btn--sm ntitem__go" onClick={() => readOne(n)}>
+                  <Link href={link} className="cx-link ntitem__go" onClick={() => readOne(n)}>
                     {t("open")}
+                    <IconArrowRight aria-hidden />
                   </Link>
                 ) : null}
               </div>

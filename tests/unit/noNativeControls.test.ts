@@ -23,6 +23,7 @@ const ALLOWED: Record<string, { types: string[]; why: string }> = {
   "components/services/ServiceFormModal.tsx": { types: ["checkbox"], why: ".svform__box drawn; input opacity 0" },
   "components/services/RuleChoice.tsx": { types: ["checkbox"], why: ".svform__box drawn; input opacity 0" },
   "components/complaints/NewComplaintForm.tsx": { types: ["radio"], why: ".shkf__radio drawn; input opacity 0" },
+  "app/[locale]/portal/client/cases/page.tsx": { types: ["radio"], why: ".olx-opt picture card drawn (blue ring + tick when on); input 1px, opacity 0" },
   "components/marketplace/PriceOptions.tsx": { types: ["checkbox"], why: ".pxo__box drawn; input opacity 0" },
   "app/[locale]/admin/pipeline/LegacyPipeline.tsx": { types: ["radio"], why: ".lstg-clr__sw swatch drawn; input opacity 0" },
   "app/[locale]/admin/notifications/page.tsx": { types: ["checkbox"], why: ".nrcp__cb drawn; input size 0" },

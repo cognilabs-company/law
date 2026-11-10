@@ -5,6 +5,12 @@ import dynamic from "next/dynamic";
 import { useLocale, useTranslations } from "next-intl";
 import { ChevronRight, ChevronUp, CircleAlert, CircleCheck, LogOut, PanelLeftClose, Scale } from "lucide-react";
 import "./shell/shell1920.css";
+// The dashboard's own pieces (.cx-empty, .cx-pill, .cx-iconbtn, .cx-h3,
+// .cx-link, .cx-tag, .cx-svc …) on every cabinet page, so a page can be drawn
+// in the dashboard's vocabulary without importing the dashboard.
+import "./dash/dash1920.css";
+import "./shell/layers1920.css";
+import "./shell/cabinet1920.css";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { useAuth, hasAdminAccess, type Role } from "@/lib/auth";
 import { useAiReveal } from "@/lib/guide/targets";
@@ -415,8 +421,9 @@ export default function PortalShell({
                   </nav>
                 ) : (
                   <p className="lx-top__meta">
-                    {today} · {tx("crumbHome")}
-                    {headerNote ? ` · ${headerNote}` : ""}
+                    <span>{today}</span>
+                    <span className="lx-top__where"> · {tx("crumbHome")}</span>
+                    {headerNote ? <span> · {headerNote}</span> : null}
                   </p>
                 )}
                 <h1 data-ai-target="ai-help:current-page">{headerTitle ?? title}</h1>

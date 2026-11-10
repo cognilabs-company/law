@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import "./profile1920.css";
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
-import { IconAlert, IconCard, IconChat, IconCheck, IconChevronDown, IconChevronLeft, IconClock, IconClose, IconExternal, IconHourglass, IconPhone, IconRefresh, IconSend, IconUsers, IconVideo } from "@/components/icons";
+import { IconAlert, IconCard, IconChat, IconCheck, IconChevronDown, IconChevronLeft, IconClock, IconClose, IconExternal, IconHourglass, IconInfo, IconPhone, IconRefresh, IconSend, IconUsers, IconVideo } from "@/components/icons";
 import { ApiError, errDetail, isForbidden } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { setReturnTo } from "@/lib/returnTo";
@@ -68,6 +69,10 @@ const STEP_OF: Record<MarketTrackPhase, number> = { pending: 1, accepting: 2, pa
 const PROVIDER_ICON = { telegram_manual: IconSend, payme: IconCard, click: IconCard } as const;
 const URGENCY_OF: Record<ContactSpeed, PurchaseUrgency> = { within_15_min: "today", within_1_hour: "today", today: "today", tomorrow: "tomorrow" };
 export const CLIENT_ORDERS_HREF = "/portal/client/marketplace-orders";
+// The order's picture, as the dashboard draws its services (image-catalog.md):
+// a line drawing in a white circle, a package on its light plate.
+const ART_STYLE = (name: string) => ({ "--art": `url(/img/xizmatlar/${name}.webp)` }) as CSSProperties;
+const PLATE_STYLE = { "--img": "url(/img/doc-catalog/Paketlar-sq.webp)" } as CSSProperties;
 
 export default function PurchaseDialog({
   sellerUserId,
@@ -127,6 +132,14 @@ export default function PurchaseDialog({
   const [price, setPrice] = useState<PriceState>(EMPTY_PRICE);
   const [optReload, setOptReload] = useState(0);
   const marketErr = useMarketError();
+  // The total and the send live in the dialog's pinned footer (outside the
+  // form, tied to it by id); a refusal or a provider fallback appears at the
+  // end of the form, so it is brought into view when it does.
+  const formId = useId();
+  const alertRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (err || provErr) alertRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [err, provErr]);
 
   const key = service ? `${pkg ? "pkg" : "svc"}:${service.id}:${sellerUserId}` : "";
   const [prevKey, setPrevKey] = useState(key);
@@ -241,6 +254,9 @@ export default function PurchaseDialog({
         onStale(noService ? "service" : "seller");
       } else if (e instanceof ApiError && e.status === 422) {
         setErr(Object.values(e.fieldErrors)[0] || errDetail(e) || t("error"));
+      } else if (e instanceof ApiError && e.status >= 500) {
+        // A server failure's own text ("Internal error") is not for the client.
+        setErr(t("error"));
       } else {
         setErr(errDetail(e) || t("error"));
       }
@@ -349,23 +365,63 @@ export default function PurchaseDialog({
               ? [ordersLink(true), recheckButton(false)]
               : [ordersLink(true), closeButton];
 
+  const currency = service.currency === "UZS" ? te("currency") : service.currency;
+  // The price and the send, pinned under the form (the dashboard's order
+  // form, u-form): what the client pays stays in sight while they read.
+  const footer = phase ? undefined : (
+    <div className="mk-buy__foot">
+      <div className="mk-buy__total">
+        <small>{t("totalFull")}</small>
+        <b>
+          {fmtUzs(price.quote?.totalPrice || service.price)} <span>{currency}</span>
+        </b>
+      </div>
+      {refused ? null : (
+        <button
+          type="submit"
+          form={formId}
+          className="btn btn--grad btn--lg mk-buy__send"
+          disabled={busy || price.pending || price.failed || attaching}
+          data-ai-target="button:marketplace-purchase-submit"
+          data-ai-id="marketplace.purchase.submit"
+          data-ai-entity-type={pkg ? "marketplace_package" : "marketplace_service"}
+          data-ai-entity-id={service.id}
+        >
+          {busy ? t("sending") : price.pending ? t("pricing") : auto ? t("autoSubmit") : t("submit")}
+        </button>
+      )}
+      {auto ? (
+        <button type="button" className="btn btn--line mk-buy__self" onClick={auto.onChooseMyself} disabled={busy} data-ai-id="marketplace.purchase.choose-myself">
+          {t("chooseMyself")}
+        </button>
+      ) : null}
+    </div>
+  );
+
   return (
-    <Modal open onClose={onClose} title={t("title")}>
+    <Modal open onClose={onClose} title={t("title")} footer={footer}>
       <div className="mk-buy" data-ai-id="marketplace.purchase-modal" data-ai-type="modal" data-ai-label={t("title")} data-ai-entity-type={pkg ? "marketplace_package" : "marketplace_service"} data-ai-entity-id={service.id}>
-        <ol className={`mk-steps${phase ? " mk-steps--calm" : ""}`} aria-label={t("title")}>
+        <ol className={`mk-steps lxp-steps${phase ? " mk-steps--calm" : ""}`} aria-label={t("title")}>
           {STEPS.map((s, i) => {
             const fail = failed && i === step;
             return (
               <li key={s} className={fail ? "is-fail" : i < step ? "is-done" : i === step ? "is-now" : ""} aria-current={i === step ? "step" : undefined}>
-                <span>{fail ? <IconClose /> : i < step ? <IconCheck /> : i + 1}</span>
-                {t(`steps.${s}`)}
+                <small className="lxp-steps__t">
+                  <em className="lxp-steps__n">{`${i + 1}/${STEPS.length} · `}</em>
+                  {t(`steps.${s}`)}
+                </small>
               </li>
             );
           })}
         </ol>
 
-        <div className="mk-buy__ticket">
-          <div>
+        <div className={`mk-buy__ticket lxp-ticket${phase ? "" : " lxp-ticket--form"}`}>
+          {pkg ? (
+            <span className="lxp-plate lxp-ticket__art" style={PLATE_STYLE} aria-hidden="true" />
+          ) : (
+            <span className="lxp-art lxp-ticket__art" style={ART_STYLE(auto ? "Muammo_tahlili" : "xizmatlar")} aria-hidden="true" />
+          )}
+          <div className="lxp-ticket__info">
             <small>{t("seller")}</small>
             <b>{auto ? t("autoSeller") : sellerName}</b>
             <p>{service.title}</p>
@@ -379,11 +435,13 @@ export default function PurchaseDialog({
             ) : null}
             {guarantees.length ? <GuaranteeList items={guarantees} tone="ticket" aiId="marketplace.purchase.guarantees" /> : null}
           </div>
-          <div className="mk-buy__sum">
-            <small>{t("totalFull")}</small>
-            <b>{fmtUzs(done?.amount || price.quote?.totalPrice || service.price)}</b>
-            <span>{service.currency === "UZS" ? te("currency") : service.currency}</span>
-          </div>
+          {phase ? (
+            <div className="mk-buy__sum">
+              <small>{t("totalFull")}</small>
+              <b>{fmtUzs(done?.amount || price.quote?.totalPrice || service.price)}</b>
+              <span>{currency}</span>
+            </div>
+          ) : null}
         </div>
 
         {phase ? (
@@ -395,34 +453,41 @@ export default function PurchaseDialog({
           >
             <div className="mk-receipt__msg" role="status">
               <div key={phase} className="mk-receipt__in">
-                {phase === "pending" || phase === "accepting" || phase === "resolution" ? (
-                  <span className={`mk-receipt__stamp mk-receipt__stamp--wait${live ? "" : " is-idle"}`} aria-hidden="true">
+                {isActive ? (
+                  <span className="mk-receipt__stamp lxp-stamp lxp-stamp--info" aria-hidden="true">
+                    <IconInfo />
+                  </span>
+                ) : phase === "pending" || phase === "accepting" || phase === "resolution" ? (
+                  <span className={`mk-receipt__stamp mk-receipt__stamp--wait lxp-stamp lxp-stamp--warn${live ? "" : " is-idle"}`} aria-hidden="true">
                     <IconHourglass />
                   </span>
                 ) : phase === "cancelled" ? (
-                  <span className="mk-receipt__stamp mk-receipt__stamp--off" aria-hidden="true">
+                  <span className="mk-receipt__stamp mk-receipt__stamp--off lxp-stamp lxp-stamp--err" aria-hidden="true">
                     <IconClose />
                   </span>
                 ) : (
-                  <span className={`mk-receipt__stamp${phase === "completed" ? "" : " mk-receipt__stamp--win"}`} aria-hidden="true">
+                  <span className={`mk-receipt__stamp lxp-stamp lxp-stamp--ok${phase === "completed" ? "" : " mk-receipt__stamp--win"}`} aria-hidden="true">
                     <IconCheck />
                   </span>
                 )}
                 <b className="mk-receipt__t">{receiptTitle}</b>
                 {tracked?.workId ? <span className="wid">{tracked.workId}</span> : null}
                 {phase === "accepting" ? (
-                  <span className={`mk-pending${live ? "" : " mk-pending--idle"}`}>
+                  <span className={`mk-pending cx-pill cx-pill--warn${live ? "" : " mk-pending--idle"}`}>
                     <i aria-hidden="true" />
+                    <IconClock aria-hidden="true" />
                     {left ? t("acceptWaitClock", { time: clockOf(left) }) : left === 0 ? t("acceptOver") : t("acceptWait")}
                   </span>
                 ) : phase === "pending" ? (
-                  <span className={`mk-pending${live ? "" : " mk-pending--idle"}`}>
+                  <span className={`mk-pending cx-pill cx-pill--warn${live ? "" : " mk-pending--idle"}`}>
                     <i aria-hidden="true" />
+                    <IconClock aria-hidden="true" />
                     {t("pending")}
                   </span>
                 ) : phase === "paid" ? (
-                  <span className={`mk-pending mk-pending--ok${live ? "" : " mk-pending--idle"}`}>
+                  <span className={`mk-pending mk-pending--ok cx-pill cx-pill--ok${live ? "" : " mk-pending--idle"}`}>
                     <i aria-hidden="true" />
+                    <IconCheck aria-hidden="true" />
                     {t("paidPreparing")}
                   </span>
                 ) : null}
@@ -450,6 +515,7 @@ export default function PurchaseDialog({
           </div>
         ) : (
           <form
+            id={formId}
             className="mk-buy__form"
             onSubmit={(e) => {
               e.preventDefault();
@@ -558,6 +624,7 @@ export default function PurchaseDialog({
               </div>
             </fieldset>
             <p className="mk-buy__note">{auto ? t("autoNote") : t("totalNote")}</p>
+            <div ref={alertRef} className="mk-buy__alerts">
             {provErr && !refused ? (
               <div className="mk-pay__fallback" role="alert">
                 <IconAlert aria-hidden="true" />
@@ -581,14 +648,7 @@ export default function PurchaseDialog({
               </div>
             ) : null}
             {err ? <Notice ok={false} msg={err} /> : null}
-            {refused ? null : <button type="submit" className="btn btn--grad btn--full btn--lg" disabled={busy || price.pending || price.failed || attaching} data-ai-target="button:marketplace-purchase-submit" data-ai-id="marketplace.purchase.submit" data-ai-entity-type={pkg ? "marketplace_package" : "marketplace_service"} data-ai-entity-id={service.id}>
-              {busy ? t("sending") : price.pending ? t("pricing") : auto ? t("autoSubmit") : t("submit")}
-            </button>}
-            {auto ? (
-              <button type="button" className="btn btn--line btn--full" onClick={auto.onChooseMyself} disabled={busy} data-ai-id="marketplace.purchase.choose-myself">
-                {t("chooseMyself")}
-              </button>
-            ) : null}
+            </div>
           </form>
         )}
       </div>

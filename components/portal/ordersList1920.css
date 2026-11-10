@@ -1,0 +1,534 @@
+/* ═══ LexGo 1920 — the client's lists of work ═══
+   "Barcha ishlar" (ClientWorks + ClientReviews), "Xizmat buyurtmalarim"
+   (MarketOrders view="client" + OrderExtras) and "So'rovlarim" (cases page,
+   OpenDocumentWork, OrderMilestones, OrderStatusPanel) drawn in the client
+   dashboard's vocabulary (components/portal/dash/ClientHome.tsx +
+   dash1920.css), which every cabinet page now follows:
+   - a page section is the dashboard's white card with a small title, its
+     count bubble and the way out on the right ("Jarayondagi ishlar");
+   - every work, order and case is its in-progress card (.cx-work): a chip
+     card, title 600, grey meta line, the .cx-pill status tones, the
+     four-step bar, a navy initials avatar and square icon buttons — no
+     coloured stripes, monospace ids, blinking dots or gradient boxes;
+   - kinds of work carry the dashboard's black line drawings in white
+     circles (public/img/xizmatlar, public/img/sos);
+   - the dialogs (portalled to <body>, outside .portal.lx — see
+     shell/layers1920.css for the tokens they receive) use the same cards,
+     pictures, pills and flat buttons, with the action row right-aligned.
+   The old rules for these classes live in app/globals.css and
+   components/marketplace/order/orderList.css; the selectors here carry
+   enough weight to win over them. The seller's order list (MarketOrders
+   view="seller") is not touched: everything there is scoped to .mko-lx. */
+
+/* ── shared pieces ───────────────────────────────────────── */
+/* a family-M drawing in a white circle (stays white in dark mode) */
+.cwk-art,.odw__art,.olx-opt__art{
+  display:block;flex:none;border-radius:50%;
+  background:var(--art) center/64% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line, #E4EBF5);
+}
+html[data-theme="dark"] :is(.cwk-art,.odw__art,.olx-opt__art){box-shadow:none}
+.cwk-art{width:48px;height:48px}
+.cwk-art--lg{width:56px;height:56px}
+
+/* status pills put on the old status elements: the .cx-pill shape and tones */
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) :is(.cwork__st,.creq__badge,.mko-stage,.mko-chip,.omile__st).cx-pill{
+  display:inline-flex;align-items:center;gap:5px;height:26px;min-height:26px;padding:0 10px 0 6px;border-radius:999px;
+  font-style:normal;font-size:.74rem;font-weight:600;letter-spacing:0;line-height:1;white-space:nowrap;flex:none;box-shadow:none;text-transform:none;
+}
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) .cx-pill:not(:has(svg)){padding:0 10px}
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) em.cx-pill{font-style:normal}
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) :is(.cwork__st,.creq__badge,.mko-stage,.mko-chip,.omile__st).cx-pill svg{width:14px;height:14px;flex:none}
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) :is(.cwork__st,.creq__badge,.omile__st,.cx-pill).cx-pill--ok{background:var(--lx-ok-bg);color:var(--lx-ok)}
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) :is(.cwork__st,.creq__badge,.omile__st,.cx-pill).cx-pill--warn{background:var(--lx-warn-bg);color:var(--lx-warn)}
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) :is(.cwork__st,.creq__badge,.omile__st,.cx-pill).cx-pill--blue{background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
+/* closed / passed on: a quiet white pill with a hairline */
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) :is(.cwork__st,.creq__badge,.omile__st,.cx-pill).cx-pill--mute{background:var(--lx-card);color:var(--lx-gray);box-shadow:inset 0 0 0 1px var(--lx-line)}
+
+/* section heads: the dashboard's small title + count bubble (the shell
+   already carries the page's big title) */
+.portal.lx :is(.cwk,.olx-rv,.ocases,.odw) .ppanel__h{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;margin-bottom:8px}
+.portal.lx :is(.cwk,.olx-rv,.ocases,.odw) .ppanel__t.cx-h3{display:flex;align-items:center;gap:10px;margin:0;font-family:var(--fd);font-size:1.18rem;font-weight:700;letter-spacing:-.015em;line-height:1.3;color:var(--lx-ink)}
+.portal.lx :is(.cwk,.odw) .ppanel__h a.cx-link{font-size:.88rem;font-weight:600;color:var(--lx-link);padding-block:8px;margin-block:-8px}
+.portal.lx :is(.cwk,.olx-rv,.ocases,.odw) :is(.ppanel__note,.lx-sub){margin:0 0 18px;font-size:.92rem;line-height:1.55;color:var(--lx-gray)}
+
+/* the "AI yordamchi" launcher as the dashboard's soft pill, and the item's
+   own one as its square white icon button */
+:is(.portal.lx,.cwdet) .cpl-launch.olx-ai{height:40px;padding:0 14px 0 8px;gap:6px;border-radius:999px;background:var(--lx-chip);box-shadow:none;color:var(--lx-ink);font-weight:600;font-size:.86rem}
+:is(.portal.lx,.cwdet) .cpl-launch.olx-ai:hover{background:#E6EDF8;box-shadow:none}
+html[data-theme="dark"] :is(.portal.lx,.cwdet) .cpl-launch.olx-ai:hover{background:#22314F}
+:is(.portal.lx,.cwdet) .cpl-launch.olx-ai .cpl-launch__ic{width:24px;height:24px;background:none;color:var(--lx-link)}
+:is(.portal.lx,.cwdet) .cpl-launch.olx-ai .cpl-launch__t{overflow:visible;text-overflow:clip}
+.portal.lx .cpl-launch.olx-ai-ic{width:40px;height:40px;padding:0;border-radius:12px;background:var(--lx-card);border:1px solid var(--lx-line);box-shadow:none;color:var(--lx-link)}
+.portal.lx .cpl-launch.olx-ai-ic:hover{border-color:var(--lx-blue);background:var(--lx-card);box-shadow:none}
+.portal.lx .cpl-launch.olx-ai-ic .cpl-launch__ic{width:auto;height:auto;background:none;color:var(--lx-link)}
+.portal.lx .cpl-launch.olx-ai-ic .cpl-launch__ic svg{width:18px;height:18px}
+
+/* ══ Barcha ishlar — the works list (ClientWorks) ══════════ */
+.portal.lx .cwk{container:cwk / inline-size}
+.portal.lx .cwk .cwk__tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px}
+
+/* the search + filters: the dashboard's find tray (.cx-find) — white 56px
+   fields on a chip tray, the field's icon inside it, no outer labels */
+.portal.lx .cwk-filters{margin-bottom:18px}
+@media (min-width:901px){
+  .portal.lx .cwk-filters .uf-card{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px;padding:8px;border-radius:18px;background:var(--lx-chip);box-shadow:none}
+  .portal.lx .cwk-filters .uf-fld{position:relative;flex:1 1 220px;gap:0;min-width:0}
+  .portal.lx .cwk-filters .uf-fld--search{flex:2 1 300px}
+  .portal.lx .cwk-filters .uf-fld--search > label{display:none}
+  .portal.lx .cwk-filters .uf-fld__l{position:absolute;left:16px;top:50%;transform:translateY(-50%);z-index:1;gap:0;font-size:0;line-height:0;pointer-events:none;color:var(--lx-gray2)}
+  .portal.lx .cwk-filters .uf-fld__l svg{width:18px;height:18px;color:var(--lx-gray2)}
+  .portal.lx .cwk-filters .dsel__btn{min-height:56px;padding:12px 14px 12px 44px;border-radius:12px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);font-size:.96rem;font-weight:600}
+  .portal.lx .cwk-filters .dsel__btn:hover{box-shadow:inset 0 0 0 1px #C7D6EC}
+  .portal.lx .cwk-filters .uf-search input{min-height:56px;padding-left:48px;border-radius:12px;font-size:.98rem;font-weight:500}
+  .portal.lx .cwk-filters .uf-search > svg{left:18px;width:20px;height:20px;color:var(--lx-gray2)}
+}
+@media (max-width:900px){
+  .portal.lx .cwk-filters .uf-bar{gap:8px;padding:8px;border-radius:18px;background:var(--lx-chip)}
+  .portal.lx .cwk-filters .uf-bar .uf-search input{min-height:48px;border-radius:12px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line)}
+  .portal.lx .cwk-filters .uf-toggle{min-height:48px;border-radius:12px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);color:var(--lx-ink);font-weight:600}
+  .portal.lx .cwk-filters .uf-toggle svg{color:var(--lx-gray)}
+  .portal.lx .cwk-filters .uf-card.is-open .dsel__btn{min-height:52px;border-radius:12px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line)}
+  /* the sheet: one field a row, so a chosen value ("Barcha holatlar (7)") reads whole */
+  .portal.lx .cwk-filters .uf-card.is-open{grid-template-columns:minmax(0,1fr)}
+}
+.portal.lx .cwk-filters .uf-chosen{margin-top:2px}
+/* labels FilterBar keeps for screen readers only (and the 320px icon-only
+   "Filtrlar") stay read aloud and never show as clipped text */
+.portal.lx .cwk-filters .sr-only{opacity:0}
+@media (max-width:359px){
+  .portal.lx .cwk-filters .uf-bar:not(.uf-bar--solo) .uf-toggle > span:not(.uf-toggle__n){opacity:0}
+}
+
+/* the list: two cards a row, like the dashboard's "Jarayondagi ishlar" */
+.portal.lx .cwk .cworks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@container cwk (max-width:779px){
+  .portal.lx .cwk .cworks{grid-template-columns:minmax(0,1fr);gap:12px}
+}
+.portal.lx .cwk .cwork{
+  position:relative;display:flex;flex-direction:column;align-items:stretch;gap:10px;
+  width:100%;min-width:0;margin:0;padding:16px 18px;
+  border:0;border-radius:16px;background:var(--lx-chip);box-shadow:none;transform:none;
+  color:var(--lx-ink);font:inherit;text-align:left;cursor:pointer;
+  transition:background-color .18s,box-shadow .18s;container:cwkrow / inline-size;
+}
+.portal.lx .cwk .cwork:hover{background:#ECF2FB;box-shadow:inset 0 0 0 1px #C7D6EC;border-color:transparent;transform:none}
+html[data-theme="dark"] .portal.lx .cwk .cwork:hover{background:#1C2B47;box-shadow:inset 0 0 0 1px #2E4268}
+.portal.lx .cwk .cwork:focus-visible{outline:2px solid var(--lx-blue);outline-offset:2px}
+.portal.lx .cwk .cwk-row__h{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;justify-content:stretch;column-gap:14px;row-gap:8px}
+.portal.lx .cwk .cwk-row__ht{display:grid;gap:4px;min-width:0;padding-top:3px}
+.portal.lx .cwk .cwork__t{font-size:.98rem;font-weight:600;line-height:1.35;color:var(--lx-ink);overflow-wrap:anywhere}
+.portal.lx .cwk .cwk-row__meta{display:block;font-size:.82rem;line-height:1.45;color:var(--lx-gray)}
+.portal.lx .cwk .cwork__next{display:block;padding-left:62px;font-size:.84rem;line-height:1.5;color:var(--lx-gray)}
+.portal.lx .cwk .cwk-row__foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;padding-left:62px;min-height:40px}
+.portal.lx .cwk .cwk-row__foot .cx-work__who{line-height:1.35}
+.portal.lx .cwk .cwk-row__ics{display:flex;align-items:center;gap:8px;flex:none;margin-left:auto}
+.portal.lx .cwk .cwk-ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;flex:none;color:var(--lx-gray);background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line)}
+.portal.lx .cwk .cwk-ic svg{width:16px;height:16px}
+.portal.lx .cwk .cwork:hover .cwk-row__go{border-color:var(--lx-blue);color:var(--lx-link)}
+@container cwkrow (max-width:439px){
+  .portal.lx .cwk .cwk-row__h{grid-template-columns:auto minmax(0,1fr)}
+  .portal.lx .cwk .cwk-row__h > .cwork__st{grid-column:2;justify-self:start}
+  .portal.lx .cwk .cwk-art{width:40px;height:40px}
+  .portal.lx .cwk .cwork__next,.portal.lx .cwk .cwk-row__foot{padding-left:0}
+  /* a narrow card: the person keeps the line, the icons go under it */
+  .portal.lx .cwk .cwk-row__foot{flex-wrap:wrap;row-gap:8px}
+}
+.portal.lx .cwk > .btn--full{margin-top:16px}
+
+/* ── a work, opened (WorkDetail in the dialog) ── */
+.cwdet{gap:16px}
+.cwdet .cwdet__intro{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.cwdet .cwdet__kind{flex:1 1 160px;min-width:0;font-size:1rem;font-weight:600;line-height:1.35;color:var(--lx-ink)}
+.cwdet .cwdet__facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin:0}
+.cwdet .cwdet__facts > div{display:grid;gap:3px;align-content:start;padding:10px 14px;border-radius:12px;background:var(--lx-chip);min-width:0}
+.cwdet .cwdet__facts dt{font-size:.8rem;font-weight:500;letter-spacing:0;text-transform:none;color:var(--lx-gray)}
+.cwdet .cwdet__facts dd{margin:0;font-size:.92rem;font-weight:600;color:var(--lx-ink);overflow-wrap:anywhere}
+.cwdet .cwdet__wid{letter-spacing:0}
+.cwdet .cwdet__next{align-items:flex-start;font-size:.88rem;color:var(--lx-ink)}
+.cwdet .cwdet__next svg{margin-top:4px;color:var(--lx-link)}
+.cwdet .cwdet__b{gap:8px;padding:14px 16px;border-radius:16px;background:var(--lx-chip);box-shadow:none}
+.cwdet .cwdet__b b{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:.9rem;font-weight:600;color:var(--lx-ink)}
+.cwdet .cwdet__b b > svg{width:16px;height:16px;color:var(--lx-gray)}
+.cwdet .cwdet__b b > .cx-pill{margin-left:auto}
+.cwdet .cwdet__b p{font-size:.9rem;color:var(--lx-ink)}
+.cwdet .cwdet__acts{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:10px;margin-top:2px;padding-top:16px;border-top:1px solid var(--lx-line-2)}
+.cwdet .cwdet__acts .olx-ai{margin-right:auto}
+.cwdet .cwdet__acts .btn{white-space:nowrap}
+@media (max-width:560px){
+  .cwdet .cwdet__acts > .btn{flex:1 1 auto;justify-content:center}
+}
+
+/* ══ Baholanmagan ishlar / Mening sharhlarim (ClientReviews) ══ */
+.portal.lx .olx-rv{container:olxrv / inline-size}
+.portal.lx .olx-rv .alist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;max-height:none;overflow:visible;margin:0;padding:0}
+@container olxrv (max-width:719px){
+  .portal.lx .olx-rv .alist{grid-template-columns:minmax(0,1fr)}
+}
+.portal.lx .olx-rv .olx-rv__row{display:flex;align-items:center;gap:12px;padding:14px 16px;border:0;border-radius:16px;background:var(--lx-chip);box-shadow:none}
+.portal.lx .olx-rv .olx-rv__row:hover{border-color:transparent;box-shadow:none}
+.portal.lx .olx-rv .aitem__n.cx-av{width:36px;height:36px;border-radius:50%;background:var(--lx-navy);color:#fff;font-size:.74rem;font-weight:700}
+html[data-theme="dark"] .portal.lx .olx-rv .aitem__n.cx-av{background:var(--lx-blue)}
+.portal.lx .olx-rv .aitem__m{display:grid;gap:2px;min-width:0}
+.portal.lx .olx-rv .aitem__m b{font-size:.96rem;font-weight:600;line-height:1.35;color:var(--lx-ink);white-space:normal;overflow:visible;text-overflow:clip}
+.portal.lx .olx-rv .aitem__meta{font-size:.82rem;line-height:1.4;color:var(--lx-gray)}
+.portal.lx .olx-rv .olx-rv__row > .btn{flex:none;white-space:nowrap}
+.portal.lx .olx-rv .olx-rv__item{gap:8px;padding:16px 18px;border:0;border-radius:16px;background:var(--lx-chip)}
+.portal.lx .olx-rv .rvw__top{justify-content:flex-start;flex-wrap:wrap;gap:8px 12px}
+.portal.lx .olx-rv .rvw__top > b{flex:1 1 auto;min-width:0;font-size:.96rem;font-weight:600;color:var(--lx-ink)}
+.portal.lx .olx-rv .rvw__c{font-size:.88rem;line-height:1.5;color:var(--lx-gray)}
+/* five-point stars in the warning tone */
+.portal.lx .olx-rv .stars{gap:2px}
+.portal.lx .olx-rv .stars__s{color:#C5D0DF}
+html[data-theme="dark"] .portal.lx .olx-rv .stars__s:not(.on){color:#3A4E75}
+.portal.lx .olx-rv .stars__s.on{color:var(--lx-warn)}
+.portal.lx .olx-rv .stars__s svg{width:18px;height:18px}
+.portal.lx .olx-rv .stars__s.on svg{fill:currentColor}
+
+/* the rating dialog */
+.olx-rvm{gap:16px}
+.olx-rvm .olx-rvm__who{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:var(--lx-chip)}
+.olx-rvm .olx-rvm__wt{display:grid;gap:2px;min-width:0}
+.olx-rvm .olx-rvm__wt b{font-size:.96rem;font-weight:600;color:var(--lx-ink)}
+.olx-rvm .olx-rvm__wt small{font-size:.82rem;line-height:1.4;color:var(--lx-gray)}
+.olx-rvm .olx-rvm__stars{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:8px}
+.olx-rvm .stars{gap:6px}
+.olx-rvm .stars__s{width:44px;height:44px;display:grid;place-items:center;border-radius:12px;background:var(--lx-chip);color:#B9C6D8;cursor:pointer;transition:background-color .15s,color .15s}
+html[data-theme="dark"] .olx-rvm .stars__s{color:#3A4E75}
+.olx-rvm .stars__s:hover{color:var(--lx-warn)}
+.olx-rvm .stars__s.on{background:var(--lx-warn-bg);color:var(--lx-warn)}
+.olx-rvm .stars__s svg{width:24px;height:24px}
+.olx-rvm .stars__s.on svg{fill:currentColor}
+.olx-rvm .stars__s:focus-visible{outline:2px solid var(--lx-blue);outline-offset:2px}
+.olx-rvm .olx-rvm__lbl{font-size:.9rem;font-weight:600;color:var(--lx-ink)}
+
+/* ══ Xizmat buyurtmalarim (MarketOrders, the client's view) ══ */
+.portal.lx .mko-lx{
+  display:block;min-width:0;padding:28px;border-radius:var(--lx-r, 24px);
+  background:var(--lx-card);border:1px solid var(--lx-line-2);container:mko / inline-size;
+}
+html[data-theme="dark"] .portal.lx .mko-lx{border-color:var(--lx-line)}
+.portal.lx .mko-lx__head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px 20px;margin-bottom:18px}
+.portal.lx .mko-lx__headt{min-width:0}
+.portal.lx .mko-lx__headt .lx-sub{margin:6px 0 0;font-size:.92rem;max-width:640px}
+.portal.lx .mko-lx__refresh{cursor:pointer}
+.portal.lx .mko-lx__refresh:disabled{opacity:.6;cursor:default}
+.portal.lx .mko-lx .mk-flash{margin-bottom:14px;border-radius:12px;background:var(--lx-ok-bg);color:var(--lx-ok);font-weight:600}
+
+/* the tabs and the search on the dashboard's chip tray */
+.portal.lx .mko-lx .mko-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 20px;padding:8px;border-radius:18px;background:var(--lx-chip)}
+.portal.lx .mko-lx .mko-tabs{flex:0 1 auto;flex-wrap:wrap;gap:4px;padding:0;border-radius:0;background:none;box-shadow:none;overflow:visible;max-width:100%}
+.portal.lx .mko-lx .mko-tab{min-height:44px;padding:0 12px 0 14px;border-radius:12px;color:var(--lx-gray);font-size:.9rem;font-weight:600;white-space:nowrap}
+.portal.lx .mko-lx .mko-tab:hover{background:var(--lx-card);color:var(--lx-ink)}
+.portal.lx .mko-lx .mko-tab[aria-selected="true"]{background:var(--lx-card);color:var(--lx-blue-ink);box-shadow:inset 0 0 0 1px var(--lx-line)}
+.portal.lx .mko-lx .mko-tab:focus-visible{outline:2px solid var(--lx-blue);outline-offset:-2px}
+.portal.lx .mko-lx .mko-tab__n{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--lx-card);color:var(--lx-ink);font-size:.76rem;font-weight:700;box-shadow:none}
+.portal.lx .mko-lx .mko-tab[aria-selected="true"] .mko-tab__n{background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
+.portal.lx .mko-lx .mko-tab[data-tone="pending"] .mko-tab__n:not(:empty){box-shadow:none}
+.portal.lx .mko-lx .mko-search{flex:1 1 260px;max-width:none;height:48px;margin:0;padding:0 16px;border-radius:12px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line)}
+.portal.lx .mko-lx .mko-search:focus-within{box-shadow:inset 0 0 0 1px var(--lx-blue),0 0 0 3px rgba(22,104,240,.12)}
+.portal.lx .mko-lx .mko-search svg{width:18px;height:18px;color:var(--lx-gray2)}
+.portal.lx .mko-lx .mko-search input{font-size:.95rem;color:var(--lx-ink)}
+
+/* loading, empty, nothing found, error: the dashboard's skeleton and empty state */
+.portal.lx .mko-lx .mk-olist{gap:14px}
+.portal.lx .mko-lx .mk-order--ghost{min-height:150px;border:0;border-radius:16px;box-shadow:none;background:linear-gradient(90deg,var(--lx-chip),#E9EFF8,var(--lx-chip));background-size:200% 100%}
+html[data-theme="dark"] .portal.lx .mko-lx .mk-order--ghost{background:linear-gradient(90deg,#18253E,#1E2D4A,#18253E);background-size:200% 100%}
+.portal.lx .mko-lx .mk-empty.cx-empty{gap:8px;padding:32px 12px;border-radius:16px;background:none;box-shadow:none;color:var(--lx-gray)}
+.portal.lx .mko-lx .mk-empty.cx-empty b{font-family:inherit;font-size:.98rem;font-weight:700;color:var(--lx-ink)}
+.portal.lx .mko-lx .mk-empty.cx-empty > span:not(.cx-empty__ic){max-width:320px;font-size:.86rem;line-height:1.5;color:var(--lx-gray)}
+
+/* the cards: the dashboard's in-progress work card, one under another */
+.portal.lx .mko-lx .mko-list{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.portal.lx .mko-lx .mko-card{
+  position:relative;display:flex;flex-direction:column;align-items:stretch;gap:8px;
+  padding:18px 20px;border-radius:16px;background:var(--lx-chip);box-shadow:none;overflow:visible;transform:none;
+}
+.portal.lx .mko-lx .mko-card::before{display:none}
+.portal.lx .mko-lx .mko-card:hover{box-shadow:none}
+.portal.lx .mko-lx .mko-card .cx-work__h{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:8px 12px}
+.portal.lx .mko-lx .mko-card__title{flex:1 1 220px;min-width:0;margin:0;font-size:1rem;font-weight:600;line-height:1.35}
+.portal.lx .mko-lx .mko-card__link{font-size:1rem;font-weight:600;color:var(--lx-ink)}
+.portal.lx .mko-lx .mko-card__link:hover{color:var(--lx-link)}
+.portal.lx .mko-lx .mko-card .mko-stage > i{display:none}
+.portal.lx .mko-lx .mko-card :is(.mko-stage,.mko-chip).cx-pill--warn{background:var(--lx-warn-bg);color:var(--lx-warn)}
+.portal.lx .mko-lx .mko-card :is(.mko-stage,.mko-chip).cx-pill--blue{background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
+.portal.lx .mko-lx .mko-card :is(.mko-stage,.mko-chip).cx-pill--ok{background:var(--lx-ok-bg);color:var(--lx-ok)}
+.portal.lx .mko-lx .mko-card :is(.mko-stage,.mko-chip).cx-pill--mute{background:var(--lx-card);color:var(--lx-gray);box-shadow:inset 0 0 0 1px var(--lx-line)}
+.portal.lx .mko-lx .mko-card .cx-work__meta{line-height:1.4}
+.portal.lx .mko-lx .mko-lx__chips{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.portal.lx .mko-lx .mko-card .cx-steps{margin-top:6px}
+.portal.lx .mko-lx .mko-card .cx-work__stage{line-height:1.5}
+.portal.lx .mko-lx .mko-card__body{display:grid;gap:10px;min-width:0}
+.portal.lx .mko-lx .mko-card__body:empty{display:none}
+.portal.lx .mko-lx .mko-pkg{font-size:.82rem;color:var(--lx-gray)}
+.portal.lx .mko-lx .mko-facts{gap:4px 16px;font-size:.82rem;color:var(--lx-gray)}
+.portal.lx .mko-lx .mko-facts svg{color:var(--lx-gray2);opacity:1}
+.portal.lx .mko-lx .mko-facts a{color:var(--lx-link)}
+/* the client's own note, whole, on a white inner card */
+.portal.lx .mko-lx .mko-note{display:block;padding:10px 14px;border-radius:12px;background:var(--lx-card);color:var(--lx-ink);font-size:.86rem;line-height:1.5;-webkit-line-clamp:unset;line-clamp:unset;overflow:visible}
+.portal.lx .mko-lx .mko-hint{font-size:.82rem;line-height:1.5;color:var(--lx-gray)}
+
+/* the chosen options as the dashboard's tags */
+.portal.lx .mko-lx .mko__opts{gap:6px}
+.portal.lx .mko-lx .mko__opts small{font-size:.8rem;font-weight:500;letter-spacing:0;text-transform:none;color:var(--lx-gray)}
+.portal.lx .mko-lx .mko__opts li{padding:4px 10px;border-radius:999px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);font-size:.8rem;font-weight:500;color:var(--lx-ink)}
+.portal.lx .mko-lx .mko__opts li svg{color:var(--lx-ok)}
+.portal.lx .mko-lx .mko__opts li b{font-weight:600;color:var(--lx-blue-ink)}
+
+/* supplemental payment, result and rating: white inner cards, status in pills */
+.portal.lx .mko-lx :is(.mko__sup,.mko__res,.mko__rate){gap:10px;padding:14px 16px;border-radius:14px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);animation:none}
+.portal.lx .mko-lx .mko__suph{flex-wrap:wrap;gap:8px 12px}
+.portal.lx .mko-lx .mko__suph > div{flex:1 1 200px}
+.portal.lx .mko-lx .mko__suph b{font-weight:600}
+.portal.lx .mko-lx .mko__supi{width:auto;height:auto;padding-top:2px;border-radius:0;background:none;color:var(--lx-warn)}
+.portal.lx .mko-lx .mko__sup.is-approved .mko__supi{color:var(--lx-ok)}
+.portal.lx .mko-lx :is(.mko__sup.is-rejected,.mko__sup.is-cancelled) .mko__supi{color:var(--lx-err)}
+.portal.lx .mko-lx .mko__left{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px 0 8px;border-radius:999px;background:var(--lx-warn-bg);color:var(--lx-warn);font-size:.74rem;font-weight:700;animation:none}
+.portal.lx .mko-lx :is(.mko__left.is-warn,.mko__sup.is-warn .mko__left){background:var(--lx-err-bg);color:var(--lx-err);animation:none}
+.portal.lx .mko-lx .mko__supsum{color:var(--lx-gray)}
+.portal.lx .mko-lx .mko__supsum b{color:var(--lx-ink)}
+.portal.lx .mko-lx .mko__supnote{padding:10px 12px;border-left:0;border-radius:12px;background:var(--lx-chip);color:var(--lx-ink)}
+.portal.lx .mko-lx .mko__resh{font-size:.92rem;font-weight:600;color:var(--lx-ink)}
+.portal.lx .mko-lx .mko__resh svg{color:var(--lx-ok)}
+.portal.lx .mko-lx .mko__files li{flex-wrap:wrap;padding:8px 8px 8px 12px;border-radius:12px;background:var(--lx-chip)}
+.portal.lx .mko-lx .mko__files li > svg{color:var(--lx-link)}
+.portal.lx .mko-lx .mko__files li > span{flex:1 1 140px;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+.portal.lx .mko-lx .mko__rateh{flex-wrap:wrap}
+.portal.lx .mko-lx .mko__rateh b{font-family:var(--fd);font-size:1rem;font-weight:700;color:var(--lx-ink)}
+.portal.lx .mko-lx .mko__ratel{font-size:.84rem;color:var(--lx-gray)}
+.portal.lx .mko-lx .mko__stars{gap:6px}
+.portal.lx .mko-lx .mko__stars button{border-radius:12px;background:var(--lx-chip);box-shadow:none;color:#B9C6D8;animation:none}
+html[data-theme="dark"] .portal.lx .mko-lx .mko__stars button{color:#3A4E75}
+.portal.lx .mko-lx .mko__stars button:hover{transform:none;color:var(--lx-warn)}
+.portal.lx .mko-lx .mko__stars button.is-on{background:var(--lx-warn-bg);color:var(--lx-warn);box-shadow:none}
+.portal.lx .mko-lx .mko__stars button:focus-visible{outline:2px solid var(--lx-blue);outline-offset:2px}
+.portal.lx .mko-lx .mko__stars.is-static svg{color:#C5D0DF}
+html[data-theme="dark"] .portal.lx .mko-lx .mko__stars.is-static svg{color:#3A4E75}
+.portal.lx .mko-lx .mko__stars.is-static svg.is-on{color:var(--lx-warn)}
+.portal.lx .mko-lx .mko__starl{font-weight:600;color:var(--lx-ink)}
+.portal.lx .mko-lx .mk-in > span{font-size:.88rem;font-weight:600;letter-spacing:0;text-transform:none;color:var(--lx-ink)}
+.portal.lx .mko-lx .mk-in textarea{border-radius:12px;background:var(--lx-chip);box-shadow:inset 0 0 0 1px var(--lx-line)}
+.portal.lx .mko-lx .mk-in textarea:focus{background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-blue),0 0 0 3px rgba(22,104,240,.12)}
+.portal.lx .mko-lx .mko__ratec.is-low textarea{box-shadow:inset 0 0 0 1px var(--lx-err)}
+.portal.lx .mko-lx .mko__lowhint{color:var(--lx-err)}
+.portal.lx .mko-lx .mko__rated{padding:0;background:none;color:var(--lx-ink);font-size:.86rem}
+/* text only for screen readers stays read, never "cut" on screen */
+.portal.lx .mko-lx .sr-only{opacity:0}
+
+/* who has it, the price and the actions: the dashboard card's foot */
+.portal.lx .mko-lx .mko-lx__foot{position:relative;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;margin-top:6px}
+.portal.lx .mko-lx .mko-lx__foot > .cx-work__who{line-height:1.35}
+.portal.lx .mko-lx .mko-lx__acts{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;margin-left:auto;max-width:none;align-self:center}
+.portal.lx .mko-lx .mko-lx__acts > *{flex:none}
+.portal.lx .mko-lx .mko-price{margin-right:6px;font-size:1rem;font-weight:700;color:var(--lx-ink)}
+.portal.lx .mko-lx .mko-price small{font-size:.76rem;font-weight:600;color:var(--lx-gray)}
+.portal.lx .mko-lx .mko-lx__acts .btn{white-space:nowrap}
+.portal.lx .mko-lx .mko-lx__acts .btn.mk-danger{color:var(--lx-err)}
+.portal.lx .mko-lx .mko-lx__acts .btn.mk-danger:hover{border-color:#F3B8B2;color:var(--lx-err)}
+.portal.lx .mko-lx .mko-more.cx-iconbtn{display:grid;width:40px;height:40px;min-height:0;padding:0;gap:0;border-radius:12px;background:var(--lx-card);border:1px solid var(--lx-line);color:var(--lx-ink)}
+.portal.lx .mko-lx .mko-more.cx-iconbtn:hover{gap:0;background:var(--lx-card);border-color:var(--lx-blue);color:var(--lx-link)}
+.portal.lx .mko-lx .mko-more.cx-iconbtn svg{width:18px;height:18px}
+/* "Advokat bilan bog'lanish": the dashboard's square chat button; its menu
+   floats under the card's foot as a white lx menu, plain grey icons */
+.portal.lx .mko-lx .mkc{position:static;display:block;flex:none}
+.portal.lx .mko-lx .mkc__trigger{position:relative;display:grid;place-items:center;width:40px;height:40px;min-height:0;padding:0;gap:0;border-radius:12px;background:var(--lx-card);border:1px solid var(--lx-line);box-shadow:none;color:var(--lx-ink)}
+.portal.lx .mko-lx .mkc__trigger:hover,.portal.lx .mko-lx .mkc.is-open .mkc__trigger{background:var(--lx-card);border-color:var(--lx-blue);color:var(--lx-link)}
+.portal.lx .mko-lx .mkc__trigger svg{width:18px;height:18px}
+.portal.lx .mko-lx .mkc__trigger > span{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;white-space:nowrap;pointer-events:none}
+.portal.lx .mko-lx .mkc__trigger > .mkc__chev{display:none}
+.portal.lx .mko-lx .mkc__menu{
+  position:absolute;z-index:40;top:calc(100% + 8px);right:0;width:min(320px,100%);
+  display:grid;gap:2px;padding:8px;border-radius:16px;background:var(--lx-card);border:1px solid var(--lx-line);
+  box-shadow:0 20px 40px -18px rgba(10,21,38,.3);
+}
+html[data-theme="dark"] .portal.lx .mko-lx .mkc__menu{box-shadow:0 20px 40px -18px rgba(0,0,0,.6)}
+.portal.lx .mko-lx .mkc__opt{min-height:52px;padding:8px 10px;border-radius:12px;background:none;box-shadow:none;color:var(--lx-ink)}
+.portal.lx .mko-lx .mkc__opt:hover{background:var(--lx-chip);box-shadow:none}
+.portal.lx .mko-lx .mkc__opt:disabled{box-shadow:none}
+.portal.lx .mko-lx .mkc__ico{width:28px;height:28px;border-radius:0;background:none;color:var(--lx-gray)}
+.portal.lx .mko-lx .mkc__ico svg{width:18px;height:18px}
+.portal.lx .mko-lx .mkc__txt b{font-weight:600}
+.portal.lx .mko-lx .mkc__txt small{color:var(--lx-gray)}
+.portal.lx .mko-lx .mkc__note{color:var(--lx-gray)}
+.portal.lx .mko-lx .mk-callgrp{display:inline-flex;flex-wrap:wrap;gap:8px}
+
+@media (max-width:900px){
+  .portal.lx .mko-lx{padding:20px;border-radius:20px}
+}
+@media (max-width:640px){
+  .portal.lx .mko-lx .mko-card__acts{justify-content:flex-end}
+  .portal.lx .mko-lx .mko-card__acts > *{flex:none}
+}
+@media (max-width:560px){
+  .portal.lx .mko-lx{padding:16px;border-radius:18px}
+  .portal.lx .mko-lx .mko-card{padding:16px 14px}
+  .portal.lx .mko-lx .mko-tab{min-height:40px;padding:0 10px 0 12px;font-size:.86rem}
+}
+@container mko (max-width:479px){
+  .portal.lx .mko-lx__head{gap:10px}
+  .portal.lx .mko-lx .mko-search{flex-basis:100%}
+}
+
+/* the cancel dialog (ActionDialog): the order as title + grey id, a
+   sentence-case field, the way back and the red action on the right */
+.olx-act{gap:14px}
+.olx-act .mk-act__head{display:grid;gap:3px}
+.olx-act .mk-act__head b{font-size:1rem;font-weight:600;line-height:1.35;color:var(--lx-ink)}
+.olx-act .mk-act__head .wid{display:block;padding:0;border-radius:0;background:none;font-family:inherit;font-size:.82rem;font-weight:500;letter-spacing:0}
+.olx-act > p{font-size:.9rem;line-height:1.55;color:var(--lx-gray)}
+.olx-act .mk-in > span{font-size:.88rem;font-weight:600;letter-spacing:0;text-transform:none;color:var(--lx-ink)}
+.olx-act .mk-in textarea{border-radius:12px;background:var(--lx-chip);box-shadow:inset 0 0 0 1px var(--lx-line)}
+.olx-act .mk-in textarea:focus{background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-blue),0 0 0 3px rgba(22,104,240,.12)}
+.olx-act .olx-act__foot{justify-content:flex-end;gap:10px;margin-top:2px;padding-top:16px;border-top:1px solid var(--lx-line-2)}
+.olx-act .olx-act__foot .btn{border-radius:12px;white-space:nowrap}
+.olx-act .btn.olx-danger{background:var(--lx-err);border-color:var(--lx-err);color:#fff}
+.olx-act .btn.olx-danger:hover:not(:disabled){background:#C23126;border-color:#C23126;color:#fff}
+@media (max-width:560px){
+  .olx-act .olx-act__foot > .btn{flex:1 1 auto;justify-content:center}
+}
+
+/* ══ So'rovlarim (cases page) ═══════════════════════════════ */
+.portal.lx .ocases{container:ocases / inline-size}
+.portal.lx .ocases .ocases__list{display:grid;gap:14px}
+.portal.lx .ocases .ocase{display:flex;flex-direction:column;align-items:stretch;gap:8px;padding:18px 20px;border:0;border-radius:16px;background:var(--lx-chip)}
+.portal.lx .ocases .ocase:last-child{padding-bottom:18px;border-bottom:0}
+.portal.lx .ocases .ocase .cx-work__h{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:8px 12px}
+.portal.lx .ocases .ocase__t{display:block;flex:1 1 220px;min-width:0;font-family:inherit;font-size:1rem;font-weight:600;line-height:1.35;color:var(--lx-ink)}
+.portal.lx .ocases .ocase .cx-work__meta{line-height:1.4}
+.portal.lx .ocases .ocase__q{font-size:.88rem;line-height:1.5;color:var(--lx-ink)}
+.portal.lx .ocases .ostage{display:grid;gap:6px;max-width:none;margin-top:2px}
+.portal.lx .ocases .ostage__bar{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:4px}
+.portal.lx .ocases .ostage__bar i{height:4px;border-radius:4px;background:#E1E8F2}
+html[data-theme="dark"] .portal.lx .ocases .ostage__bar i:not(.on){background:#26365A}
+.portal.lx .ocases .ostage__bar i.on{background:var(--lx-blue)}
+.portal.lx .ocases .ostage__bar.cx-steps--warn i.on:last-of-type{background:#D9A21B}
+/* dark: dash1920's own "html[data-theme=dark] .cx-steps i" outranks its
+   ".on" segments, which then vanish — the filled steps stay blue here */
+html[data-theme="dark"] .portal.lx :is(.mko-lx,.ocases) .cx-steps i.on{background:var(--lx-blue)}
+html[data-theme="dark"] .portal.lx :is(.mko-lx,.ocases) .cx-steps--warn i.on:last-of-type{background:#D9A21B}
+.portal.lx .ocases .ostage__lbl{font-size:.82rem;line-height:1.45;color:var(--lx-gray)}
+/* status notes (deadline, replacement): the amber tone, never free orange text */
+.portal.lx .ocases .ocase__note{display:inline-flex;align-items:flex-start;align-self:flex-start;gap:6px;max-width:100%;margin:0;padding:5px 10px;border-radius:12px;background:var(--lx-warn-bg);color:var(--lx-warn);font-size:.8rem;font-weight:600;line-height:1.45}
+.portal.lx .ocases .ocase__note svg{width:14px;height:14px;flex:none;margin-top:2px}
+.portal.lx .ocases .ocase__note.overdue{background:var(--lx-err-bg);color:var(--lx-err)}
+.portal.lx .ocases .ocase .creq__next{display:flex;align-items:flex-start;gap:6px;margin:0;font-size:.86rem;font-weight:500;line-height:1.5;color:var(--lx-ink)}
+.portal.lx .ocases .ocase .creq__next svg{flex:none;width:14px;height:14px;margin-top:4px;color:var(--lx-link)}
+.portal.lx .ocases .ocase__foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;margin-top:6px}
+.portal.lx .ocases .ocase__foot > .cx-work__who{line-height:1.35}
+.portal.lx .ocases .ocase__acts{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;margin-left:auto;flex:0 1 auto}
+.portal.lx .ocases .ocase__acts .btn{white-space:nowrap}
+.portal.lx .ocases .ocase__acts .btn[aria-expanded="true"]{background:var(--lx-blue-tint);border-color:#C7D6EC;color:var(--lx-blue-ink)}
+.portal.lx .ocases .ocase__acts .cpl-launch.olx-ai-ic{flex:none}
+
+/* payment stages, opened inside the card: a white inner card of chip rows */
+.portal.lx .ocases .omile{gap:10px;margin-top:4px;padding:14px 16px;border-top:0;border-radius:14px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line)}
+.portal.lx .ocases .omile__h{font-family:var(--fd);font-size:.98rem;font-weight:700;color:var(--lx-ink)}
+.portal.lx .ocases .omile__i{gap:10px 12px;padding:10px 12px;border:0;border-radius:12px;background:var(--lx-chip)}
+.portal.lx .ocases .omile__n{background:var(--lx-card);color:var(--lx-gray);box-shadow:inset 0 0 0 1px var(--lx-line)}
+.portal.lx .ocases :is(.omile__i--paid,.omile__i--held) .omile__n{background:var(--lx-blue-tint);color:var(--lx-link);box-shadow:none}
+.portal.lx .ocases .omile__i--released .omile__n{background:var(--lx-ok-bg);color:var(--lx-ok);box-shadow:none}
+.portal.lx .ocases .omile__m{min-width:140px}
+.portal.lx .ocases .omile__m b{font-weight:600;color:var(--lx-ink)}
+.portal.lx .ocases .omile__m small{font-size:.8rem;color:var(--lx-gray)}
+.portal.lx .ocases .omile__i .btn{white-space:nowrap}
+.portal.lx .ocases .omile__hint{flex-basis:100%;margin:0;font-size:.82rem;line-height:1.45;color:var(--lx-gray)}
+/* the invoice it creates: one inner card, the way back and "pay" on the right */
+.portal.lx .ocases .omile .ckint{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:10px;padding:14px;border-radius:12px;background:var(--lx-chip)}
+.portal.lx .ocases .omile .ckint__h{flex-basis:100%;display:flex;align-items:center;gap:8px;font-size:.94rem;font-weight:600;color:var(--lx-ink)}
+.portal.lx .ocases .omile .ckint__h svg{color:var(--lx-link)}
+.portal.lx .ocases .omile .opay__rows{flex-basis:100%;padding:12px 14px;border-radius:12px;background:var(--lx-card)}
+.portal.lx .ocases .omile .opay__row b{font-family:var(--fd);font-weight:800;color:var(--lx-ink)}
+.portal.lx .ocases .omile .ckint > .btn{order:2;width:auto;white-space:nowrap}
+.portal.lx .ocases .omile .ckint > .rf__link{order:1;margin:0;padding:9px 14px;border-radius:10px;background:var(--lx-card);border:1px solid var(--lx-line);color:var(--lx-ink);font-size:.88rem;font-weight:600;white-space:nowrap}
+.portal.lx .ocases .omile .ckint > .rf__link:hover{border-color:#C7D6EC}
+/* the order's history: a white inner card, blue current step */
+.portal.lx .ocases .ohist{gap:10px;margin-top:4px;padding:14px 16px;border-radius:14px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line)}
+.portal.lx .ocases .ohist__h{flex-wrap:wrap}
+.portal.lx .ocases .ohist__h b{font-family:var(--fd);font-size:.98rem;font-weight:700;color:var(--lx-ink)}
+.portal.lx .ocases .ohist__list li i{background:var(--lx-card);color:var(--lx-gray);box-shadow:inset 0 0 0 1.5px var(--lx-line)}
+.portal.lx .ocases .ohist__list li.on i{background:var(--lx-blue);color:#fff;box-shadow:none}
+.portal.lx .ocases .ohist__list li b{font-weight:600;color:var(--lx-ink)}
+.portal.lx .ocases .ohist__list li span{color:var(--lx-gray)}
+.portal.lx .ocases .ohist__next label{font-size:.86rem;font-weight:600;color:var(--lx-ink)}
+.portal.lx .ocases .ohist__next input{border:0;border-radius:12px;background:var(--lx-chip);box-shadow:inset 0 0 0 1px var(--lx-line)}
+.portal.lx .ocases .ohist__btns .btn{white-space:nowrap}
+@media (max-width:560px){
+  .portal.lx .ocases .ocase{padding:16px 14px}
+}
+
+/* ── Tugallanmagan hujjatlar (OpenDocumentWork) ── */
+.portal.lx .odw{container:odw / inline-size}
+.portal.lx .odw .odw__list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@container odw (max-width:779px){
+  .portal.lx .odw .odw__list{grid-template-columns:minmax(0,1fr)}
+}
+.portal.lx .odw .odw__row{display:flex;flex-direction:column;align-items:stretch;flex-wrap:nowrap;gap:8px;padding:16px 18px;border-radius:16px;background:var(--lx-chip);box-shadow:none;container:odwrow / inline-size}
+.portal.lx .odw .odw__row:hover{box-shadow:none}
+.portal.lx .odw .odw__h{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;column-gap:14px;row-gap:8px}
+.portal.lx .odw .odw__art{width:44px;height:44px;border-radius:50%;background:var(--art) center/64% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line)}
+html[data-theme="dark"] .portal.lx .odw .odw__art{box-shadow:none}
+.portal.lx .odw .odw__m{display:grid;gap:3px;min-width:0;padding-top:2px}
+.portal.lx .odw .odw__m b{font-size:.98rem;font-weight:600;line-height:1.35;color:var(--lx-ink)}
+.portal.lx .odw .odw__sub{font-size:.82rem;color:var(--lx-gray)}
+.portal.lx .odw :is(.odw__next,.odw__live){padding-left:58px}
+.portal.lx .odw .odw__next{font-size:.84rem;line-height:1.5;color:var(--lx-gray)}
+.portal.lx .odw .odw__live{color:var(--lx-ok)}
+.portal.lx .odw .odw__foot{display:flex;flex-wrap:wrap;row-gap:8px;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;padding-left:58px;min-height:40px}
+.portal.lx .odw .odw__foot > .cx-work__who{line-height:1.35}
+.portal.lx .odw .odw__acts{flex:none;width:auto;margin-left:auto;justify-content:flex-end}
+.portal.lx .odw .odw__wait{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);color:var(--lx-gray);font-size:.78rem;font-weight:600;white-space:nowrap}
+.portal.lx .odw .odw__wait svg{width:14px;height:14px}
+@container odwrow (max-width:439px){
+  .portal.lx .odw .odw__h{grid-template-columns:auto minmax(0,1fr)}
+  .portal.lx .odw .odw__h > .cx-pill{grid-column:2;justify-self:start}
+  .portal.lx .odw .odw__art{width:40px;height:40px}
+  .portal.lx .odw :is(.odw__next,.odw__live,.odw__foot){padding-left:0}
+}
+
+/* ── the request dialog: two picture cards to choose from ── */
+.olx-req{gap:16px}
+.olx-req > .advmuted{margin:0;font-size:.9rem;line-height:1.55;color:var(--lx-gray)}
+.olx-req .olx-req__kinds{display:grid;gap:8px;min-width:0;margin:0;padding:0;border:0}
+.olx-req .olx-req__kinds legend{padding:0;margin:0 0 8px;font-size:.88rem;font-weight:600;color:var(--lx-ink)}
+.olx-req .olx-req__grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.olx-req .olx-opt{
+  position:relative;display:flex;flex-direction:column;align-items:center;gap:10px;min-width:0;
+  padding:18px 14px 16px;border:1px solid var(--lx-line);border-radius:16px;background:var(--lx-card);
+  text-align:center;cursor:pointer;transition:border-color .18s,background-color .18s;
+}
+.olx-req .olx-opt:hover{border-color:#C7D6EC}
+html[data-theme="dark"] .olx-req .olx-opt:hover{border-color:#3A4E75}
+.olx-req .olx-opt.is-on{border-color:var(--lx-blue);background:var(--lx-blue-tint)}
+.olx-req .olx-opt:has(input:focus-visible){outline:2px solid var(--lx-blue);outline-offset:2px}
+.olx-req .olx-opt input{position:absolute;width:1px;height:1px;margin:0;opacity:0;pointer-events:none}
+.olx-req .olx-opt__art{width:64px;height:64px}
+.olx-req .olx-opt__t{display:grid;gap:3px;min-width:0}
+.olx-opt__t b{font-size:.95rem;font-weight:600;line-height:1.35;color:var(--lx-ink)}
+.olx-opt__t small{font-size:.8rem;line-height:1.4;color:var(--lx-gray)}
+.olx-opt__tick{position:absolute;top:10px;right:10px;width:22px;height:22px;display:grid;place-items:center;border-radius:50%;background:var(--lx-blue);color:#fff;opacity:0;transform:scale(.6);transition:opacity .18s,transform .18s}
+.olx-opt.is-on .olx-opt__tick{opacity:1;transform:none}
+.olx-opt__tick svg{width:13px;height:13px;stroke-width:3}
+.olx-req .rf__hint{margin:0;font-size:.8rem;line-height:1.45;color:var(--lx-gray)}
+.olx-foot{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;padding-top:16px;border-top:1px solid var(--lx-line-2)}
+.olx-foot .btn{white-space:nowrap}
+@media (max-width:440px){
+  .olx-req .olx-req__grid{grid-template-columns:minmax(0,1fr)}
+  .olx-req .olx-opt{flex-direction:row;align-items:center;text-align:left;padding:14px 40px 14px 14px}
+  .olx-req .olx-opt__art{width:52px;height:52px}
+  .olx-foot > .btn{flex:1 1 auto;justify-content:center}
+}
+
+/* ── the case documents dialog: chip rows, an inline add ── */
+.olx-docs{gap:16px}
+.olx-docs .olx-docs__list{display:grid;gap:8px;max-height:none;overflow:visible;margin:0;padding:0}
+.olx-docs .creq.olx-docs__row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px 14px;border:0;border-radius:16px;background:var(--lx-chip)}
+.olx-docs .olx-docs__ic{width:20px;height:20px;flex:none;color:var(--lx-link)}
+.olx-docs .olx-docs__t{flex:1 1 160px;min-width:0;font-size:.94rem;font-weight:600;line-height:1.35;color:var(--lx-ink)}
+.olx-docs .olx-docs__add{display:grid;gap:8px}
+.olx-docs .olx-docs__addrow{display:flex;gap:10px;min-width:0}
+.olx-docs .olx-docs__addrow input{flex:1;min-width:0}
+.olx-docs .olx-docs__addrow .btn{flex:none;white-space:nowrap}
+
+@media (prefers-reduced-motion:reduce){
+  .portal.lx .cwk .cwork,.olx-opt,.olx-opt__tick{transition:none}
+}

@@ -1,0 +1,386 @@
+/* ═══ LexGo 1920 — the document builder and its read-only preview ═══
+   ServiceDocumentPage (services/document/<id>: the chooser, the builder's
+   intro, the advocate form, the "already with an advocate" screen, the plan
+   prompt and the full-screen builder itself) and ServiceDocumentView
+   (…/view, the guarded sample), drawn in the client dashboard's vocabulary
+   (components/portal/dash/ClientHome.tsx + dash1920.css):
+   - the page head is the dashboard's: a small grey line above (the way
+     back), the document's name as the 800 title, the tools as white pills;
+   - every step is one white .lx-card (radius 24, hairline, no shadow) in a
+     960px column — the dashboard's own content width — instead of loose
+     rows on the page background;
+   - choices carry the dashboard's black line drawings (public/img/xizmatlar)
+     in white circles, with the round chip arrow that turns blue;
+   - the plan prompt is the dashboard's empty state with the padlock picture;
+   - the builder keeps its three panes, re-dressed: flat white panels on the
+     page blue-white, sentence-case titles, the dashboard's pills, progress
+     bars and buttons — and "Advokatdan yordam" is a navy button, not a red
+     pulse.
+   The same markup also renders inside the services catalogue's order dialog
+   (ServiceDocumentRequest there): .bld-card is framed only on the full page,
+   the dialog being the frame there. Old rules live in app/globals.css
+   (.docbuild, .docchoose, .docassist, .oprice, .deditor, .docfill, .dfws,
+   .docpaper, .dexit, .dgate); the selectors here outweigh them. */
+
+/* ── pictures: the dashboard's line drawings in white circles ── */
+.bld-art,.bld .docassist__art{
+  display:block;flex:none;border-radius:50%;
+  background:var(--art) center/62% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line, #E4EBF5);
+}
+.bld .docassist__art{width:56px;height:56px}
+html[data-theme="dark"] :is(.bld-art,.bld .docassist__art){box-shadow:none}
+
+/* ── the page: one column the dashboard's width ── */
+.bld,.portal.lx .docbuild--full:not(:has(.deditor--fill)){container:bld / inline-size}
+.portal.lx .docbuild--full:not(:has(.deditor--fill)){
+  width:100%;min-width:0;gap:24px;padding:28px clamp(16px,3vw,40px) 56px;
+}
+/* !important only against the inline `maxWidth: "none"` the step forms
+   carry for the catalogue dialog, where they must fill the dialog's width */
+.portal.lx .docbuild--full:not(:has(.deditor--fill)) > *{width:100%;max-width:960px !important;margin-inline:auto;min-width:0}
+.portal.lx .docbuild--full .cform.bld{gap:16px}
+
+/* the head: the way back above, the title, the tools on the right */
+.portal.lx .docbuild--full .bld-top{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"back tools" "title tools";
+  align-items:center;column-gap:20px;row-gap:6px;margin:0 auto;flex-wrap:nowrap;
+}
+/* the builder itself carries these in its own bar */
+.portal.lx .docbuild--full:has(.deditor--fill) > .bld-top{display:none}
+.portal.lx .bld-top > .docbuild__back{grid-area:back;justify-self:start;gap:6px;padding:2px 0;font-size:.85rem;font-weight:500;color:var(--lx-gray)}
+.portal.lx .bld-top > .docbuild__back:hover{color:var(--lx-link)}
+.portal.lx .bld-top > .docbuild__title{
+  grid-area:title;margin:0;min-width:0;font-family:var(--fd);font-size:clamp(1.5rem,2.1vw,2.2rem);font-weight:800;
+  letter-spacing:-.025em;line-height:1.15;color:var(--lx-ink);overflow-wrap:anywhere;
+}
+.portal.lx .bld-top__tools{grid-area:tools;display:flex;align-items:center;gap:10px;justify-self:end;min-width:0}
+/* as the dashboard header's "Yordam" pill: white, hairline, 44px */
+.portal.lx .bld-top__tools > :is(.docbuild__ai,.docbuild__exit){
+  margin:0;height:44px;display:inline-flex;align-items:center;gap:8px;padding:0 16px 0 12px;border-radius:999px;
+  border:1px solid var(--lx-line);background:var(--lx-card);color:var(--lx-ink);
+  font:inherit;font-size:.92rem;font-weight:600;white-space:nowrap;box-shadow:none;cursor:pointer;
+  transition:border-color .15s,background .15s;
+}
+.portal.lx .bld-top__tools > .docbuild__exit{padding:0 16px}
+.portal.lx .bld-top__tools > :is(.docbuild__ai,.docbuild__exit):hover{border-color:#C7D6EC;background:var(--lx-card);color:var(--lx-ink)}
+html[data-theme="dark"] .portal.lx .bld-top__tools > :is(.docbuild__ai,.docbuild__exit):hover{border-color:#3A4E75}
+.portal.lx .bld-top__tools > .docbuild__exit svg{width:16px;height:16px;color:var(--lx-gray)}
+.portal.lx .bld-top__tools > .docbuild__ai .ravatar{margin:-2px 0}
+/* globals.css hid every span in this button below 640px — the robot (a
+   span) with the label — which left an empty ring on a phone */
+.portal.lx .bld-top__tools > .docbuild__ai > .ravatar{display:inline-grid}
+.portal.lx .bld-top__tools > .docbuild__ai > .docbuild__ailbl{display:inline}
+
+/* ── a step: the dashboard's white card ── */
+.bld-card{display:grid;gap:20px;min-width:0}
+.portal.lx .docbuild--full .bld-card{
+  background:var(--lx-card);border:1px solid var(--lx-line-2);border-radius:var(--lx-r, 24px);padding:28px;box-shadow:none;
+}
+html[data-theme="dark"] .portal.lx .docbuild--full .bld-card{border-color:var(--lx-line)}
+/* the empty / error / loading states sit in the card as the dashboard's */
+.portal.lx .docbuild--full .bld-card > .pempty{padding:20px 12px}
+.portal.lx .docbuild--full .bld-card > .pskel{margin:0}
+
+/* the way back to the choice, above the card */
+.portal.lx .bld > .rf__link{justify-self:start;margin:0;font-weight:600;color:var(--lx-link)}
+
+/* section head: the question + the template's line, the price beside it */
+.bld-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px 24px;flex-wrap:wrap}
+.bld-head__t{flex:1 1 320px;min-width:0}
+.bld-head__t .lx-sub{max-width:600px}
+/* the price: an ink figure on the dashboard's chip, never the old blue */
+.bld .oprice.bld-price,.bld-head .oprice.bld-price{
+  flex:none;display:grid;justify-items:start;gap:2px;padding:10px 18px;border-radius:16px;background:var(--lx-chip);box-shadow:none;
+}
+.bld .oprice.bld-price span{font-size:.78rem;font-weight:500;color:var(--lx-gray)}
+.bld .oprice.bld-price b{font-family:var(--fd);font-size:1.15rem;font-weight:700;letter-spacing:-.01em;color:var(--lx-ink);white-space:nowrap}
+.bld .oprice.bld-price--row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px}
+.bld .oprice.bld-price--row span{font-size:.9rem}
+
+/* ── the two ways: white option cards with the picture ── */
+.docchoose.bld-choose{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.docchoose.bld-choose > .docchoose__c.bld-opt{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:1fr auto auto auto 1fr;
+  column-gap:16px;row-gap:4px;align-items:center;justify-items:start;text-align:left;min-width:0;
+  padding:18px;border:1px solid var(--lx-line);border-radius:16px;background:var(--lx-card);box-shadow:none;color:var(--lx-ink);
+  transition:border-color .15s,transform .15s,box-shadow .15s;
+}
+.docchoose.bld-choose > .docchoose__c.bld-opt:hover{border-color:#C7D6EC;transform:translateY(-2px);box-shadow:0 14px 28px -20px rgba(10,21,38,.35)}
+html[data-theme="dark"] .docchoose.bld-choose > .docchoose__c.bld-opt:hover{border-color:#3A4E75}
+.docchoose.bld-choose > .docchoose__c.bld-opt:focus-visible{outline:3px solid var(--lx-blue);outline-offset:2px}
+.docchoose.bld-choose > .bld-opt > span.docchoose__art{
+  grid-column:1;grid-row:1 / -1;align-self:center;width:72px;height:72px;margin:0;
+  border-radius:50%;background:var(--art) center/62% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line, #E4EBF5);
+  transition:background-size .2s ease;
+}
+html[data-theme="dark"] .docchoose.bld-choose > .bld-opt > span.docchoose__art{box-shadow:none}
+.docchoose.bld-choose > .bld-opt:hover > span.docchoose__art{background-size:68%,auto}
+.docchoose.bld-choose > .bld-opt > b{grid-column:2;grid-row:2;font-size:1rem;font-weight:600;line-height:1.35;color:var(--lx-ink)}
+.docchoose.bld-choose > .bld-opt > span.bld-opt__s{grid-column:2;grid-row:3;font-size:.84rem;line-height:1.5;color:var(--lx-gray)}
+.docchoose.bld-choose > .bld-opt > em.bld-opt__pill{grid-column:2;grid-row:4;margin-top:6px;font-style:normal}
+/* the round chip arrow that turns blue, as the dashboard's area cards */
+.docchoose.bld-choose > .bld-opt > span.bld-opt__go{
+  grid-column:3;grid-row:1 / -1;align-self:center;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;
+  background:var(--lx-chip);color:var(--lx-ink);transition:background .15s,color .15s;
+}
+.docchoose.bld-choose > .bld-opt > span.bld-opt__go svg{width:16px;height:16px}
+.docchoose.bld-choose > .bld-opt:hover > span.bld-opt__go{background:var(--lx-blue);color:#fff}
+/* already with an advocate: the card stays quiet; the amber pill says why */
+.docchoose.bld-choose > .bld-opt.docchoose__c--held{opacity:1;background:var(--lx-card);border-color:var(--lx-line)}
+
+/* ── a step's head: the picture, the name, the line ── */
+.bld .docassist__head{display:flex;align-items:center;gap:16px;padding:0;border:0;min-width:0}
+.bld .docassist__head > div{min-width:0}
+.bld .docassist__head b{display:block;margin:0 0 4px;font-family:var(--fd);font-size:1.18rem;font-weight:700;letter-spacing:-.015em;line-height:1.3;color:var(--lx-ink)}
+.bld .docassist__head .advmuted{font-size:.9rem;line-height:1.55;color:var(--lx-gray)}
+
+/* the advocate's status as the dashboard's pill, the work id as its grey
+   meta line (as "MP-10427 · 10 Noy" under a work card's title) */
+.bld .dgate__meta.bld-held__meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:12px 0 0}
+.bld .dgate__meta.bld-held__meta > .cx-pill{height:26px;padding:0 10px 0 8px;border-radius:999px;background:var(--lx-warn-bg);color:var(--lx-warn);font-size:.74rem;font-weight:600}
+.bld .dgate__meta.bld-held__meta > .bld-held__id{display:inline;padding:0;border-radius:0;background:none;color:var(--lx-gray);font-size:.82rem;font-weight:500;overflow-wrap:anywhere;min-width:0}
+.bld .bld-held__open{justify-self:start}
+
+/* ── the plan prompt: the dashboard's empty state, with the picture ── */
+.bld-plan{display:grid;justify-items:center;text-align:center;gap:10px;padding:8px 0}
+.portal.lx .docbuild--full .bld-card.bld-plan{padding:44px 28px 40px;gap:10px}
+.bld-plan .bld-plan__art{width:112px;height:112px;margin-bottom:8px}
+.bld-plan .bld-plan__t{margin:0;font-family:var(--fd);font-size:1.3rem;font-weight:700;letter-spacing:-.015em;line-height:1.3;color:var(--lx-ink)}
+.bld-plan .bld-plan__p{margin:0;max-width:440px;font-size:.92rem;line-height:1.6;color:var(--lx-gray);text-wrap:balance}
+.bld-plan .bld-plan__go{margin-top:12px}
+
+/* ── the advocate form: one card, inner blocks as the dashboard's ── */
+.portal.lx .docbuild--full .bld-card.bld-assist{gap:18px}
+.bld-assist .docassist__sec{background:var(--lx-card);border:1px solid var(--lx-line-2);border-radius:16px;box-shadow:none;padding:20px}
+html[data-theme="dark"] .bld-assist .docassist__sec{border-color:var(--lx-line)}
+.bld-assist .docassist__sec:empty{display:none}
+.bld-assist .cbxcard{border:1px solid var(--lx-line-2);border-radius:16px;background:var(--lx-card);padding:18px 20px}
+html[data-theme="dark"] .bld-assist .cbxcard{border-color:var(--lx-line)}
+.bld-assist .cbxcard__t{font-size:.95rem;font-weight:700;color:var(--lx-ink)}
+
+/* the document-type picker (also in the order dialog and the request panel) */
+.dtype__hint{color:var(--lx-gray, var(--gray))}
+.dtype .dtype__own{border:0;background:var(--lx-chip, #F2F6FC);box-shadow:inset 0 0 0 1px var(--lx-line, #E4EBF5)}
+.dtype .dtype__own:focus{background:var(--lx-card, #fff);box-shadow:inset 0 0 0 1px var(--lx-blue, #1668F0),0 0 0 3px rgba(22,104,240,.12)}
+
+/* ── the sample: a card, the paper on the dashboard's chip ── */
+.portal.lx .docbuild--full .bld-card.bld-view{gap:16px}
+.bld-view .docview__hint{display:flex;align-items:flex-start;gap:8px;margin:6px 0 0;font-size:.92rem;line-height:1.55;color:var(--lx-gray)}
+.bld-view .docview__hint svg{width:16px;height:16px;flex:none;margin-top:3px;color:var(--lx-gray2)}
+.bld-view .docguard__note{margin:0;font-size:.82rem;color:var(--lx-gray2)}
+.bld-view .docguard__note--hit{color:var(--lx-err)}
+:is(.bld-view,.bld-viewer) .docpaper__scroll{border-radius:16px;background:var(--lx-chip, #F2F6FC);box-shadow:none;padding:clamp(10px,2.4vw,28px)}
+:is(.bld-view,.bld-viewer) .docpaper__sheet{border-radius:12px;box-shadow:0 0 0 1px var(--lx-line-2, #ECF0F7)}
+.bld-viewer .docguard__note{color:var(--lx-gray, var(--gray))}
+
+/* ── dialogs (portalled to <body>, outside .portal.lx) ── */
+/* "Ishingiz Navbatchi advokatga berildi": a question, with the advocate's picture */
+.bld-gate .dexit__lead{align-items:center;gap:14px;color:var(--lx-ink, var(--ink))}
+.bld-gate .bld-gate__art{width:56px;height:56px}
+.bld-gate .dgate__meta{margin:0}
+.bld-gate .dgate__meta span{min-height:26px;padding:3px 10px;font-weight:600;background:var(--lx-blue-tint, #EFF4FE);color:var(--lx-blue-ink, #154CB0);overflow-wrap:anywhere}
+/* "Konstruktordan chiqasizmi?": a real warning, in the status tones */
+.bld-exit .dexit__lead{align-items:center;gap:14px;color:var(--lx-ink, var(--ink))}
+.bld-exit .dexit__i{width:40px;height:40px;border-radius:12px;background:var(--lx-warn-bg, #FFF3D6);color:var(--lx-warn, #9A5B00)}
+.bld-exit .dexit__i svg{width:18px;height:18px}
+/* the plan dialog: its lead carries the padlock picture */
+.mdpg .mdpg__intro{display:flex;align-items:center;gap:14px}
+.mdpg .mdpg__art{width:56px;height:56px}
+.mdpg .mdpg__intro .advmuted{font-size:.92rem;line-height:1.55;color:var(--lx-gray, var(--gray))}
+
+/* ── the builder (DocFill's workspace) ───────────────────── */
+.portal.lx .deditor--fill{background:var(--lx-bg)}
+.portal.lx .deditor--fill .deditor__top{background:var(--lx-card);box-shadow:none;border-bottom:1px solid var(--lx-line-2);padding:12px 18px;gap:14px;min-height:68px}
+.portal.lx .deditor--fill .deditor__back{color:var(--lx-gray);font-weight:500;font-size:.88rem}
+.portal.lx .deditor--fill .deditor__back:hover{color:var(--lx-link)}
+.portal.lx .deditor--fill .deditor__ident{flex:0 1 auto;min-width:0}
+/* the document's name wraps rather than ending in "…" */
+.portal.lx .deditor--fill .deditor__title{
+  max-width:none;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;
+  font-family:var(--fd);font-size:1.08rem;font-weight:700;letter-spacing:-.015em;line-height:1.3;color:var(--lx-ink);
+}
+.portal.lx .deditor--fill .deditor__sub{max-width:none;white-space:normal;overflow:visible;text-overflow:clip;color:var(--lx-gray);font-size:.78rem}
+/* the badge as the dashboard's status pill */
+.portal.lx .deditor--fill .deditor__badge{display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;font-size:.74rem;font-weight:600;white-space:nowrap}
+.portal.lx .deditor--fill .deditor__badge--new{background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
+.portal.lx .deditor--fill .deditor__badge--progress{background:var(--lx-warn-bg);color:var(--lx-warn)}
+.portal.lx .deditor--fill .deditor__badge--ready{background:var(--lx-ok-bg);color:var(--lx-ok)}
+.portal.lx .deditor--fill .deditor__save{white-space:nowrap}
+.portal.lx .deditor--fill .deditor__save--saved{color:var(--lx-ok)}
+/* the actions: the dashboard's buttons — white line, navy, flat blue */
+.portal.lx .deditor--fill .deditor__actions{gap:10px}
+.portal.lx .deditor--fill .deditor__act{
+  height:42px;padding:0 15px;gap:8px;border-radius:12px;border:1px solid var(--lx-line);background:var(--lx-card);
+  color:var(--lx-ink);font-size:.88rem;font-weight:600;box-shadow:none;transition:border-color .15s,background .15s;
+}
+.portal.lx .deditor--fill .deditor__act svg{width:16px;height:16px}
+.portal.lx .deditor--fill .deditor__act:hover:not(:disabled){border-color:#C7D6EC}
+html[data-theme="dark"] .portal.lx .deditor--fill .deditor__act:hover:not(:disabled){border-color:#3A4E75}
+.portal.lx .deditor--fill .deditor__act--ai{background:var(--lx-card);border-color:var(--lx-line);color:var(--lx-ink)}
+.portal.lx .deditor--fill .deditor__act--primary{background:var(--lx-blue);border-color:var(--lx-blue);color:#fff}
+.portal.lx .deditor--fill .deditor__act--primary:hover:not(:disabled){background:var(--lx-blue-h);border-color:var(--lx-blue-h)}
+/* "Advokatdan yordam": navy, still — red is for status and destructive acts */
+.portal.lx .deditor--fill .deditor__act--help{background:var(--lx-navy);border-color:var(--lx-navy);color:#fff;animation:none}
+.portal.lx .deditor--fill .deditor__act--help:hover:not(:disabled){background:#1B2A42;border-color:#1B2A42}
+.portal.lx .deditor--fill .deditor__act--help:focus-visible{outline:3px solid var(--lx-blue);outline-offset:2px}
+html[data-theme="dark"] .portal.lx .deditor--fill .deditor__act--help{background:#E7EEF8;border-color:#E7EEF8;color:#0A1526}
+html[data-theme="dark"] .portal.lx .deditor--fill .deditor__act--help:hover:not(:disabled){background:#fff;border-color:#fff}
+.portal.lx .deditor--fill .deditor__act--helpSent,.portal.lx .deditor--fill .deditor__act--helpSent:disabled{background:var(--lx-ok-bg);border-color:transparent;color:var(--lx-ok);opacity:1}
+.portal.lx .deditor--fill .deditor__toggle{color:var(--lx-gray)}
+
+/* the panes: flat white panels on the page's blue-white */
+.portal.lx .deditor--fill .deditor__left,.portal.lx .deditor--fill .deditor__right{background:var(--lx-card);box-shadow:none}
+.portal.lx .deditor--fill .deditor__left{border-right:1px solid var(--lx-line-2)}
+.portal.lx .deditor--fill .deditor__right{border-left:1px solid var(--lx-line-2);padding:16px}
+.portal.lx .deditor--fill .deditor__main{background:var(--lx-bg);box-shadow:none}
+.portal.lx .deditor--fill .deditor__panelToggle{background:var(--lx-chip);border-color:var(--lx-line);color:var(--lx-gray)}
+.portal.lx .deditor--fill .deditor__panelToggle:hover{background:var(--lx-blue-tint);color:var(--lx-link)}
+.portal.lx .deditor--fill .deditor__sizer:hover .deditor__sizerGrip,
+.portal.lx .deditor--fill .deditor__sizer:focus-visible .deditor__sizerGrip,
+.portal.lx .deditor--fill .deditor__body--sizing .deditor__sizerGrip{background:var(--lx-blue);box-shadow:0 0 0 1px var(--lx-blue)}
+
+/* the questions */
+.portal.lx .deditor--fill .docfill__h{padding:20px 22px 16px 20px;gap:10px;border-bottom:1px solid var(--lx-line-2)}
+.portal.lx .deditor--fill .docfill__ht{align-items:center}
+.portal.lx .deditor--fill .docfill__ht b{font-family:var(--fd);font-size:1.18rem;font-weight:700;letter-spacing:-.015em;color:var(--lx-ink)}
+.portal.lx .deditor--fill .docfill__n{display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;background:var(--lx-blue-tint);color:var(--lx-blue-ink);font-size:.76rem;font-weight:600}
+.portal.lx .deditor--fill .docfill__bar{height:4px;border-radius:4px;background:#E1E8F2}
+html[data-theme="dark"] .portal.lx .deditor--fill .docfill__bar{background:#26365A}
+.portal.lx .deditor--fill .docfill__bar span{background:var(--lx-blue);border-radius:4px}
+.portal.lx .deditor--fill .docfill__lead{font-size:.86rem;color:var(--lx-gray)}
+.portal.lx .deditor--fill .docfill__list{padding:18px 22px 22px 20px}
+.portal.lx .deditor--fill .docfill__gt{
+  margin:4px 0 2px;padding:0;border:0;font-family:var(--fd);font-size:1rem;font-weight:700;letter-spacing:-.01em;
+  text-transform:none;color:var(--lx-ink);
+}
+.portal.lx .deditor--fill .dfrow{border-radius:16px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line)}
+.portal.lx .deditor--fill .dfrow.on{box-shadow:inset 0 0 0 1.5px var(--lx-blue)}
+.portal.lx .deditor--fill .dfrow.err{box-shadow:inset 0 0 0 1.5px var(--lx-err)}
+.portal.lx .deditor--fill .dfrow__ltext{font-size:.86rem;font-weight:600;letter-spacing:0;color:var(--lx-ink)}
+.portal.lx .deditor--fill .dfrow.done .dfrow__ltext{color:var(--lx-ok)}
+.portal.lx .deditor--fill .dfrow__x{background:var(--lx-chip);color:var(--lx-gray)}
+.portal.lx .deditor--fill .docfill__f{background:var(--lx-card);border-top:1px solid var(--lx-line-2)}
+.portal.lx .deditor--fill .docfill__auto{color:var(--lx-gray2)}
+
+/* the page: the toolbar as a quiet white strip, the sheet with a hairline */
+.portal.lx .deditor--fill .docpaper__top{background:var(--lx-card);border-bottom:1px solid var(--lx-line-2);min-height:52px;padding:8px 16px}
+.portal.lx .deditor--fill .docpaper__badge{font-size:.88rem;font-weight:600;letter-spacing:0;text-transform:none;color:var(--lx-ink)}
+.portal.lx .deditor--fill .docpaper__zoom{background:var(--lx-chip);border-radius:12px;padding:3px;gap:2px}
+.portal.lx .deditor--fill .docpaper__zoom button{height:30px;min-width:30px;border-radius:9px;color:var(--lx-ink);font-size:.76rem}
+.portal.lx .deditor--fill .docpaper__zoom button:hover:not(:disabled){background:var(--lx-card);color:var(--lx-link)}
+.portal.lx .deditor--fill .docpaper__zoom .docpaper__zoomfit.on{background:var(--lx-card);color:var(--lx-blue-ink);box-shadow:0 0 0 1px var(--lx-line)}
+.portal.lx .deditor--fill .docpaper__srcbtn{color:var(--lx-link);font-size:.84rem;border-radius:10px;padding:6px 10px}
+.portal.lx .deditor--fill .docpaper__srcbtn:hover{background:var(--lx-blue-tint)}
+.portal.lx .deditor--fill .docpaper__sheet{box-shadow:0 0 0 1px var(--lx-line-2),0 1px 2px rgba(10,21,38,.04)}
+
+/* the right panel: a chip tray of two tabs, sections as the dashboard's work cards */
+.portal.lx .deditor--fill .deditor__tabs{gap:4px;margin:0 0 14px;padding:4px;border-radius:14px;background:var(--lx-chip);box-shadow:none}
+.portal.lx .deditor--fill .deditor__tabs button{flex-direction:row;gap:7px;padding:9px 8px;border-radius:10px;font-size:.84rem;font-weight:600;color:var(--lx-gray);box-shadow:none}
+.portal.lx .deditor--fill .deditor__tabs button span{overflow:visible;text-overflow:clip;white-space:nowrap}
+.portal.lx .deditor--fill .deditor__tabs button.on{background:var(--lx-card);color:var(--lx-ink);box-shadow:0 0 0 1px var(--lx-line)}
+.portal.lx .deditor--fill .dfws__secs{gap:10px}
+.portal.lx .deditor--fill .dfws__sec{grid-template-columns:32px minmax(0,1fr);gap:8px 12px;padding:14px;border:0;border-radius:16px;background:var(--lx-chip)}
+.portal.lx .deditor--fill .dfws__sec:hover{background:#ECF2FB;box-shadow:inset 0 0 0 1px #C7D6EC}
+html[data-theme="dark"] .portal.lx .deditor--fill .dfws__sec:hover{background:#1C2B47;box-shadow:inset 0 0 0 1px #2E4268}
+.portal.lx .deditor--fill .dfws__secn{width:32px;height:32px;border-radius:10px;background:var(--lx-card);border:1px solid var(--lx-line);color:var(--lx-ink);font-weight:700}
+.portal.lx .deditor--fill .dfws__sec.done .dfws__secn{background:var(--lx-ok-bg);color:var(--lx-ok);border-color:transparent}
+.portal.lx .deditor--fill .dfws__sect{align-items:center}
+.portal.lx .deditor--fill .dfws__sect b{font-size:.92rem;font-weight:600;color:var(--lx-ink);white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+.portal.lx .deditor--fill .dfws__sect small{color:var(--lx-gray);font-weight:600;font-size:.74rem}
+.portal.lx .deditor--fill .dfws__secbar{height:4px;background:#E1E8F2}
+html[data-theme="dark"] .portal.lx .deditor--fill .dfws__secbar{background:#26365A}
+.portal.lx .deditor--fill .dfws__secbar i{background:var(--lx-blue)}
+.portal.lx .deditor--fill .dfws__sec.done .dfws__secbar i{background:var(--lx-ok)}
+/* the details tab */
+.portal.lx .deditor--fill .dmeta > span{font-weight:500;letter-spacing:0;color:var(--lx-gray)}
+.portal.lx .deditor--fill .dmeta > b{font-weight:600;color:var(--lx-ink)}
+.portal.lx .deditor--fill .dstate{border:0;border-radius:16px;background:var(--lx-chip)}
+.portal.lx .deditor--fill .dstate__i{width:36px;height:36px;border-radius:12px;background:var(--lx-card);border:1px solid var(--lx-line);color:var(--lx-gray)}
+.portal.lx .deditor--fill .dstate--ok .dstate__i{background:var(--lx-ok-bg);color:var(--lx-ok);border-color:transparent}
+.portal.lx .deditor--fill .dstate__t small{color:var(--lx-gray)}
+.portal.lx .deditor--fill .dpane > .deditor__act{width:100%}
+
+/* phone / tablet: the form and the page are two tabs */
+.portal.lx .deditor--fill .dfws__tabs{gap:4px;padding:4px;border-radius:14px;background:var(--lx-chip);box-shadow:none}
+.portal.lx .deditor--fill .dfws__tabs button{border-radius:10px;font-weight:600;color:var(--lx-gray)}
+.portal.lx .deditor--fill .dfws__tabs button.on{background:var(--lx-card);color:var(--lx-ink);box-shadow:0 0 0 1px var(--lx-line)}
+.portal.lx .deditor--fill .dfws__tabs .docb__tabn{background:var(--lx-blue-tint);color:var(--lx-blue-ink);font-weight:600}
+
+/* ── the two-pane builder in the catalogue's dialog: same rule for help ── */
+.docb .docfill__ask{border-radius:12px;padding:9px 14px;background:var(--lx-navy, #0A1526);color:#fff;font-weight:600}
+.docb .docfill__ask:hover{filter:none;background:#1B2A42}
+.docb .docfill__ask.docfill__ask--sent{background:var(--lx-ok-bg, #E7F6EE);color:var(--lx-ok, #0E7A55)}
+.docb .docpaper__ask{background:var(--lx-navy, #0A1526);color:#fff;animation:none;font-weight:600}
+.docb .docpaper__ask.docpaper__ask--sent{background:var(--lx-ok-bg, #E7F6EE);color:var(--lx-ok, #0E7A55)}
+html[data-theme="dark"] .docb :is(.docfill__ask,.docpaper__ask):not(.docfill__ask--sent):not(.docpaper__ask--sent){background:#E7EEF8;color:#0A1526}
+
+/* ── by the width the column actually gets ── */
+@container bld (max-width:720px){
+  .docchoose.bld-choose{grid-template-columns:minmax(0,1fr)}
+}
+@container bld (max-width:460px){
+  .docchoose.bld-choose{gap:12px}
+  .docchoose.bld-choose > .docchoose__c.bld-opt{grid-template-columns:auto minmax(0,1fr);column-gap:12px;padding:14px}
+  .docchoose.bld-choose > .bld-opt > span.docchoose__art{width:52px;height:52px}
+  .docchoose.bld-choose > .bld-opt > span.bld-opt__go{display:none}
+  .docchoose.bld-choose > .bld-opt > em.bld-opt__pill{grid-column:1 / -1;grid-row:5;margin-top:8px}
+  .bld .docassist__head{gap:12px}
+  .bld .docassist__art{width:48px;height:48px}
+  .bld .docassist__head b{font-size:1.06rem}
+  .bld-plan .bld-plan__art{width:96px;height:96px}
+}
+@media (max-width:900px){
+  /* keep the bar clear of the full-screen menu button parked top-right */
+  .portal.lx .deditor--fill .deditor__top{padding-right:60px}
+  .portal.lx .docbuild--full:not(:has(.deditor--fill)){padding-top:16px;gap:18px}
+  .portal.lx .docbuild--full .bld-top{row-gap:10px}
+  .portal.lx .docbuild--full .bld-card{padding:20px;border-radius:20px}
+  .portal.lx .docbuild--full .bld-card.bld-plan{padding:32px 20px}
+  .portal.lx .bld-top__tools > :is(.docbuild__ai,.docbuild__exit){height:40px}
+}
+@media (max-width:560px){
+  /* the head: the way back and two round tools on one line, the title below */
+  .portal.lx .docbuild--full .bld-top{grid-template-areas:"back tools" "title title"}
+  .portal.lx .bld-top > .docbuild__title{font-size:1.4rem}
+  .portal.lx .bld-top__tools{gap:8px}
+  .portal.lx .bld-top__tools > :is(.docbuild__ai,.docbuild__exit){width:40px;padding:0;justify-content:center;gap:0}
+  /* icon-only: the buttons keep their names (aria-label / title) */
+  .portal.lx .bld-top__tools > .docbuild__ai > .docbuild__ailbl,
+  .portal.lx .bld-top__tools > .docbuild__exit > .docbuild__exitlbl{display:none}
+  .portal.lx .docbuild--full .bld-card{padding:16px;border-radius:18px;gap:16px}
+  .portal.lx .docbuild--full .bld-card.bld-plan{padding:28px 16px}
+  .bld-assist .docassist__sec{padding:16px}
+  .bld-assist .cbxcard{padding:14px 16px}
+  :is(.bld-view,.bld-viewer) .docpaper__scroll{padding:8px}
+}
+/* the builder's own bar as the width runs out: first the "saved" note goes
+   (the badge stays), then the actions take the first line and the
+   document's name the second, the secondary actions as round icons (each
+   keeps its name in aria-label / title), and on a phone the help button too
+   — so nothing ends in "…" or runs off the bar */
+@media (max-width:1100px){
+  .portal.lx .deditor--fill .deditor__save{display:none}
+}
+@media (max-width:900px){
+  .portal.lx .deditor--fill .deditor__top{flex-wrap:wrap;column-gap:8px;row-gap:6px;min-height:0;padding-left:12px}
+  .portal.lx .deditor--fill .deditor__actions{gap:8px}
+  .portal.lx .deditor--fill .deditor__ident{order:5;flex:1 1 100%}
+  .portal.lx .deditor--fill .deditor__status{display:none}
+  .portal.lx .deditor--fill .deditor__act{height:40px}
+  .portal.lx .deditor--fill .deditor__act:not(.deditor__act--help){width:40px;padding:0;justify-content:center}
+  .portal.lx .deditor--fill .deditor__act:not(.deditor__act--help) .deditor__actLabel{display:none}
+  .portal.lx .deditor--fill .deditor__back{padding:8px 2px}
+}
+@media (max-width:640px){
+  .portal.lx .deditor--fill .deditor__act--help{width:40px;padding:0;justify-content:center}
+  .portal.lx .deditor--fill .deditor__actLabel{display:none}
+  .portal.lx .deditor--fill .docfill__h{padding:14px 14px 12px}
+  .portal.lx .deditor--fill .docfill__list{padding:12px 12px 16px}
+}
+@media (max-width:380px){
+  .portal.lx .deditor--fill .deditor__backLabel{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  .docchoose.bld-choose > .docchoose__c.bld-opt{transition:none}
+  .docchoose.bld-choose > .docchoose__c.bld-opt:hover{transform:none}
+}

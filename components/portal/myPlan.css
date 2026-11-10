@@ -1,37 +1,55 @@
-/* The subscriber's own plan (MyPlanCard). */
-.myplan { display: grid; gap: 10px; margin-bottom: 16px; padding: 16px 18px; border-radius: 18px; border: 1px solid var(--line); background: var(--dk-surface, #fff); }
-.myplan__h { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.myplan__h > div { display: grid; gap: 2px; }
-.myplan__h small { font-size: .74rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--gray); }
-.myplan__h b { font-size: 1.05rem; color: var(--ink); }
-.myplan__v { padding: 2px 9px; border-radius: 999px; background: var(--dk-surface-2, #EEF2F8); font-size: .74rem; font-weight: 700; color: var(--ink); }
-.myplan__lead { margin: 0; font-size: .82rem; color: var(--gray); }
-.myplan__consent { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid color-mix(in srgb, #d97706 45%, transparent); background: color-mix(in srgb, #d97706 10%, transparent); font-size: .84rem; color: var(--ink); }
-.myplan__consent b { flex-basis: 100%; }
-.myplan__consent > span { flex: 1; min-width: 220px; }
+/* The subscriber's own plan (MyPlanCard), drawn as a dashboard card
+   (components/portal/dash): a white card, radius 24, one hairline; the
+   plan's picture on a light plate beside its name; chip-coloured inner
+   cards (radius 16) for the renewal and every feature, with the dashboard's
+   thin blue meter; status only in the ok / warn tones. The --lx-* tokens
+   come from the cabinet shell; the fallbacks keep it readable anywhere else. */
+.myplan { display: grid; gap: 14px; padding: 28px; border-radius: var(--lx-r, 24px); border: 1px solid var(--lx-line-2, #ECF0F7); background: var(--lx-card, #fff); }
+html[data-theme="dark"] .myplan { border-color: var(--lx-line, #26365A); }
+.myplan__h { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.myplan__h > div { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.myplan__h small { font-size: .82rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--lx-gray, #4F5F75); }
+.myplan__h b { font-family: var(--fd); font-size: 1.3rem; font-weight: 700; letter-spacing: -.02em; color: var(--lx-ink, #0A1526); overflow-wrap: anywhere; }
+/* the plan's picture: the dashboard's light plate (it stays light in dark mode) */
+.myplan__art { width: 64px; height: 64px; flex: none; border-radius: 16px; background: var(--img) center/86% no-repeat, linear-gradient(168deg, #F1F6FF 0%, #FAFCFF 56%, #E9F1FD 100%); box-shadow: inset 0 0 0 1px var(--lx-line, #E4EBF5); }
+html[data-theme="dark"] .myplan__art { box-shadow: none; }
+.myplan__v { flex: none; white-space: nowrap; }
+.myplan__lead { margin: 0; font-size: .9rem; line-height: 1.5; color: var(--lx-gray, #4F5F75); }
+.myplan__consent { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 16px 18px; border-radius: 16px; border: 0; background: var(--lx-warn-bg, #FFF3D6); font-size: .88rem; line-height: 1.5; color: var(--lx-ink, #0A1526); }
+.myplan__consent b { flex-basis: 100%; font-weight: 700; color: var(--lx-warn, #9A5B00); }
+.myplan__consent > span { flex: 1; min-width: min(220px, 100%); }
 .myplan__next { display: grid; flex-basis: 100%; gap: 6px; margin: 2px 0 0; padding: 0; list-style: none; }
-.myplan__next li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 8px 10px; border-radius: 10px; background: var(--dk-surface, #fff); }
-.myplan__next b { flex: 1 1 160px; font-size: .84rem; }
-.myplan__next del { color: var(--gray); font-size: .8rem; }
-.myplan__next ins { color: var(--dk-txt-ok, #15803d); font-size: .8rem; font-weight: 700; text-decoration: none; }
-.myplan__next ins::before { content: "→ "; color: var(--gray); font-weight: 400; }
-.myplan__list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
-.myplan__list li { display: grid; gap: 4px; padding: 10px 12px; border-radius: 12px; background: var(--dk-surface-2, #F5F8FD); }
-.myplan__list li[data-mode="unavailable"] { opacity: .65; }
-.myplan__f { font-size: .84rem; font-weight: 600; color: var(--ink); }
-.myplan__u { font-size: .8rem; color: var(--gray); }
-.myplan__list small { font-size: .74rem; color: var(--gray); }
-.myplan__bar { display: block; height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; }
-.myplan__bar i { display: block; height: 100%; border-radius: inherit; background: var(--brand, #2563eb); }
-.myplan__prices { margin: 0; font-size: .78rem; color: var(--gray); }
+.myplan__next li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 10px 14px; border-radius: 12px; background: var(--lx-card, #fff); }
+.myplan__next b { flex: 1 1 160px; font-size: .86rem; font-weight: 600; color: var(--lx-ink, #0A1526); }
+.myplan__next del { color: var(--lx-gray, #4F5F75); font-size: .82rem; }
+.myplan__next ins { color: var(--lx-ok, #0E7A55); font-size: .82rem; font-weight: 700; text-decoration: none; }
+.myplan__next ins::before { content: "→ "; color: var(--lx-gray, #4F5F75); font-weight: 400; }
+.myplan__list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+.myplan__list li { display: grid; gap: 6px; align-content: start; padding: 16px 18px; border-radius: 16px; background: var(--lx-chip, #F2F6FC); }
+.myplan__list li[data-mode="unavailable"] .myplan__f, .myplan__list li[data-mode="unavailable"] .myplan__u { color: var(--lx-gray2, #5D6E84); }
+.myplan__f { font-size: .94rem; font-weight: 600; color: var(--lx-ink, #0A1526); }
+.myplan__u { font-size: .84rem; color: var(--lx-gray, #4F5F75); }
+.myplan__list small { font-size: .78rem; line-height: 1.4; color: var(--lx-gray, #4F5F75); }
+.myplan__bar { display: block; height: 4px; margin-top: 2px; border-radius: 4px; background: #E1E8F2; overflow: hidden; }
+html[data-theme="dark"] .myplan__bar { background: #26365A; }
+.myplan__bar i { display: block; height: 100%; border-radius: inherit; background: var(--lx-blue, #1668F0); }
+.myplan__prices { margin: 0; font-size: .84rem; color: var(--lx-gray, #4F5F75); }
 .myplan__acts { display: flex; flex-wrap: wrap; gap: 8px; }
-.myplan__agreed { margin: 0; padding: 8px 12px; border-radius: 12px; font-size: .82rem; color: var(--dk-txt-ok, #15803d); background: color-mix(in srgb, #16a34a 10%, transparent); }
+.myplan__agreed { margin: 0; padding: 12px 16px; border-radius: 16px; font-size: .86rem; color: var(--lx-ok, #0E7A55); background: var(--lx-ok-bg, #E7F6EE); }
 /* Renewal state and the one-click cancel (launch compliance: cancelling is as easy as buying). */
-.myplan__renew { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; padding: 10px 12px; border-radius: 12px; background: var(--dk-surface-2, #F5F8FD); }
-.myplan__renew > span { display: grid; gap: 2px; min-width: 0; flex: 1 1 200px; }
-.myplan__renew b { font-size: .86rem; color: var(--ink); }
-.myplan__renew small { font-size: .78rem; color: var(--gray); }
-.myplan__renew.is-off { background: color-mix(in srgb, #d97706 9%, transparent); }
-.myplan__cancel { flex: none; color: var(--dk-txt-err, #b91c1c); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, #dc2626 40%, transparent); }
-.myplan__cancel:hover:not(:disabled) { background: color-mix(in srgb, #dc2626 8%, transparent); }
-@media (max-width: 420px) { .myplan__cancel { flex: 1 1 100%; } }
+.myplan__renew { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 16px 18px; border-radius: 16px; background: var(--lx-chip, #F2F6FC); }
+.myplan__renew > span { display: grid; gap: 3px; min-width: 0; flex: 1 1 200px; }
+.myplan__renew b { font-size: .94rem; font-weight: 600; color: var(--lx-ink, #0A1526); }
+.myplan__renew small { font-size: .84rem; line-height: 1.45; color: var(--lx-gray, #4F5F75); }
+.myplan__renew.is-off { background: var(--lx-warn-bg, #FFF3D6); }
+/* a white outlined button on the chip row; the danger colour is only its text */
+.myplan .myplan__cancel { flex: none; color: var(--lx-err, #D93B30); background: var(--lx-card, #fff); border: 1px solid var(--lx-line, #E4EBF5); box-shadow: none; }
+.myplan .myplan__cancel:hover:not(:disabled) { color: var(--lx-err, #D93B30); background: var(--lx-err-bg, #FDECEA); border-color: transparent; }
+@media (max-width: 900px) { .myplan { padding: 20px; border-radius: 20px; } }
+@media (max-width: 560px) {
+  .myplan { padding: 16px; border-radius: 18px; gap: 12px; }
+  .myplan__art { width: 52px; height: 52px; border-radius: 14px; }
+  .myplan__h b { font-size: 1.16rem; }
+  .myplan__renew, .myplan__list li, .myplan__consent { padding: 14px; }
+}
+@media (max-width: 420px) { .myplan .myplan__cancel { flex: 1 1 100%; } }

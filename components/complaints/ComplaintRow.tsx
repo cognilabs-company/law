@@ -3,7 +3,8 @@
 import { useLocale, useTranslations } from "next-intl";
 import { dateOnly } from "@/lib/date";
 import { isOpaqueRef, type ComplaintItem } from "@/lib/services/complaints";
-import { IconCalendar, IconChevronRight } from "@/components/icons";
+import { ArrowUpRight } from "lucide-react";
+import { IconCalendar } from "@/components/icons";
 import { CategoryTile, QualityBadge, StatusPill, rowDomId, useComplaintLabels } from "./bits";
 
 export default function ComplaintRow({
@@ -52,7 +53,9 @@ export default function ComplaintRow({
         </span>
         {line ? <span className="shk__desc">{line}</span> : null}
       </span>
-      <IconChevronRight className="shk__go" aria-hidden />
+      <span className="shk__go shk__go--chip" aria-hidden>
+        <ArrowUpRight />
+      </span>
     </button>
   );
 }

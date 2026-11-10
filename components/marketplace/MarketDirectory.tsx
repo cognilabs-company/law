@@ -25,11 +25,13 @@ import NearbySellers, { MarketModeSwitch, type NearbyServiceOption } from "./Nea
 import ServiceBrowser from "./ServiceBrowser";
 import ServicesBanner from "./ServicesBanner";
 import "./directory.css";
+import "./directory1920.css";
 import PurchaseDialog from "./PurchaseDialog";
 import SecondOpinionEntry from "./order/SecondOpinionEntry";
 import { categoryName, categoryTitleName } from "@/lib/categoryNames";
 import { useBoughtServices } from "@/lib/useBoughtServices";
 import { useAuth } from "@/lib/auth";
+import { useFitPlaceholder } from "@/lib/useFitPlaceholder";
 
 type Status = "loading" | "ready" | "error";
 
@@ -126,6 +128,9 @@ export default function MarketDirectory({
   const copilotOn = useCopilotAvailable(false);
   const locale = useLocale();
   const base = variant === "portal" ? "/portal/client/lawyers" : "/lawyers";
+  // The client cabinet draws the directory in the dashboard's design
+  // (directory1920.css); the public marketplace keeps its own.
+  const lx = variant === "portal" && !preview;
 
   const [items, setItems] = useState<MarketSeller[]>([]);
   const [total, setTotal] = useState(0);
@@ -530,6 +535,8 @@ export default function MarketDirectory({
     const id = window.setInterval(() => setExampleAt((i) => i + 1), 3200);
     return () => window.clearInterval(id);
   }, [q, examples.length]);
+  // the rotating example where it fits the field whole, else the short hint
+  const [heroPh, heroQRef] = useFitPlaceholder([examples.length ? t("searchPhExample", { ex: examples[exampleAt % examples.length] }) : t("searchPh"), t("searchPhShort"), t("searchPhTiny")]);
   const showResults = () => {
     void runAi(q);
     const scroll = () => {
@@ -668,17 +675,28 @@ export default function MarketDirectory({
       {/* The marketplace banner belongs to the by-specialist view. The
           services view has its own, smaller one; on the map the map is the
           page and a banner would push it below the fold. */}
-      <div className="mk-hero" hidden={mode !== "all" || undefined}>
-        <div className="mk-hero__glow" aria-hidden="true" />
+      {/* In the client cabinet the banner is the dashboard's flat navy card:
+          the "which specialist?" drawing in a white circle, no glow, no
+          kicker, no showcase card (the same people are the cards below). */}
+      <div className={`mk-hero${lx ? " mk-hero--lx" : ""}`} hidden={mode !== "all" || undefined}>
+        {lx ? null : <div className="mk-hero__glow" aria-hidden="true" />}
         <div className="mk-hero__in">
-          <span className="mk-kick">
-            <IconShieldCheck />
-            {t("kicker")}
-          </span>
-          <h1 className="mk-hero__t">{t.rich("title", { hl: (chunks) => <span className="mk-hero__hl">{chunks}</span> })}</h1>
+          {lx ? (
+            <span className="mk-hero__art" aria-hidden="true" />
+          ) : (
+            <span className="mk-kick">
+              <IconShieldCheck />
+              {t("kicker")}
+            </span>
+          )}
+          {lx ? (
+            <h2 className="mk-hero__t">{t.rich("title", { hl: (chunks) => <span className="mk-hero__hl">{chunks}</span> })}</h2>
+          ) : (
+            <h1 className="mk-hero__t">{t.rich("title", { hl: (chunks) => <span className="mk-hero__hl">{chunks}</span> })}</h1>
+          )}
           <p className="mk-hero__l">{t("lead")}</p>
           {variant === "portal" && !preview && copilotOn ? (
-            <div>
+            <div className="mk-hero__cp">
               <CopilotLauncher surface="lawyer_marketplace" label={tp("findLawyer")} context={{ query: q.trim() || undefined }} />
             </div>
           ) : null}
@@ -702,7 +720,8 @@ export default function MarketDirectory({
               onKeyDown={(e) => {
                 if (e.key === "Enter") showResults();
               }}
-              placeholder={examples.length ? t("searchPhExample", { ex: examples[exampleAt % examples.length] }) : t("searchPh")}
+              ref={heroQRef}
+              placeholder={heroPh}
               aria-label={t("searchLabel")}
               data-ai-target="marketplace:ai-search-input"
               data-ai-id="marketplace.ai-search.input"
@@ -803,7 +822,7 @@ export default function MarketDirectory({
             </div>
           </div>
         </div>
-        <HeroShowcase items={shownItems} promos={shownBanners} base={base} locale={locale} />
+        {lx ? null : <HeroShowcase items={shownItems} promos={shownBanners} base={base} locale={locale} />}
       </div>
 
       {mode === "services" ? (
@@ -816,6 +835,7 @@ export default function MarketDirectory({
           }}
           stats={svcStats}
           loading={status === "loading"}
+          lx={lx}
         />
       ) : null}
 
@@ -827,6 +847,8 @@ export default function MarketDirectory({
         <div ref={svcRef} className="mk-svcwrap">
         <ServiceBrowser
           embedded
+          lx={lx}
+          onClearQuery={() => setSvcQ("")}
           query={svcQ}
           bought={bought}
           services={allServices}

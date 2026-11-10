@@ -17,7 +17,7 @@ export default function ClientLawyersPage(props: { q: string; area: string; regi
     <MarketDirectory
       variant="portal"
       initialSellerType={props.type}
-      initialMode={props.mode}
+      initialMode={props.mode === "map" ? "nearby" : props.mode}
       initialRadius={props.radius}
       initialNearbyService={props.service}
       renderSpecialists={({ matchedIds }) => (

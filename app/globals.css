@@ -12198,6 +12198,11 @@ a.ag-card__hd:hover .ag-card__doc{color:var(--dk-acc, var(--b600))}
 .mk-hero__stats>div{position:relative;background:none;box-shadow:none;min-width:0;padding:10px 20px}
 .mk-hero__stats>div+div::before{content:"";position:absolute;left:0;top:22%;bottom:22%;width:1px;background:rgba(255,255,255,.18)}
 @media (max-width:560px){.mk-search .mk-search__go{padding:0 14px}.mk-search .mk-search__go span{display:none}.mk-hero__stats>div{padding:8px 12px}}
+/* a 320px phone: the sparkle badge goes, so the hint keeps its words */
+@media (max-width:360px){.mk-search .mk-search__ai{display:none}.mk-search{padding-left:14px}}
+/* a phone: the three figures keep their numbers inside their cells ("200 000" ran 30px out); the icons go */
+@media (max-width:560px){.mk-hero__stats b svg{display:none}.mk-hero__stats b{white-space:nowrap}.mk-hero__stats>div{min-width:min-content}}
+@media (max-width:360px){.mk-hero__stats>div{padding:8px 9px}}
 @property --mk-ang{syntax:"<angle>";inherits:false;initial-value:0deg}
 @keyframes mkSpin{to{--mk-ang:360deg}}
 @keyframes mkPulse{50%{transform:scale(1.22) rotate(18deg)}}
@@ -12266,7 +12271,8 @@ a.ag-card__hd:hover .ag-card__doc{color:var(--dk-acc, var(--b600))}
 .mk-hero__in>*:nth-child(6){animation-delay:.34s}
 .mk-hero__in>*:nth-child(7){animation-delay:.4s}
 
-.mk-hero__ex{flex-wrap:nowrap;max-width:100%;overflow-x:auto;padding:3px 28px 3px 2px;margin:-3px 0;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
+/* the popular picks wrap onto a second line rather than run off the edge cut */
+.mk-hero__ex{flex-wrap:wrap;max-width:100%;row-gap:8px}
 .mk-hero__ex::-webkit-scrollbar{display:none}
 .mk-hero__ex>span{flex:none;white-space:nowrap}
 .mk-hero__ex button{flex:none;display:inline-flex;align-items:center;gap:7px;padding:7px 14px 7px 11px;white-space:nowrap;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);transition:background .18s,box-shadow .18s,transform .18s}
@@ -12277,10 +12283,15 @@ a.ag-card__hd:hover .ag-card__doc{color:var(--dk-acc, var(--b600))}
 .mk-hero__stats b svg{width:17px;height:17px;flex:none;color:var(--b300)}
 
 .mk-hero{container:mkhero/inline-size}
+/* The showcase card beside the hero text by the room the marketplace gets,
+   not the window: in the portal the sidebar comes off first, and at
+   1181-1300px it left the text column ~350px, too narrow for the search's
+   hint. Where the card does not fit, the banner slot above takes its place. */
+.mk{container:mkpage/inline-size}
 .mk-adslot{display:contents}
-@media (min-width:1181px){.mk-adslot{display:none}}
+@container mkpage (min-width:1000px){.mk-adslot{display:none}}
 .mk-show{display:none}
-@media (min-width:1181px){
+@container mkpage (min-width:1000px){
   .mk-hero__in{max-width:min(820px,calc(100% - 450px))}
   .mk-show{--ph:232px;display:block;position:absolute;right:clamp(28px,3.4vw,48px);top:50%;z-index:1;width:312px;height:440px;transform:translateY(-50%);animation:mkShowIn .8s .25s cubic-bezier(.2,.8,.2,1) both}
 }
@@ -12555,7 +12566,8 @@ ul.mk-card__aiwhy li::before{content:"";position:absolute;left:2px;top:.55em;wid
 .supcrow__av svg{width:18px;height:18px}
 .supcrow__av--wait{background:var(--dk-tint-warn, #FFF1DE);color:var(--dk-txt-warn, #8F5500)}
 .supcrow__body{display:flex;flex-direction:column;gap:4px;min-width:0}
-.supcrow__t{overflow:hidden;font-size:.92rem;line-height:1.3;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
+/* a request's title wraps to a second line rather than ending in "…" (a phone) */
+.supcrow__t{overflow:hidden;font-size:.92rem;line-height:1.3;color:var(--ink);overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
 .supcrow__sub{display:flex;align-items:center;gap:8px;min-width:0}
 .supcrow__sub .spill{flex:none}
 .supcrow__last{overflow:hidden;font-size:.82rem;line-height:1.4;text-overflow:ellipsis;white-space:nowrap;color:var(--gray)}
@@ -12600,7 +12612,7 @@ ul.mk-card__aiwhy li::before{content:"";position:absolute;left:2px;top:.55em;wid
 .supways__side{display:flex;flex-direction:column;gap:10px;min-width:0}
 .supways__st{margin:0;padding:0 4px;font-family:var(--fd);font-size:.98rem;font-weight:800;letter-spacing:-.01em;color:var(--ink)}
 .supalt{display:flex;flex-direction:column;gap:2px;margin:0;padding:6px;list-style:none;border-radius:20px;background:var(--dk-surface, #fff);box-shadow:inset 0 0 0 1px var(--line),var(--s1)}
-.supalt__row{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;color:var(--ink);text-decoration:none;transition:background .15s}
+.supalt__row{display:flex;align-items:center;gap:10px;padding:12px;border-radius:14px;color:var(--ink);text-decoration:none;transition:background .15s}
 .supalt__row:hover{background:var(--dk-surface-2, #F5F8FC)}
 .supalt__row:focus-visible{outline:3px solid var(--focus);outline-offset:-3px}
 .supalt__ic{display:grid;flex:none;place-items:center;width:42px;height:42px;border-radius:13px}
@@ -12609,7 +12621,8 @@ ul.mk-card__aiwhy li::before{content:"";position:absolute;left:2px;top:.55em;wid
 .supalt__ic--case{background:var(--dk-tint-warn, #FFF1DE);color:var(--dk-txt-warn, #8F5500)}
 .supalt__tx{display:flex;flex:1;flex-direction:column;gap:2px;min-width:0}
 .supalt__tx b{font-size:.9rem;line-height:1.3}
-.supalt__tel{font-size:.96rem;font-weight:800;letter-spacing:.01em;white-space:nowrap}
+/* the number on one line and inside its row in the narrow side column of a 13-14" laptop */
+.supalt__tel{font-size:.92rem;font-weight:800;letter-spacing:0;white-space:nowrap}
 .supalt__tx small{font-size:.76rem;line-height:1.4;color:var(--gray)}
 .supalt__go{flex:none;width:16px;height:16px;color:var(--gray2);transition:transform .18s,color .18s}
 .supalt__row:hover .supalt__go{transform:translateX(3px);color:var(--dk-acc, var(--b600))}
@@ -12638,7 +12651,7 @@ ul.mk-card__aiwhy li::before{content:"";position:absolute;left:2px;top:.55em;wid
 .supitem__av--wait{background:var(--dk-tint-warn, #FFF1DE);color:var(--dk-txt-warn, #8F5500)}
 .supitem__body{display:flex;flex-direction:column;gap:4px;min-width:0}
 .supitem__top{display:flex;align-items:baseline;gap:10px;min-width:0}
-.supitem__t{flex:1;min-width:0;overflow:hidden;font-size:.92rem;line-height:1.3;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
+.supitem__t{flex:1;min-width:0;overflow:hidden;font-size:.92rem;line-height:1.3;color:var(--ink);overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
 .supitem__top time{flex:none;font-size:.72rem;color:var(--gray2)}
 .supitem__sub{overflow:hidden;font-size:.78rem;text-overflow:ellipsis;white-space:nowrap;color:var(--gray)}
 .supitem__last{display:-webkit-box;overflow:hidden;font-size:.82rem;line-height:1.42;color:var(--gray);-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
@@ -14073,6 +14086,8 @@ body[data-guide-dock="top"] .gcap{top:max(80px,env(safe-area-inset-top));bottom:
 .uf-search>svg{position:absolute;left:14px;width:17px;height:17px;color:var(--gray2);pointer-events:none}
 .uf-search input{width:100%;min-width:0;min-height:48px;padding:12px 42px 12px 40px;border:0;border-radius:14px;background:var(--dk-surface-2, #F7FAFE);box-shadow:inset 0 0 0 1.5px var(--line);font:inherit;font-size:.94rem;font-weight:600;color:var(--ink);transition:box-shadow .18s,background .18s;-webkit-appearance:none;appearance:none}
 .uf-search input::placeholder{color:var(--gray2);font-weight:500}
+/* no room kept for the clear button while there is nothing to clear */
+.uf-search input:placeholder-shown{padding-right:14px}
 .uf-search input::-webkit-search-cancel-button{display:none}
 .uf-search input:hover{box-shadow:inset 0 0 0 1.5px var(--b300);background:var(--dk-surface, #fff)}
 .uf-search input:focus{outline:none;box-shadow:inset 0 0 0 1.5px var(--b400);background:var(--dk-surface, #fff)}
@@ -14111,6 +14126,8 @@ body[data-guide-dock="top"] .gcap{top:max(80px,env(safe-area-inset-top));bottom:
   .uf-sheetbg{display:block;position:fixed;inset:0;z-index:89;border:0;padding:0;background:rgba(5,12,26,.5);backdrop-filter:blur(2px);animation:mkFade .2s both;cursor:pointer}
 }
 @media (max-width:420px){.uf-card.is-open{grid-template-columns:1fr}}
+/* a 320px phone: "Filtrlar" keeps its icon and count, its word is read out only, so the search beside it has room */
+@media (max-width:359px){.uf-bar:not(.uf-bar--solo) .uf-toggle>span:not(.uf-toggle__n){position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}}
 @media (prefers-reduced-motion:reduce){.uf-card.is-open,.uf-sheetbg{animation:none}}
 .mk-receipt__msg{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%}
 .mk-receipt__in{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;animation:mk-buy-in .45s cubic-bezier(.2,.8,.3,1) both}
@@ -14210,7 +14227,8 @@ body[data-guide="on"][data-guide-self] .ains__launch{display:inline-flex!importa
 .svfilt__free.svfilt__free--m{display:none}
 @media (min-width:901px){
   .svhub .uf-card{display:flex;flex-wrap:wrap;align-items:flex-end}
-  .svhub .uf-fld{flex:1 1 168px}
+  /* a select never narrower than "Barcha yo'nalishlar" needs; it moves to the next line instead */
+  .svhub .uf-fld{flex:1 0 200px}
   .svhub .uf-fld--search{flex:2 1 280px}
   .svhub .uf-extra{flex:0 0 auto;margin-left:auto}
 }

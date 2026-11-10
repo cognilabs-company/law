@@ -7,7 +7,8 @@ import { SxButton } from "@/components/admin/studio/sx/Button";
 import { SxDialog, SxDialogError, type SxDialogErrorText } from "@/components/admin/studio/sx/editor/SxDialog";
 import { Field } from "@/components/admin/studio/sx/form/Field";
 import { TextArea } from "@/components/admin/studio/sx/form/TextArea";
-import { IconAlert, IconArrowRight, IconChat, IconCheck, IconCircleCheck, IconCircleX, IconClock, IconCoins, IconHistory, IconHourglass, IconLock, IconPhone, IconRefresh, IconSend, IconUsers } from "@/components/icons";
+import { IconArrowRight, IconChat, IconCheck, IconCircleCheck, IconCircleX, IconClock, IconCoins, IconHistory, IconHourglass, IconLock, IconPhone, IconRefresh, IconSend, IconUsers } from "@/components/icons";
+import { artStyle, type OrderArt } from "./icons";
 import { useMarketError } from "@/components/marketplace/useMarketError";
 import { shortDateTime } from "@/lib/date";
 import { isAborted, isForbidden, logApiError } from "@/lib/http";
@@ -55,6 +56,10 @@ const STEPS: RefundStep[] = ["requested", "processing", "refunded"];
 const STEP_ICON: Partial<Record<RefundStep, typeof IconSend>> = { requested: IconSend, processing: IconHourglass, refunded: IconCoins };
 
 const money = (amount: number, currency: string, som: string) => `${fmtUzs(amount)} ${currency === "UZS" ? som : currency}`;
+
+// The panel's picture follows the path: the LexGo guarantee while the choice
+// is open, the hand-over once another specialist is chosen, the refund after.
+const HEAD_ART: Readonly<Record<string, OrderArt>> = { reassign: "Boshqa_mutaxassis", refund: "Pul_qaytarish", done: "Pul_qaytarish", bad: "Pul_qaytarish" };
 
 function RefundTracker({ rf, step, amount, currency }: { rf: OrderRefund | null; step: RefundStep; amount: number; currency: string }): ReactElement {
   const t = useTranslations("marketplace.orderDetail.resolution");
@@ -268,9 +273,7 @@ export default function ResolutionPanel({ o, view, aiBase, onRefresh }: OrderSec
   return (
     <section className="mrs" data-tone={tone} aria-labelledby={`${ai}-title`} data-ai-id={ai}>
       <header className="mrs__head">
-        <span className="mrs__ico" aria-hidden="true">
-          {tone === "choose" ? <IconAlert /> : tone === "reassign" ? <IconUsers /> : tone === "done" ? <IconCircleCheck /> : tone === "bad" ? <IconCircleX /> : tone === "refund" ? <IconCoins /> : <IconHourglass />}
-        </span>
+        <span className="mrs__ico odx-art" style={artStyle(HEAD_ART[tone] ?? "Kafolat")} aria-hidden="true" />
         <span className="mrs__titles">
           <h2 id={`${ai}-title`}>{title}</h2>
           <p>{lead}</p>
@@ -294,22 +297,24 @@ export default function ResolutionPanel({ o, view, aiBase, onRefresh }: OrderSec
           <div className="mrs-choices" role="group" aria-label={t("chooseLabel")}>
             {offer.options.includes("reassign") ? (
               <button type="button" className="mrs-choice" onClick={() => setChoice("reassign")} data-ai-id={`${ai}.reassign`} disabled={busy}>
-                <span className="mrs-choice__ico" aria-hidden="true">
-                  <IconUsers />
-                </span>
+                <span className="mrs-choice__ico odx-art" style={artStyle("Boshqa_mutaxassis")} aria-hidden="true" />
                 <b>{t("choice.reassign")}</b>
                 <span>{t("choiceText.reassign")}</span>
                 <small>{t("choiceMeta.reassign")}</small>
+                <span className="mrs-choice__go" aria-hidden="true">
+                  <IconArrowRight />
+                </span>
               </button>
             ) : null}
             {offer.options.includes("refund") ? (
               <button type="button" className="mrs-choice" data-kind="refund" onClick={() => setChoice("refund")} data-ai-id={`${ai}.refund`} disabled={busy}>
-                <span className="mrs-choice__ico" aria-hidden="true">
-                  <IconCoins />
-                </span>
+                <span className="mrs-choice__ico odx-art" style={artStyle("Pul_qaytarish")} aria-hidden="true" />
                 <b>{t("choice.refund")}</b>
                 <span>{t("choiceText.refund")}</span>
                 <small>{preview.source === "none" ? t("refund.not_charged") : money(preview.amount, preview.currency, t("som"))}</small>
+                <span className="mrs-choice__go" aria-hidden="true">
+                  <IconArrowRight />
+                </span>
               </button>
             ) : null}
           </div>

@@ -1,0 +1,122 @@
+/* ═══ LexGo 1920 — cabinet-wide primitives the dashboard taught ═══
+   The client dashboard (components/portal/dash/ClientHome.tsx + dash1920.css)
+   is the design every cabinet page follows; the 1c "Xato va takliflar"
+   screen (reference/design-lexgo-1920/1c_mijoz_xato_takliflar.png) is its
+   form. These rules move the pieces most pages share onto that vocabulary in
+   one place, for the page (.portal.lx) AND for the dialogs, menus and sheets
+   portalled out of it to <body> (shell/layers1920.css gives those the tokens).
+   Every scope is wrapped in :where(), so a page's own rule still wins. */
+
+/* ── accents the dashboard does not use ──
+   Advocate-written work, quality complaints and "operator yaratgan" pills
+   were tinted violet (--dk-*-violet, light-mode fallbacks #F1EBFF/#6A3DE8);
+   the dashboard's palette is navy, blue and the three status tones. */
+.portal.lx,
+html:has(.portal.lx) body > :not(:has(.portal.lx)){
+  --dk-tint-violet:var(--lx-blue-tint);--dk-txt-violet:var(--lx-blue-ink);--dk-bd-violet:#C7D6EC;
+}
+html[data-theme="dark"] .portal.lx,
+html[data-theme="dark"]:has(.portal.lx) body > :not(:has(.portal.lx)){--dk-bd-violet:#2E4268}
+
+/* ── section titles: the dashboard's heads carry no glowing icon tile ── */
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) .ppanel__t > .pico{display:none}
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) .pico{background:var(--lx-chip);color:var(--lx-ink);box-shadow:none}
+
+/* ── empty / error / loading, as .cx-empty and .cx-skel ── */
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) .pempty{gap:8px;padding:28px 12px;color:var(--lx-gray)}
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) .pempty > svg:first-child{
+  box-sizing:border-box;width:48px;height:48px;padding:13px;border-radius:14px;
+  background:var(--lx-blue-tint);stroke:var(--lx-link);color:var(--lx-link);flex:none;
+}
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) .pempty--compact > svg:first-child{width:40px;height:40px;padding:10px;border-radius:12px}
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) .pempty--err > svg:first-child{background:var(--lx-err-bg);stroke:var(--lx-err);color:var(--lx-err)}
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) .pempty b{font-family:inherit;font-size:.98rem;font-weight:700;color:var(--lx-ink)}
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) .pempty p{color:var(--lx-gray);font-size:.86rem;max-width:300px}
+/* the skeleton was --b50 — the page colour itself, so a skeleton placed on
+   the page (not in a card) was invisible */
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) .pskel .pskel__row{
+  background:linear-gradient(90deg,var(--lx-chip),#E9EFF8,var(--lx-chip));background-size:200% 100%;
+  animation:cxsk 1.2s ease-in-out infinite;border-radius:16px;
+}
+html[data-theme="dark"] :where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) .pskel .pskel__row{
+  background:linear-gradient(90deg,#18253E,#1E2D4A,#18253E);background-size:200% 100%;
+}
+@media (prefers-reduced-motion:reduce){
+  :where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) .pskel .pskel__row{animation:none}
+}
+
+/* ── status badges in the shape of .cx-pill (the tones stay per status) ── */
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) .creq__badge{
+  display:inline-flex;align-items:center;gap:5px;min-height:26px;padding:3px 10px;border-radius:999px;font-size:.74rem;font-weight:600;line-height:1.3;
+}
+
+/* ── forms, as 1c: sentence-case ink labels, soft chip fields ── */
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) .cform label{
+  font-size:.88rem;font-weight:600;letter-spacing:0;text-transform:none;color:var(--lx-ink);
+}
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) .cform :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),textarea){
+  background:var(--lx-chip);border-radius:12px;box-shadow:inset 0 0 0 1px var(--lx-line);
+}
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) .cform :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),textarea):focus{
+  background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-blue),0 0 0 3px rgba(22,104,240,.12);
+}
+
+/* ── toasts: a white dashboard card with a status tile ── */
+:where(html:has(.portal.lx)) .ntf__in{border-radius:16px}
+:where(html:has(.portal.lx)) .ntf__ic{border-radius:12px;background:var(--lx-blue-tint);color:var(--lx-link)}
+
+/* ── "Kimdan maslahat olish?" (ClientHome WhoOption): the option heads as
+   the dashboard's arches — navy dome, the picture in a white circle ── */
+.cdwho .cdwho__stage{background:var(--lx-navy);border-radius:50% 50% 14px 14px / 64px 64px 14px 14px;height:124px;margin:-6px -6px 16px}
+html[data-theme="dark"] .cdwho .cdwho__stage{background:#16243C;box-shadow:inset 0 0 0 1px var(--lx-navy-line)}
+.cdwho .cdwho__art{width:88px;height:88px;border-radius:50%;background:var(--art) center/62% no-repeat,#fff}
+.cdwho .cdwho__c:hover .cdwho__art{transform:none;background-size:68%,auto}
+@media (max-width:560px){
+  .cdwho .cdwho__stage{width:64px;height:64px;margin:0;border-radius:50%}
+  .cdwho .cdwho__art{width:56px;height:56px}
+}
+
+/* ── full-screen routes (the document builder, its preview, the editors) ──
+   globals.css gives .portal--full one grid column and parks the sidebar as a
+   hover overlay, but shell1920.css's `.portal.lx{grid-template-columns:296px …}`
+   (and the 108px collapsed one) came later with the same weight and won: the
+   builder was squeezed into the 296px sidebar track at 1470px, with a 16px
+   sliver of the navy rail showing at the left edge (the rail's own margin).
+   Below 900px the hover strip that opens the rail — position:fixed only above
+   900px — fell into the grid as a static row and pushed the page down. */
+@media (min-width:901px){
+  .portal.lx.portal--full,.portal.lx.portal--full.psb-collapsed{grid-template-columns:minmax(0,1fr)}
+  .portal.lx.portal--full .psb.lx-sb{margin:0;top:0;bottom:0;border-radius:0 24px 24px 0;transform:translateX(calc(-100% - 24px))}
+  .portal.lx.portal--full .psb.lx-sb.peek{transform:none}
+}
+@media (max-width:900px){
+  .portal.lx .psb__hotzone{display:none}
+}
+
+/* ── filter bars (components/filters/FilterBar.tsx) as the dashboard's
+   search tray (.cx-find): a chip-coloured tray, no shadow, white 12px fields
+   with a hairline; quiet labels and icons ── */
+:where(.portal.lx) .uf-card{background:var(--lx-chip);border-radius:18px;padding:14px 16px;box-shadow:none}
+:where(.portal.lx) .uf-fld__l,:where(.portal.lx) .uf-fld > label{font-weight:600;color:var(--lx-gray)}
+:where(.portal.lx) :is(.uf-fld__l,.uf-fld > label) svg{color:var(--lx-gray2)}
+:where(.portal.lx) .uf-search input{background:var(--lx-card);border-radius:12px;box-shadow:inset 0 0 0 1px var(--lx-line);font-weight:500}
+:where(.portal.lx) .uf-search input:hover{background:var(--lx-card);box-shadow:inset 0 0 0 1px #C7D6EC}
+:where(.portal.lx) .uf-search input:focus{background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-blue),0 0 0 3px rgba(22,104,240,.12)}
+:where(.portal.lx) .uf-search__x{background:var(--lx-chip);color:var(--lx-ink)}
+:where(.portal.lx) .uf-card .dsel__btn{background:var(--lx-card);border-radius:12px;box-shadow:inset 0 0 0 1px var(--lx-line)}
+:where(.portal.lx) .uf-card .dsel__btn:hover{box-shadow:inset 0 0 0 1px #C7D6EC}
+html[data-theme="dark"] :where(.portal.lx) .uf-search input:hover,html[data-theme="dark"] :where(.portal.lx) .uf-card .dsel__btn:hover{box-shadow:inset 0 0 0 1px #3A4E75}
+
+/* ── "AI yordamchi" / Mijoz AI side panel (components/copilot) ──
+   Its own gradients (--cpl-grad, --cpl-me, a violet one for sellers) and blue
+   glows → the dashboard's flat blue and navy, a flat white head. */
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) .cpl.cpl{--cpl-grad:var(--lx-blue);--cpl-me:var(--lx-blue)}
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) .cpl .cpl-head{background:var(--lx-card)}
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) .cpl :is(.cpl-mark,.cpl-intro__mark,.cpl-ai__av,.cpl-go,.cpl-me){box-shadow:none}
+
+/* ── "Yordam" header menu (components/portal/SupportMenu.tsx) ──
+   gradient / amber / green tiles → one family: a chip tile with a blue icon,
+   as the dashboard's small affordances. */
+:where(.portal.lx) .psup__ic.psup__ic{background:var(--lx-chip);color:var(--lx-link)}
+:where(.portal.lx) .psup__it:hover,:where(.portal.lx) .psup__it:focus-visible{background:var(--lx-chip)}
+:where(.portal.lx) .psup__menu{border-radius:18px}

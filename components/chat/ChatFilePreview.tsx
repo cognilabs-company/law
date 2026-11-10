@@ -1,5 +1,7 @@
 "use client";
 
+import "./messenger/comms1920.css";
+import { breakName } from "./messenger/format";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
@@ -192,7 +194,7 @@ export default function ChatFilePreview({
       >
         <div className="sprev__bar">
           <span className="sprev__name">
-            <b>{file.fileName}</b>
+            <b>{breakName(file.fileName)}</b>
             <small>{size}</small>
           </span>
           <button

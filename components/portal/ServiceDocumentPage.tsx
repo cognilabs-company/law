@@ -1,5 +1,6 @@
 "use client";
 
+import "./builder1920.css";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
@@ -80,17 +81,21 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
 
   return (
     <div className="docbuild docbuild--full">
-      <div className="docbuild__top">
+      {/* The page head as the dashboard draws it: the way back as the small
+          line above, the document's name as the title, the tools on the right. */}
+      <div className="docbuild__top bld-top">
         <button type="button" className="docbuild__back" onClick={askOrLeave} data-ai-id="documents.constructor.back">
           <IconChevronLeft />
           {t("back")}
         </button>
-        {title ? <b className="docbuild__title">{title}</b> : null}
-        <InstructorButton className="docbuild__ai" />
-        <button type="button" className="docbuild__exit" onClick={askOrLeave} data-ai-id="documents.constructor.exit">
-          <IconClose />
-          {td("exit")}
-        </button>
+        {title ? <h1 className="docbuild__title">{title}</h1> : null}
+        <div className="bld-top__tools">
+          <InstructorButton className="docbuild__ai" labelClassName="docbuild__ailbl" />
+          <button type="button" className="docbuild__exit" onClick={askOrLeave} data-ai-id="documents.constructor.exit" title={td("exit")} aria-label={td("exit")}>
+            <IconClose />
+            <span className="docbuild__exitlbl">{td("exit")}</span>
+          </button>
+        </div>
       </div>
       <DocChromeContext.Provider value={chrome}>
         <ServiceDocumentRequest serviceId={serviceId} onTitle={setTitle} onDraftId={setDraftId} />
@@ -98,7 +103,7 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
 
       {/* The one way out, whichever control was pressed. */}
       <Modal open={exitOpen} onClose={() => setExitOpen(false)} title={td("exitTitle")}>
-        <div className="cform" style={{ maxWidth: "none" }} data-ai-id="documents.constructor.exit-confirm" data-ai-type="modal" data-ai-label={td("exitTitle")}>
+        <div className="cform bld-exit" style={{ maxWidth: "none" }} data-ai-id="documents.constructor.exit-confirm" data-ai-type="modal" data-ai-label={td("exitTitle")}>
           <p className="dexit__lead">
             <span className="dexit__i"><IconAlert /></span>
             {td("exitLead")}

@@ -1,14 +1,17 @@
 /* Ready legal documents: the template catalog and a template's own page. */
+/* The private tokens follow the shell's (components/portal/shell/shell1920.css
+   --lx-*, light and dark); the old palette only where those are absent. The
+   1920 look itself is drawn by ./catalog1920.css. */
 .tcat,
 .tdp {
-  --tc-acc: var(--dk-acc, var(--b600, #1d63c4));
-  --tc-card: var(--dk-surface, #fff);
-  --tc-soft: var(--dk-surface-2, #f4f7fb);
-  --tc-ok: #0b7a52;
+  --tc-acc: var(--lx-blue, var(--dk-acc, var(--b600, #1d63c4)));
+  --tc-card: var(--lx-card, var(--dk-surface, #fff));
+  --tc-soft: var(--lx-chip, var(--dk-surface-2, #f4f7fb));
+  --tc-ok: var(--lx-ok, #0b7a52);
 }
 html[data-theme="dark"] .tcat,
 html[data-theme="dark"] .tdp {
-  --tc-ok: #5fd6a4;
+  --tc-ok: var(--lx-ok, #5fd6a4);
 }
 
 /* ── Category strip ─────────────────────────────────────────── */
@@ -190,10 +193,7 @@ html[data-theme="dark"] .tdp {
   overflow-wrap: anywhere;
 }
 .tcard__d {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  display: block;
   color: var(--gray);
   font-size: 0.8rem;
   line-height: 1.45;

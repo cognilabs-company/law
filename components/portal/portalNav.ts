@@ -144,6 +144,10 @@ export const TITLE_ONLY: Record<"client" | "advocate" | "lawyer", NavItem[]> = {
     { href: "/portal/client/packages", key: "packages", Icon: IconPackage },
     { href: "/portal/client/referrals", key: "referrals", Icon: IconUserPlus },
     { href: "/portal/client/payments", key: "payments", Icon: IconGem },
+    // Opened from the dashboard's AI card and the academy links: without a
+    // row here the header read "Boshqaruv paneli" and lit the dashboard row.
+    { href: "/portal/client/intake", key: "intake", Icon: FileQuestion },
+    { href: "/portal/client/academy", key: "academy", Icon: ClipboardList },
   ],
   advocate: [
     { href: "/portal/advocate/notifications", key: "notifications", Icon: IconBell },

@@ -1,0 +1,525 @@
+/* ═══ LexGo 1920 — SOS, "Muammo tahlili" (intake) and the advocate profile ═══
+   app/[locale]/portal/client/sos/page.tsx, app/[locale]/portal/client/intake/page.tsx
+   (+ /matches, which redirects there), components/portal/LawyerProfileModal.tsx
+   and components/ContractCard.tsx, drawn in the client dashboard's vocabulary
+   (components/portal/dash/ClientHome.tsx + dash1920.css):
+   - the shell's header names the page, so neither page draws a second title;
+     SOS keeps a compact banner in the one SOS red (#D93B30, the sidebar's SOS
+     row) with the emergency picture in a white circle; intake opens its
+     question card with the problem-analysis picture;
+   - the pictures are the dashboard's black line drawings (public/img/sos,
+     public/img/xizmatlar) in white circles, never icons in pastel tiles;
+   - cards are .lx-card (radius 24, line-2 border, no shadow, no gradient),
+     inner cards radius 16 on the chip colour, pills/chips/tags/empty states
+     are the dashboard's .cx-* ones, buttons are flat and radius 12.
+   The old rules for these classes live in app/globals.css (.sos2*, .intake*,
+   .urgblk*, .aioff*, .advpick*, .lprof*, .lsrc*, .aidisc, .aifile*,
+   .vmodal*); every selector here outweighs them. Dialog rules are prefixed
+   with .sosi-lp (the profile's own class) because dialogs are portalled to
+   <body>, outside .portal.lx. */
+
+/* ═══════════════════════ SOS ═══════════════════════ */
+/* one full-width column: the banner and the cards never change width
+   between the idle, connecting, connected and sent states */
+.portal.lx .sos2.sosi{
+  width:100%;max-width:none;margin:0;display:grid;grid-template-columns:minmax(0,1fr);gap:24px;min-width:0;
+  container:sosi / inline-size;
+}
+.portal.lx .sosi > *{min-width:0}
+
+/* ── banner: flat SOS red, the picture in a white circle, a white call button ── */
+.portal.lx .sos2__hero.sosi-hero{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:18px 24px;
+  padding:24px 28px;border-radius:24px;overflow:visible;flex-wrap:nowrap;text-align:left;color:#fff;
+}
+.sosi-hero__art{width:88px;height:88px;flex:none;border-radius:50%;background:var(--art) center/62% no-repeat,#fff}
+.portal.lx .sos2__heromain.sosi-hero__main{display:grid;gap:6px;min-width:0;text-align:left}
+.portal.lx .sos2__sub.sosi-hero__lead{
+  margin:0;max-width:none;opacity:1;font-family:var(--fd);font-size:1.22rem;font-weight:700;line-height:1.35;
+  letter-spacing:-.012em;color:#fff;
+}
+.portal.lx .sosi-hero__note{margin:0;max-width:64ch;font-size:.92rem;line-height:1.55;color:rgba(255,255,255,.88)}
+.portal.lx .sos2__herocall.sosi-call{
+  display:flex;align-items:center;gap:12px;width:auto;padding:10px 20px 10px 10px;border:0;border-radius:16px;
+  background:#fff;color:#0A1526;text-decoration:none;transform:none;transition:background-color .15s;
+}
+.portal.lx .sos2__herocall.sosi-call:hover{background:#F3F6FB;transform:none}
+.portal.lx .sos2__herocall.sosi-call:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.portal.lx .sosi-call .sos2__calli.sosi-call__i{
+  width:44px;height:44px;flex:none;border-radius:12px;background:#FDECEA;color:#D93B30;display:grid;place-items:center;
+}
+.portal.lx .sosi-call__i svg{width:20px;height:20px}
+.portal.lx .sos2__callt.sosi-call__t{display:grid;gap:2px;line-height:1.25;min-width:0}
+.portal.lx .sosi-call .sos2__calll{font-size:.78rem;font-weight:500;color:#4F5F75;opacity:1}
+.portal.lx .sosi-call__t b{font-family:var(--fd);font-size:1.12rem;font-weight:700;color:#0A1526;white-space:nowrap}
+
+/* ── the form and the side ── */
+.portal.lx .sos2__grid.sosi-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(300px,1fr);gap:24px;align-items:start}
+.portal.lx .sosi-grid > *{min-width:0}
+.portal.lx .sos2__form.sosi-form{
+  display:flex;flex-direction:column;gap:14px;padding:28px;border-radius:24px;
+  background:var(--lx-card);border:1px solid var(--lx-line-2);
+}
+html[data-theme="dark"] .portal.lx .sos2__form.sosi-form{border-color:var(--lx-line)}
+.portal.lx .sos2__h2.cx-h3{margin:0 0 2px}
+.portal.lx .sos2__lbl.sosi-lbl{display:block;margin:6px 0 -2px;font-size:.88rem;font-weight:600;color:var(--lx-ink)}
+
+/* the six situations: white cards, the drawing in a white circle, the name;
+   the picked one in the dashboard's blue with a check */
+.portal.lx .sos2__cats.sosi-cats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.portal.lx .sos2__cat.sosi-cat{
+  position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:12px;min-width:0;
+  padding:18px 12px 16px;border:1px solid var(--lx-line);border-radius:16px;background:var(--lx-card);color:var(--lx-ink);
+  font-family:inherit;font-size:.9rem;font-weight:600;line-height:1.3;text-align:center;cursor:pointer;
+  transition:border-color .15s,transform .15s,box-shadow .15s,background-color .15s;
+}
+.portal.lx .sos2__cat.sosi-cat:hover{border-color:#C7D6EC;background:var(--lx-card);transform:translateY(-2px);box-shadow:0 14px 28px -20px rgba(10,21,38,.35)}
+html[data-theme="dark"] .portal.lx .sos2__cat.sosi-cat:hover{border-color:#3A4E75;box-shadow:none}
+.portal.lx .sos2__cat.sosi-cat:focus-visible{outline:3px solid var(--lx-blue);outline-offset:2px}
+.portal.lx .sos2__cat.sosi-cat.on{border-color:var(--lx-blue);box-shadow:inset 0 0 0 1px var(--lx-blue);background:var(--lx-blue-tint);color:var(--lx-ink);transform:none}
+.sosi-cat__art{
+  width:72px;height:72px;flex:none;border-radius:50%;background:var(--art) center/64% no-repeat,#fff;
+  box-shadow:inset 0 0 0 1px var(--lx-line);transition:background-size .2s ease;
+}
+.portal.lx .sosi-cat:hover .sosi-cat__art{background-size:70%,auto}
+html[data-theme="dark"] .sosi-cat__art{box-shadow:none}
+.sosi-cat__t{min-width:0;max-width:100%;overflow-wrap:break-word;hyphens:auto}
+.sosi-cat__ck{
+  position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;background:var(--lx-blue);color:#fff;
+  display:grid;place-items:center;opacity:0;transform:scale(.6);transition:opacity .15s,transform .15s;
+}
+.sosi-cat__ck svg{width:13px;height:13px;stroke-width:3}
+.portal.lx .sosi-cat.on .sosi-cat__ck{opacity:1;transform:none}
+
+/* the description, as the dashboard's fields (also in dark mode) */
+.portal.lx .sos2__desc.sosi-desc{
+  width:100%;min-height:120px;padding:14px 16px;border:1px solid var(--lx-line);border-radius:16px;
+  background:var(--lx-card);color:var(--lx-ink);font:inherit;font-size:.95rem;line-height:1.55;resize:vertical;outline:0;
+  transition:border-color .15s,box-shadow .15s;
+}
+.portal.lx .sos2__desc.sosi-desc::placeholder{color:var(--lx-gray2)}
+.portal.lx .sos2__desc.sosi-desc:focus{border-color:var(--lx-blue);box-shadow:0 0 0 3px rgba(22,104,240,.12)}
+
+/* the emergency action: flat SOS red, radius 12, no glow */
+.portal.lx .sos2__btn.sosi-go{
+  margin-top:4px;display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:56px;padding:12px 18px;
+  border:0;border-radius:12px;background:#D93B30;color:#fff;font-family:inherit;font-size:1rem;font-weight:700;line-height:1.3;
+  box-shadow:none;transform:none;cursor:pointer;transition:background-color .15s;
+}
+.portal.lx .sos2__btn.sosi-go:hover{background:#C2342A;box-shadow:none;transform:none}
+.portal.lx .sos2__btn.sosi-go:focus-visible{outline:3px solid rgba(217,59,48,.35);outline-offset:2px}
+.portal.lx .sos2__btn.sosi-go:disabled{opacity:.6;cursor:default}
+.portal.lx .sos2__btn.sosi-go svg{width:20px;height:20px;flex:none}
+.portal.lx .sosi-go span{min-width:0;text-align:center}
+.portal.lx .sos2__hint.sosi-hint{margin:0;text-align:center;font-size:.82rem;line-height:1.45;color:var(--lx-gray)}
+
+/* side: how it works (neutral number bubbles) and why */
+.portal.lx .sos2__side.sosi-side{display:grid;gap:24px;align-content:start;min-width:0}
+.portal.lx .sos2__how.sosi-how{padding:24px;border-radius:24px;background:var(--lx-card);border:1px solid var(--lx-line-2)}
+html[data-theme="dark"] .portal.lx .sos2__how.sosi-how{border-color:var(--lx-line)}
+.portal.lx .sos2__h3.cx-h3{margin:0 0 16px}
+.portal.lx .sos2__steps.sosi-steps{list-style:none;margin:0;padding:0;display:grid;gap:14px}
+.portal.lx .sosi-steps li{display:flex;align-items:flex-start;gap:12px;font-size:.92rem;line-height:1.5;color:var(--lx-ink)}
+.portal.lx .sosi-steps li > span.cx-count{
+  flex:none;width:auto;min-width:26px;height:26px;margin-top:-1px;border-radius:999px;
+  background:var(--lx-chip);color:var(--lx-ink);font-size:.8rem;font-weight:700;
+}
+.portal.lx .sos2__trust.sosi-trust{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.portal.lx .sosi-trust li{display:flex;align-items:center;gap:12px;font-size:.92rem;font-weight:600;color:var(--lx-ink)}
+.sosi-trust__i{
+  width:36px;height:36px;flex:none;border-radius:10px;background:var(--lx-card);border:1px solid var(--lx-line);
+  color:var(--lx-link);display:grid;place-items:center;
+}
+.portal.lx .sos2__trust.sosi-trust .sosi-trust__i svg{width:18px;height:18px;color:var(--lx-link)}
+
+/* ── connecting / connected / sent: the card that replaces the form ── */
+.portal.lx .sosi-state{
+  max-width:none;width:100%;margin:0;min-height:380px;align-self:stretch;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:10px;padding:40px 28px;text-align:center;border-radius:24px;background:var(--lx-card);border:1px solid var(--lx-line-2);
+}
+html[data-theme="dark"] .portal.lx .sosi-state{border-color:var(--lx-line)}
+.portal.lx .sosi-state b.sosi-state__t{margin-top:6px;font-family:var(--fd);font-size:1.18rem;font-weight:700;letter-spacing:-.012em;color:var(--lx-ink)}
+.portal.lx .sosi-state .sosi-state__s{max-width:360px;font-size:.9rem;line-height:1.5;color:var(--lx-gray)}
+.sosi-state__art{
+  position:relative;width:96px;height:96px;flex:none;margin-bottom:6px;border-radius:50%;
+  background:var(--art) center/62% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line);
+}
+html[data-theme="dark"] .sosi-state__art{box-shadow:none}
+.portal.lx .sosi-state__art .sos2__spin.sosi-state__ring{
+  position:absolute;inset:-8px;width:auto;height:auto;border-radius:50%;
+  border:3px solid var(--lx-blue-tint);border-top-color:var(--lx-blue);animation:spin 1s linear infinite;
+}
+.portal.lx .sos2__ok.sosi-state__ok{width:48px;height:48px;border-radius:14px;background:var(--lx-ok-bg);color:var(--lx-ok);display:grid;place-items:center}
+.portal.lx .sosi-state__ok svg{width:24px;height:24px}
+/* the duty advocate, as the dashboard's "Mutaxassis" row */
+.portal.lx .sos2__duty.sosi-duty{
+  display:flex;align-items:center;gap:12px;width:100%;max-width:380px;margin-top:8px;padding:14px 16px;
+  border:0;border-radius:16px;background:var(--lx-chip);text-align:left;
+}
+.portal.lx .sos2__av.sosi-duty__av{width:40px;height:40px;border-radius:50%;background:var(--lx-navy);color:#fff;font-size:.8rem;font-weight:700;text-transform:uppercase}
+html[data-theme="dark"] .portal.lx .sos2__av.sosi-duty__av{background:var(--lx-blue)}
+.sosi-duty__m{display:grid;gap:2px;min-width:0}
+.sosi-duty__n{font-size:.98rem;font-weight:600;color:var(--lx-ink)}
+.sosi-duty__r{font-size:.84rem;color:var(--lx-gray)}
+.portal.lx .btn.sosi-state__btn{margin-top:10px;min-width:220px}
+.portal.lx .btn.sosi-state__btn svg{width:18px;height:18px}
+/* the hotline, as the dashboard's navy strip with a white icon tile */
+.portal.lx .sos2__call.sosi-hot{
+  display:flex;align-items:center;gap:14px;width:100%;max-width:380px;margin-top:8px;padding:14px 16px;border-radius:16px;
+  background:var(--lx-navy);color:#fff;text-decoration:none;box-shadow:none;transform:none;text-align:left;
+}
+html[data-theme="dark"] .portal.lx .sos2__call.sosi-hot{background:#0B1830;box-shadow:inset 0 0 0 1px var(--lx-navy-line)}
+.sosi-hot__i{width:48px;height:48px;flex:none;border-radius:12px;background:#fff;color:#0A1526;display:grid;place-items:center}
+.sosi-hot__i svg{width:22px;height:22px}
+.sosi-hot__t{display:grid;gap:2px;min-width:0}
+.sosi-hot__t > span{font-size:.8rem;color:#C9D4E3}
+.portal.lx .sosi-hot__t b{font-family:var(--fd);font-size:1.15rem;font-weight:700;color:#fff;white-space:nowrap}
+
+@container sosi (max-width:900px){
+  .portal.lx .sos2__grid.sosi-grid{grid-template-columns:minmax(0,1fr)}
+}
+@container sosi (max-width:820px){
+  .portal.lx .sos2__hero.sosi-hero{grid-template-columns:auto minmax(0,1fr)}
+  .portal.lx .sos2__herocall.sosi-call{grid-column:1 / -1;justify-content:center}
+}
+@container sosi (max-width:560px){
+  .portal.lx .sos2__hero.sosi-hero{padding:20px;gap:16px}
+  .sosi-hero__art{width:64px;height:64px}
+  .portal.lx .sos2__sub.sosi-hero__lead{font-size:1.05rem}
+  .portal.lx .sosi-hero__note{font-size:.86rem}
+  .portal.lx .sos2__form.sosi-form,.portal.lx .sos2__how.sosi-how{padding:20px}
+  .portal.lx .sosi-state{padding:32px 20px;min-height:0}
+}
+@container sosi (max-width:470px){
+  .portal.lx .sos2__cats.sosi-cats{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .portal.lx .sos2__form.sosi-form,.portal.lx .sos2__how.sosi-how{padding:16px}
+  .portal.lx .sos2__btn.sosi-go{font-size:.92rem;gap:8px;padding:12px 14px}
+  /* a phone keeps the banner short: the picture, the promise, the call */
+  .portal.lx .sosi-hero__note{display:none}
+  /* the call buttons keep the number on one line on the narrowest phones */
+  .portal.lx .sos2__herocall.sosi-call{gap:10px;padding:8px 14px 8px 8px}
+  .portal.lx .sosi-call .sos2__calli.sosi-call__i{width:38px;height:38px;border-radius:10px}
+  .portal.lx .sosi-call__t b,.portal.lx .sosi-hot__t b{font-size:1rem}
+  .portal.lx .sos2__call.sosi-hot{gap:12px;padding:12px}
+  .sosi-hot__i{width:40px;height:40px}
+}
+/* the narrowest phone (320): the emergency label stays on one line */
+@container sosi (max-width:340px){
+  .portal.lx .sos2__btn.sosi-go{padding:12px 10px;font-size:.86rem;letter-spacing:-.005em}
+  .portal.lx .sos2__btn.sosi-go svg{display:none}
+}
+
+/* ═══════════════════════ Intake ═══════════════════════ */
+.portal.lx .intake.sosi-in{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;min-width:0;container:sosi-in / inline-size}
+.portal.lx .sosi-in > *{min-width:0;margin:0}
+
+/* ── the question card: the picture, the title line, the dashboard's AI box ── */
+.sosi-ask__h{display:flex;align-items:center;gap:18px;margin-bottom:22px}
+.sosi-ask__art{
+  width:76px;height:76px;flex:none;border-radius:50%;background:var(--art) center/64% no-repeat,#fff;
+  box-shadow:inset 0 0 0 1px var(--lx-line);
+}
+html[data-theme="dark"] .sosi-ask__art{box-shadow:none}
+.sosi-ask__ht{min-width:0}
+.sosi-ask__ht .lx-sub{margin-top:4px;max-width:72ch}
+.portal.lx .intake__lbl.sosi-lbl{display:block;margin:0 0 8px;font-size:.88rem;font-weight:600;color:var(--lx-ink)}
+.portal.lx .cx-ai__f.sosi-ask__f{align-items:center}
+.portal.lx .intake__ta.cx-ai__q.sosi-ask__q{
+  width:auto;min-height:74px;margin:0;padding:13px 0;border:0;border-radius:0;background:none;box-shadow:none;
+  color:var(--lx-ink);font-size:.98rem;line-height:24px;resize:none;outline:0;
+}
+.portal.lx .cx-ai__go.sosi-ask__go:disabled{opacity:.55;cursor:default;background:var(--lx-navy)}
+html[data-theme="dark"] .portal.lx .cx-ai__go.sosi-ask__go:disabled{background:var(--lx-blue)}
+.sosi-ask__ft{display:grid;gap:8px;margin-top:14px}
+.portal.lx .sosi-ask__ft .intake__hint{margin:0;text-align:left;font-size:.84rem;line-height:1.45;color:var(--lx-gray)}
+.portal.lx .sosi-ask__ft .intake__bh{display:flex;justify-content:flex-start;margin:0;text-align:left}
+.portal.lx .sosi-in .bhours{justify-content:flex-start;gap:4px 8px;font-size:.84rem;color:var(--lx-gray)}
+.portal.lx .sosi-in .bhours__dot{background:var(--lx-gray2)}
+.portal.lx .sosi-in .bhours--open .bhours__dot{background:var(--lx-ok)}
+.portal.lx .sosi-in :is(.bhours--closed,.bhours--dayOff) .bhours__dot{background:var(--lx-warn)}
+.portal.lx .sosi-in .bhours__st{font-weight:600;color:var(--lx-ink)}
+.portal.lx .sosi-in .bhours__note{font-size:.82rem;color:var(--lx-warn)}
+
+/* ── section heads, as the dashboard's (.cx-h3 + count + blue link) ── */
+.portal.lx .intake__resh.sosi-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 16px;margin:0 0 18px}
+.portal.lx .sosi-head .cx-h3{margin:0}
+.portal.lx .intake__resh.sosi-head--sub{justify-content:flex-start;gap:6px 12px}
+.portal.lx .sosi-head .advmuted{margin:0;font-size:.86rem;color:var(--lx-gray)}
+.sosi-h4{margin:0;display:flex;align-items:center;gap:10px;font-family:var(--fd);font-size:1.04rem;font-weight:700;letter-spacing:-.01em;color:var(--lx-ink)}
+.portal.lx .rf__link.cx-link.sosi-more{margin:0;padding:0;font-size:.88rem;font-weight:600;color:var(--lx-link)}
+.portal.lx .rf__link.sosi-more svg{width:16px;height:16px}
+/* parts of the result card, one under another */
+.portal.lx .sosi-res .sosi-part{margin-top:24px;padding-top:24px;border-top:1px solid var(--lx-line-2)}
+html[data-theme="dark"] .portal.lx .sosi-res .sosi-part{border-top-color:var(--lx-line)}
+
+/* ── the urgent banner: flat SOS red, the emergency picture, white actions ── */
+.portal.lx .urgblk.sosi-urg{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:16px 20px;
+  padding:22px 24px;border-radius:24px;background:#D93B30;box-shadow:none;color:#fff;
+}
+.portal.lx .urgblk__i.sosi-urg__art{width:72px;height:72px;border-radius:50%;background:var(--art) center/62% no-repeat,#fff}
+.portal.lx .urgblk__t.sosi-urg__t{min-width:0;display:grid;gap:4px}
+.portal.lx .sosi-urg__t b{font-family:var(--fd);font-size:1.2rem;font-weight:700;letter-spacing:-.012em;color:#fff}
+.portal.lx .sosi-urg__t span{font-size:.92rem;line-height:1.5;color:rgba(255,255,255,.88);opacity:1}
+.portal.lx .urgblk__act.sosi-urg__act{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+.portal.lx .btn.urgblk__sos.sosi-urg__cta{height:48px;background:#fff;color:#0A1526;font-weight:600}
+.portal.lx .btn.urgblk__sos.sosi-urg__cta:hover{background:#F3F6FB}
+.portal.lx .sosi-urg__cta svg{width:18px;height:18px;color:#D93B30}
+.portal.lx .urgblk__call.sosi-urg__call{
+  height:48px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 16px;border:0;border-radius:12px;
+  background:rgba(255,255,255,.14);color:#fff;font-weight:600;white-space:nowrap;text-decoration:none;
+}
+.portal.lx .urgblk__call.sosi-urg__call:hover{background:rgba(255,255,255,.22)}
+.portal.lx .sosi-urg__call svg{width:17px;height:17px}
+
+/* ── the result ── */
+.portal.lx .intake__urg.cx-pill.sosi-pill{padding:0 10px 0 8px;font-size:.76rem;font-weight:600;letter-spacing:0;text-transform:none}
+.portal.lx .intake__urg.sosi-pill--blue{background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
+.portal.lx .intake__urg.sosi-pill--gray{background:var(--lx-chip);color:var(--lx-gray)}
+.portal.lx .intake__urg.sosi-pill--err{background:var(--lx-err-bg);color:var(--lx-err)}
+.portal.lx .sosi-kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px;margin:0 0 16px}
+.portal.lx .sosi-kv .intake__kv{display:grid;gap:4px;align-content:start;padding:14px 16px;border-radius:16px;background:var(--lx-chip)}
+.portal.lx .sosi-kv dt{font-size:.8rem;font-weight:500;color:var(--lx-gray)}
+.portal.lx .sosi-kv dd{margin:0;font-size:.98rem;font-weight:600;line-height:1.4;color:var(--lx-ink)}
+.portal.lx .sosi-res .intake__summary{margin:0 0 4px;font-size:.95rem;line-height:1.6;color:var(--lx-ink)}
+/* the AI mark: a blue pill and grey text on the chip colour, no gradient */
+.portal.lx .sosi-res .ailbl{margin:14px 0 0;padding:10px 14px;border:0;border-radius:12px;background:var(--lx-chip);color:var(--lx-gray);font-size:.82rem}
+html[data-theme="dark"] .portal.lx .sosi-res .ailbl{background:var(--lx-chip)}
+.portal.lx .sosi-res .ailbl__b{padding:3px 10px 3px 8px;background:var(--lx-blue-tint);color:var(--lx-blue-ink);font-weight:600;letter-spacing:0}
+.portal.lx .sosi-res .ailbl__t,html[data-theme="dark"] .portal.lx .sosi-res .ailbl__t{color:var(--lx-gray)}
+
+/* the three offers: chip cards like "Jarayondagi ishlar", tiers as pills
+   (grey, blue, navy — no violet), buttons that always fit */
+.portal.lx .aioff.sosi-offs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}
+.portal.lx .aioff__c.sosi-off{display:flex;flex-direction:column;gap:10px;min-width:0;padding:18px;border:0;border-radius:16px;background:var(--lx-chip)}
+.portal.lx .aioff__lv.sosi-off__lv{
+  align-self:flex-start;display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;
+  font-size:.74rem;font-weight:600;letter-spacing:0;text-transform:none;white-space:nowrap;
+  background:var(--lx-card);color:var(--lx-gray);box-shadow:inset 0 0 0 1px var(--lx-line);
+}
+.portal.lx .sosi-off--standard .aioff__lv.sosi-off__lv{background:var(--lx-blue-tint);color:var(--lx-blue-ink);box-shadow:none}
+.portal.lx .sosi-off--premium .aioff__lv.sosi-off__lv{background:var(--lx-navy);color:#fff;box-shadow:none}
+html[data-theme="dark"] .portal.lx .sosi-off--premium .aioff__lv.sosi-off__lv{background:var(--lx-blue)}
+.portal.lx .aioff__t.sosi-off__t{font-size:.98rem;font-weight:600;line-height:1.35;color:var(--lx-ink);overflow-wrap:break-word}
+.portal.lx .aioff__price.sosi-off__price{font-family:var(--fd);font-size:1.15rem;font-weight:700;color:var(--lx-ink)}
+.portal.lx .aioff__meta.sosi-off__meta{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.82rem;color:var(--lx-gray)}
+.portal.lx .sosi-off__meta i{display:inline-flex;align-items:center;gap:5px;font-style:normal}
+.portal.lx .sosi-off__meta svg{width:15px;height:15px;flex:none}
+.portal.lx .aioff__act.sosi-off__act{display:grid;justify-items:center;gap:10px;margin-top:4px;padding-top:4px}
+.portal.lx .sosi-off__act .btn.sosi-off__go{width:100%;flex:none;justify-content:center}
+.portal.lx .sosi-off__act .btn svg{width:16px;height:16px}
+.portal.lx .cx-link.sosi-off__pass{font-size:.86rem}
+.portal.lx .sosi-off__pass svg{transition:transform .2s}
+.portal.lx .sosi-off__pass[aria-expanded="true"] svg{transform:rotate(180deg)}
+.portal.lx .sosi-off .spass{padding:12px 0 2px;border-top:1px dashed var(--lx-line)}
+.portal.lx .btn.sosi-rec svg{width:16px;height:16px}
+
+/* the advocates: the dashboard's specialist cards (navy initials, name,
+   role, tags in the reader's language, match as a blue pill) */
+.portal.lx .advpick.sosi-mts__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr));gap:14px}
+.portal.lx .advpick__c.sosi-mt{
+  display:flex;align-items:flex-start;gap:14px;min-width:0;padding:16px;border:1px solid var(--lx-line);border-radius:16px;
+  background:var(--lx-card);color:var(--lx-ink);text-align:left;transition:border-color .15s,transform .15s,box-shadow .15s;
+}
+.portal.lx .advpick__c.sosi-mt:hover{border-color:#C7D6EC;transform:translateY(-2px);box-shadow:0 14px 28px -20px rgba(10,21,38,.35)}
+html[data-theme="dark"] .portal.lx .advpick__c.sosi-mt:hover{border-color:#3A4E75;box-shadow:none}
+.portal.lx .advpick__c.sosi-mt:focus-visible{outline:3px solid var(--lx-blue);outline-offset:2px}
+.portal.lx .advpick__av.cx-av.sosi-mt__av{width:44px;height:44px;background:var(--lx-navy);color:#fff;font-size:.84rem;font-weight:700}
+html[data-theme="dark"] .portal.lx .advpick__av.cx-av.sosi-mt__av{background:var(--lx-blue)}
+.portal.lx .advpick__m.sosi-mt__m{flex:1;min-width:0;display:grid;gap:7px}
+.sosi-mt__top{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:6px 10px;min-width:0}
+.sosi-mt__n{min-width:0;font-size:1rem;font-weight:600;line-height:1.35;color:var(--lx-ink)}
+.portal.lx .advpick__price.cx-pill.sosi-mt__pct{padding:0 10px;font-family:inherit;font-size:.74rem;font-weight:600;color:var(--lx-blue-ink)}
+.portal.lx .advpick__stats.sosi-mt__meta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.84rem;color:var(--lx-gray)}
+.portal.lx .advpick__stats.sosi-mt__meta i{display:inline-flex;align-items:center;gap:5px;font-style:normal;font-weight:500;color:var(--lx-gray)}
+.portal.lx .sosi-mt__meta svg{width:14px;height:14px;flex:none}
+.portal.lx .mtchcard__reason.sosi-mt__why{margin:0;font-size:.84rem;line-height:1.45;color:var(--lx-gray)}
+.portal.lx .cx-iconbtn.sosi-mt__go{width:32px;height:32px;border:0;border-radius:50%;background:var(--lx-chip);color:var(--lx-ink);transition:background-color .15s,color .15s}
+.portal.lx .sosi-mt__go svg{width:16px;height:16px}
+.portal.lx .advpick__c.sosi-mt:hover .sosi-mt__go{background:var(--lx-blue);color:#fff}
+
+/* the sources: chip-coloured chips, "Rasmiy" as the dashboard's green check */
+.portal.lx .lsrc.sosi-src{margin:0}
+.portal.lx .sosi-res .lsrc.sosi-src.sosi-part{margin-top:24px}
+.portal.lx .sosi-src .lsrc__h{display:flex;margin:0 0 14px}
+.portal.lx .sosi-src .lsrc__h:has(+ .ppanel__note){margin-bottom:0}
+.portal.lx .sosi-src .ppanel__note.lx-sub{margin:4px 0 16px;font-size:.92rem;line-height:1.5}
+.portal.lx .lsrc__list.sosi-src__list{display:flex;flex-wrap:wrap;gap:8px}
+.portal.lx .lsrc__i.sosi-src__i{
+  display:inline-flex;align-items:center;gap:8px;min-width:0;min-height:36px;padding:7px 14px;border:0;border-radius:18px;
+  background:var(--lx-chip);color:var(--lx-ink);font-size:.86rem;font-weight:500;line-height:1.35;text-decoration:none;
+  transition:background-color .15s,color .15s;
+}
+.portal.lx a.lsrc__i.sosi-src__i:hover{background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
+.portal.lx .lsrc__i.sosi-src__i em{
+  display:inline-flex;align-items:center;gap:4px;padding:0;border-radius:0;background:none;
+  font-style:normal;font-size:.8rem;font-weight:600;white-space:nowrap;color:var(--lx-ok);
+}
+.portal.lx .lsrc__i.sosi-src__i em svg{width:14px;height:14px;color:var(--lx-ok)}
+.portal.lx .lsrc__i.sosi-src__i .sosi-src__ext{width:14px;height:14px;flex:none;color:var(--lx-gray)}
+
+/* the disclaimer and the "no exact source" note: the chip / warn strips */
+.portal.lx .aidisc.sosi-note{
+  display:flex;align-items:flex-start;gap:10px;margin:16px 0 0;padding:12px 14px;border-radius:12px;
+  background:var(--lx-chip);color:var(--lx-gray);font-size:.84rem;line-height:1.5;
+}
+.portal.lx .aidisc.sosi-note svg{width:16px;height:16px;flex:none;margin-top:2px}
+.portal.lx .aidisc--warn.sosi-note--warn{background:var(--lx-warn-bg);color:var(--lx-warn)}
+.portal.lx .sosi-res .aifb{margin-top:14px;gap:8px 10px;font-size:.88rem;color:var(--lx-gray)}
+.portal.lx .sosi-res .aifb--done{color:var(--lx-ok)}
+.portal.lx .sosi-res .intake__acts{margin-top:18px}
+.portal.lx .btn.sosi-sos svg{width:17px;height:17px;color:#D93B30}
+
+/* the analysis failed: the dashboard's empty state in the error tone */
+.portal.lx .ppanel.sosi-fail{padding:16px 28px}
+.portal.lx .sosi-fail .cx-empty__ic.sosi-fail__ic{background:var(--lx-err-bg);color:var(--lx-err)}
+.portal.lx .sosi-fail .cx-empty p{max-width:380px;line-height:1.5}
+.portal.lx .sosi-fail .btn svg{width:16px;height:16px}
+
+@container sosi-in (max-width:900px){
+  .portal.lx .urgblk.sosi-urg{grid-template-columns:auto minmax(0,1fr)}
+  .portal.lx .urgblk__act.sosi-urg__act{grid-column:1 / -1;justify-content:flex-start}
+}
+@container sosi-in (max-width:700px){
+  .portal.lx .aioff.sosi-offs{grid-template-columns:minmax(0,1fr)}
+}
+@container sosi-in (max-width:599px){
+  .portal.lx .cx-ai__f.sosi-ask__f{flex-direction:column;align-items:stretch;padding:4px 8px 8px 14px}
+  .portal.lx .cx-ai__go.sosi-ask__go{justify-content:center;height:48px;margin-left:-6px}
+  .sosi-ask__art{width:60px;height:60px}
+  .sosi-ask__h{gap:14px;margin-bottom:18px}
+  .portal.lx .ppanel.sosi-fail{padding:12px 16px}
+  /* the picture beside the title only; the line under them runs full width */
+  .sosi-ask__h{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:12px 14px}
+  .sosi-ask__ht{display:contents}
+  .sosi-ask__ht .lx-sub{grid-column:1 / -1;margin-top:0}
+}
+@container sosi-in (max-width:480px){
+  .portal.lx .urgblk.sosi-urg{padding:20px;gap:14px 16px}
+  .portal.lx .urgblk__i.sosi-urg__art{width:56px;height:56px}
+  .portal.lx .sosi-urg__t b{font-size:1.06rem}
+  .portal.lx .urgblk__act.sosi-urg__act > *{flex:1 1 100%}
+}
+/* phones: the advocate card puts its first row (initials, name + match,
+   arrow) above full-width rows, so the tags never squeeze into two lines */
+@container sosi-in (max-width:440px){
+  .portal.lx .advpick__c.sosi-mt{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px 12px;padding:14px}
+  .portal.lx .advpick__m.sosi-mt__m{display:contents}
+  .portal.lx .advpick__av.cx-av.sosi-mt__av{grid-column:1;grid-row:1;width:40px;height:40px}
+  .portal.lx .sosi-mt .sosi-mt__top{grid-column:2;grid-row:1}
+  .portal.lx .cx-iconbtn.sosi-mt__go{grid-column:3;grid-row:1}
+  .portal.lx .sosi-mt :is(.sosi-mt__meta,.cx-tags,.sosi-mt__why){grid-column:1 / -1}
+}
+@container sosi-in (max-width:380px){
+  .portal.lx .btn.urgblk__sos.sosi-urg__cta{padding:10px;gap:6px;font-size:.84rem}
+  .portal.lx .sosi-urg__cta svg{width:16px;height:16px}
+}
+
+/* ═══════════════ the advocate profile dialog (portalled) ═══════════════ */
+.sosi-lp.lprof{gap:18px}
+.sosi-lp .lprof__head{gap:16px;align-items:center}
+.sosi-lp .lprof__av.sosi-lp__av{width:56px;height:56px;border-radius:50%;background:var(--lx-navy);color:#fff;font-size:1.02rem;font-weight:700}
+html[data-theme="dark"] .sosi-lp .lprof__av.sosi-lp__av{background:var(--lx-blue)}
+.sosi-lp .lprof__n{font-size:1.12rem;font-weight:600;line-height:1.3;color:var(--lx-ink)}
+.sosi-lp .lprof__tags.sosi-lp__role{margin-top:6px;gap:6px 10px}
+.sosi-lp .advcard__kind.cx-tag{padding:4px 10px;border-radius:999px;background:var(--lx-chip);color:var(--lx-ink);font-size:.78rem;font-weight:500;line-height:1.3}
+.sosi-lp .lprof__pid{font-size:.8rem;font-weight:500;color:var(--lx-gray2)}
+.sosi-lp .lprof__vf--un{padding:4px 10px;border:0;border-radius:999px;background:var(--lx-chip);color:var(--lx-gray);font-size:.78rem;font-weight:500;letter-spacing:0;text-transform:none}
+/* "Tasdiqlangan" as the dashboard's green check (.cx-ok), not the 3D seal;
+   still the button that opens the explanation */
+.sosi-lp .vbadge:not(.vbadge--icon){gap:4px;padding:0;border-radius:6px;background:none;box-shadow:none;color:var(--lx-ok);font-size:.86rem;font-weight:600}
+.sosi-lp .vbadge .vbadge__img{display:none}
+.sosi-lp .vbadge::before{
+  content:"";width:15px;height:15px;flex:none;background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='m9 12 2 2 4-4'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='m9 12 2 2 4-4'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+.sosi-lp .vbadge:hover .vbadge__t{text-decoration:underline}
+/* its hover tip: the same green check instead of the 3D seal */
+html:has(.sosi-lp) .vbadge-tip{background:var(--lx-navy, #0A1526)}
+html:has(.sosi-lp) .vbadge-tip img{display:none}
+html:has(.sosi-lp) .vbadge-tip::before{
+  content:"";width:14px;height:14px;flex:none;background:#4ADE9F;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='m9 12 2 2 4-4'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='m9 12 2 2 4-4'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+/* its fuller name for screen readers is already visually hidden (.sr-only);
+   transparent as well, it is not read as cut text on screen */
+.sosi-lp .vbadge .sr-only{opacity:0}
+/* the numbers: chip tiles */
+.sosi-lp .lprof__stats,.sosi-lp .lprof__wins{gap:10px}
+.sosi-lp .lprof__stats > div,.sosi-lp .lprof__wins > div{padding:12px 10px;border-radius:16px;background:var(--lx-chip);text-align:center}
+.sosi-lp .lprof__stats b,.sosi-lp .lprof__wins b{font-family:var(--fd);font-size:1.15rem;font-weight:700;color:var(--lx-ink)}
+.sosi-lp .lprof__stats span,.sosi-lp .lprof__wins span{margin-top:2px;font-size:.76rem;font-weight:500;line-height:1.3;color:var(--lx-gray)}
+/* the rows: sentence-case grey labels, .cx-tag chips */
+.sosi-lp .lprof__row{gap:14px;align-items:baseline;font-size:.92rem;color:var(--lx-ink)}
+.sosi-lp .lprof__lbl{width:132px;font-size:.84rem;font-weight:500;letter-spacing:0;text-transform:none;color:var(--lx-gray)}
+.sosi-lp .lprof__chips{gap:6px}
+.sosi-lp .lprof__chip.cx-tag{padding:4px 10px;border-radius:999px;background:var(--lx-chip);color:var(--lx-ink);font-size:.8rem;font-weight:500;line-height:1.35}
+.sosi-lp .lprof__bio{font-size:.92rem;line-height:1.6;color:var(--lx-gray)}
+.sosi-lp .lprof__ft{flex-wrap:wrap;gap:10px 12px;padding-top:16px;margin-top:0;border-top:1px solid var(--lx-line-2)}
+html[data-theme="dark"] .sosi-lp .lprof__ft{border-top-color:var(--lx-line)}
+.sosi-lp .lprof__price{margin-right:auto}
+.sosi-lp .lprof__price b{font-family:var(--fd);font-size:1.2rem;font-weight:700;color:var(--lx-ink)}
+.sosi-lp .lprof__price span{font-size:.8rem;color:var(--lx-gray)}
+.sosi-lp .lprof__note{margin-top:12px;padding:12px 14px;border:0;border-radius:12px;background:var(--lx-warn-bg);color:var(--lx-warn);font-size:.84rem;line-height:1.5}
+.sosi-lp .lprof__err{color:var(--lx-err)}
+/* the private-chat invoice: rows on the chip colour, a flat primary */
+.sosi-lp .ckint{gap:12px}
+.sosi-lp .ckint .opay__rows{padding:4px 16px;border-radius:16px;background:var(--lx-chip)}
+.sosi-lp .ckint__h svg{color:var(--lx-link)}
+.sosi-lp .ckint .rf__link--muted{color:var(--lx-gray);font-weight:600}
+/* the profile could not be loaded */
+.cx-empty.sosi-lp--none{padding:20px 8px 8px}
+.cx-empty.sosi-lp--none p{max-width:340px;line-height:1.5}
+@media (max-width:560px){
+  .sosi-lp .lprof__price{flex:1 1 100%;margin-right:0}
+  .sosi-lp .lprof__ft .btn{flex:1 1 0}
+  .sosi-lp .lprof__lbl{width:104px}
+  .sosi-lp .lprof__stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sosi-lp .lprof__wins > div{padding:12px 6px}
+}
+@media (max-width:480px){
+  /* the rows stack (globals.css), so the label takes its own line */
+  .sosi-lp .lprof__lbl{width:auto}
+}
+@media (max-width:400px){
+  .sosi-lp .lprof__ft .btn{flex:1 1 100%}
+}
+
+/* "LexGo tomonidan tasdiqlangan" (VerifiedBadge's dialog) while it is opened
+   from this profile: the flat navy hero with the verified-specialist drawing
+   in a white circle — no gradient, glow, ring or 3D seal */
+html:has(.sosi-lp) .amodal__c:has(> .amodal__b > .vmodal__hero){position:relative}
+html:has(.sosi-lp) .amodal__b > .vmodal__hero{background:var(--lx-navy, #0A1526);padding:30px 24px 24px}
+html[data-theme="dark"]:has(.sosi-lp) .amodal__b > .vmodal__hero{background:#0B1830;box-shadow:inset 0 -1px 0 var(--lx-navy-line, #22324D)}
+html:has(.sosi-lp) .vmodal__hero::before,html:has(.sosi-lp) .vmodal__hero .vmodal__ring{display:none}
+html:has(.sosi-lp) .vmodal__hero .vmodal__seal{
+  width:96px;height:96px;border-radius:50%;filter:none;animation:none;
+  background:url(/img/xizmatlar/Tasdiqlangan_mutaxassis.webp) center/62% no-repeat,#fff;
+}
+html:has(.sosi-lp) .vmodal__hero .vmodal__seal img{visibility:hidden}
+html:has(.sosi-lp) .vmodal__hero .vmodal__kicker{margin-top:12px;font-weight:700;letter-spacing:.12em;color:#C9D4E3}
+html:has(.sosi-lp) .vmodal__hero > .vmodal__name{font-weight:700;letter-spacing:-.015em}
+html:has(.sosi-lp) .vmodal__hero .vmodal__who{background:rgba(255,255,255,.08)}
+html:has(.sosi-lp) .vmodal__hero .vmodal__who span{color:#C9D4E3}
+html:has(.sosi-lp) .amodal__c:has(> .amodal__b > .vmodal__hero) > .amodal__h > .amodal__x::before{background:rgba(255,255,255,.08);border-radius:12px}
+html:has(.sosi-lp) .amodal__c:has(> .amodal__b > .vmodal__hero) > .amodal__h > .amodal__x{background:rgba(255,255,255,.08);color:#fff}
+html:has(.sosi-lp) .amodal__c:has(> .amodal__b > .vmodal__hero) > .amodal__h > .amodal__x:hover{background:rgba(255,255,255,.16)}
+html:has(.sosi-lp) .vmodal__desc{color:var(--lx-gray, #4F5F75)}
+/* the dialog's own title is hidden (the hero says it) — kept for screen
+   readers only, and transparent so it never shows as clipped text */
+html:has(.sosi-lp) .amodal__c:has(> .amodal__b > .vmodal__hero) > .amodal__h > .amodal__hd,
+html:has(.sosi-lp) .amodal__c:has(> .amodal__b > .vmodal__hero) > .amodal__h > .amodal__hd *{opacity:0}
+
+/* ═══════════════ the generated contract (ContractCard, AI chat) ═══════════════ */
+.portal.lx .aifile{gap:12px;padding:12px 14px;border-radius:16px;background:var(--lx-chip);box-shadow:none}
+.portal.lx .aifile:hover{box-shadow:inset 0 0 0 1px #C7D6EC}
+html[data-theme="dark"] .portal.lx .aifile:hover{box-shadow:inset 0 0 0 1px #3A4E75}
+.portal.lx .aifile__i{width:40px;height:40px;border-radius:12px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line)}
+.portal.lx .aifile__i svg{width:20px;height:20px;stroke:var(--lx-ink)}
+.portal.lx .aifile__t b{font-size:.92rem;font-weight:600;line-height:1.35;color:var(--lx-ink);white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+.portal.lx .aifile__t span{font-size:.8rem;font-weight:500;letter-spacing:0;text-transform:none;color:var(--lx-gray)}
+.portal.lx .aifile__btn{width:40px;height:40px;border-radius:12px;background:var(--lx-card);border:1px solid var(--lx-line);box-shadow:none;color:var(--lx-ink)}
+.portal.lx .aifile__btn:hover{border-color:var(--lx-blue);background:var(--lx-card);box-shadow:none;color:var(--lx-link)}
+.portal.lx .aifile__btn svg{width:18px;height:18px}

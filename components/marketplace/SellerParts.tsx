@@ -1,13 +1,15 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { fmtUzs } from "@/lib/money";
 import { fmtRating } from "@/lib/date";
 import { regionLabel } from "@/lib/labels";
 import type { MarketSeller, MarketService } from "@/lib/services/marketplace";
 import VerifiedBadge from "@/components/VerifiedBadge";
-import { IconCheck, IconClock, IconGlobe, IconMapPin, IconStar } from "@/components/icons";
-import { Monogram, categoryLabel, deliveryLabel, hasRating, hasSuccess, langLabel, sellerTypeLabel } from "./bits";
+import { IconBuilding, IconCheck, IconClock, IconGlobe, IconMapPin } from "@/components/icons";
+import { initials } from "@/lib/lawyers";
+import { categoryLabel, deliveryLabel, hasRating, hasSuccess, langLabel, sellerTypeLabel } from "./bits";
 import { aiId } from "@/lib/ai/ids";
 import { useRuntimeFacts } from "./runtime/useRuntimeFacts";
 import { durationParts, guaranteesOf } from "./runtime/facts";
@@ -16,14 +18,38 @@ import { GuaranteeBadges } from "./runtime/Guarantees";
 import type { BoughtOrder } from "@/lib/useBoughtServices";
 import { Link } from "@/i18n/navigation";
 
+// A tag only when it reads in the reader's language: a slug the
+// dictionaries do not know would show as English ("Labor disputes").
+function sellerTags(te: ReturnType<typeof useTranslations>, seller: MarketSeller, locale: string): string[] {
+  const out = new Set<string>();
+  for (const c of seller.categories) {
+    const title = (c.title || "").trim();
+    const slug = (c.slug || "").trim().toLowerCase();
+    if (title && !/^[a-z0-9_-]+$/.test(title)) out.add(categoryLabel(te, title, locale));
+    else if (slug && te.has(`areas.${slug}`)) out.add(te(`areas.${slug}`));
+  }
+  for (const s of seller.specializations) {
+    const k = s.trim().toLowerCase();
+    if (k && te.has(`areas.${k}`)) out.add(te(`areas.${k}`));
+  }
+  return [...out].slice(0, 4);
+}
+
+// The profile's head, as the dashboard's specialist card (.cx-exp / 1b): a
+// white card with the photo slot (navy initials), the name, the role with the
+// green "verified" mark, the areas as grey chips, where and in which
+// languages, and the numbers as quiet chip tiles.
 export function SellerHero({ seller, top }: { seller: MarketSeller; top: boolean }) {
   const t = useTranslations("marketplace");
   const te = useTranslations("enums");
+  const tx = useTranslations("lxProf");
   const locale = useLocale();
   const rated = hasRating(seller);
   const success = hasSuccess(seller);
   const place = [regionLabel(te, seller.region), seller.district && seller.district.toLowerCase() !== "demo" ? seller.district : ""].filter(Boolean).join(", ");
   const langs = Array.from(new Set(seller.languages.map((l) => langLabel(t, l))));
+  const tags = sellerTags(te, seller, locale);
+  const org = seller.barAssociation || seller.organizationName;
   const tiles: { k: string; v: string; sub?: string }[] = [
     { k: t("detail.stats.rating"), v: rated ? fmtRating(seller.rating, locale) : t("detail.newRating") },
     { k: t("detail.stats.reviews"), v: String(seller.reviewsCount) },
@@ -36,7 +62,7 @@ export function SellerHero({ seller, top }: { seller: MarketSeller; top: boolean
   const sellerAiId = aiId("marketplace.seller", seller.userId);
   return (
     <header
-      className="mk-prof__hero"
+      className="mk-prof__hero lxp-hero"
       data-ai-target="marketplace:seller-summary"
       data-ai-id={sellerAiId}
       data-ai-type="section"
@@ -44,50 +70,67 @@ export function SellerHero({ seller, top }: { seller: MarketSeller; top: boolean
       data-ai-entity-type="seller"
       data-ai-entity-id={seller.userId}
     >
-      <div className="mk-hero__glow" aria-hidden="true" />
-      <div className="mk-prof__id">
-        <Monogram name={seller.name} rating={seller.rating} showRing={rated} size="lg" />
-        <div className="mk-prof__who">
-          <div className="mk-prof__tags">
-            <span className={`mk-type mk-type--${seller.sellerType || "yurist"}`}>{sellerTypeLabel(t, seller.sellerType)}</span>
-            {seller.verified ? <VerifiedBadge name={seller.name} subtitle={sellerTypeLabel(t, seller.sellerType)} text={seller.badgeLabel} tone="glass" size="md" /> : null}
-            {seller.promotion?.active || seller.isSponsored || top ? (
-              <span className="mk-card__ad mk-card__ad--inline">
-                {seller.promotion?.active && seller.promotion.serviceTitle ? t("card.promotedService", { service: seller.promotion.serviceTitle }) : t("card.promoted")}
+      <div className="lxp-hero__ph" aria-hidden="true">
+        <span className="lxp-hero__av">{initials(seller.name) || "LG"}</span>
+      </div>
+      <div className="lxp-hero__main">
+        <h1 className="mk-prof__name lxp-hero__name">{seller.name}</h1>
+        <div className="lxp-hero__role">
+          <span>{sellerTypeLabel(t, seller.sellerType)}</span>
+          {seller.verified ? <VerifiedBadge name={seller.name} subtitle={sellerTypeLabel(t, seller.sellerType)} text={seller.badgeLabel} tone="light" size="sm" /> : null}
+          {seller.onlineNow ? (
+            <span className="cx-pill cx-pill--ok lxp-hero__on">
+              <i aria-hidden="true" />
+              {tx("onlineNow")}
+            </span>
+          ) : null}
+          {seller.promotion?.active || seller.isSponsored || top ? (
+            <span className="mk-card__ad mk-card__ad--inline lxp-hero__ad">
+              {seller.promotion?.active && seller.promotion.serviceTitle ? t("card.promotedService", { service: seller.promotion.serviceTitle }) : t("card.promoted")}
+            </span>
+          ) : null}
+        </div>
+        {tags.length ? (
+          <div className="cx-tags lxp-hero__tags">
+            {tags.map((x) => (
+              <span key={x} className="cx-tag">
+                {x}
               </span>
-            ) : null}
+            ))}
           </div>
-          <h1 className="mk-prof__name">{seller.name}</h1>
-          <div className="mk-prof__line">
+        ) : null}
+        {seller.bio ? <p className="lxp-hero__bio">{seller.bio}</p> : null}
+        {place || langs.length || org ? (
+          <div className="lxp-hero__geo">
             {place ? (
               <span>
-                <IconMapPin />
+                <IconMapPin aria-hidden="true" />
                 {place}
               </span>
             ) : null}
             {langs.length ? (
               <span>
-                <IconGlobe />
+                <IconGlobe aria-hidden="true" />
                 {langs.join(" · ")}
               </span>
             ) : null}
-            {rated ? (
+            {org ? (
               <span>
-                <IconStar />
-                {fmtRating(seller.rating, locale)} · {t("card.reviews", { count: seller.reviewsCount })}
+                <IconBuilding aria-hidden="true" />
+                {org}
               </span>
             ) : null}
           </div>
-        </div>
-      </div>
-      <div className="mk-prof__tiles">
-        {tiles.map((x) => (
-          <div key={x.k} className="mk-tile">
-            <b>{x.v}</b>
-            <span>{x.k}</span>
-            {x.sub ? <em>{x.sub}</em> : null}
-          </div>
-        ))}
+        ) : null}
+        <dl className="lxp-hero__facts" style={{ "--n": tiles.length } as CSSProperties}>
+          {tiles.map((x) => (
+            <div key={x.k}>
+              <dt>{x.k}</dt>
+              <dd>{x.v}</dd>
+              {x.sub ? <dd className="lxp-hero__sub">{x.sub}</dd> : null}
+            </div>
+          ))}
+        </dl>
       </div>
     </header>
   );

@@ -99,7 +99,7 @@ export default function SellerDetail({
         <div className="msd__who">
           <h3 id={labelId} className="msd__name">
             <span>{name}</span>
-            {verified ? <VerifiedBadge label={false} name={name} subtitle={type ? sellerTypeLabel(tm, type) : undefined} /> : null}
+            {verified ? <VerifiedBadge name={name} subtitle={type ? sellerTypeLabel(tm, type) : undefined} /> : null}
           </h3>
           <p className="msd__sub">
             {type ? <span>{sellerTypeLabel(tm, type)}</span> : null}

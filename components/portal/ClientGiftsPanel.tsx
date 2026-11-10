@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import "./plans1920.css";
+import { useEffect, useId, useState, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { Check, CircleCheck, CircleX, Copy, Gift, Hourglass, Plus, QrCode } from "lucide-react";
+import { planPlate } from "./PlanCard";
 import {
   listGifts,
   createGift,
@@ -19,10 +22,22 @@ import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState"
 import { notify } from "@/lib/toast";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
-import { IconGift, IconPlus, IconCheck, IconArrowRight } from "@/components/icons";
+import { IconGift, IconArrowRight } from "@/components/icons";
 import { dateOnly } from "@/lib/date";
 
 const TERMS = [3, 6, 12];
+
+// The dashboard's black line drawings (public/img/xizmatlar), shown in a
+// white circle: the gift box for the tab and a gifted service, the gift box
+// with a membership card for a gifted plan, the video call for a service.
+const mArt = (name: string) => ({ "--art": `url(/img/xizmatlar/${name}.webp)` }) as CSSProperties;
+// A gift's status in the dashboard's pill tones (.cx-pill), with its icon.
+const PILL = {
+  ok: { cls: "cx-pill--ok", Icon: CircleCheck },
+  wait: { cls: "cx-pill--warn", Icon: Hourglass },
+  live: { cls: "cx-pill--blue", Icon: Gift },
+  off: { cls: "plx-pill--off", Icon: CircleX },
+} as const;
 
 // The gift's exact price is fixed at checkout by the backend; this is only a
 // preview so the sender isn't guessing before they submit. Uses the plan's
@@ -50,7 +65,9 @@ export default function ClientGiftsPanel() {
   const t = useTranslations("portal.client.gifts");
   const tg = useTranslations("portal.client.gifts.statusMap");
   const tcommon = useTranslations("common");
+  const tl = useTranslations("lxPlans");
   const locale = useLocale();
+  const formId = useId();
   const [reloadKey, setReloadKey] = useState(0);
   const gifts = useResource(() => listGifts(), [reloadKey]);
   const plans = useResource<BackendPlan>(() => getSubscriptionPlans(locale), [locale]);
@@ -142,96 +159,144 @@ export default function ClientGiftsPanel() {
     }
   }
 
+  const close = () => { setOpen(false); reset(); };
+  const give = () => { reset(); setOpen(true); };
+  const listed = gifts.status !== "loading" && gifts.data.length > 0;
+
   return (
-    <div className="ppanel" data-ai-target={gifts.status !== "loading" && gifts.data.length ? undefined : "gifts:list"}>
-      <div className="ppanel__h">
-        <b>{t("title")}</b>
-        <button className="btn btn--pri btn--sm" type="button" onClick={() => { reset(); setOpen(true); }} data-ai-target="button:give-gift">
-          <IconPlus />
+    <div className="plx-gifts">
+      {/* The dashboard's navy gift banner ("Yaqinlaringizga g'amxo'rlik
+          qiling" sends people here), with the gift picture in a white circle. */}
+      <section className="cx-gift plx-banner" aria-labelledby={`${formId}-h`}>
+        <span className="plx-banner__art" style={mArt("Sovga")} aria-hidden />
+        <div className="plx-banner__main">
+          <h2 id={`${formId}-h`}>{tl("gifts.bannerTitle")}</h2>
+          <p>{tl("gifts.bannerText")}</p>
+        </div>
+        <button className="btn cx-gift__cta plx-banner__cta" type="button" onClick={give} data-ai-target="button:give-gift">
+          <Plus aria-hidden />
           {t("give")}
         </button>
-      </div>
+      </section>
 
-      {gifts.status === "loading" ? (
-        <Skeleton rows={3} />
-      ) : !gifts.data.length ? (
-        <EmptyState icon={<IconGift />} title={t("empty")} text={t("emptyText")} />
-      ) : (
-        <div className="alist" data-ai-target="gifts:list">
-          {gifts.data.map((g) => {
-            const tone = statusTone(g.status);
-            const incoming = g.direction === "received";
-            return (
-              <div className="creq" key={g.id}>
-                <span className={`creq__st creq__st--${tone}`} />
-                <div className="creq__m">
-                  <b>{g.title || t("untitledGift")}</b>
-                  {/* LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: GFT-XXXXX — the gift's own
-                      public id, distinct from the redemption code below. */}
-                  {g.workId ? <small className="wid">{g.workId}</small> : null}
-                  <small className="gift__kind">{t(g.kind === "service" ? "kindService" : "kindPlan")}</small>
-                  {incoming ? <small className="gift__kind gift__kind--in">{t("gotIt")}</small> : null}
-                  <span>
-                    {[
-                      incoming ? "" : g.recipientPhone,
-                      g.termMonths ? `${g.termMonths} ${t("months")}` : "",
-                      fmtDate(g.createdAt, locale),
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </span>
-                  {g.shareUrl && !incoming && g.status !== "claimed" ? (
-                    <a className="gift__list-link" href={g.shareUrl} target="_blank" rel="noreferrer">
-                      {t("shareCta")}
-                    </a>
-                  ) : null}
-                </div>
-                {/* Scoped to the status map: an unscoped lookup could collide with any
-                    key on the page (a gift whose status is "title" would print the
-                    page heading). */}
-                <span className={`creq__badge creq__badge--${tone}`}>{tg.has(g.status) ? tg(g.status) : g.status}</span>
-              </div>
-            );
-          })}
+      <section className="ppanel plx-list" data-ai-target={listed ? undefined : "gifts:list"}>
+        <div className="ppanel__h cx-works__h">
+          <h3 className="cx-h3">
+            {t("title")}
+            {listed ? <span className="cx-count">{gifts.data.length}</span> : null}
+          </h3>
         </div>
-      )}
 
-      <Modal open={open} onClose={() => { setOpen(false); reset(); }} title={t("give")}>
+        {gifts.status === "loading" ? (
+          <Skeleton rows={3} />
+        ) : !gifts.data.length ? (
+          <EmptyState icon={<IconGift />} title={t("empty")} text={t("emptyText")} />
+        ) : (
+          <div className="alist plx-rows" data-ai-target="gifts:list">
+            {gifts.data.map((g) => {
+              const tone = statusTone(g.status);
+              const pill = PILL[tone];
+              const incoming = g.direction === "received";
+              const meta = [incoming ? "" : g.recipientPhone, g.termMonths ? `${g.termMonths} ${t("months")}` : "", fmtDate(g.createdAt, locale)].filter(Boolean).join(" · ");
+              return (
+                <article className="creq cx-work plx-gift" key={g.id}>
+                  <span className="plx-gift__art" style={mArt(g.kind === "service" ? "Sovga" : "Sovga_tarif")} aria-hidden />
+                  <div className="creq__m plx-gift__m">
+                    <div className="plx-gift__h">
+                      <b>{g.title || t("untitledGift")}</b>
+                      {/* Scoped to the status map: an unscoped lookup could collide with any
+                          key on the page (a gift whose status is "title" would print the
+                          page heading). */}
+                      <span className={`creq__badge creq__badge--${tone} cx-pill ${pill.cls}`}>
+                        <pill.Icon aria-hidden />
+                        {tg.has(g.status) ? tg(g.status) : g.status}
+                      </span>
+                    </div>
+                    <div className="plx-gift__tags">
+                      {/* LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: GFT-XXXXX — the gift's own
+                          public id, distinct from the redemption code below. */}
+                      {g.workId ? <small className="wid">{g.workId}</small> : null}
+                      <small className="gift__kind cx-tag">{t(g.kind === "service" ? "kindService" : "kindPlan")}</small>
+                      {incoming ? <small className="gift__kind gift__kind--in cx-tag">{t("gotIt")}</small> : null}
+                    </div>
+                    {meta ? <span className="plx-gift__meta">{meta}</span> : null}
+                    {g.shareUrl && !incoming && g.status !== "claimed" ? (
+                      <a className="gift__list-link cx-link" href={g.shareUrl} target="_blank" rel="noreferrer">
+                        <QrCode aria-hidden />
+                        {t("shareCta")}
+                      </a>
+                    ) : null}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <Modal
+        open={open}
+        onClose={close}
+        title={t("give")}
+        footer={
+          created ? (
+            <div className="plx-acts">
+              <button type="button" className="btn btn--line" onClick={close}>
+                {t("done")}
+              </button>
+              {created.paymentUrl ? (
+                <a className="btn btn--pri" href={created.paymentUrl} target="_blank" rel="noreferrer">
+                  {t("openPayment")}
+                  <IconArrowRight />
+                </a>
+              ) : null}
+            </div>
+          ) : (
+            <div className="plx-acts">
+              <button type="button" className="btn btn--line" onClick={close} disabled={busy}>
+                {tl("cancel")}
+              </button>
+              <button className="btn btn--pri" type="submit" form={formId} disabled={busy || (kind === "plan" ? !chosenPlan : !chosenService)}>
+                {busy ? t("sending") : t("send")}
+              </button>
+            </div>
+          )
+        }
+      >
         {created ? (
-          <div className="gift__done">
-            <span className="gift__done-ic"><IconCheck /></span>
+          <div className="gift__done plx-made">
+            <span className="gift__done-ic plx-made__art" style={mArt("Sovga")} aria-hidden />
             <b>{t("shareTitle")}</b>
             <p className="advmuted">{t("shareHint")}</p>
             {created.qrUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img className="gift__qr" src={created.qrUrl} alt={t("qrAlt")} width={148} height={148} onError={(e) => { e.currentTarget.style.display = "none"; }} />
             ) : null}
-            <div className="gift__share">
-              <input readOnly value={created.shareUrl} onFocus={(e) => e.currentTarget.select()} />
-              <button type="button" className="btn btn--pri btn--sm" onClick={copyLink}>
-                {copied ? <><IconCheck />{t("copied")}</> : t("copyLink")}
-              </button>
-            </div>
-            <div className="gift__done-ft">
-              {created.paymentUrl ? (
-                <a className="btn btn--line btn--sm" href={created.paymentUrl} target="_blank" rel="noreferrer">
-                  {t("openPayment")}
-                  <IconArrowRight />
-                </a>
-              ) : null}
-              <button type="button" className="btn btn--soft btn--sm" onClick={() => { setOpen(false); reset(); }}>
-                {t("done")}
+            <div className="gift__share plx-share">
+              <input readOnly value={created.shareUrl} onFocus={(e) => e.currentTarget.select()} aria-label={t("copyLink")} />
+              <button type="button" className="btn btn--pri" onClick={copyLink}>
+                {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
+                {copied ? t("copied") : t("copyLink")}
               </button>
             </div>
           </div>
         ) : (
-          <form className="cform gift__form" onSubmit={submit}>
-            <div className="rolerow gift__tabs">
-              <button type="button" className="roletab" aria-pressed={kind === "plan"} onClick={() => setKind("plan")}>
-                {t("kindPlan")}
+          <form id={formId} className="cform gift__form plx-giftform" onSubmit={submit}>
+            {/* Plan or service: two option cards, each with its picture. */}
+            <div className="rolerow gift__tabs plx-kinds">
+              <button type="button" className="roletab plx-kind" aria-pressed={kind === "plan"} onClick={() => setKind("plan")}>
+                <span className="plx-kind__art" style={mArt("Sovga_tarif")} aria-hidden />
+                <span className="plx-kind__t">
+                  <b>{t("kindPlan")}</b>
+                  <small>{tl("gifts.kindPlanSub")}</small>
+                </span>
               </button>
-              <button type="button" className="roletab" aria-pressed={kind === "service"} onClick={() => setKind("service")}>
-                {t("kindService")}
+              <button type="button" className="roletab plx-kind" aria-pressed={kind === "service"} onClick={() => setKind("service")}>
+                <span className="plx-kind__art" style={mArt("Onlayn_konsultatsiya")} aria-hidden />
+                <span className="plx-kind__t">
+                  <b>{t("kindService")}</b>
+                  <small>{tl("gifts.kindServiceSub")}</small>
+                </span>
               </button>
             </div>
 
@@ -249,7 +314,7 @@ export default function ClientGiftsPanel() {
                     </div>
                   ) : chosenPlan ? (
                     <div className="gift__plan">
-                      <span className="gift__plan-ic"><IconGift /></span>
+                      <span className="gift__plan-ic plx-plate-sq" style={planPlate(chosenPlan.slug, true)} aria-hidden />
                       <span className="gift__plan-tx">
                         <b>{chosenPlan.name}</b>
                         {chosenPlan.description ? <small>{chosenPlan.description}</small> : null}
@@ -294,14 +359,6 @@ export default function ClientGiftsPanel() {
                 <p className="rf__hint">{t("estHint")}</p>
               </div>
             ) : null}
-
-            <button
-              className="btn btn--pri btn--full"
-              type="submit"
-              disabled={busy || (kind === "plan" ? !chosenPlan : !chosenService)}
-            >
-              {busy ? t("sending") : t("send")}
-            </button>
           </form>
         )}
       </Modal>

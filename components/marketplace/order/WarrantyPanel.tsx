@@ -16,7 +16,7 @@ import { useSameTickGuard } from "@/lib/useSameTickGuard";
 import { ApiError, isForbidden } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { markRefused, useRefused } from "./refused";
-import { LifeBuoyIcon } from "./icons";
+import { LifeBuoyIcon, artStyle } from "./icons";
 import { SECTION_ID, type OrderSectionProps } from "./types";
 
 // The LexGo guarantee on an order (enterprise contract §10): when the
@@ -64,6 +64,7 @@ export default function WarrantyPanel({ o, view, phase, aiBase, onChanged }: Ord
     const pending = PENDING.has(w.status);
     return (
       <SxPanel id={SECTION_ID.warranty} className="mcr mcr-review" title={t("title")} lead={pending ? t("pending") : t("decided")} aiId={ai}>
+        <span className="odx-feat odx-art" style={artStyle("Kafolat")} aria-hidden="true" />
         {w.resolution && !pending ? (
           <p className="mcr-meta">
             {t("decision")}: <b>{t.has(`resolution.${w.resolution}`) ? t(`resolution.${w.resolution}`) : t("resolutionOther")}</b>
@@ -115,6 +116,7 @@ export default function WarrantyPanel({ o, view, phase, aiBase, onChanged }: Ord
 
   return (
     <SxPanel id={SECTION_ID.warranty} className="mcr" title={t("title")} lead={t("lead")} aiId={ai}>
+      <span className="odx-feat odx-art" style={artStyle("Kafolat")} aria-hidden="true" />
       <SxButton variant="secondary" icon={LifeBuoyIcon} onClick={() => setOpen(true)} aiId={`${ai}.open`}>
         {t("open")}
       </SxButton>

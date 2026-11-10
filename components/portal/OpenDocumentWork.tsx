@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import "./ordersList1920.css";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { ArrowRight, CircleCheck, Loader, MessageSquareText, Sparkles } from "lucide-react";
+import { initials } from "@/lib/lawyers";
+import { personName } from "@/lib/labels";
 import { Link } from "@/i18n/navigation";
 import {
   listClientDocumentFlowPage,
@@ -13,7 +17,13 @@ import { subscribeUserEvents } from "@/lib/userSocket";
 import { useDocChatRooms } from "@/lib/useDocChatRooms";
 import { shortDateTime } from "@/lib/date";
 import { docNextActionKey, statusLabel } from "@/lib/labels";
-import { IconFileText, IconChat, IconVideo, IconClock, IconArrowRight } from "@/components/icons";
+import { IconVideo, IconClock } from "@/components/icons";
+
+// Document work by its picture — the dashboard's "Huquqiy hujjatlar" drawing.
+const ART = { "--art": "url(/img/xizmatlar/Huquqiy_hujjatlar.webp)" } as CSSProperties;
+// The dashboard's pill tones: finished green, with someone else amber, else blue.
+const toneOf = (s: string) =>
+  /^(completed|file_ready|done|delivered|resolved)$/.test(s) ? "ok" : /^(new|open_pool|pending|under_review|lawyer_review|questionnaire|payment_pending)$/.test(s) ? "warn" : "blue";
 
 // Document work the client has started and not got back yet.
 //
@@ -25,6 +35,7 @@ import { IconFileText, IconChat, IconVideo, IconClock, IconArrowRight } from "@/
 export default function OpenDocumentWork() {
   const t = useTranslations("portal.client.documentRequests");
   const tcm = useTranslations("portal.common");
+  const tl = useTranslations("lxOrders");
   const locale = useLocale();
   const [items, setItems] = useState<ClientDocFlowItem[]>([]);
   const [ready, setReady] = useState(false);
@@ -60,50 +71,63 @@ export default function OpenDocumentWork() {
 
   return (
     <section className="ppanel odw" data-ai-target="cases:open-documents">
+      {/* The dashboard's section head: small title, count, "view all →". */}
       <div className="ppanel__h">
-        <b className="ppanel__t"><span className="pico"><IconFileText /></span>{t("openTitle")}</b>
-        <Link href="/portal/client/documents" className="btn btn--line btn--sm">
+        <h2 className="ppanel__t cx-h3">
+          {t("openTitle")}
+          <span className="cx-count">{items.length}</span>
+        </h2>
+        <Link href="/portal/client/documents" className="cx-link">
           {tcm("viewAll")}
-          <IconArrowRight />
+          <ArrowRight aria-hidden />
         </Link>
       </div>
-      <p className="advmuted odw__lead">{t("openLead")}</p>
+      <p className="lx-sub odw__lead">{t("openLead")}</p>
       <ul className="odw__list">
-        {items.map((it) => (
-          <li key={it.id} className="odw__row">
-            <span className="odw__i"><IconFileText /></span>
-            <div className="odw__m">
-              <b>{it.title || t("title")}</b>
-              <span className="odw__sub">
-                {[
-                  statusLabel(tcm, it.status, "docStatus") || it.statusLabel,
-                  it.assignedLawyer?.name,
-                  it.createdAt ? shortDateTime(it.createdAt, locale) : "",
-                ].filter(Boolean).join(" · ")}
-              </span>
+        {items.map((it) => {
+          const st = it.status ? statusLabel(tcm, it.status, "docStatus") || it.statusLabel : it.statusLabel;
+          const tone = toneOf(it.status || "");
+          const lawyer = personName(it.assignedLawyer?.name);
+          const room = it.secureChatRoomId || rooms[it.id] || "";
+          return (
+            <li key={it.id} className="odw__row cx-work">
+              <div className="odw__h">
+                <span className="odw__i odw__art" style={ART} aria-hidden />
+                <div className="odw__m">
+                  <b>{it.title || t("title")}</b>
+                  <span className="odw__sub">{it.createdAt ? shortDateTime(it.createdAt, locale) : ""}</span>
+                </div>
+                {st ? (
+                  <span className={`cx-pill cx-pill--${tone}`}>
+                    {tone === "ok" ? <CircleCheck aria-hidden /> : tone === "warn" ? <Loader aria-hidden /> : <Sparkles aria-hidden />}
+                    {st}
+                  </span>
+                ) : null}
+              </div>
               {it.nextAction ? <span className="odw__next">{nextActionText(it.nextAction)}</span> : null}
               {it.meeting?.active ? (
                 <span className="odw__live"><IconVideo />{t("meetingActive")}</span>
               ) : null}
-            </div>
-            <div className="odw__acts">
-              {(() => {
-                const room = it.secureChatRoomId || rooms[it.id] || "";
-                if (room) {
-                  return (
-                    <Link href={`/portal/chat/${room}`} className="btn btn--pri btn--sm">
-                      <IconChat />
-                      {t("openChat")}
+              <div className="odw__foot">
+                <span className="cx-work__who">
+                  {lawyer ? <span className="cx-av" aria-hidden>{initials(lawyer)}</span> : null}
+                  {lawyer ? tl("who", { name: lawyer }) : null}
+                </span>
+                <div className="odw__acts">
+                  {room ? (
+                    <Link href={`/portal/chat/${room}`} className="cx-iconbtn odw__chat" aria-label={t("openChat")} title={t("openChat")}>
+                      <MessageSquareText aria-hidden />
                     </Link>
-                  );
-                }
-                // No room means nobody has taken it yet — say so rather than
-                // offering a button that would open an empty conversation.
-                return <span className="odw__wait"><IconClock />{t("waitingLawyer")}</span>;
-              })()}
-            </div>
-          </li>
-        ))}
+                  ) : (
+                    // No room means nobody has taken it yet — say so rather than
+                    // offering a button that would open an empty conversation.
+                    <span className="odw__wait"><IconClock />{t("waitingLawyer")}</span>
+                  )}
+                </div>
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

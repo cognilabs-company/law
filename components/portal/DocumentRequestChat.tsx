@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import "./documents1920.css";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import {
   getDocumentRequestChat,
@@ -27,6 +28,7 @@ type Chat = { available: boolean; roomId: string };
 
 export default function DocumentRequestChat({ requestId }: { requestId: string }) {
   const t = useTranslations("portal.client.documents");
+  const tx = useTranslations("lxDocs");
   const [chat, setChat] = useState<Chat | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [loadErr, setLoadErr] = useState<unknown>(null);
@@ -91,17 +93,26 @@ export default function DocumentRequestChat({ requestId }: { requestId: string }
   // would open onto an empty room.
   if (!chat?.available || !chat.roomId)
     return (
-      <p className="docchat__wait">
+      <p className="docchat__wait lxdp-chatwait">
         <IconClock />
         {t("chatNotYet")}
       </p>
     );
 
+  // A card of its own under the status card, in the dashboard's language:
+  // the "Chat konsultatsiya" drawing in a white circle, what it is for, and
+  // the two ways to reach the advocate. The chat opens in the cabinet's own
+  // messenger, so the client stays in the dashboard shell.
   return (
     <>
-      <div className="docchat">
-        <div className="docchat__acts">
-          <Link href={`/portal/chat/${chat.roomId}`} className="btn btn--pri btn--sm">
+      <div className="docchat lxdp-chat">
+        <span className="lxdp-chat__art" style={{ "--art": "url(/img/xizmatlar/Chat_konsultatsiya.webp)" } as CSSProperties} aria-hidden="true" />
+        <div className="lxdp-chat__txt">
+          <b>{tx("chatTitle")}</b>
+          <small>{usage ? t("callsLeft", { n: usage.remaining }) : tx("chatLead")}</small>
+        </div>
+        <div className="docchat__acts lxdp-chat__acts">
+          <Link href={`/portal/client/messages?room=${encodeURIComponent(chat.roomId)}`} className="btn btn--dark btn--sm">
             <IconChat />
             {t("chatOpen")}
             <IconArrowRight />
@@ -110,7 +121,6 @@ export default function DocumentRequestChat({ requestId }: { requestId: string }
             <IconPhone />
             {callBusy ? t("processingShort") : t("callLawyer")}
           </button>
-          {usage ? <small className="advmuted">{t("callsLeft", { n: usage.remaining })}</small> : null}
         </div>
       </div>
 

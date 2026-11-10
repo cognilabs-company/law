@@ -4,9 +4,14 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
+import { CircleCheck } from "lucide-react";
 import Modal from "@/components/admin/Modal";
+import "@/components/marketplace/directory1920.css";
 
-const SRC = "/img/tasdiqlovchi-badge.webp";
+// The client dashboard's verified mark (.cx-ok): a green check beside the
+// word, flat — it replaced the glossy 3D shield (/img/tasdiqlovchi-badge.webp).
+// The dialog shows the dashboard's line drawing of a verified specialist.
+const ART = "/img/xizmatlar/Tasdiqlangan_mutaxassis.webp";
 
 type Props = {
   name?: string;
@@ -50,7 +55,7 @@ export default function VerifiedBadge({ name, subtitle, label = true, text, size
   const body = (
     <>
       <span className="vbadge__img">
-        <Image src={SRC} alt="" width={40} height={40} />
+        <CircleCheck aria-hidden="true" strokeWidth={2} />
       </span>
       {label ? (
         <>
@@ -67,7 +72,7 @@ export default function VerifiedBadge({ name, subtitle, label = true, text, size
     tip && typeof document !== "undefined"
       ? createPortal(
           <span role="tooltip" className={`vbadge-tip${tip.below ? " is-below" : ""}`} style={{ left: tip.x, top: tip.y }}>
-            <Image src={SRC} alt="" width={16} height={16} />
+            <CircleCheck aria-hidden="true" strokeWidth={2} />
             {t("tip")}
           </span>,
           document.body,
@@ -131,9 +136,8 @@ function VerifiedModal({ name, subtitle, onClose }: { name?: string; subtitle?: 
       }
     >
       <div className="vmodal__hero">
-        <span className="vmodal__ring" aria-hidden="true" />
         <span className="vmodal__seal">
-          <Image src={SRC} alt="" width={96} height={96} />
+          <Image src={ART} alt="" width={96} height={96} />
         </span>
         <span className="vmodal__kicker">{t("kicker")}</span>
         <p className="vmodal__name" aria-hidden="true">

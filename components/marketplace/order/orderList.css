@@ -66,6 +66,8 @@
 .mko-search:focus-within { box-shadow: inset 0 0 0 1.5px var(--mko-acc), 0 0 0 4px color-mix(in srgb, var(--mko-acc) 16%, transparent); }
 .mko-search svg { width: 16px; height: 16px; flex: none; color: var(--gray); }
 .mko-search input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 0.9rem; outline: 0; }
+/* the native clear button keeps its room even while hidden, cutting the hint (as in the other search fields, it goes) */
+.mko-search input::-webkit-search-cancel-button { display: none; }
 
 /* ── new requests (seller) ──────────────────────────────────────────── */
 .mko-new { margin-bottom: 18px; }

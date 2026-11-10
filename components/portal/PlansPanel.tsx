@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useId, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
+import "./plans1920.css";
+import { useEffect, useId, useState, type CSSProperties, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { ArrowRight, CalendarDays, ChevronRight, CircleCheck, CircleX, CreditCard, Hourglass, Plus } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import {
   getSubscriptionPlans,
@@ -44,17 +46,11 @@ import ScrollCue from "@/components/ui/ScrollCue";
 import {
   IconCheck,
   IconCard,
-  IconGift,
   IconSparkle,
   IconShieldCheck,
   IconRefresh,
   IconInfo,
-  IconCrown,
   IconHeadset,
-  IconChartBar,
-  IconChatDots,
-  IconChevronRight,
-  IconCalendar,
   IconTag,
 } from "@/components/icons";
 import { dateOnly } from "@/lib/date";
@@ -62,7 +58,7 @@ import { dateOnly } from "@/lib/date";
 // (AiPlanUpgradeGate) show the same card, so it lives in one file now:
 // tierIcon and the featured CTA's class moved there with it, the pricing
 // helpers stayed here because they are this PAGE's rules, not the card's.
-import PlanCard, { FEATURED_CTA } from "./PlanCard";
+import PlanCard, { FEATURED_CTA, planPlate } from "./PlanCard";
 import MyPlanCard from "./MyPlanCard";
 import { PlanCheckoutReview } from "./PlanPurchaseTerms";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
@@ -97,6 +93,9 @@ const PERIOD_SEG: Record<ManualDocBillingPeriod, string> = {
 function som(n: number): string {
   return fmtUzs(n);
 }
+// A black line drawing (public/img/xizmatlar) for a white circle, as the
+// dashboard's arch cards and the Tezkor Advokat dialogs draw them.
+const mArt = (name: string) => ({ "--art": `url(/img/xizmatlar/${name}.webp)` }) as CSSProperties;
 function fmtDate(s: string, locale: string) {
   if (!s) return "";
   const d = new Date(s);
@@ -168,6 +167,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   const t = useTranslations("plans");
   const ts = useTranslations("subscription");
   const tp = useTranslations("portal.common");
+  const tl = useTranslations("lxPlans");
   const locale = useLocale();
   const { session } = useAuth();
   const personal = variant === "personal";
@@ -258,6 +258,14 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   const otherPlans = sellable.filter((p) => !AI_SLUG.test(p.slug));
   const giftPlan = active.find(isGift);
   const planName = (plan: BackendPlan) => plan.name;
+  // The subscriber's own tariff, for its picture in "Mening tarifim" and the
+  // overview card (matched by id, then by name for an older /clients/me).
+  const slugOf = (id: string) => res.data.find((p) => p.id === id)?.slug || "";
+  const currentSlug = autopay?.subscription
+    ? slugOf(autopay.subscription.planId) || res.data.find((p) => p.name === currentPlanName)?.slug || ""
+    : "";
+  // The cabinet this panel is in (client / lawyer / advocate) for its links.
+  const rolePath = role === "lawyer" ? "/portal/lawyer" : role === "advocate" ? "/portal/advocate" : "/portal/client";
   const otherShown = personal || otherPlans.length > 0;
   useAiSelection("billing_period", billingPeriod(aiTerm, aiUpfront));
   useAiSelection("plan_term", aiTerm);
@@ -364,14 +372,15 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   const failed = res.status === "error";
 
   return (
-    <div className="subs">
-      {intent ? <div className="ppanel" style={{ marginBottom: 16 }}><CheckoutIntent intent={intent} onCancel={() => setIntent(null)} /></div> : null}
+    <div className="subs plx-subs">
+      {intent ? <div className="ppanel plx-intent"><CheckoutIntent intent={intent} onCancel={() => setIntent(null)} /></div> : null}
       <MyPlanCard
         renewal={autopay?.subscription ? { autoRenew: autopay.source === "backend" ? autopay.enabled : autopay.subscription.autoRenew, renewsAt: autopay.subscription.renewsAt } : null}
         onRenewalChange={(on) => setAutopay((s) => (s ? { ...s, enabled: on, source: "backend" } : s))}
+        slugFor={slugOf}
       />
       <PlanCheckoutReview
-        purchase={review ? { planName: planName(review.plan), period: review.period, total: review.total, listed: review.listed } : null}
+        purchase={review ? { planName: planName(review.plan), period: review.period, total: review.total, listed: review.listed, slug: review.plan.slug } : null}
         autoRenew={renew}
         onAutoRenew={setRenew}
         busy={!!busy}
@@ -395,24 +404,29 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
 
 
       {/* ── ATMOS monthly auto-pay (clients and sellers alike) ─────────── */}
-      {session ? <AutopayCard uid={session.id} state={autopay} onStateChange={setAutopay} /> : null}
+      {session ? <AutopayCard uid={session.id} state={autopay} onStateChange={setAutopay} planSlug={currentSlug} /> : null}
 
       {/* ── LexGo.AI: Free / Lite / Pro ─────────────────────────────── */}
-      <div className="subs__layout">
-      <div>
-      <div className="plans__head">
-        <div>
-          <h2 className="psec-h"><IconSparkle style={{ width: 20, height: 20, verticalAlign: "-3px", marginRight: 8 }} />{t("ai.title")}</h2>
-          <p className="plans__sub">{t("ai.subtitle")}</p>
+      {/* Headed like the dashboard's "Xizmatlar": the title and its line on
+          the left, the term as a segmented control on the right (only while
+          there are plans to price). */}
+      <div className="subs__layout plx-layout">
+      <div className="plx-main">
+      <div className="plans__head cx-head plx-head">
+        <div className="plx-head__t">
+          <h2 className="psec-h lx-h1">{t("ai.title")}</h2>
+          <p className="plans__sub lx-sub">{t("ai.subtitle")}</p>
         </div>
-        <div className="switch switch--sm" role="group" aria-label={t("ai.term")} data-ai-target="plans:period" data-ai-id="pricing.billing" data-ai-type="select">
-          {([1, 6, 12] as Term[]).map((m) => (
-            <button key={m} type="button" aria-pressed={aiTerm === m} onClick={() => setAiTerm(m)} data-ai-id={AI_TERM_ID[m]}>{t(`ai.term${m}`)}</button>
-          ))}
-        </div>
+        {loading || aiPlans.length ? (
+          <div className="switch switch--sm plx-seg" role="group" aria-label={t("ai.term")} data-ai-target="plans:period" data-ai-id="pricing.billing" data-ai-type="select">
+            {([1, 6, 12] as Term[]).map((m) => (
+              <button key={m} type="button" aria-pressed={aiTerm === m} onClick={() => setAiTerm(m)} data-ai-id={AI_TERM_ID[m]}>{t(`ai.term${m}`)}</button>
+            ))}
+          </div>
+        ) : null}
       </div>
-      {aiTerm === 12 ? (
-        <div className="chkline" data-ai-id="pricing.billing.prepaid-yearly" data-ai-type="input">
+      {aiTerm === 12 && aiPlans.length ? (
+        <div className="chkline plx-chk" data-ai-id="pricing.billing.prepaid-yearly" data-ai-type="input">
           <CheckBox checked={aiUpfront} onChange={setAiUpfront}>
             {t("ai.upfrontPlain")}
           </CheckBox>
@@ -421,9 +435,9 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
       {loading ? (
         <Skeleton rows={3} />
       ) : failed ? (
-        <EmptyState icon={<IconCard />} title={tp("loadError")} text={tp("loadErrorText")} />
+        <div className="lx-card plx-emptycard"><EmptyState icon={<IconCard />} title={tp("loadError")} text={tp("loadErrorText")} /></div>
       ) : !aiPlans.length ? (
-        <EmptyState icon={<IconSparkle />} title={t("empty")} text={t("emptyText")} />
+        <div className="lx-card plx-emptycard"><EmptyState icon={<IconSparkle />} title={tl("emptyTitle")} text={tl("emptyText")} /></div>
       ) : (
         <div className="plans__grid" data-ai-id="pricing.ai-plans" data-ai-type="list">
           {aiPlans.map((plan, i) => {
@@ -471,7 +485,6 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                       : {
                           label: busy === plan.id ? t("processing") : t("choose"),
                           variant: featured ? "featured" : "line",
-                          icon: featured ? <IconCrown aria-hidden /> : undefined,
                           disabled: busy === plan.id,
                           onClick: () => openReview(plan, pr.total, billingPeriod(aiTerm, aiUpfront), quote ? quote.baseAmount : pr.total),
                         }
@@ -481,10 +494,11 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
           })}
         </div>
       )}
-      <p className="plans__sub" style={{ marginTop: 10 }}>{t("ai.rules")}</p>
+      {aiPlans.length ? <p className="plans__sub plx-note">{t("ai.rules")}</p> : null}
       </div>
 
-      <div className="subs__side">
+      {/* Why it is safe to subscribe: the dashboard's quiet icons, no tinted tiles. */}
+      <div className="subs__side plx-side">
         <div className="benefit">
           <span className="benefit__ico"><IconShieldCheck /></span>
           <div>
@@ -508,19 +522,19 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
         </div>
         <Link
           href={role === "client" ? "/portal/client/ai" : role === "lawyer" ? "/portal/lawyer/ai" : "/portal/advocate/assistant"}
-          className="btn btn--line btn--full"
+          className="btn btn--soft btn--pill btn--full plx-side__cta"
         >
-          <IconChatDots />
           {t("sidebar.ask")}
+          <ArrowRight aria-hidden />
         </Link>
       </div>
       </div>
 
       {aiPlans.length ? (
-        <div className="subs__bottom">
+        <div className="subs__bottom plx-bottom">
           <div className="ppanel" data-ai-target="plans:compare" data-ai-id="pricing.compare" data-ai-type="table">
             <div className="ppanel__h">
-              <b className="ppanel__t"><span className="pico"><IconChartBar /></span>{t("compare.title")}</b>
+              <h3 className="cx-h3">{t("compare.title")}</h3>
             </div>
             <ScrollCue className="ptable__wrap">
               <table className="ptable">
@@ -547,15 +561,18 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
               </table>
             </ScrollCue>
           </div>
+          {/* The questions have no answers of their own here: each one opens
+              the help centre, where they are answered. */}
           <div className="ppanel">
             <div className="ppanel__h">
-              <b className="ppanel__t"><span className="pico"><IconGift /></span>{t("faq.title")}</b>
+              <h3 className="cx-h3">{t("faq.title")}</h3>
+              <p className="plx-faq__lead">{tl("faqLead")}</p>
             </div>
             {(t.raw("faq.items") as { q: string }[]).map((item, i) => (
-              <div className="faqrow" key={i}>
-                {item.q}
-                <IconChevronRight />
-              </div>
+              <Link className="faqrow plx-faq" key={i} href={`${rolePath}/support`}>
+                <span>{item.q}</span>
+                <ChevronRight aria-hidden />
+              </Link>
             ))}
           </div>
         </div>
@@ -564,18 +581,20 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
       {/* ── Every tariff that is not LexGo.AI, for every role ───────── */}
       {personal || otherPlans.length ? (
         <>
-          <div className="plans__head" style={{ marginTop: 34 }}>
-            <div>
-              <h2 className="psec-h"><IconShieldCheck style={{ width: 20, height: 20, verticalAlign: "-3px", marginRight: 8 }} />{t("otherTitle")}</h2>
-              <p className="plans__sub">{personal ? t("subtitlePersonal") : t("otherSubtitle")}</p>
+          <div className="plans__head cx-head plx-head">
+            <div className="plx-head__t">
+              <h2 className="psec-h lx-h1">{t("otherTitle")}</h2>
+              <p className="plans__sub lx-sub">{personal ? t("subtitlePersonal") : t("otherSubtitle")}</p>
             </div>
-            <div className="switch switch--sm" role="group" data-ai-target="plans:other-period" data-ai-id="pricing.other-billing" data-ai-type="select">
-              <button type="button" aria-pressed={term === 6} onClick={() => setTerm(6)} data-ai-id="pricing.other-billing.six-month">{t("term6")}</button>
-              <button type="button" aria-pressed={term === 12} onClick={() => setTerm(12)} data-ai-id="pricing.other-billing.yearly">{t("term12")}</button>
-            </div>
+            {loading || otherPlans.length ? (
+              <div className="switch switch--sm plx-seg" role="group" data-ai-target="plans:other-period" data-ai-id="pricing.other-billing" data-ai-type="select">
+                <button type="button" aria-pressed={term === 6} onClick={() => setTerm(6)} data-ai-id="pricing.other-billing.six-month">{t("term6")}</button>
+                <button type="button" aria-pressed={term === 12} onClick={() => setTerm(12)} data-ai-id="pricing.other-billing.yearly">{t("term12")}</button>
+              </div>
+            ) : null}
           </div>
-          {term === 12 ? (
-            <div className="chkline" data-ai-id="pricing.other-billing.prepaid-yearly" data-ai-type="input">
+          {term === 12 && otherPlans.length ? (
+            <div className="chkline plx-chk" data-ai-id="pricing.other-billing.prepaid-yearly" data-ai-type="input">
               <CheckBox checked={upfront} onChange={setUpfront}>
                 {t("upfront")}
               </CheckBox>
@@ -584,7 +603,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
           {loading ? (
             <Skeleton rows={3} />
           ) : failed ? null : !otherPlans.length && !personal ? (
-            <EmptyState icon={<IconCard />} title={t("empty")} text={t("emptyText")} />
+            <div className="lx-card plx-emptycard"><EmptyState icon={<IconCard />} title={tl("emptyTitle")} text={tl("emptyText")} /></div>
           ) : (
             <div className="plans__grid" data-ai-id="pricing.other-plans" data-ai-type="list">
               {otherPlans.map((plan, i) => {
@@ -598,7 +617,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                 return (
                   <div
                     key={plan.id}
-                    className={`splan${isCurrent ? " splan--current" : featured ? " splan--feat" : ""}`}
+                    className={`splan plx-plan${isCurrent ? " splan--current" : featured ? " splan--feat" : ""}`}
                     data-ai-target={`plan:${plan.slug}`}
                     data-ai-id={planAi}
                     data-ai-type="card"
@@ -606,11 +625,17 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                     data-ai-entity-id={plan.id}
                     data-ai-entity-slug={plan.slug}
                   >
-                    {isCurrent ? <span className="splan__ribbon splan__ribbon--current"><IconCheck />{t("current")}</span> : null}
+                    <span className="plx-plan__art" style={planPlate(plan.slug)}>
+                      {isCurrent ? <span className="splan__ribbon splan__ribbon--current cx-pill cx-pill--ok"><CircleCheck aria-hidden />{t("current")}</span> : null}
+                    </span>
                     <div className="splan__h">
                       <b className="splan__name">{planName(plan)}</b>
-                      {pr.savePct > 0 ? <span className="splan__save">−{pr.savePct}%</span> : null}
                     </div>
+                    {pr.savePct > 0 ? (
+                      <div className="plx-plan__saves">
+                        <span className="splan__save cx-pill cx-pill--ok">−{pr.savePct}%</span>
+                      </div>
+                    ) : null}
                     <div className="splan__price">
                       <b>{som(pr.perMonth)}</b>
                       <span>{t("perMonth")}</span>
@@ -635,7 +660,6 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                       disabled={busy === plan.id}
                       onClick={() => openReview(plan, pr.total, billingPeriod(term, upfront))}
                     >
-                      {featured ? <IconCrown aria-hidden /> : null}
                       {busy === plan.id ? t("processing") : t("choose")}
                     </button>
                     )}
@@ -643,9 +667,12 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                 );
               })}
 
-              {/* Gift tariff (module 6): pay 3/6/12 months up front, send a QR link. */}
+              {/* Gift tariff (module 6): pay 3/6/12 months up front, send a QR
+                  link. Drawn as the dashboard's navy gift banner, with the
+                  gift-a-plan picture in a white circle, leading to the
+                  Sovg'alar tab the dashboard banner also opens. */}
               <div
-                className="splan splan--gift"
+                className="splan splan--gift cx-gift plx-giftcard"
                 data-ai-target="plans:gift"
                 data-ai-id="pricing.gift"
                 data-ai-type="card"
@@ -653,11 +680,9 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                 data-ai-entity-id={giftPlan?.id}
                 data-ai-entity-slug={giftPlan?.slug}
               >
+                <span className="plx-giftcard__art" style={mArt("Sovga_tarif")} aria-hidden />
                 <div className="splan__h">
-                  <b className="splan__name">
-                    <IconGift style={{ width: 16, height: 16, marginRight: 6, verticalAlign: "-2px" }} />
-                    {giftPlan?.name || ts("plans.gift.name")}
-                  </b>
+                  <b className="splan__name">{giftPlan?.name || ts("plans.gift.name")}</b>
                 </div>
                 <p className="splan__total">{ts("plans.gift.payNote")}</p>
                 <ul className="splan__feats">
@@ -665,48 +690,63 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                     <li key={k}><IconCheck />{f}</li>
                   ))}
                 </ul>
-                <Link href="/portal/client/gifts" className="btn btn--line btn--full" data-ai-id="pricing.gift.cta">
+                <Link href="/portal/client/subscription?tab=gifts" className="btn cx-gift__cta btn--full" data-ai-id="pricing.gift.cta">
                   {ts("plans.gift.cta")}
+                  <ArrowRight aria-hidden />
                 </Link>
               </div>
             </div>
           )}
-          <p className="plans__sub" style={{ marginTop: 12 }}>{ts("ratingInfo")}</p>
         </>
       ) : null}
 
-      <div className="ppanel" style={{ marginTop: 22 }} data-ai-target="plans:billing" data-ai-id="pricing.billing-history" data-ai-type="section">
-        <div className="ppanel__h">
-          <b>{t("billing.title")}</b>
+      {/* ── Billing history, as the dashboard's "Jarayondagi ishlar" ─── */}
+      <section className="ppanel plx-bills" data-ai-target="plans:billing" data-ai-id="pricing.billing-history" data-ai-type="section">
+        <div className="ppanel__h cx-works__h">
+          <h3 className="cx-h3">
+            {t("billing.title")}
+            {bills.length ? <span className="cx-count">{bills.length}</span> : null}
+          </h3>
+          {role === "client" && bills.length ? (
+            <Link href="/portal/client/payments" className="cx-link">
+              {tl("billingAll")}
+              <ArrowRight aria-hidden />
+            </Link>
+          ) : null}
         </div>
         {payments.status === "loading" ? (
           <Skeleton rows={2} />
         ) : !bills.length ? (
           <EmptyState icon={<IconCard />} title={t("billing.empty")} text={t("billing.emptyText")} />
         ) : (
-          <div className="alist">
-            {bills.map((p) => (
-              <div
-                className="creq"
-                key={p.id}
-                data-ai-id={aiId("pricing.billing-history.item", p.id)}
-                data-ai-type="list_item"
-                data-ai-entity-type="payment"
-                data-ai-entity-id={p.id}
-              >
-                <span className="creq__st" />
-                <div className="creq__m">
-                  <b>{p.description || p.kind || "—"}</b>
-                  <span>{fmtDate(p.createdAt, locale)}</span>
+          <div className="alist plx-rows">
+            {bills.map((p) => {
+              const tone = p.status === "paid" ? "ok" : p.status === "failed" || p.status === "canceled" || p.status === "cancelled" ? "err" : p.status === "pending" ? "warn" : "blue";
+              return (
+                <div
+                  className="creq cx-work plx-bill"
+                  key={p.id}
+                  data-ai-id={aiId("pricing.billing-history.item", p.id)}
+                  data-ai-type="list_item"
+                  data-ai-entity-type="payment"
+                  data-ai-entity-id={p.id}
+                >
+                  <span className="plx-bill__ic" aria-hidden><CreditCard /></span>
+                  <div className="creq__m">
+                    <b>{p.description || p.kind || "—"}</b>
+                    <span>{[fmtDate(p.createdAt, locale), p.workId].filter(Boolean).join(" · ")}</span>
+                  </div>
+                  <b className="plx-bill__sum">{som(p.amount)} {p.currency}</b>
+                  <span className={`cx-pill ${tone === "err" ? "plx-pill--err" : `cx-pill--${tone}`}`}>
+                    {tone === "ok" ? <CircleCheck aria-hidden /> : tone === "err" ? <CircleX aria-hidden /> : <Hourglass aria-hidden />}
+                    {t.has(`states.${p.status}`) ? t(`states.${p.status}`) : humanize(p.status || "pending")}
+                  </span>
                 </div>
-                <span className={`creq__badge${p.status === "paid" ? " creq__badge--ok" : ""}`}>
-                  {som(p.amount)} {p.currency}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }
@@ -722,12 +762,16 @@ function AutopayCard({
   uid,
   state,
   onStateChange,
+  planSlug = "",
 }: {
   uid: string;
   state: AutopayState | null;
   onStateChange: Dispatch<SetStateAction<AutopayState | null>>;
+  /** The current tariff's slug, for its picture ("" → a card icon). */
+  planSlug?: string;
 }) {
   const t = useTranslations("plans.autopay");
+  const tl = useTranslations("lxPlans");
   const locale = useLocale();
   const tc = useTranslations("portal.client.profile");
   const cards = useResource(listPaymentMethods, [uid]);
@@ -757,27 +801,33 @@ function AutopayCard({
   const card = cards.data.find((c) => c.isDefault) ?? cards.data[0];
   const enabled = state?.enabled ?? false;
 
+  // One dashboard card: the tariff (with its picture), the next charge and
+  // the card in a row, and the monthly auto-pay switch under them.
   return (
-    <>
-      <div className="subs__top" data-ai-target="plans:current" data-ai-id="pricing.current" data-ai-type="section">
-        <div className="subs__topcard">
-          <span className="subs__topico subs__topico--crown"><IconCrown /></span>
+    <section className="lx-card plx-acct">
+      <div className="subs__top plx-acct__top" data-ai-target="plans:current" data-ai-id="pricing.current" data-ai-type="section">
+        <div className="subs__topcard plx-acct__cell">
+          {planSlug ? (
+            <span className="plx-acct__plate" style={planPlate(planSlug, true)} aria-hidden />
+          ) : (
+            <span className="subs__topico plx-acct__ic" aria-hidden><CreditCard /></span>
+          )}
           <div>
             <span className="subs__topl">{t("currentTariff")}</span>
             <b>{sub?.planName || t("none")}</b>
             {!sub ? <span className="subs__tops">{t("noneHint")}</span> : null}
           </div>
         </div>
-        <div className="subs__topcard">
-          <span className="subs__topico"><IconCalendar /></span>
+        <div className="subs__topcard plx-acct__cell">
+          <span className="subs__topico plx-acct__ic" aria-hidden><CalendarDays /></span>
           <div>
             <span className="subs__topl">{t("nextCharge")}</span>
             <b>{sub?.renewsAt ? fmtDate(sub.renewsAt, locale) : "—"}</b>
             {!sub?.renewsAt ? <span className="subs__tops">{t("nextChargeHintEmpty")}</span> : null}
           </div>
         </div>
-        <div className="subs__topcard" data-ai-private>
-          <span className="subs__topico"><IconCard /></span>
+        <div className="subs__topcard plx-acct__cell" data-ai-private>
+          <span className="subs__topico plx-acct__ic" aria-hidden><CreditCard /></span>
           <div>
             <span className="subs__topl">{t("card")}</span>
             <b>{card ? `${card.brand.toUpperCase()} •••• ${card.last4}` : t("noCard")}</b>
@@ -786,21 +836,24 @@ function AutopayCard({
         </div>
       </div>
 
-      <div className="ppanel apay" style={{ marginBottom: 22 }} data-ai-target="plans:autopay" data-ai-id="pricing.autopay" data-ai-type="section">
+      <div className="ppanel apay plx-acct__pay" data-ai-target="plans:autopay" data-ai-id="pricing.autopay" data-ai-type="section">
       {!state ? (
-        <Skeleton rows={2} />
+        <Skeleton rows={1} />
       ) : (
         <>
           <div className="apay__row">
-            <button type="button" className="apay__tg" role="switch" aria-checked={enabled} onClick={toggle} disabled={busy} data-ai-id="pricing.autopay.toggle">
-              <span className="apay__sw" aria-hidden />
-              <span>
-                {t("toggle")} · <span className="apay__state">{enabled ? t("on") : t("off")}</span>
-                {state.source === "local" ? <><br /><span className="apay__local">{t("localNote")}</span></> : null}
-              </span>
-            </button>
-            <button type="button" className="btn btn--soft btn--sm" onClick={() => setBind(true)} data-ai-id="pricing.autopay.bind-card">
-              <IconCard />
+            <div className="plx-acct__tg">
+              <button type="button" className="apay__tg" role="switch" aria-checked={enabled} onClick={toggle} disabled={busy} data-ai-id="pricing.autopay.toggle">
+                <span className="apay__sw" aria-hidden />
+                <span>
+                  {t("toggle")} · <span className="apay__state">{enabled ? t("on") : t("off")}</span>
+                  {state.source === "local" ? <><br /><span className="apay__local">{t("localNote")}</span></> : null}
+                </span>
+              </button>
+              <small className="plx-acct__sub">{t("sub")}</small>
+            </div>
+            <button type="button" className="btn btn--line btn--pill btn--sm plx-acct__bind" onClick={() => setBind(true)} data-ai-id="pricing.autopay.bind-card">
+              <Plus aria-hidden />
               {t("bindCard")}
             </button>
           </div>
@@ -813,14 +866,15 @@ function AutopayCard({
       <Modal open={bind} onClose={() => setBind(false)} title={t("bindTitle")}>
         <BindCardForm
           note={t("bindNote")}
-          labels={{ title: t("bindTitle"), brand: tc("cardBrand"), last4: tc("cardLast4"), expires: tc("cardExpires"), save: tc("save"), saving: tc("saving"), saved: tc("saved"), error: tc("notify.saveFailed"), last4Invalid: tc("last4Invalid") }}
+          labels={{ title: t("bindTitle"), brand: tc("cardBrand"), last4: tc("cardLast4"), expires: tc("cardExpires"), save: tc("save"), saving: tc("saving"), saved: tc("saved"), error: tc("notify.saveFailed"), last4Invalid: tc("last4Invalid"), cancel: tl("cancel") }}
+          onCancel={() => setBind(false)}
           onSaved={() => {
             void cards.refresh();
             setBind(false);
           }}
         />
       </Modal>
-    </>
+    </section>
   );
 }
 
@@ -830,10 +884,12 @@ function BindCardForm({
   note,
   labels,
   onSaved,
+  onCancel,
 }: {
   note: string;
-  labels: { title: string; brand: string; last4: string; expires: string; save: string; saving: string; saved: string; error: string; last4Invalid: string };
+  labels: { title: string; brand: string; last4: string; expires: string; save: string; saving: string; saved: string; error: string; last4Invalid: string; cancel: string };
   onSaved: () => void;
+  onCancel: () => void;
 }) {
   const uid = useId();
   const [brand, setBrand] = useState("uzcard");
@@ -867,8 +923,12 @@ function BindCardForm({
   }
 
   return (
-    <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit} data-ai-id="pricing.autopay.bind-card-modal" data-ai-type="modal" data-ai-label={labels.title} data-ai-private>
-      <p className="apay__note" style={{ margin: 0 }}><IconInfo />{note}</p>
+    <form className="cform plx-bind" style={{ maxWidth: "none" }} onSubmit={submit} data-ai-id="pricing.autopay.bind-card-modal" data-ai-type="modal" data-ai-label={labels.title} data-ai-private>
+      {/* The dashboard's dialog intro: the picture in a white circle beside the note. */}
+      <div className="plx-intro">
+        <span className="plx-intro__art" style={mArt("Xavfsiz_karta")} aria-hidden />
+        <p className="apay__note">{note}</p>
+      </div>
       <div>
         <label>{labels.brand}</label>
         <Select value={brand} onChange={setBrand} options={brandOpts} ariaLabel={labels.brand} />
@@ -895,9 +955,14 @@ function BindCardForm({
           <input value={expires} onChange={(e) => setExpires(e.target.value)} placeholder="MM/YY" maxLength={5} />
         </div>
       </div>
-      <button className="btn btn--pri btn--full" type="submit" disabled={busy}>
-        {busy ? labels.saving : labels.save}
-      </button>
+      <div className="plx-acts">
+        <button className="btn btn--line" type="button" onClick={onCancel} disabled={busy}>
+          {labels.cancel}
+        </button>
+        <button className="btn btn--pri" type="submit" disabled={busy}>
+          {busy ? labels.saving : labels.save}
+        </button>
+      </div>
     </form>
   );
 }
@@ -920,6 +985,7 @@ function TelegramPlanRequest({
 }) {
   const ttg = useTranslations("plans.telegram");
   const tdoc = useTranslations("portal.client.documents");
+  const tl = useTranslations("lxPlans");
   const locale = useLocale();
   const [period, setPeriod] = useState<ManualDocBillingPeriod>("monthly");
   const [only, setOnly] = useState<ManualDocBillingPeriod[] | null>(null);
@@ -1015,9 +1081,27 @@ function TelegramPlanRequest({
   }
 
   return (
-    <Modal open onClose={onClose} title={ttg("title")}>
+    <Modal
+      open
+      onClose={onClose}
+      title={ttg("title")}
+      footer={
+        sent ? (
+          <div className="plx-acts">
+            <button type="button" className="btn btn--line" onClick={onClose} data-ai-id="pricing.telegram-request-modal.close">{ttg("close")}</button>
+          </div>
+        ) : (
+          <div className="plx-acts">
+            <button type="button" className="btn btn--line" onClick={onClose} disabled={busy}>{tl("cancel")}</button>
+            <button type="button" className="btn btn--pri" disabled={busy} onClick={() => void submit()} data-ai-id="pricing.telegram-request-modal.confirm">
+              {busy ? ttg("sending") : ttg("submit")}
+            </button>
+          </div>
+        )
+      }
+    >
       <div
-        className="cform"
+        className="cform plx-tg"
         style={{ maxWidth: "none" }}
         data-ai-id="pricing.telegram-request-modal"
         data-ai-type="modal"
@@ -1028,9 +1112,13 @@ function TelegramPlanRequest({
       >
         {sent ? (
           <>
-            <p className="cform__ok"><IconCheck style={{ width: 16, height: 16 }} /> {ttg("sent")}</p>
-            <p className="advmuted">{ttg("sentLead")}</p>
-            {sentWorkId ? <p><span className="wid">{sentWorkId}</span></p> : null}
+            {/* Sent: the dashboard's empty-state shape, in the ok tone. */}
+            <div className="plx-done" role="status">
+              <span className="plx-done__ic" aria-hidden><CircleCheck /></span>
+              <b>{ttg("sent")}</b>
+              <p>{ttg("sentLead")}</p>
+              {sentWorkId ? <span className="wid cx-tag">{sentWorkId}</span> : null}
+            </div>
             {paid ? (
               <div className="tgbuy__sum">
                 <span>{paid.discountAmount > 0 ? ttg("amountPromo", { title: paid.campaign?.title || ttg("promo") }) : ttg("amount")}</span>
@@ -1038,11 +1126,13 @@ function TelegramPlanRequest({
               </div>
             ) : null}
             {warn ? <InlineAlert tone="warn" compact>{warn}</InlineAlert> : null}
-            <button type="button" className="btn btn--line btn--full" onClick={onClose} data-ai-id="pricing.telegram-request-modal.close">{ttg("close")}</button>
           </>
         ) : (
           <>
-            <p className="advmuted" style={{ margin: 0 }}>{ttg("lead", { plan: plan.name })}</p>
+            <div className="plx-intro">
+              <span className="plx-intro__plate" style={planPlate(plan.slug, true)} aria-hidden />
+              <p className="advmuted">{ttg("lead", { plan: plan.name })}</p>
+            </div>
             <div>
               <label>{ttg("period")}</label>
               <ScrollCue arrows className="chiprow" style={{ margin: "4px 0 0" }} data-ai-id="pricing.telegram-request-modal.period" data-ai-type="select">
@@ -1071,9 +1161,6 @@ function TelegramPlanRequest({
               </b>
             </div>
             {warn ? <InlineAlert tone="warn" compact>{warn}</InlineAlert> : null}
-            <button type="button" className="btn btn--grad btn--full btn--lg" disabled={busy} onClick={() => void submit()} data-ai-id="pricing.telegram-request-modal.confirm">
-              {busy ? ttg("sending") : ttg("submit")}
-            </button>
           </>
         )}
       </div>

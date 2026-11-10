@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import "./builder1920.css";
+import { useState, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   getServiceDocumentAiQuestions,
@@ -16,7 +17,10 @@ import { preopenTab, showBlob, closeTab } from "@/lib/download";
 import { notify } from "@/lib/toast";
 import FieldError from "@/components/ui/FieldError";
 import DocumentRequestPanel from "./DocumentRequestPanel";
-import { IconChevronLeft, IconEye, IconSparkle } from "@/components/icons";
+import { IconChevronLeft, IconEye } from "@/components/icons";
+
+// The dashboard's LexGo AI drawing (robot at a laptop), in a white circle.
+const AI_ART = { "--art": "url(/img/xizmatlar/suniy-intelekt.webp)" } as CSSProperties;
 
 type Step = "need" | "questions" | "result";
 
@@ -116,13 +120,13 @@ export default function DocumentAiAssist({
   const cleanUrl = sourceFile?.cleanSourceFileInlineUrl || sourceFile?.cleanSourceFileUrl;
 
   return (
-    <div className="cform" style={{ maxWidth: "none" }}>
+    <div className="cform bld" style={{ maxWidth: "none" }}>
       <button type="button" className="rf__link" onClick={onBack}>
         <IconChevronLeft />
         {t("backToChoices")}
       </button>
       <div className="docassist__head">
-        <span className="docassist__i"><IconSparkle /></span>
+        <span className="docassist__art" style={AI_ART} aria-hidden />
         <div>
           <b>{t("chooseAi")}</b>
           <p className="advmuted">{t("aiLead")}</p>

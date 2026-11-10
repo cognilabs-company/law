@@ -1,9 +1,10 @@
 "use client";
 
 import "./lexai.css";
-import { useEffect, useMemo, useRef, useState } from "react";
+import "./aiPage1920.css";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
-import { ArrowDown, ArrowUpRight, BookOpenCheck, Briefcase, Check, Clock3, Copy, FileText, Gavel, Lock, MessageSquare, MessageSquarePlus, PanelLeft, RefreshCw, Scale, Search, ShieldCheck, Sparkles, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowRight, ArrowUpRight, BookOpenCheck, Check, Clock3, Copy, Lock, MessageSquare, MessageSquarePlus, PanelLeft, RefreshCw, Search, SearchX, ShieldCheck, Sparkles, X } from "lucide-react";
 import { getClientId } from "@/lib/client";
 import { aiQuotaOf, guestLimitOf } from "@/lib/http";
 import {
@@ -25,7 +26,6 @@ import ContractCard from "../ContractCard";
 import AgentAnswer from "./AgentAnswer";
 import AgentThinking from "./AgentThinking";
 import { mdPlain } from "@/lib/agentAnswer";
-import { IconSend, IconStar } from "../icons";
 
 type Msg = {
   role: "user" | "assistant";
@@ -40,9 +40,22 @@ type Msg = {
 };
 
 type Load = "loading" | "ready" | "error";
-const SUGGESTION_ICONS = [Gavel, FileText, Briefcase, Scale];
-// One hue per suggestion card, from the Studio/marketing palette.
-const SUGGESTION_HUES = ["violet", "blue", "amber", "teal"] as const;
+// Each starter question carries the dashboard's picture of its area (the
+// "Huquqiy yo'nalishlar" cards, public/img/category): questioning, a lease,
+// unpaid wages, a company.
+const SUGGESTION_ART = ["Jinoyat_ishlari", "Kochmas_mulk", "Mehnat_huquqi", "Biznes_va_soliq"];
+const plateStyle = (name: string) => ({ "--img": `url(/img/category/${name}.webp)` }) as CSSProperties;
+// A black line drawing (public/img/xizmatlar), shown in a white circle.
+const artStyle = (name: string) => ({ "--art": `url(/img/xizmatlar/${name}.webp)` }) as CSSProperties;
+// A history row shows the first words of the last message, cut at a word —
+// the row wraps rather than hiding the rest behind an ellipsis.
+function excerpt(s: string, max = 72): string {
+  const one = s.replace(/\s+/g, " ").trim();
+  if (one.length <= max) return one;
+  const cut = one.slice(0, max);
+  const at = cut.lastIndexOf(" ");
+  return `${(at > max / 2 ? cut.slice(0, at) : cut).replace(/[\s,.;:—-]+$/, "")}…`;
+}
 // What the assistant does, as three short promises under the greeting.
 const CAPABILITIES = [
   ["cites", BookOpenCheck],
@@ -63,8 +76,28 @@ function groupOf(iso: string | undefined): "today" | "yesterday" | "week" | "old
   return now.getTime() - d.getTime() < 7 * DAY ? "week" : "older";
 }
 
+// The way on when the free questions or the plan's limit run out: the
+// dashboard's navy banner, with the "needs a plan" drawing in a white circle.
+// The class it always had (aichat__lastfree) stays on it.
+function Offer({ title, text, href, cta }: { title: string; text: string; href: string; cta: string }) {
+  return (
+    <div className="aichat__lastfree lxai__offer">
+      <span className="lxai__offer-art" style={artStyle("Oldindan_xarid")} aria-hidden />
+      <div className="lxai__offer-t">
+        <b>{title}</b>
+        <span>{text}</span>
+      </div>
+      <Link href={href} className="btn btn--sm lxai__offer-cta">
+        {cta}
+        <ArrowRight aria-hidden />
+      </Link>
+    </div>
+  );
+}
+
 export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
   const t = useTranslations("chatPage");
+  const tx = useTranslations("lxAi");
   const { reply } = useLexAi();
   const { session } = useAuth();
   // Logged-in users get their own backend namespace; guests an id by IP.
@@ -78,6 +111,25 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [sideOpen, setSideOpen] = useState(false);
+  // The history drawer (a phone, or a laptop window beside the portal's
+  // sidebar): Escape closes it, focus moves to its X when opened from the
+  // burger and back to the burger when it closes.
+  const burgerRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const closeSide = () => {
+    setSideOpen(false);
+    burgerRef.current?.focus();
+  };
+  useEffect(() => {
+    if (!sideOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      setSideOpen(false);
+      burgerRef.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sideOpen]);
   const [q, setQ] = useState("");
   const [copied, setCopied] = useState(-1);
   const [away, setAway] = useState(false);
@@ -329,10 +381,10 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
       <aside className={`lxai__side${sideOpen ? " on" : ""}`} data-ai-target={sideOpen ? "ai-chat:history" : undefined} data-ai-label={t("historyTitle")}>
         <div className="lxai__brand">
           <span className="lxai__mark" aria-hidden>
-            <IconStar />
+            <Sparkles />
           </span>
           <b>{t("title")}</b>
-          <button type="button" className="lxai__ib lxai__close" onClick={() => setSideOpen(false)} aria-label={t("menu")}>
+          <button ref={closeRef} type="button" className="lxai__ib lxai__close" onClick={closeSide} aria-label={t("menu")}>
             <X aria-hidden />
           </button>
         </div>
@@ -359,19 +411,28 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
               ))}
             </div>
           ) : chatsLoad === "error" && !chats.length ? (
-            <div className="lxai__side-state" role="alert">
+            <div className="lxai__side-state cx-empty" role="alert">
+              <span className="cx-empty__ic lxai__state-ic--err" aria-hidden>
+                <AlertTriangle />
+              </span>
               <p>{t("chatsError")}</p>
-              <button type="button" className="lxai__ghost" onClick={loadChats}>
+              <button type="button" className="lxai__ghost btn btn--line btn--sm" onClick={loadChats}>
                 <RefreshCw aria-hidden />
                 {t("retry")}
               </button>
             </div>
           ) : !chats.length ? (
-            <div className="lxai__side-state">
+            <div className="lxai__side-state cx-empty">
+              <span className="cx-empty__ic" aria-hidden>
+                <MessageSquare />
+              </span>
               <p>{t("noChats")}</p>
             </div>
           ) : !shown.length ? (
-            <div className="lxai__side-state">
+            <div className="lxai__side-state cx-empty">
+              <span className="cx-empty__ic" aria-hidden>
+                <SearchX />
+              </span>
               <p>{t("noMatch")}</p>
             </div>
           ) : (
@@ -385,7 +446,7 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
                     </span>
                     <span className="lxai__item-t">
                       <b>{c.title || t("untitled")}</b>
-                      {c.lastMessage ? <span>{mdPlain(c.lastMessage)}</span> : null}
+                      {c.lastMessage ? <span>{excerpt(mdPlain(c.lastMessage))}</span> : null}
                     </span>
                   </button>
                 ))}
@@ -401,7 +462,17 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
 
       <section className="lxai__main">
         <header className="lxai__head">
-          <button className="lxai__ib lxai__burger" type="button" aria-label={t("menu")} onClick={() => setSideOpen(true)}>
+          <button
+            ref={burgerRef}
+            className="lxai__ib lxai__burger"
+            type="button"
+            aria-label={t("menu")}
+            aria-expanded={sideOpen}
+            onClick={() => {
+              setSideOpen(true);
+              requestAnimationFrame(() => closeRef.current?.focus());
+            }}
+          >
             <PanelLeft aria-hidden />
           </button>
           <div className="lxai__htitle">
@@ -433,20 +504,20 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
               </div>
             </div>
           ) : msgsLoad === "error" ? (
-            <div className="lxai__fail" role="alert">
+            <div className="lxai__fail cx-empty" role="alert">
+              <span className="cx-empty__ic lxai__state-ic--err" aria-hidden>
+                <AlertTriangle />
+              </span>
               <b>{t("loadError")}</b>
-              <button type="button" className="lxai__ghost" onClick={() => activeId && selectChat(activeId)}>
+              <button type="button" className="lxai__ghost btn btn--line btn--sm" onClick={() => activeId && selectChat(activeId)}>
                 <RefreshCw aria-hidden />
                 {t("retry")}
               </button>
             </div>
           ) : empty ? (
             <div className="lxai__empty">
-              <span className="lxai__orb" aria-hidden>
-                <i className="lxai__orb-ring" />
-                <i className="lxai__orb-ring lxai__orb-ring--2" />
-                <Sparkles />
-              </span>
+              {/* The dashboard's own LexGo AI drawing, in a white circle. */}
+              <span className="lxai__art" style={artStyle("suniy-intelekt")} aria-hidden />
               {session ? <p className="lxai__hi">{t("hi", { name: session.name })}</p> : null}
               <h2>{t("emptyTitle")}</h2>
               <p>{t("emptyText")}</p>
@@ -459,18 +530,15 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
                 ))}
               </ul>
               <div className="lxai__sugg" data-ai-target="ai-chat:suggestions">
-                {suggestions.map((s, i) => {
-                  const I = SUGGESTION_ICONS[i % SUGGESTION_ICONS.length];
-                  return (
-                    <button key={i} type="button" onClick={() => send(s)} data-hue={SUGGESTION_HUES[i % SUGGESTION_HUES.length]} style={{ animationDelay: `${120 + i * 70}ms` }}>
-                      <span className="lxai__sugg-ic" aria-hidden>
-                        <I />
-                      </span>
-                      <span className="lxai__sugg-t">{s}</span>
-                      <ArrowUpRight className="lxai__sugg-go" aria-hidden />
-                    </button>
-                  );
-                })}
+                {suggestions.map((s, i) => (
+                  <button key={i} type="button" onClick={() => send(s)} style={{ animationDelay: `${120 + i * 70}ms` }}>
+                    <span className="lxai__sugg-art" style={plateStyle(SUGGESTION_ART[i % SUGGESTION_ART.length])} aria-hidden />
+                    <span className="lxai__sugg-t">{s}</span>
+                    <span className="lxai__sugg-arr" aria-hidden>
+                      <ArrowUpRight />
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
           ) : (
@@ -480,10 +548,29 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
                   <div key={i} className="lxai__q">
                     <div>{m.content}</div>
                   </div>
+                ) : (m.upgrade && session) || m.limit ? (
+                  // Not an answer but the limit notice: the banner alone, with
+                  // no "AI-generated" mark and no copy button.
+                  <article key={i} className="lxai__a">
+                    <span className="lxai__mark lxai__mark--sm" aria-hidden>
+                      <Sparkles />
+                    </span>
+                    <div className="lxai__ac lxai__ac--sys">
+                      {m.limit ? (
+                        // A first-time guest has no account yet — /login sent them
+                        // somewhere they can't use; register is the actual next step
+                        // (T1-01 §3: this is meant to feel like "verify your phone
+                        // to continue", which registration's OTP step already is).
+                        <Offer title={t("guestLastTitle")} text={m.content} href="/register" cta={t("limitLogin")} />
+                      ) : (
+                        <Offer title={tx("quotaTitle")} text={m.content} href={`/portal/${session?.role}/subscription`} cta={t("upgradePlan")} />
+                      )}
+                    </div>
+                  </article>
                 ) : (
                   <article key={i} className="lxai__a">
                     <span className="lxai__mark lxai__mark--sm" aria-hidden>
-                      <IconStar />
+                      <Sparkles />
                     </span>
                     <div className="lxai__ac">
                       <AgentAnswer
@@ -506,33 +593,14 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
                       ) : null}
                       {m.offline ? <div className="lxai__offline">{t("offline")}</div> : null}
                       {m.lastFree && session ? (
-                        <div className="aichat__lastfree">
-                          <b>{t("lastFreeTitle")}</b>
-                          <span>{t("lastFreeText", { limit: FREE_LIMIT })}</span>
-                          <Link href={`/portal/${session.role}/subscription`} className="btn btn--pri btn--sm">{t("upgradePlan")}</Link>
-                        </div>
+                        <Offer
+                          title={t("lastFreeTitle")}
+                          text={t("lastFreeText", { limit: FREE_LIMIT })}
+                          href={`/portal/${session.role}/subscription`}
+                          cta={t("upgradePlan")}
+                        />
                       ) : null}
-                      {m.guestLast ? (
-                        <div className="aichat__lastfree">
-                          <b>{t("guestLastTitle")}</b>
-                          <span>{t("guestLastText")}</span>
-                          <Link href="/register" className="btn btn--pri btn--sm">{t("limitLogin")}</Link>
-                        </div>
-                      ) : null}
-                      {m.limit ? (
-                        // A first-time guest has no account yet — /login sent them
-                        // somewhere they can't use; register is the actual next step
-                        // (T1-01 §3: this is meant to feel like "verify your phone
-                        // to continue", which registration's OTP step already is).
-                        <Link href="/register" className="btn btn--pri btn--sm" style={{ marginTop: 10 }}>
-                          {t("limitLogin")}
-                        </Link>
-                      ) : null}
-                      {m.upgrade && session ? (
-                        <Link href={`/portal/${session.role}/subscription`} className="btn btn--pri btn--sm" style={{ marginTop: 10 }}>
-                          {t("upgradePlan")}
-                        </Link>
-                      ) : null}
+                      {m.guestLast ? <Offer title={t("guestLastTitle")} text={t("guestLastText")} href="/register" cta={t("limitLogin")} /> : null}
                       {!m.limit && !m.upgrade ? (
                         <div className="lxai__tools">
                           <button type="button" onClick={() => void copyAnswer(i)} aria-label={t("copy")} title={t("copy")}>
@@ -548,7 +616,7 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
               {sending ? (
                 <article className="lxai__a" aria-live="polite">
                   <span className="lxai__mark lxai__mark--sm lxai__mark--busy" aria-hidden>
-                    <IconStar />
+                    <Sparkles />
                   </span>
                   <div className="lxai__ac">
                     <AgentThinking />
@@ -583,8 +651,11 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
               placeholder={t("inputPlaceholder")}
               aria-label={t("inputPlaceholder")}
             />
+            {/* The dashboard's dark "Javob olish" button; on a narrow screen
+                only its arrow. */}
             <button className="lxai__send" type="button" onClick={() => send(input)} disabled={sending || !input.trim()} aria-label={t("send")} title={t("send")}>
-              <IconSend />
+              <span className="lxai__send-t">{t("send")}</span>
+              <ArrowRight aria-hidden />
             </button>
           </div>
           {/* One line under the box: the caveat, then the keys. */}

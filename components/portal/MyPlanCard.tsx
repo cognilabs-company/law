@@ -1,7 +1,9 @@
 "use client";
 
 import "./myPlan.css";
+import "./plans1920.css";
 import { useEffect, useRef, useState, type ReactElement } from "react";
+import { planPlate } from "./PlanCard";
 import { useLocale, useTranslations } from "next-intl";
 import { Notice } from "@/components/admin/AdminBits";
 import { dateOnly } from "@/lib/date";
@@ -27,9 +29,12 @@ export type PlanRenewal = { autoRenew?: boolean; renewsAt?: string };
 export default function MyPlanCard({
   renewal = null,
   onRenewalChange,
+  slugFor,
 }: {
   renewal?: PlanRenewal | null;
   onRenewalChange?: (on: boolean) => void;
+  /** The tariff's slug by its id, for its picture; absent / "" → none. */
+  slugFor?: (planId: string) => string;
 } = {}): ReactElement | null {
   const t = useTranslations("portal.myPlan");
   const ts = useTranslations("studio");
@@ -166,14 +171,17 @@ export default function MyPlanCard({
     return f.remaining !== null ? t("remaining", { n: f.remaining }) : t("limited");
   };
 
+  const slug = slugFor && features.planId ? slugFor(features.planId) : "";
+
   return (
     <section className="myplan" aria-label={t("title")} data-ai-target="subscription:my-plan">
       <header className="myplan__h">
+        {slug ? <span className="myplan__art" style={planPlate(slug, true)} aria-hidden /> : null}
         <div>
           <small>{t("title")}</small>
           <b>{name || t("unnamed")}</b>
         </div>
-        {features.planVersion !== null ? <span className="myplan__v">{t("version", { n: features.planVersion })}</span> : null}
+        {features.planVersion !== null ? <span className="myplan__v cx-tag">{t("version", { n: features.planVersion })}</span> : null}
       </header>
       <p className="myplan__lead">{t("fixed")}</p>
       {needsConsent ? (

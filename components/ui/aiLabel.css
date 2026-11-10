@@ -1,48 +1,52 @@
-/* "AI-generated · not legal advice" mark on every AI answer, draft and summary. */
+/* "AI-generated · not legal advice" mark on every AI answer, draft and summary,
+   in the client dashboard's vocabulary: the badge is its blue status pill
+   (.cx-pill--blue), the caveat its grey secondary text; the full mark sits
+   on a chip-coloured strip (no gradient, no violet). The fallbacks are the
+   light/dark token values, for pages outside the cabinet. */
 .ailbl {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 10px;
-  margin: 10px 0 0;
+  margin: 12px 0 0;
   padding: 8px 12px;
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--b400, #5ca8ff) 35%, transparent);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--b400, #5ca8ff) 10%, transparent), color-mix(in srgb, #8b5cf6 8%, transparent));
-  font-size: 0.78rem;
+  border: 0;
+  background: var(--lx-chip, #F2F6FC);
+  font-size: 0.8rem;
   line-height: 1.45;
-  color: var(--ink);
+  color: var(--lx-ink, var(--ink));
 }
 .ailbl__b {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 2px 9px 2px 7px;
+  height: 26px;
+  padding: 0 10px 0 7px;
   border-radius: 999px;
-  background: var(--grad, linear-gradient(135deg, #2563eb, #7c3aed));
-  color: #fff;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  background: var(--lx-blue-tint, #EFF4FE);
+  color: var(--lx-blue-ink, #154CB0);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0;
   white-space: nowrap;
 }
-.ailbl__b svg { width: 12px; height: 12px; flex: none; }
-.ailbl__t { flex: 1 1 180px; min-width: 0; color: var(--gray); overflow-wrap: anywhere; }
+.ailbl__b svg { width: 14px; height: 14px; flex: none; }
+.ailbl__t { flex: 1 1 180px; min-width: 0; color: var(--lx-gray, var(--gray)); overflow-wrap: break-word; }
 .ailbl--compact {
-  margin: 6px 0 0;
+  margin: 10px 0 0;
   padding: 0;
   border: 0;
   background: none;
-  font-size: 0.72rem;
+  font-size: 0.76rem;
   gap: 4px 8px;
 }
 .ailbl--compact .ailbl__b {
-  padding: 1px 7px 1px 5px;
-  font-size: 0.66rem;
+  height: 24px;
+  padding: 0 9px 0 6px;
+  font-size: 0.7rem;
 }
-[data-theme="dark"] .ailbl {
-  border-color: color-mix(in srgb, var(--b300, #8cc2ff) 30%, transparent);
-  background: linear-gradient(135deg, rgba(92, 168, 255, 0.12), rgba(139, 92, 246, 0.1));
-}
+[data-theme="dark"] .ailbl { background: var(--lx-chip, #18253E); color: var(--lx-ink, #E7EEF8); }
 [data-theme="dark"] .ailbl--compact { background: none; }
-[data-theme="dark"] .ailbl__t { color: #b7cdec; }
+[data-theme="dark"] .ailbl__b { background: var(--lx-blue-tint, rgba(96, 165, 250, 0.14)); color: var(--lx-blue-ink, #A3C8FF); }
+[data-theme="dark"] .ailbl__t { color: var(--lx-gray, #A5B4C8); }

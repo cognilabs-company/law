@@ -1,5 +1,6 @@
 "use client";
 
+import "./messenger/comms1920.css";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent, type ComponentType, type ReactNode, type RefObject } from "react";
 import { chatContacts } from "@/lib/chatFilter";
 import { useTranslations } from "next-intl";

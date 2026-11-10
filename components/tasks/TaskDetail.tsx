@@ -80,9 +80,44 @@ export default function TaskDetail({
   const lastReturn = task && task.status === "in_progress" ? history.findLast((h) => h.eventType === "returned" && h.comment) : undefined;
   const title = task ? task.title : t("detail.title");
   const hasActions = task && !task.deletedAt && ((task.actions.canChangeStatus && task.actions.nextStatuses.length > 0) || task.actions.canEdit || task.actions.canAssign || task.actions.canDelete);
+  // The actions live in the drawer's footer: as a sticky bar inside the
+  // scrolling body they covered the attachments and the history under them.
+  const actions =
+    task && hasActions ? (
+      <div className="ttk-scope ttk-d__acts">
+        <StatusActions task={task} busy={busy} onPick={(to) => onStatus(task, to)} size="md" />
+        <span className="ttk-d__more">
+          {task.actions.canEdit ? (
+            <button type="button" className="ttk-btn ttk-btn--line" onClick={() => onEdit(task)} disabled={busy}>
+              <Pencil aria-hidden strokeWidth={STROKE} />
+              {t("edit")}
+            </button>
+          ) : null}
+          {task.actions.canAssign ? (
+            <button type="button" className="ttk-btn ttk-btn--line" onClick={() => onAssign(task)} disabled={busy}>
+              <Users aria-hidden strokeWidth={STROKE} />
+              {t("assign")}
+            </button>
+          ) : null}
+          {task.actions.canDelete ? (
+            approveArchive ? (
+              <button type="button" className="ttk-btn ttk-btn--ok" onClick={() => onDelete(task)} disabled={busy}>
+                <Archive aria-hidden strokeWidth={STROKE} />
+                {t("approveArchive")}
+              </button>
+            ) : (
+              <button type="button" className="ttk-btn ttk-btn--line ttk-btn--danger" onClick={() => onDelete(task)} disabled={busy}>
+                <Trash2 aria-hidden strokeWidth={STROKE} />
+                {t("delete")}
+              </button>
+            )
+          ) : null}
+        </span>
+      </div>
+    ) : undefined;
 
   return (
-    <Modal open onClose={onClose} title={title} variant="drawer" size="lg" busy={busy}>
+    <Modal open onClose={onClose} title={title} variant="drawer" size="lg" busy={busy} footer={actions}>
       <div className="ttk-scope ttk-d">
         {notice ? (
           <p className="ttk-notice" role="status">
@@ -171,38 +206,6 @@ export default function TaskDetail({
               {task.description ? <p className="ttk-desc__t">{task.description}</p> : <p className="ttk-muted">{t("detail.noDescription")}</p>}
             </section>
             <TaskAttachments attachments={task.attachments} count={task.attachmentCount} loading={loading} />
-            {hasActions ? (
-              <div className="ttk-d__acts">
-                <StatusActions task={task} busy={busy} onPick={(to) => onStatus(task, to)} size="md" />
-                <span className="ttk-d__more">
-                  {task.actions.canEdit ? (
-                    <button type="button" className="ttk-btn ttk-btn--line" onClick={() => onEdit(task)} disabled={busy}>
-                      <Pencil aria-hidden strokeWidth={STROKE} />
-                      {t("edit")}
-                    </button>
-                  ) : null}
-                  {task.actions.canAssign ? (
-                    <button type="button" className="ttk-btn ttk-btn--line" onClick={() => onAssign(task)} disabled={busy}>
-                      <Users aria-hidden strokeWidth={STROKE} />
-                      {t("assign")}
-                    </button>
-                  ) : null}
-                  {task.actions.canDelete ? (
-                    approveArchive ? (
-                      <button type="button" className="ttk-btn ttk-btn--ok" onClick={() => onDelete(task)} disabled={busy}>
-                        <Archive aria-hidden strokeWidth={STROKE} />
-                        {t("approveArchive")}
-                      </button>
-                    ) : (
-                      <button type="button" className="ttk-btn ttk-btn--line ttk-btn--danger" onClick={() => onDelete(task)} disabled={busy}>
-                        <Trash2 aria-hidden strokeWidth={STROKE} />
-                        {t("delete")}
-                      </button>
-                    )
-                  ) : null}
-                </span>
-              </div>
-            ) : null}
             <section className="ttk-d__hist" aria-label={t("detail.history")}>
               <h3>
                 <History aria-hidden strokeWidth={STROKE} />

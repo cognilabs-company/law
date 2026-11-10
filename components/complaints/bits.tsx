@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type ComponentType, type SVGProps } from "react";
+import { useMemo, type ComponentType, type CSSProperties, type SVGProps } from "react";
 import { useTranslations } from "next-intl";
 import { humanize } from "@/lib/labels";
 import {
@@ -52,6 +52,23 @@ export function CategoryIcon({ category }: { category: string }) {
     default:
       return <IconChatDots />;
   }
+}
+
+// Each category's picture: the dashboard's navy + blue line drawings
+// (public/img/doc-catalog/Shikoyat_*), shown on a light plate.
+const CATEGORY_ART: Record<string, string> = {
+  service: "Shikoyat_xizmat",
+  lawyer: "Shikoyat_advokat",
+  payment: "Shikoyat_tolov",
+  quality: "Shikoyat_sifat",
+  sla: "Shikoyat_muddat",
+  other: "Shikoyat_boshqa",
+};
+
+/** `--art` for a category's square picture (quality complaints get the quality one). */
+export function categoryArt(category: string, quality = false): CSSProperties {
+  const name = quality ? CATEGORY_ART.quality : CATEGORY_ART[category] || CATEGORY_ART.other;
+  return { "--art": `url(/img/doc-catalog/${name}-sq.webp)` } as CSSProperties;
 }
 
 export const STAGE_ICONS: Record<ComplaintStage, SvgIcon> = {
@@ -117,11 +134,7 @@ export function QualityBadge({ label }: { label: string }) {
 
 export function CategoryTile({ item }: { item: Pick<ComplaintItem, "kind" | "category"> }) {
   const quality = item.kind === "quality";
-  return (
-    <span className={`shk__tile${quality ? " shk__tile--quality" : ""}`} aria-hidden>
-      {quality ? <IconStarRate /> : <CategoryIcon category={item.category} />}
-    </span>
-  );
+  return <span className={`shk__tile shk__tile--art${quality ? " shk__tile--quality" : ""}`} style={categoryArt(item.category, quality)} aria-hidden />;
 }
 
 export function Stars({ n, label }: { n: number; label: string }) {
@@ -134,18 +147,7 @@ export function Stars({ n, label }: { n: number; label: string }) {
   );
 }
 
+// "Nothing to complain about": the dashboard's picture on a light plate.
 export function EmptyArt() {
-  return (
-    <svg className="shk__art" viewBox="0 0 160 120" aria-hidden="true" focusable="false">
-      <circle className="shk__art-bg" cx="80" cy="62" r="50" />
-      <rect className="shk__art-paper" x="52" y="22" width="56" height="74" rx="10" />
-      <rect className="shk__art-clip" x="67" y="15" width="26" height="13" rx="6.5" />
-      <path className="shk__art-line" d="M64 46h32M64 58h24M64 70h28" />
-      <circle className="shk__art-badge" cx="110" cy="88" r="16" />
-      <path className="shk__art-check" d="M102.5 88.5l5.5 5.5 9.5-11" />
-      <circle className="shk__art-dot" cx="33" cy="40" r="4" />
-      <circle className="shk__art-dot" cx="132" cy="32" r="3" />
-      <circle className="shk__art-dot" cx="38" cy="92" r="2.5" />
-    </svg>
-  );
+  return <span className="shk__art shk__art--pic" style={{ "--art": "url(/img/doc-catalog/Shikoyat_yoq.webp)" } as CSSProperties} aria-hidden="true" />;
 }

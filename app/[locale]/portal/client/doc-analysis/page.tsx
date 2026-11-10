@@ -1,9 +1,11 @@
 "use client";
 
+import "@/components/chat/aiPage1920.css";
 import PlanGateCard from "@/components/ui/PlanGateCard";
 import { docAccessGate, planGateOf, type PlanGate } from "@/lib/planGate";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
+import { AlertTriangle, Info } from "lucide-react";
 import AiLabel from "@/components/ui/AiLabel";
 import { useRouter } from "@/i18n/navigation";
 import {
@@ -18,7 +20,7 @@ import {
 import { fmtUzs } from "@/lib/money";
 import { acceptFor, docModeAccess, docRuntimeSettings, type DocAccess } from "@/lib/services/documentSettings";
 import { ApiError, errDetail, logApiError } from "@/lib/http";
-import { IconFileText, IconAlert, IconCheck, IconSparkle, IconShieldCheck, IconArrowRight } from "@/components/icons";
+import { IconFileText, IconCheck, IconSparkle, IconShieldCheck, IconArrowRight } from "@/components/icons";
 import CheckBox from "@/components/CheckBox";
 
 const MAX_PAGES = 500;
@@ -32,9 +34,12 @@ const keyOf = (o: DocQuoteInput) => `${o.pageCount}|${o.ocr}|${o.lawyerReview}|$
 // arrive; those are what the checks below follow.
 const MAX_FILE_MB = 20;
 const FORMATS = ["pdf", "docx", "txt"];
+// A black line drawing (public/img/xizmatlar), shown in a white circle.
+const artStyle = (name: string) => ({ "--art": `url(/img/xizmatlar/${name}.webp)` }) as CSSProperties;
 
 export default function ClientDocAnalysis() {
   const t = useTranslations("portal.client.docAnalysis");
+  const tx = useTranslations("lxAi.doca");
   const tcommon = useTranslations("common");
   const router = useRouter();
   const [text, setText] = useState("");
@@ -167,16 +172,49 @@ export default function ClientDocAnalysis() {
   }
 
   const som = (n: number) => `${fmtUzs(n)} ${t("som")}`;
+  // The review banner leads with the one step that does the most: sending
+  // the analysed file itself, else adding the review to the quote, else
+  // choosing an advocate.
+  const upCta = file ? "handOff" : lawyerReview ? "lawyers" : "add";
+  const accessGate = !gate ? docAccessGate(access, "ai_document_analysis") : null;
+  const modeOff = !!access && !access.allowed && access.code === "document_mode_disabled";
 
   return (
     <div className="doca">
-      <div className="doca__hero">
-        <span className="doca__ico"><IconFileText /></span>
-        <div>
-          <h1 className="doca__title">{t("title")}</h1>
+      {/* The page's name is the shell's title; the banner says what the page
+          does, with the dashboard's drawing for it. */}
+      <section className="doca__hero" aria-labelledby="doca-hero-t">
+        <span className="doca__art" style={artStyle("Hujjat_tahlili")} aria-hidden />
+        <div className="doca__heromain">
+          <h2 id="doca-hero-t" className="doca__title">{tx("heroTitle")}</h2>
           <p className="doca__sub">{t("subtitle")}</p>
         </div>
-      </div>
+        <dl className="doca__meta">
+          <div>
+            <dt>{tx("formats")}</dt>
+            <dd>{limits.formats.map((x) => x.toUpperCase()).join(", ")}</dd>
+          </div>
+          <div>
+            <dt>{tx("size")}</dt>
+            <dd>{tx("sizeVal", { mb: limits.maxMb })}</dd>
+          </div>
+          <div>
+            <dt>{tx("included")}</dt>
+            <dd>{t("pagesN", { n: limits.included })}</dd>
+          </div>
+        </dl>
+      </section>
+
+      {/* When the analysis is closed to this user, that is said before the
+          form, not under it. */}
+      {accessGate ? <PlanGateCard gate={accessGate} /> : null}
+      {modeOff ? (
+        <div className="ppanel doca__state doca__state--off" role="status">
+          <span className="intake__failicon" aria-hidden><AlertTriangle /></span>
+          <b>{t("modeOff")}</b>
+          <p className="advmuted">{t("modeOffText")}</p>
+        </div>
+      ) : null}
 
       <div className="ppanel">
         <label className="intake__lbl">{t("label")}</label>
@@ -271,7 +309,10 @@ export default function ClientDocAnalysis() {
               <div className="doca__risks">
                 {res.risks.map((r, i) => (
                   <div className={`doca__risk doca__risk--${r.level}`} key={i}>
-                    <span className="doca__rl">{t.has(`level.${r.level}`) ? t(`level.${r.level}`) : r.level}</span>
+                    <span className="doca__rl">
+                      {r.level === "high" || r.level === "medium" ? <AlertTriangle aria-hidden /> : <Info aria-hidden />}
+                      {t.has(`level.${r.level}`) ? t(`level.${r.level}`) : r.level}
+                    </span>
                     <span>{r.text}</span>
                   </div>
                 ))}
@@ -292,22 +333,19 @@ export default function ClientDocAnalysis() {
           {/* Permanent upsell after an AI analysis. */}
           {res.upsell ? (
             <div className="ppanel docup">
-              <span className="docup__i"><IconShieldCheck /></span>
+              <span className="docup__i docup__art" style={artStyle("Advokat_tekshiruvi")} aria-hidden />
               <div className="docup__t">
                 <b>{res.upsell.title || t("upsellTitle")}</b>
                 <span>{res.upsell.reason || t("upsellText")}</span>
                 {fresh?.lawyerReviewAmount ? <span className="docup__price">{t("upsellPrice", { price: som(fresh.lawyerReviewAmount) })}</span> : null}
               </div>
               <div className="docup__act">
-                {lawyerReview ? null : (
-                  <button className="btn btn--pri btn--sm" type="button" onClick={addLawyerReview}>{t("upsellAdd")}</button>
-                )}
                 {/* The document itself goes to a Navbatchi advokat. Offered
                     only for a file, because a pasted paragraph is not a
                     document the review endpoint can take. */}
                 {file ? (
                   <button
-                    className="btn btn--grad btn--sm"
+                    className={`btn btn--grad btn--sm ${upCta === "handOff" ? "docup__cta" : "docup__ghost"}`}
                     type="button"
                     onClick={() => void sendToLawyer()}
                     disabled={handOff === "busy" || handOff === "sent"}
@@ -316,7 +354,10 @@ export default function ClientDocAnalysis() {
                     {handOff === "sent" ? t("handOffSent") : handOff === "busy" ? t("handOffSending") : t("handOff")}
                   </button>
                 ) : null}
-                <button className="btn btn--line btn--sm" type="button" onClick={() => router.push("/portal/client/lawyers")}>
+                {lawyerReview ? null : (
+                  <button className={`btn btn--pri btn--sm ${upCta === "add" ? "docup__cta" : "docup__ghost"}`} type="button" onClick={addLawyerReview}>{t("upsellAdd")}</button>
+                )}
+                <button className={`btn btn--line btn--sm ${upCta === "lawyers" ? "docup__cta" : "docup__ghost"}`} type="button" onClick={() => router.push("/portal/client/lawyers")}>
                   {t("upsellLawyers")}
                   <IconArrowRight />
                 </button>
@@ -328,18 +369,13 @@ export default function ClientDocAnalysis() {
         </>
       ) : null}
 
+      {/* A 402 is shown where the analysis was asked for. */}
       {gate ? <PlanGateCard gate={gate} onClose={() => setGate(null)} /> : null}
-      {!gate && docAccessGate(access, "ai_document_analysis") ? <PlanGateCard gate={docAccessGate(access, "ai_document_analysis") as PlanGate} /> : null}
-      {access && !access.allowed && access.code === "document_mode_disabled" ? (
-        <div className="ppanel" role="status">
-          <div className="ppanel__h"><span className="intake__failicon"><IconAlert /></span><b>{t("modeOff")}</b></div>
-          <p className="advmuted">{t("modeOffText")}</p>
-        </div>
-      ) : null}
 
       {failed ? (
-        <div className="ppanel">
-          <div className="ppanel__h"><span className="intake__failicon"><IconAlert /></span><b>{t("failedTitle")}</b></div>
+        <div className="ppanel doca__state" role="alert">
+          <span className="intake__failicon" aria-hidden><AlertTriangle /></span>
+          <b>{t("failedTitle")}</b>
           <p className="advmuted">{t("failedText")}</p>
         </div>
       ) : null}

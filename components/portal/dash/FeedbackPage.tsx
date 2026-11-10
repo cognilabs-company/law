@@ -4,7 +4,7 @@ import "./dash1920.css";
 import "./feedback1920.css";
 import { useMemo, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Bug, CircleCheck, Clock3, ImageUp, Lightbulb, Loader, MessageCircle, MessageSquareWarning, Send, X } from "lucide-react";
+import { Bug, CircleAlert, CircleCheck, Clock3, ImageUp, Inbox, Lightbulb, Loader, MessageCircle, MessageSquareWarning, RotateCw, Send, X } from "lucide-react";
 import { Link, usePathname } from "@/i18n/navigation";
 import { useResource } from "@/lib/useResource";
 import { createSupportTicket, isClosedStatus, listMySupportTickets, type SupportTicket } from "@/lib/services/support";
@@ -13,6 +13,7 @@ import { notify } from "@/lib/toast";
 import Select from "@/components/Select";
 import CheckBox from "@/components/CheckBox";
 import { groupsFor } from "../portalNav";
+import { useFitPlaceholder } from "@/lib/useFitPlaceholder";
 
 // "Xato va takliflar" (reference/design-lexgo-1920/1c, 2c): the same page for
 // the client, the advocate and the lawyer. Requests travel as support
@@ -56,6 +57,9 @@ async function shrink(file: File): Promise<string> {
 export default function FeedbackPage({ role }: { role: "client" | "advocate" | "lawyer" }) {
   const t = useTranslations("lxFeedback");
   const tx = useTranslations("lxShell");
+  const ts = useTranslations("lxSupport");
+  const tc = useTranslations("common");
+  const [subjPh, subjRef] = useFitPlaceholder([t("subjectPh"), t("subjectPhShort")]);
   const locale = useLocale();
   const pathname = usePathname();
   const sections = useMemo(() => groupsFor(role).flatMap((g) => g.items).filter((n) => n.key !== "feedback"), [role]);
@@ -165,7 +169,7 @@ export default function FeedbackPage({ role }: { role: "client" | "advocate" | "
           </div>
           <label className="lfb-field">
             <span className="lfb-lbl">{t("subject")}</span>
-            <input className={`lfb-input${subjErr ? " is-bad" : ""}`} value={subject} maxLength={255} onChange={(e) => setSubject(e.target.value)} placeholder={t("subjectPh")} aria-invalid={subjErr || undefined} />
+            <input className={`lfb-input${subjErr ? " is-bad" : ""}`} value={subject} maxLength={255} onChange={(e) => setSubject(e.target.value)} ref={subjRef} placeholder={subjPh} aria-invalid={subjErr || undefined} />
             {subjErr ? <small className="lfb-err">{t("needSubject")}</small> : null}
           </label>
         </div>
@@ -219,9 +223,17 @@ export default function FeedbackPage({ role }: { role: "client" | "advocate" | "
           {mine.status === "loading" ? (
             <div className="cx-skel" />
           ) : mine.status === "error" ? (
-            <p className="lxs-muted">{t("listError")}</p>
+            <div className="cx-empty lfb-empty">
+              <span className="cx-empty__ic lfb-empty__ic--err" aria-hidden="true"><CircleAlert /></span>
+              <b>{t("listError")}</b>
+              <button type="button" className="btn btn--line btn--sm" onClick={() => void mine.refresh()}><RotateCw />{tc("retry")}</button>
+            </div>
           ) : !mine.data.length ? (
-            <p className="lxs-muted">{t("listEmpty")}</p>
+            <div className="cx-empty lfb-empty">
+              <span className="cx-empty__ic" aria-hidden="true"><Inbox /></span>
+              <b>{t("listEmpty")}</b>
+              <p>{ts("fbEmptyText")}</p>
+            </div>
           ) : (
             <ul>
               {mine.data.slice(0, 6).map((x) => {

@@ -18,6 +18,7 @@ import { IconChevronDown, IconClose, IconSearch, IconSliders } from "@/component
 import { useAiReveal } from "@/lib/guide/targets";
 import { useLayer } from "@/lib/layers";
 import { isCoarsePointer } from "@/lib/usePopover";
+import { useFitPlaceholder } from "@/lib/useFitPlaceholder";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -238,10 +239,13 @@ export function filterChips(fields: FilterField[]): Chip[] {
 
 function SearchBox({ search, id }: { search: FilterSearch; id?: string }) {
   const t = useTranslations("filterBar");
+  // the page's hint where it fits whole, else just "Qidirish" (a phone, a narrow column)
+  const [ph, qRef] = useFitPlaceholder([search.placeholder, search.label || t("search")]);
   return (
     <div className="uf-search" data-ai-target={search.aiTarget} data-ai-label={search.aiLabel}>
       <IconSearch aria-hidden="true" />
       <input
+        ref={qRef}
         id={id}
         type="search"
         value={search.value}
@@ -252,7 +256,7 @@ function SearchBox({ search, id }: { search: FilterSearch; id?: string }) {
             search.onEnter();
           }
         }}
-        placeholder={search.placeholder}
+        placeholder={ph}
         aria-label={search.label || search.placeholder}
         maxLength={search.maxLength ?? 200}
         enterKeyHint="search"

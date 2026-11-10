@@ -1,0 +1,75 @@
+/* ═══ LexGo 1920 — the layers outside the shell ═══
+   Dialogs (components/admin/Modal → .amodal, ConfirmHost → .cdlg), menus,
+   pickers, sheets, lightboxes and the onboarding layer are all portalled to
+   <body>, so they sit OUTSIDE .portal.lx and never received the design's
+   tokens: a dialog opened from a cabinet page still painted the old
+   blue→cyan gradient (--grad) on its buttons, segmented controls and chips,
+   with the old blue glow under them, and the old 20px radii — next to a
+   page drawn in the dashboard's flat navy/blue (reference: the client
+   dashboard, components/portal/dash/ClientHome.tsx + dash1920.css).
+
+   While a cabinet shell is on the page, every top-level layer that is not
+   the app itself gets the same tokens as .portal.lx (shell1920.css), and the
+   base primitives are re-stated for them. The scope is wrapped in :where()
+   so it adds NO specificity: a rule written for one dialog still beats
+   these, exactly as it beat the old globals.css primitives it replaces. */
+
+html:has(.portal.lx) body > :not(:has(.portal.lx)){
+  --lx-blue:#1668F0; --lx-blue-h:#0F57D6; --lx-link:#1460DC; --lx-blue-ink:#154CB0; --lx-blue-tint:#EFF4FE;
+  --lx-navy:#0A1526; --lx-navy-2:#162131; --lx-navy-3:#1A2D49; --lx-navy-line:#232D3C;
+  --lx-bg:#F5F9FF; --lx-card:#FFFFFF; --lx-line:#E4EBF5; --lx-line-2:#ECF0F7; --lx-chip:#F2F6FC;
+  --lx-ink:#0A1526; --lx-gray:#4F5F75; --lx-gray2:#5D6E84;
+  --lx-ok:#0E7A55; --lx-ok-bg:#E7F6EE; --lx-warn:#9A5B00; --lx-warn-bg:#FFF3D6; --lx-err:#D93B30; --lx-err-bg:#FDECEA;
+  --lx-r:24px; --lx-r-md:16px; --lx-r-sm:12px;
+  --b600:#1668F0; --b700:#154CB0; --b50:#F5F9FF; --b100:#EFF4FE; --line:#E4EBF5; --ink:#0A1526; --gray:#4F5F75;
+  --rl:24px; --r:16px;
+  --grad:var(--lx-blue); --grad-dark:var(--lx-navy);
+  --sblue:none;
+}
+html[data-theme="dark"]:has(.portal.lx) body > :not(:has(.portal.lx)){
+  --lx-blue:#1F66E5; --lx-blue-h:#2C74F0; --lx-link:#6EA8FF; --lx-blue-ink:#A3C8FF; --lx-blue-tint:rgba(96,165,250,.14);
+  --lx-navy:#081120; --lx-navy-2:#121D31; --lx-navy-3:#1A2D49; --lx-navy-line:#22324D;
+  --lx-bg:#0A1120; --lx-card:#121C31; --lx-line:#26365A; --lx-line-2:#22314F; --lx-chip:#18253E;
+  --lx-ink:#E7EEF8; --lx-gray:#A5B4C8; --lx-gray2:#8494AB;
+  --lx-ok:#4ADE9F; --lx-ok-bg:rgba(52,211,153,.14); --lx-warn:#FBC15E; --lx-warn-bg:rgba(251,191,36,.14); --lx-err:#FF9494; --lx-err-bg:rgba(248,113,113,.14);
+  --b50:#0D182C; --b100:#172B4E; --line:#26365A; --ink:#E7EEF8; --gray:#A5B4C8;
+}
+
+/* ── buttons, as on the page (shell1920.css) ── */
+:where(html:has(.portal.lx) body > :not(:has(.portal.lx))) .btn{border-radius:12px;padding:12px 20px;font-size:.94rem;font-weight:600;gap:8px;box-shadow:none}
+:where(html:has(.portal.lx) body > :not(:has(.portal.lx))) .btn::before{display:none}
+:where(html:has(.portal.lx) body > :not(:has(.portal.lx))) .btn--sm{padding:9px 14px;font-size:.88rem;border-radius:10px}
+:where(html:has(.portal.lx) body > :not(:has(.portal.lx))) .btn--lg{padding:15px 26px;font-size:1rem;border-radius:14px}
+:where(html:has(.portal.lx) body > :not(:has(.portal.lx))) :is(.btn--pri,.btn--grad){background:var(--lx-blue);color:#fff;box-shadow:none;filter:none}
+:where(html:has(.portal.lx) body > :not(:has(.portal.lx))) :is(.btn--pri,.btn--grad):hover:where(:not(:disabled,[aria-disabled="true"])){background:var(--lx-blue-h);box-shadow:none;filter:none}
+:where(html:has(.portal.lx) body > :not(:has(.portal.lx))) .btn--dark{background:var(--lx-navy);color:#fff}
+:where(html:has(.portal.lx) body > :not(:has(.portal.lx))) .btn--dark:hover:where(:not(:disabled,[aria-disabled="true"])){background:#1B2A42}
+html[data-theme="dark"] :where(html:has(.portal.lx) body > :not(:has(.portal.lx))) .btn--dark{background:#E7EEF8;color:#0A1526}
+:where(html:has(.portal.lx) body > :not(:has(.portal.lx))) :is(.btn--line,.btn--ghost){background:var(--lx-card);color:var(--lx-ink);box-shadow:none;border:1px solid var(--lx-line)}
+:where(html:has(.portal.lx) body > :not(:has(.portal.lx))) :is(.btn--line,.btn--ghost):hover:where(:not(:disabled,[aria-disabled="true"])){border-color:#C7D6EC;color:var(--lx-ink);background:var(--lx-card);box-shadow:none}
+:where(html:has(.portal.lx) body > :not(:has(.portal.lx))) .btn--soft{background:var(--lx-chip);color:var(--lx-ink)}
+:where(html:has(.portal.lx) body > :not(:has(.portal.lx))) .btn--soft:hover:where(:not(:disabled,[aria-disabled="true"])){background:#E6EDF8}
+html[data-theme="dark"] :where(html:has(.portal.lx) body > :not(:has(.portal.lx))) .btn--soft:hover:where(:not(:disabled,[aria-disabled="true"])){background:#22314F}
+:where(html:has(.portal.lx) body > :not(:has(.portal.lx))) .btn--link{background:none;color:var(--lx-link);padding-inline:6px}
+:where(html:has(.portal.lx) body > :not(:has(.portal.lx))) .btn--pill{border-radius:999px}
+
+/* ── selected states: flat blue, no glow — on the page and in the layers ──
+   globals.css "ACTIVE STATES (redesigned — vivid)" paints --grad (now flat
+   blue in the cabinet) with a blue glow under it; the dashboard has none. */
+:where(.portal.lx, html:has(.portal.lx) body > :not(:has(.portal.lx))) :is(.seg[aria-selected=true],.tab[aria-selected=true],.fchip[aria-pressed=true],.switch button[aria-pressed=true]){box-shadow:none}
+
+/* ── the dialog frame ── */
+:where(html:has(.portal.lx)) .amodal{background:rgba(10,21,38,.5)}
+:where(html:has(.portal.lx)) .amodal__c{border-radius:24px;box-shadow:0 30px 60px -28px rgba(10,21,38,.45)}
+:where(html:has(.portal.lx)) .amodal__h{padding:20px 24px;border-bottom-color:var(--lx-line-2)}
+:where(html:has(.portal.lx)) :is(.amodal__h b,.amodal__t){font-family:var(--fd);font-size:1.18rem;font-weight:700;letter-spacing:-.015em;color:var(--lx-ink)}
+:where(html:has(.portal.lx)) .amodal__x{width:40px;height:40px;border-radius:12px;background:var(--lx-chip);color:var(--lx-ink)}
+:where(html:has(.portal.lx)) .amodal__x:hover{background:#E6EDF8;color:var(--lx-ink)}
+html[data-theme="dark"] :where(html:has(.portal.lx)) .amodal__x:hover{background:#22314F}
+:where(html:has(.portal.lx)) .amodal__x svg{width:18px;height:18px}
+:where(html:has(.portal.lx)) .amodal__b{padding:24px}
+:where(html:has(.portal.lx)) .amodal__ic{border-radius:14px;background:var(--lx-blue-tint);color:var(--lx-link)}
+@media (max-width:560px){
+  :where(html:has(.portal.lx)) .amodal__h{padding:16px 18px}
+  :where(html:has(.portal.lx)) .amodal__b{padding:18px}
+}

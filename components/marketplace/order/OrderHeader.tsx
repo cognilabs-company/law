@@ -28,6 +28,7 @@ import {
   ClipboardListIcon,
   CheckIcon,
   ShieldCheckIcon,
+  artStyle,
   glyph,
 } from "./icons";
 import type { OrderView } from "./types";
@@ -221,6 +222,8 @@ export default function OrderHeader({
   const replacing = accepting && (o.waitingReplacement || o.paymentStatus === "paid");
   // Paid and not yet settled: the money waits in LexGo until the work is done.
   const held = phase === "paid" || phase === "in_progress" || phase === "review";
+  const client = view === "client";
+  const at = STEP_AT[phase];
   return (
     <header className="mod-head" data-phase={accepting ? "accepting" : phase} data-ai-id={`${aiBase}.header`} data-ai-type="section" data-ai-label={title}>
       <div className="mod-head__bar">
@@ -239,6 +242,7 @@ export default function OrderHeader({
         </div>
       </div>
       <div className="mod-head__hero">
+        {client ? <span className="mod-head__art odx-art" style={artStyle("xizmatlar")} aria-hidden="true" /> : null}
         <span className="mod-head__orbs" aria-hidden="true" />
         <div className="mod-head__main">
           <div className="mod-head__titles">
@@ -261,27 +265,37 @@ export default function OrderHeader({
         </div>
         <p className="mod-head__lead">{replacing ? (view === "client" ? o.clientMessage || t("lead.client.replacing") : t("lead.seller.replacing")) : t(`lead.${view}.${accepting ? "accepting" : phase === "cancelled" && refundState ? refundState : phase}`)}</p>
       </div>
-      {phase !== "cancelled" ? (
-        <div className="mod-head__progress" data-ai-id={`${aiBase}.progress`} data-ai-type="section" data-ai-label={t("steps.label")}>
-          <p className="mod-head__progress-top">
-            <span>{t("steps.label")}</span>
-            <b>{t("steps.counter", { n: STEP_AT[phase] + 1, total: STEPS.length })}</b>
-          </p>
-          <StepRail phase={phase} />
+      {/* The stages, the deadline and the chat lock: one card on the client's
+          page (orderDetail1920.css); on the seller's it lays out as before. */}
+      <div className="mod-head__track">
+        {phase !== "cancelled" ? (
+          <div className="mod-head__progress" data-ai-id={`${aiBase}.progress`} data-ai-type="section" data-ai-label={t("steps.label")}>
+            <p className="mod-head__progress-top">
+              <span>{t("steps.label")}</span>
+              <b>{t("steps.counter", { n: at + 1, total: STEPS.length })}</b>
+            </p>
+            <StepRail phase={phase} />
+            {/* A phone shows the bar and this one line, as the dashboard's work cards do. */}
+            {client && at >= 0 ? (
+              <p className="mod-head__stage" aria-hidden="true">
+                {`${at + 1}/${STEPS.length} · ${t(`steps.${STEPS[at]}`)}`}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+        <div className="mod-head__time" data-ai-id={`${aiBase}.deadline`} data-ai-type="section" data-ai-label={t("deadline.title")}>
+          {ratingOpen ? <RatingCountdown o={o} view={view} className="mod-head__rating" /> : <DeadlineStrip o={o} phase={phase} runtime={runtime} />}
         </div>
-      ) : null}
-      <div className="mod-head__time" data-ai-id={`${aiBase}.deadline`} data-ai-type="section" data-ai-label={t("deadline.title")}>
-        {ratingOpen ? <RatingCountdown o={o} view={view} className="mod-head__rating" /> : <DeadlineStrip o={o} phase={phase} runtime={runtime} />}
+        {locked ? (
+          <p className="mod-lock">
+            {glyph(LockIcon, { size: 16 })}
+            <span>
+              {t("actions.chatReadOnly")}
+              {!o.callsAllowed ? ` ${t("actions.callsOff")}` : ""}
+            </span>
+          </p>
+        ) : null}
       </div>
-      {locked ? (
-        <p className="mod-lock">
-          {glyph(LockIcon, { size: 16 })}
-          <span>
-            {t("actions.chatReadOnly")}
-            {!o.callsAllowed ? ` ${t("actions.callsOff")}` : ""}
-          </span>
-        </p>
-      ) : null}
     </header>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import "./messenger/messenger.css";
+import "./messenger/comms1920.css";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ClipboardEvent, type DragEvent } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
@@ -38,10 +39,10 @@ import {
   type CallSession,
   type UrgentRequest,
 } from "@/lib/services/backend";
-import { ArrowDown, ArrowLeft, Copy, EllipsisVertical, Lock as LockIcon, Reply, RotateCw, Trash2, UploadCloud, Users as UsersIcon } from "lucide-react";
+import { ArrowDown, ArrowLeft, Bot, Copy, EllipsisVertical, Lock as LockIcon, Reply, RotateCw, Trash2, UploadCloud, Users as UsersIcon } from "lucide-react";
 import { dropRoom, noteRoomMessage, useRoom } from "./messenger/rooms";
 import { AttachMenu, AttachTray, EmojiPicker, VoiceBar, type PendingFile } from "./messenger/ComposerParts";
-import { dayLabel, hueOf, initialsOf, peerOf, roleLabel as peerRole } from "./messenger/format";
+import { breakName, dayLabel, excerpt, initialsOf, peerOf, roleLabel as peerRole, toneOf } from "./messenger/format";
 import ChatFilePreview, { canPreviewFile } from "./ChatFilePreview";
 import { roomOrderLock, subscribeOrderLock, type OrderLock } from "@/components/marketplace/order/lock";
 import { statusLabel } from "@/lib/labels";
@@ -86,7 +87,7 @@ import { localizeApiDetail } from "@/lib/apiMessage";
 import { notify } from "@/lib/toast";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { ErrorState } from "@/components/portal/DataState";
-import InstructorButton from "@/components/guide/InstructorButton";
+import { openInstructor } from "@/lib/guide/panel";
 
 // `localUrl` is the picked file itself, so a photo shows while it uploads.
 type LocalMsg = SecureMessage & { pending?: boolean; failed?: boolean; localUrl?: string };
@@ -388,7 +389,7 @@ function Attachment({ roomId, msg, t }: { roomId: string; msg: LocalMsg; t: Retu
           </span>
         )}
         <span className="sattach__cap">
-          {isMachineFileName(name) ? <small aria-hidden="true" /> : <small>{name}</small>}
+          {isMachineFileName(name) ? <small aria-hidden="true" /> : <small>{breakName(name)}</small>}
           <button type="button" className="sattach__dlbtn" onClick={download} disabled={busy || msg.pending} aria-label={t("attachDownload")} title={t("attachDownload")}>
             {busy ? <IconClock /> : <IconDownload />}
           </button>
@@ -419,7 +420,7 @@ function Attachment({ roomId, msg, t }: { roomId: string; msg: LocalMsg; t: Retu
         <span className="sattach__i"><IconFileText /></span>
         <span className="sattach__t">
           {/* A camera's "96B3381C-….heic" says nothing; its kind and type do. */}
-          <b title={name}>{isMachineFileName(name) ? `${t("fileGeneric")} · ${(name.split(".").pop() || "").toUpperCase()}` : name}</b>
+          <b title={name}>{isMachineFileName(name) ? `${t("fileGeneric")} · ${(name.split(".").pop() || "").toUpperCase()}` : breakName(name)}</b>
           <small>{err ? t("attachFailed") : msg.pending ? t("attachSending") : fmtSize(msg.file?.size || 0)}</small>
         </span>
       </button>
@@ -646,7 +647,7 @@ function ClientRatingBox({
         disabled={busy}
       />
       {err ? <p className="drate__err" role="status">{err}</p> : null}
-      <button type="button" className="btn btn--grad btn--sm" onClick={() => void send()} disabled={!stars || busy}>
+      <button type="button" className="btn btn--pri btn--sm" onClick={() => void send()} disabled={!stars || busy}>
         {busy ? tu("sending") : tu("rateSubmit")}
       </button>
     </div>
@@ -707,6 +708,7 @@ export default function SecureChat({
   // portal.client.rate's five words) rather than duplicating it here.
   const tu = useTranslations("portal.client.urgent");
   const tr = useTranslations("portal.client.rate");
+  const tai = useTranslations("portal.aiAssistant");
   // In a virtual desktop window the copilot can be pointed at this chat;
   // the backend loads the history it may see, nothing is copied from here.
   const copilotOn = useCopilotAvailable(!!roomId);
@@ -1750,7 +1752,7 @@ export default function SecureChat({
             {embedded ? <ArrowLeft aria-hidden /> : <IconClose />}
           </button>
         )}
-        <span className={`mx-av mxr__av${groupRoom ? " mx-av--group" : ""}`} style={{ ["--h" as string]: hueOf(peer.ids[0] || roomId) }} aria-hidden>
+        <span className={`mx-av mxr__av cx-av${groupRoom ? " mx-av--group" : ""}`} aria-hidden>
           {groupRoom ? <UsersIcon /> : initialsOf(peer.name) || <IconShieldCheck />}
           <i className={`mxr__dot mxr__dot--${conn}`} />
         </span>
@@ -1776,11 +1778,16 @@ export default function SecureChat({
               status, under the name. */}
           {headService || headWorkId || headStatus || discussionRoom ? (
             <span className="mxr__tags">
-              {discussionRoom ? <span className="mx-tag mx-tag--disc">{t("cancellationDiscussion")}</span> : null}
-              {headService && headService !== headName ? <span className="mx-tag mx-tag--urgent">{headService}</span> : null}
-              {headWorkId ? <span className="mx-tag mx-tag--mono">#{headWorkId}</span> : null}
+              {(headService && headService !== headName) || headWorkId ? (
+                <span className="mxr__meta">
+                  {headService && headService !== headName ? headService : null}
+                  {headService && headService !== headName && headWorkId ? " · " : null}
+                  {headWorkId ? <span className="mxr__wid">{breakName(`#${headWorkId}`)}</span> : null}
+                </span>
+              ) : null}
+              {discussionRoom ? <span className="mx-tag mx-tag--disc cx-pill cx-pill--warn">{t("cancellationDiscussion")}</span> : null}
               {headStatus ? (
-                <span className={`mx-tag mx-tag--st mx-tag--${headStatus}`} title={t("statusTitle")}>
+                <span className={`mx-tag mx-tag--st mx-tag--${headStatus} cx-pill ${toneOf(headStatus)}`} title={t("statusTitle")}>
                   {statusLabel(tc, headStatus)}
                 </span>
               ) : null}
@@ -1818,7 +1825,13 @@ export default function SecureChat({
               <IconSparkle />
             </button>
           ) : null}
-          {compact ? null : <InstructorButton className="mxr__ib mxr__ai" iconOnly size={26} />}
+          {/* The instructor the floating robot opens (it steps aside while a
+              room is open), as a plain header icon like the others. */}
+          {compact ? null : (
+            <button type="button" className="mxr__ib mxr__ai" onClick={() => openInstructor()} aria-label={tai("open")} title={tai("open")} data-ai-target="button:open-instructor">
+              <Bot aria-hidden />
+            </button>
+          )}
           <div className="mxr__menu" hidden={compact || (refused.has("ttl") && refused.has("delete"))}>
             <button className="mxr__ib" type="button" aria-label={t("chatSettings")} title={t("chatSettings")} aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}>
               <EllipsisVertical aria-hidden />
@@ -1859,15 +1872,18 @@ export default function SecureChat({
       </header>
 
       {incoming && !activeCall ? (
-        <div className="schat__callbar">
+        <div className="schat__callbar mxr__call">
+          {/* the dashboard's navy banner: a white tile with the call's icon */}
+          <span className="mxr__callic" aria-hidden>
+            {incoming.callType === "video" ? <IconVideo /> : <IconPhone />}
+          </span>
           <span className="schat__callbar-l">
             <i className="schat__callpulse" aria-hidden />
-            {incoming.callType === "video" ? <IconVideo /> : <IconPhone />}
             {t("incomingCall")}
           </span>
           <div className="schat__callbar-a">
             <button
-              className="btn btn--line btn--sm"
+              className="btn btn--sm mxr__calloff"
               type="button"
               onClick={() => {
                 if (incoming) dismissedCalls.current.add(incoming.callId);
@@ -1918,7 +1934,7 @@ export default function SecureChat({
               )
             ) : visible.length === 0 ? (
               <div className="mxr__empty">
-                <span className="mxr__halo"><IconShieldCheck /></span>
+                <span className="mxr__art" style={{ "--art": "url(/img/xizmatlar/Chat_konsultatsiya.webp)" } as React.CSSProperties} aria-hidden />
                 <b>{t("emptyTitle")}</b>
                 <p>{t("empty")}</p>
               </div>
@@ -1978,7 +1994,6 @@ export default function SecureChat({
                 const body = media && raw === METADATA_ONLY ? "" : raw;
                 const imageOnly = media && !body && !quoted && isImageAttachment(m.file) && m.messageType !== "voice";
                 const who = m.sender ? senderName(m.sender) : "";
-                const hue = hueOf(m.senderId || who);
                 return (
                   <Fragment key={`w-${m.id || i}`}>
                     {sep}
@@ -1987,13 +2002,13 @@ export default function SecureChat({
                       data-mid={m.id || undefined}
                     >
                       {groupRoom && !mine ? (
-                        <span className="mx-av mxm__av" style={{ ["--h" as string]: hue }} aria-hidden>
+                        <span className="mx-av mxm__av cx-av" aria-hidden>
                           {last ? initialsOf(who) || <IconUser /> : null}
                         </span>
                       ) : null}
                       <div className="mxm__col">
                         {!mine && first && nameBubbles && m.sender ? (
-                          <div className="mxm__who" style={{ ["--h" as string]: hue }}>
+                          <div className="mxm__who">
                             <b>{who}</b>
                             {m.sender.role ? <span>{roleLabel(m.sender.role, t)}</span> : null}
                           </div>
@@ -2008,7 +2023,7 @@ export default function SecureChat({
                           {quoted ? (
                             <button type="button" className="mxm__quote" onClick={() => jumpTo(quoted.id)} title={t("replyJump")}>
                               <b>{senderName(quoted.sender)}</b>
-                              <span>{quoteExcerpt(quoted)}</span>
+                              <span>{excerpt(quoteExcerpt(quoted), 120)}</span>
                             </button>
                           ) : null}
                           {media ? <Attachment roomId={roomId} msg={m} t={t} /> : null}
@@ -2130,7 +2145,7 @@ export default function SecureChat({
                 <Reply aria-hidden className="mxr__replyi" />
                 <span className="mxr__replyt">
                   <b>{t("replyingTo", { name: senderName(replyTo.sender) })}</b>
-                  <small>{msgExcerpt(replyTo)}</small>
+                  <small>{excerpt(msgExcerpt(replyTo), 140)}</small>
                 </span>
                 <button type="button" className="mxr__ib" onClick={() => setReplyTo(null)} aria-label={t("replyCancel")} title={t("replyCancel")}>
                   <IconClose />

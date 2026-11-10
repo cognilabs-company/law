@@ -12,15 +12,16 @@ import {
   splitSourceTitle,
   type MdBlock,
 } from "@/lib/agentAnswer";
+// The dashboard's icon set (lucide), as everywhere in the cabinet.
 import {
-  IconAlert,
-  IconArrowRight,
-  IconExternal,
-  IconFileText,
-  IconInfo,
-  IconRefresh,
-  IconScale,
-} from "../icons";
+  AlertTriangle as IconAlert,
+  ArrowRight as IconArrowRight,
+  ExternalLink as IconExternal,
+  FileText as IconFileText,
+  Info as IconInfo,
+  RefreshCw as IconRefresh,
+  Scale as IconScale,
+} from "lucide-react";
 
 // A legal agent answer (md/FRONTEND_LEGAL_AGENT.md §2.2–§3). Everything is
 // built as React elements from the parsed Markdown — no HTML string ever

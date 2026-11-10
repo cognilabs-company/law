@@ -64,7 +64,7 @@ export default function PublicAchievements({ sellerId }: { sellerId: string }): 
               <small>{[L.stage(a.stage, a.stageLabel) ? L.result(a.result, a.resultLabel) : "", cat(a), a.year ? String(a.year) : ""].filter(Boolean).join(" · ")}</small>
               {a.publicDescription ? <p>{a.publicDescription}</p> : null}
               {a.verified ? (
-                <em className="mk-ach__ok">
+                <em className="mk-ach__ok cx-pill cx-pill--ok">
                   <IconShieldCheck aria-hidden="true" />
                   {a.verifiedAt ? t("verifiedOn", { date: dateOnly(a.verifiedAt, locale) }) : t("verified")}
                 </em>

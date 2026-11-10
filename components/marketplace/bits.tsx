@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { humanizeSlug, initials } from "@/lib/lawyers";
 import type { MarketSeller } from "@/lib/services/marketplace";
 import { categoryName } from "@/lib/categoryNames";
+import "./directory1920.css";
 
 type TFn = ReturnType<typeof useTranslations>;
 
@@ -13,9 +14,29 @@ export function sellerTypeLabel(t: TFn, type: string): string {
   return t.has(`roles.${type}`) ? t(`roles.${type}`) : humanizeSlug(type);
 }
 
+// A seller's free specialization slug ("labor-disputes", "civil-cases",
+// "realestate-lease-contract") read as the practice area it starts with, so
+// the reader sees "Mehnat nizolari" rather than the English slug.
+const SPEC_AREAS: readonly (readonly [RegExp, string])[] = [
+  [/^(labou?r|employ|mehnat)/, "labor"],
+  [/^(family|oila|marriage|divorce|aliment)/, "family"],
+  [/^(civil|fuqarolik)/, "civil"],
+  [/^(criminal|jinoy)/, "criminal"],
+  [/^(real-?estate|property|housing|ko.?chmas|uy-joy)/, "realEstate"],
+  [/^(tax|soliq)/, "tax"],
+  [/^(admin|ma.?muriy)/, "administrative"],
+  [/^(ip|intellectual|brand|patent)([-_]|$)/, "ip"],
+  [/^(migration|immigration|visa)/, "migration"],
+  [/^(econom|business|corporate|biznes|iqtisod)/, "economic"],
+  [/^(inherit|meros)/, "meros"],
+  [/^(consumer|iste.?molchi)/, "zarar-va-istemolchi-huquqlari"],
+];
+
 export function specLabel(te: TFn, value: string): string {
   const k = value.trim().toLowerCase();
   if (te.has(`areas.${k}`)) return te(`areas.${k}`);
+  const area = SPEC_AREAS.find(([re]) => re.test(k))?.[1];
+  if (area && te.has(`areas.${area}`)) return te(`areas.${area}`);
   return humanizeSlug(value);
 }
 

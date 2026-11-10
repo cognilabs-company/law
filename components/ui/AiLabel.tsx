@@ -3,7 +3,7 @@
 import "./aiLabel.css";
 import type { ReactElement } from "react";
 import { useTranslations } from "next-intl";
-import { IconSparkle } from "@/components/icons";
+import { Sparkles } from "lucide-react";
 
 // Marks content an AI wrote (a chat answer, a drafted document, a summary or
 // analysis) as AI-generated and not legal advice, in the page's language.
@@ -14,7 +14,7 @@ export default function AiLabel({ compact = false, className = "" }: { compact?:
   return (
     <p className={`ailbl${compact ? " ailbl--compact" : ""}${className ? ` ${className}` : ""}`} role="note" data-ai-generated="">
       <span className="ailbl__b">
-        <IconSparkle aria-hidden />
+        <Sparkles aria-hidden />
         {t("badge")}
       </span>
       <span className="ailbl__t">{t("text")}</span>

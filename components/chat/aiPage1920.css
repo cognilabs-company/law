@@ -1,0 +1,508 @@
+/* ═══ LexGo 1920 — Sun'iy intellekt (ChatPage) + Hujjat tahlili ═══
+   The AI chat page (components/chat/ChatPage.tsx, client and lawyer
+   cabinets) and the document analysis page
+   (app/[locale]/portal/client/doc-analysis/page.tsx), drawn in the client
+   dashboard's vocabulary (components/portal/dash/ClientHome.tsx +
+   dash1920.css), which is the design every cabinet page now follows:
+   - the chat is one dashboard card that fits under the page header, its
+     composer the dashboard's ".cx-ai__f" box with the dark button;
+   - the welcome shows the dashboard's own LexGo AI drawing in a white
+     circle, the starter questions are white cards carrying the area
+     pictures of "Huquqiy yo'nalishlar";
+   - bubbles, answers and the sources are flat: chip panels, round count
+     bubbles, blue-tint chips — no gradients, glows or coloured bars;
+   - limit and upsell notices are the dashboard's navy banner.
+   lexai.css and the old .ag / .agt / .aifile / .doca rules in
+   app/globals.css stay as they are; the selectors here carry enough weight
+   to win over every one of them. Rules for classes that only exist in the
+   new markup are unscoped, so the public /chat page draws them too. */
+
+/* ── the frame: one card, exactly as tall as the room under the header ── */
+/* The shell scrolls .pbody with the page header inside it; the chat card
+   used to take the whole .pbody height on top of that header, so its
+   composer started below the fold. */
+.portal.lx .pbody:has(.lxai--embed){overflow:hidden}
+.portal.lx .pbody:has(.lxai--embed) .pbody__in{flex:1 1 0;min-height:0;height:auto;display:flex;flex-direction:column}
+.portal.lx .lxai--embed{flex:1 1 0;min-height:0;border:1px solid var(--lx-line-2);border-radius:24px;box-shadow:none;background:var(--lx-card)}
+html[data-theme="dark"] .portal.lx .lxai--embed{border-color:var(--lx-line)}
+.portal.lx .lxai{
+  --ai-panel:var(--lx-card);--ai-side:var(--lx-card);--ai-raise:var(--lx-chip);--ai-hover:var(--lx-chip);
+  --ai-on:var(--lx-blue-tint);--ai-line:var(--lx-line);--ai-ink:var(--lx-ink);--ai-muted:var(--lx-gray);
+  --ai-faint:var(--lx-gray2);--ai-acc:var(--lx-link);--ai-q:var(--lx-blue);
+}
+
+/* ── history ─────────────────────────────────────────────── */
+.portal.lx .lxai__side{background:var(--lx-card);border-right:1px solid var(--lx-line-2);padding-top:6px}
+html[data-theme="dark"] .portal.lx .lxai__side{border-right-color:var(--lx-line)}
+/* "Yangi chat": the dashboard's dark button */
+.portal.lx .lxai__new{height:46px;margin:10px 16px;border-radius:12px;background:var(--lx-navy);color:#fff;box-shadow:none;font:600 .94rem/1 var(--fb);transform:none}
+.portal.lx .lxai__new:hover{background:#16243C;transform:none}
+html[data-theme="dark"] .portal.lx .lxai__new{background:var(--lx-blue)}
+html[data-theme="dark"] .portal.lx .lxai__new:hover{background:var(--lx-blue-h)}
+.portal.lx .lxai__search{height:42px;margin:2px 16px 8px;border-radius:12px;background:var(--lx-card);border:1px solid var(--lx-line);box-shadow:none}
+.portal.lx .lxai__search:focus-within{border-color:var(--lx-blue);box-shadow:0 0 0 3px rgba(22,104,240,.12)}
+.portal.lx .lxai__list{padding:4px 10px 14px}
+.portal.lx .lxai__lbl{margin:12px 10px 6px;font:600 .7rem/1.2 var(--fb);letter-spacing:.06em;color:var(--lx-gray2)}
+/* a row: the whole title and a short excerpt, wrapped — never an ellipsis */
+.portal.lx .lxai__item{align-items:flex-start;gap:12px;padding:10px;border-radius:14px}
+.portal.lx .lxai__item:hover{background:var(--lx-chip)}
+.portal.lx .lxai__item.on{background:var(--lx-blue-tint);box-shadow:none}
+.portal.lx .lxai__item.on::before{display:none}
+.portal.lx .lxai__item b{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:break-word;font:600 .9rem/1.35 var(--fb);color:var(--lx-ink)}
+.portal.lx .lxai__item.on b{color:var(--lx-blue-ink)}
+.portal.lx .lxai__item-t > span{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:break-word;margin-top:3px;font-size:.8rem;line-height:1.4;color:var(--lx-gray)}
+.portal.lx .lxai__item-ic{width:36px;height:36px;border-radius:12px;background:var(--lx-card);border:1px solid var(--lx-line);box-shadow:none;color:var(--lx-gray)}
+.portal.lx .lxai__item:hover .lxai__item-ic{color:var(--lx-link)}
+.portal.lx .lxai__item.on .lxai__item-ic{background:var(--lx-card);border-color:transparent;color:var(--lx-blue)}
+.portal.lx .lxai__sk span{background:linear-gradient(90deg,var(--lx-chip),#E9EFF8,var(--lx-chip));background-size:200% 100%}
+html[data-theme="dark"] .portal.lx .lxai__sk span{background:linear-gradient(90deg,#18253E,#1E2D4A,#18253E);background-size:200% 100%}
+/* no chats / nothing found / the list failed: the dashboard's empty state */
+.portal.lx .lxai__side-state{display:grid;justify-items:center;gap:10px;padding:28px 12px;color:var(--lx-gray)}
+.portal.lx .lxai__side-state p{margin:0;max-width:240px;font-size:.86rem;line-height:1.45;color:var(--lx-gray)}
+/* (the tile again for the public /chat page, where dash1920.css is not loaded) */
+.lxai .cx-empty__ic{width:48px;height:48px;flex:none;border-radius:14px;display:grid;place-items:center;background:var(--lx-blue-tint,#EFF4FE);color:var(--lx-link,#1460DC)}
+.lxai .cx-empty__ic svg{width:22px;height:22px}
+.lxai .cx-empty__ic.lxai__state-ic--err{background:var(--lx-err-bg,#FDECEA);color:var(--lx-err,#D93B30)}
+.portal.lx .lxai__ghost.btn{height:40px;gap:8px}
+.portal.lx .lxai__privacy{padding:12px 16px 16px;border-top-color:var(--lx-line-2);font-size:.74rem;color:var(--lx-gray2)}
+.portal.lx .lxai__privacy svg{color:var(--lx-ok)}
+
+/* the assistant's mark: the dashboard's navy initials circle */
+.portal.lx .lxai__mark{width:32px;height:32px;border-radius:50%;background:var(--lx-navy);box-shadow:none;animation:none}
+html[data-theme="dark"] .portal.lx .lxai__mark{background:var(--lx-blue)}
+.portal.lx .lxai__mark svg{width:16px;height:16px;stroke:#fff}
+.portal.lx .lxai__brand{padding:16px 16px 6px}
+.portal.lx .lxai__brand b{font:700 1.05rem/1.25 var(--fd);color:var(--lx-ink)}
+.portal.lx .lxai__close{width:40px;height:40px;border-radius:12px;background:var(--lx-card);border:1px solid var(--lx-line);color:var(--lx-ink)}
+.portal.lx .lxai__close:hover{border-color:var(--lx-blue);color:var(--lx-link);background:var(--lx-card)}
+
+/* ── conversation ────────────────────────────────────────── */
+.portal.lx .lxai__main{background:var(--lx-card)}
+.portal.lx .lxai__head{min-height:68px;padding:12px 20px;gap:12px;background:var(--lx-card);backdrop-filter:none;-webkit-backdrop-filter:none;border-bottom:1px solid var(--lx-line-2)}
+html[data-theme="dark"] .portal.lx .lxai__head{border-bottom-color:var(--lx-line)}
+.portal.lx .lxai__htitle b{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:break-word;font:700 1.02rem/1.3 var(--fd);color:var(--lx-ink)}
+.portal.lx .lxai__htitle span{gap:7px;margin-top:2px;font-size:.8rem;color:var(--lx-gray)}
+.portal.lx .lxai__htitle span i{width:8px;height:8px;background:var(--lx-ok);box-shadow:none}
+/* "Huquqiy AI": the dashboard's chip (.cx-ai__free) */
+.portal.lx .lxai__badge{height:28px;padding:0 12px;gap:6px;border-radius:999px;background:var(--lx-chip);box-shadow:none;color:var(--lx-ink);font:600 .8rem/1 var(--fb);letter-spacing:0}
+.portal.lx .lxai__badge svg{width:14px;height:14px;color:var(--lx-blue)}
+.portal.lx .lxai__head .lxai__ib{width:40px;height:40px;border-radius:12px;border:1px solid var(--lx-line);background:var(--lx-card);color:var(--lx-ink)}
+.portal.lx .lxai__head .lxai__ib:hover{border-color:var(--lx-blue);background:var(--lx-card);color:var(--lx-link)}
+.portal.lx .lxai__ib svg{width:18px;height:18px}
+
+.portal.lx .lxai__msgs{max-width:860px;padding:28px 24px 32px;gap:24px}
+.portal.lx .lxai__q > div{padding:12px 16px;border-radius:18px 18px 6px 18px;background:var(--lx-blue);color:#fff;box-shadow:none;font-size:.96rem;line-height:1.55}
+.portal.lx .lxai__a{gap:12px}
+.portal.lx .lxai__a .lxai__mark{margin-top:2px}
+.lxai__ac{container:lxac / inline-size}
+.portal.lx .lxai__ac{padding:16px 20px 14px;border-radius:6px 20px 20px 20px;background:var(--lx-card);border:1px solid var(--lx-line-2);box-shadow:none}
+html[data-theme="dark"] .portal.lx .lxai__ac{border-color:var(--lx-line)}
+/* a notice (limit) or the thinking card stands alone, without the answer frame */
+.portal.lx .lxai__ac--sys,.portal.lx .lxai__ac:has(> .agt){padding:0;border:0;border-radius:0;background:none}
+.lxai__ac--sys > .lxai__offer{margin-top:0}
+.portal.lx .lxai__tools{margin-top:12px;opacity:1}
+.portal.lx .lxai__tools button{height:32px;padding:0 12px;border-radius:10px;background:var(--lx-chip);color:var(--lx-ink);font:600 .8rem/1 var(--fb)}
+.portal.lx .lxai__tools button:hover{background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
+.portal.lx .lxai__offline{color:var(--lx-err)}
+.portal.lx .lxai__down{width:40px;height:40px;border-radius:12px;background:var(--lx-card);border:1px solid var(--lx-line);box-shadow:0 10px 24px -16px rgba(10,21,38,.4);color:var(--lx-ink)}
+.portal.lx .lxai__skq,.portal.lx .lxai__ska span{background:linear-gradient(90deg,var(--lx-chip),#E9EFF8,var(--lx-chip));background-size:200% 100%}
+html[data-theme="dark"] .portal.lx :is(.lxai__skq,.lxai__ska span){background:linear-gradient(90deg,#18253E,#1E2D4A,#18253E);background-size:200% 100%}
+.portal.lx .lxai__fail{gap:10px}
+.portal.lx .lxai__fail b{font:700 1.02rem/1.3 var(--fd);color:var(--lx-ink)}
+
+/* ── welcome ─────────────────────────────────────────────── */
+.lxai__empty{container:lxw / inline-size}
+.portal.lx .lxai__empty{max-width:780px;padding-inline:24px}
+.portal.lx .lxai__empty::before{display:none}
+.lxai__art{
+  display:block;width:92px;height:92px;margin:0 auto 18px;border-radius:50%;
+  background:var(--art) center/62% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line,#E4EBF5);
+}
+html[data-theme="dark"] .lxai__art{box-shadow:none}
+.portal.lx .lxai__hi{margin:0 0 6px;font:600 .92rem/1.3 var(--fb);letter-spacing:0;text-transform:none;color:var(--lx-gray)}
+.portal.lx .lxai__empty h2{
+  margin:0 0 8px;padding:0;font:800 clamp(1.5rem,1.9vw,2rem)/1.2 var(--fd);letter-spacing:-.025em;
+  background:none;-webkit-background-clip:border-box;background-clip:border-box;color:var(--lx-ink);
+}
+html[data-theme="dark"] .portal.lx .lxai__empty h2{background:none;color:var(--lx-ink)}
+.portal.lx .lxai__empty > p:not(.lxai__hi){max-width:54ch;font-size:.98rem;line-height:1.55;color:var(--lx-gray)}
+/* what it does: the dashboard's grey tags, every one on its own line width */
+.portal.lx .lxai__caps{flex-wrap:wrap;justify-content:center;gap:8px;margin:18px 0 0;padding:0;overflow:visible;-webkit-mask-image:none;mask-image:none}
+.portal.lx .lxai__caps li{flex:none;height:30px;padding:0 12px;border-radius:999px;background:var(--lx-chip);box-shadow:none;font:500 .8rem/1 var(--fb);color:var(--lx-ink);white-space:nowrap}
+.portal.lx .lxai__caps svg{width:15px;height:15px;color:var(--lx-gray)}
+/* the starter questions: white cards with the area pictures on a light
+   plate (.cx-area), the round arrow that turns blue */
+.portal.lx .lxai__sugg{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:26px}
+.portal.lx .lxai__sugg button{
+  display:flex;align-items:center;gap:14px;padding:10px 14px 10px 10px;overflow:visible;
+  border:1px solid var(--lx-line);border-radius:16px;background:var(--lx-card);box-shadow:none;
+  color:var(--lx-ink);font:600 .92rem/1.4 var(--fb);transition:border-color .15s,transform .15s,box-shadow .15s;
+}
+.portal.lx .lxai__sugg button::before{display:none}
+.portal.lx .lxai__sugg button:hover{border-color:#C7D6EC;background:var(--lx-card);box-shadow:0 14px 28px -20px rgba(10,21,38,.35);transform:translateY(-2px)}
+html[data-theme="dark"] .portal.lx .lxai__sugg button:hover{border-color:#3A4E75}
+.portal.lx .lxai__sugg button:focus-visible{outline:2px solid var(--lx-blue);outline-offset:2px}
+.portal.lx .lxai__sugg button > .lxai__sugg-t{overflow-wrap:break-word}
+.lxai__sugg button > .lxai__sugg-art{
+  display:block;flex:none;width:92px;height:64px;border-radius:12px;box-shadow:none;
+  background:var(--img) center/contain no-repeat,linear-gradient(168deg,#F1F6FF 0%,#FAFCFF 56%,#E9F1FD 100%);
+  transition:background-size .2s ease;
+}
+html[data-theme="dark"] .lxai__sugg button > .lxai__sugg-art{background:var(--img) center/contain no-repeat,linear-gradient(168deg,#E8EFFA 0%,#F4F8FF 56%,#E1EAF8 100%)}
+.lxai__sugg button:hover > .lxai__sugg-art{background-size:108% auto,auto}
+.lxai__sugg button > .lxai__sugg-arr{
+  display:grid;place-items:center;flex:none;width:32px;height:32px;border-radius:50%;
+  background:var(--lx-chip,#F2F6FC);color:var(--lx-ink,#0A1526);transition:background .15s,color .15s;
+}
+html[data-theme="dark"] .lxai__sugg button > .lxai__sugg-arr{background:var(--lx-chip,#18253E);color:var(--lx-ink,#E7EEF8)}
+.lxai__sugg-arr svg{width:16px;height:16px}
+.lxai__sugg button:hover > .lxai__sugg-arr{background:var(--lx-blue,#1668F0);color:#fff}
+/* by the room the welcome gets: two cards a row with the arrow; then two a
+   row on smaller plates without it; then one a row */
+@container lxw (max-width:699px){
+  .lxai__sugg button > .lxai__sugg-arr{display:none}
+  .lxai__sugg button > .lxai__sugg-art{width:72px;height:50px}
+  .portal.lx .lxai__sugg button{gap:12px;padding:10px 12px 10px 10px;font-size:.9rem}
+}
+@container lxw (max-width:519px){
+  .portal.lx .lxai__sugg{grid-template-columns:minmax(0,1fr);gap:10px;margin-top:22px}
+}
+
+/* ── composer: the dashboard's one box with the dark button ── */
+.lxai__composer{container:lxc / inline-size}
+.lxai__send-t{display:none}
+.portal.lx .lxai__composer{padding:12px 20px calc(16px + env(safe-area-inset-bottom,0px));background:var(--lx-card)}
+.portal.lx .lxai__box{max-width:860px;align-items:flex-end;gap:12px;padding:8px 8px 8px 20px;border:1px solid var(--lx-line);border-radius:18px;background:var(--lx-card);box-shadow:none}
+.portal.lx .lxai__box:focus-within{border-color:var(--lx-blue);background:var(--lx-card);box-shadow:0 0 0 3px rgba(22,104,240,.12)}
+.portal.lx .lxai__box textarea{min-height:50px;padding:13px 0;field-sizing:content;font:400 .98rem/24px var(--fb);color:var(--lx-ink)}
+.portal.lx .lxai__box textarea::placeholder{color:var(--lx-gray2)}
+.portal.lx .lxai__send{
+  width:auto;height:50px;padding:0 20px;gap:10px;border-radius:13px;display:inline-flex;align-items:center;justify-content:center;
+  background:var(--lx-navy);color:#fff;box-shadow:none;filter:none;transform:none;font:600 .96rem/1 var(--fb);white-space:nowrap;
+}
+.portal.lx .lxai__send:hover:not(:disabled){background:#16243C;filter:none;transform:none}
+html[data-theme="dark"] .portal.lx .lxai__send{background:var(--lx-blue)}
+html[data-theme="dark"] .portal.lx .lxai__send:hover:not(:disabled){background:var(--lx-blue-h)}
+.portal.lx .lxai__send:disabled,html[data-theme="dark"] .portal.lx .lxai__send:disabled{background:var(--lx-chip);color:var(--lx-gray2)}
+.portal.lx .lxai__send svg,.portal.lx .lxai__send:disabled svg{width:18px;height:18px;stroke:currentColor}
+.portal.lx .lxai__send-t{display:inline}
+@container lxc (max-width:519px){
+  .portal.lx .lxai__send{width:50px;padding:0}
+  .portal.lx .lxai__send-t{display:none}
+  .portal.lx .lxai__box{padding-left:16px;gap:10px}
+  .portal.lx .lxai__box textarea{font-size:.94rem}
+}
+.portal.lx .lxai__disc{max-width:860px;margin-top:10px;font-size:.76rem;color:var(--lx-gray2)}
+.portal.lx .lxai__keys{color:var(--lx-gray2)}
+.portal.lx .lxai__keys kbd{padding:0 6px;border-radius:6px;background:var(--lx-chip);box-shadow:none;font:600 .7rem/1.6 var(--fb);color:var(--lx-gray)}
+
+/* ── the answer (AgentAnswer), flat ──────────────────────── */
+.portal.lx .lxai .ag{color:var(--lx-ink)}
+.portal.lx .lxai .ag strong{color:var(--lx-ink)}
+.portal.lx .lxai .ag code{background:var(--lx-chip)}
+.portal.lx .lxai .ag-lead{padding:14px 18px;border-radius:16px;background:var(--lx-chip);box-shadow:none}
+.portal.lx .lxai .ag-lead::before,.portal.lx .lxai .ag-lead__lbl::before{display:none}
+.portal.lx .lxai .ag-lead__lbl{margin-bottom:6px;font-size:.7rem;font-weight:800;letter-spacing:.07em;color:var(--lx-gray2)}
+.portal.lx .lxai .ag-h{color:var(--lx-ink)}
+.portal.lx .lxai .ag-h::after{background:var(--lx-line-2)}
+.portal.lx .lxai .ag-list > li::before{background:var(--lx-blue)}
+.portal.lx .lxai .ag-list--ol > li::before{border-radius:999px;background:var(--lx-chip);color:var(--lx-ink);font:700 .8rem/26px var(--fb)}
+.portal.lx .lxai .ag-list--sub > li::before{background:var(--lx-gray2)}
+.portal.lx .lxai .ag-q{padding:10px 14px;border-left:0;border-radius:12px;background:var(--lx-chip);color:var(--lx-gray)}
+.portal.lx .lxai .ag-q::before{display:none}
+.portal.lx .lxai .acite{border-radius:8px;background:var(--lx-blue-tint);box-shadow:none;color:var(--lx-blue-ink)}
+.portal.lx .lxai .acite:hover{background:#E2ECFD;box-shadow:none}
+html[data-theme="dark"] .portal.lx .lxai .acite:hover{background:rgba(96,165,250,.22)}
+.portal.lx .lxai .acite__n{border-radius:999px;background:var(--lx-card);color:var(--lx-blue-ink)}
+.portal.lx .lxai .alink{color:var(--lx-link)}
+.portal.lx .lxai .ag-note{border-radius:12px;background:var(--lx-warn-bg);box-shadow:none;color:var(--lx-warn)}
+.portal.lx .lxai .ag-foot{border-top:1px solid var(--lx-line-2);color:var(--lx-gray2)}
+.portal.lx .lxai .ag-alert{background:var(--lx-err-bg);box-shadow:none}
+.portal.lx .lxai .ag-alert > svg{color:var(--lx-err)}
+.portal.lx .lxai .ag-alert--muted{background:var(--lx-chip)}
+.portal.lx .lxai .ag-alert--muted > svg{color:var(--lx-blue)}
+.portal.lx .lxai .ag-fu__t{font-weight:700;color:var(--lx-gray2)}
+.portal.lx .lxai .ag-fu__chip{border:1px solid var(--lx-line);border-radius:12px;background:var(--lx-card);box-shadow:none;color:var(--lx-ink)}
+.portal.lx .lxai .ag-fu__chip:hover{border-color:var(--lx-blue);background:var(--lx-blue-tint);box-shadow:none;color:var(--lx-blue-ink)}
+.portal.lx .lxai .ag-fu__chip:hover svg{color:var(--lx-blue-ink)}
+.portal.lx .lxai .ag-fu__chip:focus-visible{outline:2px solid var(--lx-blue);outline-offset:2px;box-shadow:none}
+.portal.lx .lxai .ag-fu__chip--off{color:var(--lx-gray)}
+.portal.lx .lxai .ag-act{border-radius:12px;background:var(--lx-chip);box-shadow:none;color:var(--lx-ink)}
+.portal.lx .lxai .ag-act:hover{background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
+.portal.lx .lxai .ag-act--pri{background:var(--lx-blue);color:#fff}
+.portal.lx .lxai .ag-act--pri:hover{background:var(--lx-blue-h);color:#fff}
+/* sources: a white card, a chip-coloured icon tile, round count bubbles */
+.portal.lx .lxai .ag-src{border:1px solid var(--lx-line-2);border-radius:16px;background:var(--lx-card);box-shadow:none}
+html[data-theme="dark"] .portal.lx .lxai .ag-src{border-color:var(--lx-line)}
+.portal.lx .lxai .ag-src__h{gap:10px;padding:12px 16px;border-bottom:1px solid var(--lx-line-2);background:var(--lx-card)}
+.portal.lx .lxai .ag-src__ic{width:32px;height:32px;border-radius:10px;background:var(--lx-chip)}
+.portal.lx .lxai .ag-src__ic svg{width:16px;height:16px;color:var(--lx-ink)}
+.portal.lx .lxai .ag-src__h b{font-size:.92rem;color:var(--lx-ink)}
+.portal.lx .lxai .ag-src__cnt{min-width:24px;height:24px;line-height:24px;padding:0 7px;border-radius:999px;background:var(--lx-chip);color:var(--lx-ink);font-size:.76rem;font-weight:700}
+.portal.lx .lxai .ag-card:hover{background:var(--lx-chip)}
+.portal.lx .lxai .ag-card__n{width:24px;height:24px;border-radius:999px;background:var(--lx-chip);color:var(--lx-ink);font:700 .74rem/1 var(--fb)}
+.portal.lx .lxai .ag-card:hover .ag-card__n{background:var(--lx-card)}
+.portal.lx .lxai .ag-card__doc{color:var(--lx-ink)}
+.portal.lx .lxai a.ag-card__hd:hover .ag-card__doc{color:var(--lx-link)}
+.portal.lx .lxai .ag-card__art{color:var(--lx-gray)}
+.portal.lx .lxai .ag-card__art b{color:var(--lx-blue-ink)}
+.portal.lx .lxai .ag-card__q{border-left:0;border-radius:12px;background:var(--lx-chip);color:var(--lx-gray)}
+.portal.lx .lxai .ag-card:hover .ag-card__q{background:var(--lx-card)}
+.portal.lx .lxai .ag-card__tog,.portal.lx .lxai .ag-src__more{color:var(--lx-link)}
+.portal.lx .lxai .ag-src__more{border-top:1px solid var(--lx-line-2)}
+.portal.lx .lxai .ag-src__more:hover{background:var(--lx-chip)}
+
+/* ── thinking (AgentThinking): a chip card like "Jarayondagi ishlar" ── */
+.portal.lx .lxai .agt{max-width:460px;padding:16px 18px 14px;border-radius:16px;background:var(--lx-chip);box-shadow:none}
+.portal.lx .lxai .agt__orb{
+  width:28px;height:28px;box-sizing:border-box;border-radius:50%;background:none;-webkit-mask:none;mask:none;
+  border:3px solid #DCE6F5;border-top-color:var(--lx-blue);
+}
+html[data-theme="dark"] .portal.lx .lxai .agt__orb{border-color:#26365A;border-top-color:var(--lx-blue)}
+.portal.lx .lxai .agt__orb i{display:none}
+/* a narrow answer column: the clock steps under the title rather than
+   squeezing "законодательства" out of it */
+.portal.lx .lxai .agt__top{flex-wrap:wrap;row-gap:8px}
+.portal.lx .lxai .agt__head{flex:1 1 150px}
+.portal.lx .lxai .agt__now{background:none;-webkit-background-clip:border-box;background-clip:border-box;color:var(--lx-ink);font-weight:600;animation:agtIn .45s cubic-bezier(.2,.9,.3,1) both}
+.portal.lx .lxai .agt__sub{color:var(--lx-gray)}
+.portal.lx .lxai .agt__clock{background:var(--lx-card);color:var(--lx-gray)}
+.portal.lx .lxai .agt__steps li{color:var(--lx-gray)}
+.portal.lx .lxai .agt__steps li:not(:last-child)::after{background:var(--lx-line)}
+.portal.lx .lxai .agt__steps li.done::after{background:var(--lx-blue)}
+.portal.lx .lxai .agt__dot{background:var(--lx-card);box-shadow:inset 0 0 0 1.5px var(--lx-line);color:var(--lx-gray2)}
+.portal.lx .lxai .agt__steps li.done .agt__dot{background:var(--lx-blue);box-shadow:none;color:#fff}
+.portal.lx .lxai .agt__steps li.on{color:var(--lx-ink)}
+.portal.lx .lxai .agt__steps li.on .agt__dot{background:var(--lx-blue-tint);box-shadow:inset 0 0 0 1.5px var(--lx-blue);color:var(--lx-blue);animation:none}
+.portal.lx .lxai .agt__bar{height:4px;border-radius:4px;background:#E1E8F2}
+html[data-theme="dark"] .portal.lx .lxai .agt__bar{background:#26365A}
+.portal.lx .lxai .agt__bar i{border-radius:4px;background:var(--lx-blue)}
+.portal.lx .lxai .agt__slow{color:var(--lx-gray)}
+
+/* ── a drafted contract (ContractCard), as a .cx-work row ── */
+.portal.lx .lxai .aifile{max-width:460px;flex-wrap:wrap;gap:12px;padding:12px 14px;border-radius:16px;background:var(--lx-chip);box-shadow:none}
+/* a narrow answer: the two buttons go under the name rather than squeezing
+   it into a word per line */
+.portal.lx .lxai .aifile__t{flex:1 1 150px}
+.portal.lx .lxai .aifile:hover{box-shadow:inset 0 0 0 1px #C7D6EC}
+html[data-theme="dark"] .portal.lx .lxai .aifile:hover{box-shadow:inset 0 0 0 1px #3A4E75}
+.portal.lx .lxai .aifile__i{width:40px;height:40px;border-radius:12px;background:var(--lx-card);border:1px solid var(--lx-line)}
+.portal.lx .lxai .aifile__i svg{stroke:var(--lx-ink)}
+.portal.lx .lxai .aifile__t b{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:break-word;font-size:.92rem;font-weight:600;line-height:1.35;color:var(--lx-ink)}
+.portal.lx .lxai .aifile__t span{font-size:.8rem;font-weight:500;letter-spacing:0;text-transform:none;color:var(--lx-gray)}
+.portal.lx .lxai .aifile__btn{width:40px;height:40px;border-radius:12px;background:var(--lx-card);border:1px solid var(--lx-line);box-shadow:none;color:var(--lx-ink)}
+.portal.lx .lxai .aifile__btn:hover{border-color:var(--lx-blue);background:var(--lx-card);box-shadow:none;color:var(--lx-link)}
+
+/* ── the limit / last-free notice: the dashboard's navy banner ── */
+.aichat__lastfree.lxai__offer{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;justify-items:stretch;gap:12px 16px;
+  margin-top:14px;padding:16px 18px;border-radius:16px;background:var(--lx-navy,#0A1526);color:#fff;
+}
+html[data-theme="dark"] .aichat__lastfree.lxai__offer{background:#0B1830;box-shadow:inset 0 0 0 1px var(--lx-navy-line,#22324D)}
+.lxai__offer-art{display:block;width:64px;height:64px;flex:none;border-radius:50%;background:var(--art) center/62% no-repeat,#fff}
+.lxai__offer-t{display:grid;gap:4px;min-width:0}
+.lxai__offer-t > b{font-family:var(--fd);font-size:1.02rem;font-weight:700;line-height:1.3;color:#fff}
+.lxai__offer-t > span{font-size:.86rem;line-height:1.5;color:#C9D4E3}
+.lxai__offer .lxai__offer-cta{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 18px;border:0;border-radius:12px;
+  background:#fff;color:var(--lx-navy,#0A1526);font-weight:600;white-space:nowrap;text-decoration:none;box-shadow:none;
+}
+.portal.lx .lxai__offer .lxai__offer-cta{height:44px;padding:0 18px;border-radius:12px;background:#fff;color:var(--lx-navy)}
+.portal.lx .lxai__offer .lxai__offer-cta:hover{background:#E9EFF8;color:var(--lx-navy)}
+.lxai__offer-cta svg{width:16px;height:16px}
+@container lxac (max-width:559px){
+  .aichat__lastfree.lxai__offer{grid-template-columns:auto minmax(0,1fr)}
+  .lxai__offer .lxai__offer-cta{grid-column:1 / -1;justify-self:start}
+}
+/* 320-360px: the banner's button takes the full width, its label one line */
+@container lxac (max-width:359px){
+  .lxai__offer-art{width:48px;height:48px}
+  .aichat__lastfree.lxai__offer{padding:14px 12px}
+  .lxai__offer .lxai__offer-cta,.portal.lx .lxai__offer .lxai__offer-cta{justify-self:stretch;padding:0 12px;font-size:.84rem}
+  .lxai__offer-cta svg{display:none}
+}
+
+/* ── narrow: the history becomes a drawer ────────────────── */
+@container lxai (max-width:899px){
+  .portal.lx .lxai__side{padding-top:0;border-right:1px solid var(--lx-line-2);border-radius:0 24px 24px 0;box-shadow:0 24px 48px -24px rgba(10,21,38,.35)}
+  .portal.lx .lxai__scrim{background:rgba(10,21,38,.45)}
+}
+@media (max-width:860px){
+  .portal.lx .lxai__side{padding-top:0;border-right:1px solid var(--lx-line-2);border-radius:0 24px 24px 0;box-shadow:0 24px 48px -24px rgba(10,21,38,.35)}
+  .portal.lx .lxai__scrim{background:rgba(10,21,38,.45)}
+}
+@media (max-width:640px){
+  .portal.lx .lxai--embed{border:1px solid var(--lx-line-2);border-radius:20px}
+  .portal.lx .lxai__head{min-height:60px;padding:10px 12px;gap:10px}
+  .portal.lx .lxai__msgs{padding:18px 14px 24px;gap:20px}
+  .portal.lx .lxai__a{gap:10px}
+  .portal.lx .lxai__ac{padding:14px 14px 12px}
+  .portal.lx .lxai__empty{padding:24px 16px 20px}
+  .portal.lx .lxai__composer{padding:8px 10px calc(12px + env(safe-area-inset-bottom,0px))}
+  .lxai__art{width:76px;height:76px;margin-bottom:14px}
+  .portal.lx .lxai__empty h2{font-size:1.4rem}
+  .portal.lx .lxai__empty > p:not(.lxai__hi){font-size:.92rem}
+}
+@media (max-width:560px){
+  .portal.lx .lxai--embed{border-radius:18px}
+}
+/* a phone: the welcome tightens so the first questions show above the box */
+@media (max-width:480px){
+  .portal.lx .lxai__scroll > .lxai__empty{padding-block:18px 16px}
+  .lxai__art{width:64px;height:64px;margin-bottom:10px}
+  .portal.lx .lxai__hi{font-size:.84rem;margin-bottom:4px}
+  .portal.lx .lxai__empty h2{font-size:1.28rem;margin-bottom:6px}
+  .portal.lx .lxai__empty > p:not(.lxai__hi){font-size:.88rem;line-height:1.5}
+  .portal.lx .lxai__caps{gap:6px;margin-top:12px}
+  .portal.lx .lxai__caps li{height:28px;padding:0 10px;font-size:.76rem}
+  .portal.lx .lxai__sugg{margin-top:16px}
+}
+@media (prefers-reduced-motion:reduce){
+  .portal.lx .lxai__sugg button,.portal.lx .lxai__sugg button:hover{transition:none;transform:none}
+}
+
+/* ═══ Hujjat tahlili ═══════════════════════════════════════ */
+.portal.lx .doca{gap:24px;container:doca / inline-size}
+/* hero: the dashboard's navy feature card, its own drawing in a white
+   circle and the three things the page owes the client up front; the page
+   name itself is the shell's title above it */
+.portal.lx .doca__hero{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"art main meta";
+  align-items:center;gap:18px 24px;padding:24px 28px;border:0;border-radius:24px;background:var(--lx-navy);color:#fff;box-shadow:none;
+}
+html[data-theme="dark"] .portal.lx .doca__hero{background:#0B1830;box-shadow:inset 0 0 0 1px var(--lx-navy-line)}
+.doca__art{grid-area:art;display:block;width:88px;height:88px;flex:none;border-radius:50%;background:var(--art) center/62% no-repeat,#fff}
+.portal.lx .doca__heromain{grid-area:main;min-width:0}
+.portal.lx .doca__title{margin:0;font-family:var(--fd);font-size:1.45rem;font-weight:700;letter-spacing:-.015em;line-height:1.25;color:#fff}
+.portal.lx .doca__sub{margin:8px 0 0;max-width:62ch;font-size:.92rem;line-height:1.6;color:#C9D4E3;opacity:1}
+.portal.lx .doca__meta{grid-area:meta;display:grid;grid-template-columns:repeat(3,minmax(0,auto));gap:10px;margin:0;min-width:0}
+.portal.lx .doca__meta div{display:grid;gap:4px;align-content:start;min-width:0;padding:12px 16px;border-radius:16px;background:rgba(255,255,255,.07)}
+.portal.lx .doca__meta dt{font-size:.7rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#8494AB}
+.portal.lx .doca__meta dd{margin:0;font-size:1rem;font-weight:700;color:#fff;white-space:nowrap}
+
+/* the form */
+.portal.lx .doca .intake__lbl{margin-bottom:10px;font-size:.92rem;font-weight:600;color:var(--lx-ink)}
+.portal.lx .doca .intake__ta{
+  margin-bottom:14px;padding:14px 16px;border:1px solid var(--lx-line);border-radius:16px;
+  background:var(--lx-card);color:var(--lx-ink);font-size:.96rem;line-height:1.55;
+}
+.portal.lx .doca .intake__ta::placeholder{color:var(--lx-gray2)}
+.portal.lx .doca .intake__ta:focus{border-color:var(--lx-blue);box-shadow:0 0 0 3px rgba(22,104,240,.12)}
+.portal.lx .doca .docf{gap:10px 14px;margin-bottom:16px}
+.portal.lx .doca .docf__name{padding:9px 14px;border:0;border-radius:12px;background:var(--lx-chip);color:var(--lx-ink);font-weight:500}
+.portal.lx .doca .docf__name svg{color:var(--lx-blue)}
+.portal.lx .doca .docf small{color:var(--lx-gray)}
+.portal.lx .doca .docq{gap:10px 22px;margin-bottom:16px}
+.portal.lx .doca .docq__pages{gap:10px;font-size:.92rem;font-weight:600;color:var(--lx-ink)}
+.portal.lx .doca .docq__pages input{width:88px;height:44px;padding:0 12px;border:1px solid var(--lx-line);border-radius:12px;background:var(--lx-card);color:var(--lx-ink);font-size:.95rem}
+.portal.lx .doca .docq__pages input:focus{outline:0;border-color:var(--lx-blue);box-shadow:0 0 0 3px rgba(22,104,240,.12)}
+.portal.lx .doca .docq__pages input[aria-invalid="true"]{border-color:var(--lx-err)}
+.portal.lx .doca .docq__opt{font-size:.92rem;color:var(--lx-ink)}
+.portal.lx .doca .docq__err{color:var(--lx-err)}
+.portal.lx .doca .docq__hint{color:var(--lx-gray)}
+/* the price: a chip panel like an in-progress item, the total in ink */
+.portal.lx .doca .oquote{gap:8px;padding:16px 18px;border-radius:16px;background:var(--lx-chip)}
+.portal.lx .doca .oquote__row{font-size:.92rem;color:var(--lx-ink)}
+.portal.lx .doca .oquote__row--mod span:first-child,.portal.lx .doca .oquote__row--disc span:first-child,.portal.lx .doca .oquote__row--sub{color:var(--lx-gray)}
+.portal.lx .doca .oquote__row--disc{color:var(--lx-ok)}
+.portal.lx .doca .oquote__row--total{margin-top:6px;padding-top:12px;border-top:1px solid var(--lx-line)}
+.portal.lx .doca .oquote__row--total b{font-family:var(--fd);font-size:1.25rem;font-weight:800;color:var(--lx-ink)}
+.portal.lx .doca .ppanel > .btn--full{min-height:50px}
+.portal.lx .doca .intake__hint{margin-top:12px;font-size:.8rem;color:var(--lx-gray)}
+
+/* results */
+.portal.lx .doca .ppanel__h{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.portal.lx .doca .ppanel__h > b{font-family:var(--fd);font-size:1.18rem;font-weight:700;letter-spacing:-.015em;color:var(--lx-ink)}
+.portal.lx .doca .doca__summary{font-size:.98rem;line-height:1.65;color:var(--lx-ink);overflow-wrap:break-word}
+/* the AI's write-up keeps its line breaks, not the spaces hanging at a wrap */
+.portal.lx .doca .doca__long{white-space:pre-line}
+.portal.lx .doca .doca__risks{gap:10px}
+.portal.lx .doca .doca__risk{gap:12px;padding:12px 14px;border:0;border-radius:14px;background:var(--lx-chip);font-size:.94rem;line-height:1.5;color:var(--lx-ink)}
+.portal.lx .doca .doca__risk > span:last-child{padding-top:2px}
+/* the level: the dashboard's status pill, in the status colours only */
+.portal.lx .doca .doca__rl{
+  display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px 0 7px;border:0;border-radius:999px;flex:none;
+  background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);color:var(--lx-gray);
+  font-size:.74rem;font-weight:600;text-transform:none;white-space:nowrap;
+}
+.portal.lx .doca .doca__rl svg{width:14px;height:14px;flex:none}
+.portal.lx .doca .doca__risk--high .doca__rl{background:var(--lx-err-bg);box-shadow:none;color:var(--lx-err)}
+.portal.lx .doca .doca__risk--medium .doca__rl{background:var(--lx-warn-bg);box-shadow:none;color:var(--lx-warn)}
+.portal.lx .doca .doca__recs{gap:10px}
+.portal.lx .doca .doca__recs li{gap:10px;font-size:.94rem;line-height:1.5;color:var(--lx-ink)}
+.portal.lx .doca .doca__recs svg{width:18px;height:18px;margin-top:2px;color:var(--lx-ok)}
+
+/* a failure or the service switched off: the dashboard's empty state */
+.portal.lx .doca .doca__state{display:grid;justify-items:center;text-align:center;gap:8px;padding:28px 20px}
+.portal.lx .doca .doca__state b{font-family:var(--fd);font-size:1.05rem;font-weight:700;color:var(--lx-ink)}
+.portal.lx .doca .doca__state p{max-width:420px;margin:0}
+.portal.lx .doca .doca__state .intake__failicon{display:grid;place-items:center;width:48px;height:48px;border-radius:14px;background:var(--lx-err-bg);color:var(--lx-err)}
+.portal.lx .doca .doca__state .intake__failicon svg{width:22px;height:22px}
+.portal.lx .doca .doca__state--off .intake__failicon{background:var(--lx-warn-bg);color:var(--lx-warn)}
+
+/* the advocate's review, offered after the analysis: a navy banner */
+.portal.lx .doca .docup{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"art t act" "art note note";
+  align-items:center;gap:6px 22px;padding:24px 28px;border:0;border-radius:24px;background:var(--lx-navy);color:#fff;box-shadow:none;
+}
+html[data-theme="dark"] .portal.lx .doca .docup{background:#0B1830;box-shadow:inset 0 0 0 1px var(--lx-navy-line)}
+.portal.lx .doca .docup__i.docup__art{grid-area:art;width:80px;height:80px;border-radius:50%;background:var(--art) center/62% no-repeat,#fff}
+.portal.lx .doca .docup__t{grid-area:t;min-width:0;gap:6px}
+.portal.lx .doca .docup__t b{font-family:var(--fd);font-size:1.25rem;font-weight:700;letter-spacing:-.015em;line-height:1.3;color:#fff}
+.portal.lx .doca .docup__t span{font-size:.92rem;line-height:1.6;color:#C9D4E3}
+.portal.lx .doca .docup__t .docup__price{font-weight:600;color:#fff}
+.portal.lx .doca .docup__act{grid-area:act;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px}
+.portal.lx .doca .docup__act .btn{height:48px;padding:0 18px;border-radius:12px;white-space:nowrap}
+.portal.lx .doca .docup__act .btn svg{width:16px;height:16px}
+.portal.lx .doca .docup__act .docup__cta{border:0;background:#fff;color:var(--lx-navy)}
+.portal.lx .doca .docup__act .docup__cta:hover{background:#E9EFF8;color:var(--lx-navy)}
+.portal.lx .doca .docup__act .docup__cta:disabled{opacity:1;background:rgba(255,255,255,.86)}
+.portal.lx .doca .docup__act .docup__ghost{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff}
+.portal.lx .doca .docup__act .docup__ghost:hover{border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.14);color:#fff}
+.portal.lx .doca .docup .docup__note{grid-area:note;margin:6px 0 0;font-size:.86rem;color:#C9D4E3}
+.portal.lx .doca .docup .svc__err.docup__note{color:#FF9494}
+
+/* by the width the page gets */
+/* a file was analysed: three ways on, which go under the text so it keeps
+   its width */
+@container doca (min-width:1000px){
+  .portal.lx .doca .docup:has(.docup__act > .btn:nth-child(3)){grid-template-columns:auto minmax(0,1fr);grid-template-areas:"art t" "art act" "art note";row-gap:16px}
+  .portal.lx .doca .docup:has(.docup__act > .btn:nth-child(3)) .docup__act{justify-content:flex-start}
+}
+@container doca (max-width:1139px){
+  .portal.lx .doca__hero{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"art main" "meta meta"}
+  .portal.lx .doca__meta{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@container doca (max-width:999px){
+  .portal.lx .doca .docup{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"art t" "act act" "note note";row-gap:14px}
+  .portal.lx .doca .docup__act{justify-content:flex-start}
+  .portal.lx .doca .docup .docup__note{margin-top:0}
+}
+@container doca (max-width:699px){
+  .portal.lx .doca__hero{padding:20px}
+  .doca__art{width:72px;height:72px}
+  .portal.lx .doca__title{font-size:1.25rem}
+  .portal.lx .doca .docup{padding:20px}
+  .portal.lx .doca .docup__i.docup__art{width:64px;height:64px}
+  .portal.lx .doca .docup__t b{font-size:1.12rem}
+}
+@container doca (max-width:519px){
+  .portal.lx .doca__hero{grid-template-columns:minmax(0,1fr);grid-template-areas:"art" "main" "meta"}
+  .doca__art{width:64px;height:64px}
+  .portal.lx .doca__meta{grid-template-columns:minmax(0,1fr)}
+  .portal.lx .doca__meta div{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+  .portal.lx .doca__meta dd{text-align:right;white-space:normal}
+  .portal.lx .doca .docup{grid-template-columns:minmax(0,1fr);grid-template-areas:"art" "t" "act" "note";padding:18px 16px}
+  .portal.lx .doca .docup__act{flex-direction:column;align-items:stretch}
+  .portal.lx .doca .docup__act .btn{width:100%;padding:0 12px;font-size:.88rem}
+  .portal.lx .doca .doca__risk{flex-wrap:wrap;gap:8px}
+  .portal.lx .doca .doca__risk > span:last-child{padding-top:0;flex-basis:100%}
+}
+/* 320-360px: the longest way on ("Отправить этот документ адвокату") keeps
+   one line without its icon */
+@container doca (max-width:359px){
+  .portal.lx .doca .docup__act .btn{font-size:.84rem}
+  .portal.lx .doca .docup__act .btn svg{display:none}
+  /* "Загрузить файл (PDF, DOCX, TXT)" on one line */
+  .portal.lx .doca .docf__pick{padding-inline:10px;font-size:.84rem}
+}

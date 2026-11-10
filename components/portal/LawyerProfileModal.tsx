@@ -1,8 +1,12 @@
 "use client";
 
+import "./sosIntake1920.css";
 import { useEffect, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import { UserX } from "lucide-react";
 import VerifiedBadge from "../VerifiedBadge";
+import { langLabel } from "@/components/marketplace/bits";
+import { LEGAL_SERVICES, legalServiceLabel, type CatalogLocale } from "@/lib/legalServices";
 import {
   getLawyerById,
   getLawyerPrivateChat,
@@ -26,6 +30,33 @@ import { goToPaymentPage } from "@/lib/services/paymentProviders";
 
 const som = (n: number) => (n ? fmtUzs(n) : "—");
 
+// A specialization slug in the reader's language, never an English slug in
+// the Uzbek page: the area names (enums.areas), then the practice-area catalog
+// (lib/legalServices: "family-divorce", "realestate-lease-contract"), then the
+// area or catalog category a compound slug starts with ("labor-disputes" ->
+// "labor", "civil-cases" -> "civil").
+const CATALOG_KEYS = new Set(LEGAL_SERVICES.flatMap((c) => [c.key, ...c.services.map((s) => s.key)]));
+// enums.areas keys written in camelCase ("realEstate"), matched without case.
+const CAMEL_AREAS = ["realEstate"];
+type AreaT = { has: (key: string) => boolean; (key: string): string };
+export function specName(te: AreaT, value: string, locale: string): string {
+  const k = value.trim().toLowerCase();
+  if (!k) return value;
+  const loc: CatalogLocale = locale === "ru" || locale === "en" ? locale : "uz";
+  const area = (x: string) => {
+    const key = CAMEL_AREAS.find((a) => a.toLowerCase() === x) ?? x;
+    return te.has(`areas.${key}`) ? te(`areas.${key}`) : "";
+  };
+  const head = k.split(/[-_]/)[0];
+  return (
+    area(k) ||
+    (CATALOG_KEYS.has(k) ? legalServiceLabel(k, loc) : "") ||
+    area(head) ||
+    (CATALOG_KEYS.has(head) ? legalServiceLabel(head, loc) : "") ||
+    humanizeSlug(value)
+  );
+}
+
 // Read-only advocate/lawyer profile shown from the matches list (and reusable
 // elsewhere). No single-lawyer GET on the backend, so getLawyerById resolves
 // the profile from the directory list by user id.
@@ -40,6 +71,9 @@ export default function LawyerProfileModal({
 }) {
   const t = useTranslations("portal.client.lawyerProfile");
   const te = useTranslations("enums");
+  const tm = useTranslations("marketplace");
+  const tx = useTranslations("lxSos");
+  const ta = useTranslations("common.a11y");
   const tcommon = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
@@ -146,25 +180,33 @@ export default function LawyerProfileModal({
   }
 
   const kind = data && data.sellerType.toLowerCase().includes("advokat") ? "advocate" : "lawyer";
-  const areaLabel = (s: string) => (te.has(`areas.${s}`) ? te(`areas.${s}`) : humanizeSlug(s));
+  const areaLabel = (s: string) => specName(te, s, locale);
+  const langs = data ? [...new Set(data.languages.map((l) => langLabel(tm, l)))] : [];
 
+  // The dashboard's specialist card in a dialog: the navy initials circle, the
+  // name on its own line, the role as a grey chip with the green "Tasdiqlangan"
+  // check beside it (VerifiedBadge, drawn as .cx-ok in sosIntake1920.css), chip
+  // tiles for the numbers, .cx-tag chips with translated labels.
   return (
     <Modal open={open} onClose={onClose} title={t("title")}>
       {status === "loading" ? (
         <Skeleton rows={4} />
       ) : status === "error" || !data ? (
-        <p className="advmuted">{t("notFound")}</p>
+        <div className="cx-empty sosi-lp sosi-lp--none">
+          <span className="cx-empty__ic"><UserX /></span>
+          <b>{t("notFound")}</b>
+          <p>{tx("lp.notFoundText")}</p>
+          <button className="btn btn--line btn--sm" type="button" onClick={onClose}>{ta("close")}</button>
+        </div>
       ) : (
-        <div className="lprof">
+        <div className="lprof sosi-lp">
           <div className="lprof__head">
-            <div className="lprof__av">{initials(data.name || "—")}</div>
+            <div className="lprof__av sosi-lp__av">{initials(data.name || "—")}</div>
             <div className="lprof__id">
-              <div className="lprof__n">
-                {data.name || "—"}
+              <div className="lprof__n">{data.name || "—"}</div>
+              <div className="lprof__tags sosi-lp__role">
+                <span className={`advcard__kind advcard__kind--${kind} cx-tag`}>{t(`kind.${kind}`)}</span>
                 {data.verified ? <VerifiedBadge name={data.name} subtitle={t(`kind.${kind}`)} text={data.badgeLabel} /> : <span className="lprof__vf lprof__vf--un">{t("unverified")}</span>}
-              </div>
-              <div className="lprof__tags">
-                <span className={`advcard__kind advcard__kind--${kind}`}>{t(`kind.${kind}`)}</span>
                 {data.publicId ? <span className="lprof__pid">{data.publicId}</span> : null}
               </div>
             </div>
@@ -209,7 +251,7 @@ export default function LawyerProfileModal({
               <span className="lprof__lbl">{t("specializations")}</span>
               <div className="lprof__chips">
                 {data.specializations.map((s, i) => (
-                  <span className="lprof__chip" key={i}>
+                  <span className="lprof__chip cx-tag" key={i}>
                     {areaLabel(s)}
                   </span>
                 ))}
@@ -217,12 +259,12 @@ export default function LawyerProfileModal({
             </div>
           ) : null}
 
-          {data.languages.length ? (
+          {langs.length ? (
             <div className="lprof__row">
               <span className="lprof__lbl">{t("languages")}</span>
               <div className="lprof__chips">
-                {data.languages.map((s, i) => (
-                  <span className="lprof__chip" key={i}>
+                {langs.map((s) => (
+                  <span className="lprof__chip cx-tag" key={s}>
                     {s}
                   </span>
                 ))}

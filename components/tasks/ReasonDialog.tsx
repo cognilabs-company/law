@@ -66,7 +66,7 @@ export default function ReasonDialog({
         </>
       }
     >
-      <form id={`${uid}-f`} className="cform ttk-form ttk-scope" onSubmit={submit} noValidate>
+      <form id={`${uid}-f`} className={`cform ttk-form ttk-scope ttk-reason${danger ? " ttk-reason--danger" : ""}`} onSubmit={submit} noValidate>
         <div>
           <label htmlFor={`${uid}-r`} className="ttk-lbl">
             <MessageSquareText aria-hidden strokeWidth={STROKE} />

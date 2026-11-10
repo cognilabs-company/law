@@ -1,5 +1,6 @@
 "use client";
 
+import "./plans1920.css";
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getSubscriptionPlans, purchasePlan, demoPlanPurchase, isAtmosCheckout, isProviderUnsupported, type BackendPlan } from "@/lib/services/backend";
@@ -11,7 +12,7 @@ import Modal from "@/components/admin/Modal";
 import { Skeleton, ErrorState } from "./DataState";
 import { notify } from "@/lib/toast";
 import { fmtUzs } from "@/lib/money";
-import { IconCheck, IconCrown } from "@/components/icons";
+import { IconCheck } from "@/components/icons";
 import PlanCard from "./PlanCard";
 import PlanPurchaseTerms from "./PlanPurchaseTerms";
 import { goToPaymentPage } from "@/lib/services/paymentProviders";
@@ -200,7 +201,7 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
                         // so nothing ever renders a raw key path.
                         label: picked && ts.has("aiPlanPicked") ? ts("aiPlanPicked") : tcta("choose"),
                         variant: picked ? "soft" : featured ? "featured" : "line",
-                        icon: picked ? <IconCheck /> : featured ? <IconCrown aria-hidden /> : undefined,
+                        icon: picked ? <IconCheck /> : undefined,
                         pressed: picked,
                         onClick: () => setPlanId(p.id),
                       }}
@@ -214,7 +215,7 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
               <PlanPurchaseTerms purchase={{ planName: picked.name, period, total: priceFor(picked, period) }} autoRenew={renew} onAutoRenew={setRenew} />
             ) : null}
 
-            <button className="btn btn--grad btn--full btn--lg" type="button" onClick={buy} disabled={!planId || busy}>
+            <button className="btn btn--pri btn--full btn--lg" type="button" onClick={buy} disabled={!planId || busy}>
               {busy ? td("processingShort") : t("choose")}
             </button>
           </>

@@ -1,5 +1,6 @@
 "use client";
 
+import "./ordersList1920.css";
 import { useState } from "react";
 import { isForbidden } from "@/lib/http";
 import { useTranslations, useLocale } from "next-intl";
@@ -59,7 +60,7 @@ export default function OrderStatusPanel({ orderId, side, status, onChanged }: {
     <div className="ohist" data-ai-target="order:status">
       <div className="ohist__h">
         <b>{t("title")}</b>
-        {current ? <span className="creq__badge">{label(current)}</span> : null}
+        {current ? <span className="creq__badge cx-pill cx-pill--blue">{label(current)}</span> : null}
       </div>
       {hist.status === "loading" ? (
         <Skeleton rows={2} />

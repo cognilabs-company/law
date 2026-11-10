@@ -1,8 +1,10 @@
 "use client";
 
+import "./documents1920.css";
 import PlanGateCard from "@/components/ui/PlanGateCard";
 import { planGateOf, type PlanGate } from "@/lib/planGate";
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { ArrowUpRight, CircleX, FileText, Hourglass, Info, Loader, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import AiLabel from "@/components/ui/AiLabel";
 import {
@@ -40,11 +42,15 @@ import { fmtUzs } from "@/lib/money";
 import { notify } from "@/lib/toast";
 import InlineAlert from "@/components/ui/InlineAlert";
 import { Link, useRouter } from "@/i18n/navigation";
-import { IconDownload, IconExternal, IconCheck, IconClock, IconHeadset, IconCard, IconAlert, IconEdit, IconCircleCheck, IconCircleX } from "@/components/icons";
+import { IconDownload, IconExternal, IconHeadset, IconAlert, IconEdit, IconCircleCheck, IconCircleX } from "@/components/icons";
 import { useAiField } from "@/lib/ai/registry";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
+
+// The client dashboard's black line drawings (public/img/xizmatlar), shown in
+// a white circle on each status card — see documents1920.css (.lxdp-art).
+const art = (name: string) => ({ "--art": `url(/img/xizmatlar/${name}.webp)` }) as CSSProperties;
 
 // ── The advocate-review payment gate ─────────────────────────────────
 // LEXGO_FRONTEND_DOC_ANALYSIS_PAYMENT_GATE_2026-09-28.md: past the free
@@ -76,9 +82,9 @@ export function DocGateFacts({ gate, telegram = true }: { gate: DocPaymentGate; 
         <b className="pgate__amt">{fmtUzs(gate.amount)} {gate.currency && gate.currency !== "UZS" ? gate.currency : t("som")}</b>
       ) : null}
       <div className="pgate__meta">
-        {gate.pageCount ? <span>{t("gatePages", { n: gate.pageCount })}</span> : null}
-        {gate.includedPages ? <span>{t("gateIncluded", { n: gate.includedPages })}</span> : null}
-        {gate.extraPages ? <span className="pgate__meta--x">{t("gateExtra", { n: gate.extraPages })}</span> : null}
+        {gate.pageCount ? <span className="cx-tag">{t("gatePages", { n: gate.pageCount })}</span> : null}
+        {gate.includedPages ? <span className="cx-tag">{t("gateIncluded", { n: gate.includedPages })}</span> : null}
+        {gate.extraPages ? <span className="cx-tag pgate__meta--x">{t("gateExtra", { n: gate.extraPages })}</span> : null}
       </div>
       {/* telegram_sent false means the client is waiting on an approval
           request that was never delivered — the one thing they cannot find
@@ -127,14 +133,14 @@ function ConstructorEscape({ req, onOpenConstructor }: { req: DocumentRequest; o
   const label = t("constructorContinue");
   if (onOpenConstructor) {
     return (
-      <button type="button" className="btn btn--line btn--full" onClick={onOpenConstructor}>
+      <button type="button" className="btn btn--line" onClick={onOpenConstructor}>
         <IconEdit />
         {label}
       </button>
     );
   }
   return (
-    <Link href={`/portal/client/documents?doc=${encodeURIComponent(req.id)}`} className="btn btn--line btn--full">
+    <Link href={`/portal/client/documents?doc=${encodeURIComponent(req.id)}`} className="btn btn--line">
       <IconEdit />
       {label}
     </Link>
@@ -832,7 +838,7 @@ export default function DocumentRequestPanel({
   ) : null;
 
   return (
-    <div className={`cform${shown === "answers" ? " cform--doc" : ""}`} style={{ maxWidth: "none" }}>
+    <div className={`cform lxdp${shown === "answers" ? " cform--doc" : ""}`} style={{ maxWidth: "none" }}>
       {planGate ? <PlanGateCard gate={planGate} onClose={() => setPlanGate(null)} /> : null}
       {fatal ? (
         <InlineAlert tone={fatal === "noAccess" ? "locked" : "error"} role="alert">
@@ -864,7 +870,7 @@ export default function DocumentRequestPanel({
           </div>
           <p className="advmuted">{t("payLead")}</p>
           <p className="dwiz__policy">{t("downloadPolicy", { n: monthDownloads, limit: 3 })}</p>
-          <button className="btn btn--grad btn--full btn--lg" type="button" onClick={pay} disabled={busy} data-ai-target="button:document-pay" data-ai-id="documents.constructor.pay">
+          <button className="btn btn--pri btn--full btn--lg" type="button" onClick={pay} disabled={busy} data-ai-target="button:document-pay" data-ai-id="documents.constructor.pay">
             {busy ? t("processingShort") : t("pay")}
           </button>
           <button className="rf__link rf__link--muted" type="button" onClick={refresh} disabled={busy}>
@@ -878,50 +884,44 @@ export default function DocumentRequestPanel({
         </>
       ) : null}
 
-      {/* The only wait on this panel where a machine is actually producing a
-          file, so it is the only one that gets the sheet-stream loader (wp-
-          fileloader). It takes the place of the static sparkle chip rather
-          than joining it — the chip occupied the same 56px box, so the card
-          keeps its height — and the badge drops its pulsing dot, because two
-          unsynchronised loops in one small card read as a fault rather than as
-          progress. The sheets are decoration around a status the title, the
-          sub-line and the badge already state, hence aria-hidden on them and
-          role="status" on the block that carries the words. */}
+      {/* Each wait is one card in the client dashboard's language: the
+          dashboard's own drawing in a white circle, the title, one grey
+          line, the status as a .cx-pill and flat buttons — no pulsing
+          rings, no violet or amber circles. The drawing is decoration around
+          a status the title, the sub-line and the pill already state, hence
+          aria-hidden on it and role="status" on the block with the words.
+          This first one is the wait where a machine is producing the file. */}
       {shown === "generating" ? (
-        <div className="docpend" role="status" data-ai-id="documents.constructor.status" data-ai-type="section">
-          <span className="docfly" aria-hidden="true">
-            <i className="docfly__s" />
-            <i className="docfly__s" />
-            <i className="docfly__s" />
-            <i className="docfly__s" />
-          </span>
-          <b>{t("generatingTitle")}</b>
+        <div className="docpend lxdp-card" role="status" data-ai-id="documents.constructor.status" data-ai-type="section">
+          <span className="lxdp-art" style={art("Huquqiy_hujjatlar")} aria-hidden="true" />
+          <b className="lxdp-t">{t("generatingTitle")}</b>
           <span className="docpend__sub">{t("generatingSub")}</span>
-          <span className="docpend__badge docpend__badge--ai">{t("generatingStatus")}</span>
+          <span className="docpend__badge docpend__badge--ai cx-pill cx-pill--blue">
+            <Loader aria-hidden="true" />
+            {t("generatingStatus")}
+          </span>
           {stoppedNote}
-          <button className="btn btn--soft btn--full" type="button" onClick={refresh} disabled={busy}>
-            {busy ? t("processingShort") : t("checkStatus")}
-          </button>
+          <div className="lxdp-acts">
+            <button className="btn btn--line" type="button" onClick={refresh} disabled={busy}>
+              {busy ? t("processingShort") : t("checkStatus")}
+            </button>
+          </div>
         </div>
       ) : null}
 
       {/* A person, not a process: nobody has picked the request up yet, and
-          that can take the better part of an hour. A "your document is being
-          produced" stream would be a lie here, so this and the two waits below
-          keep the quiet pulsing dot they already had. */}
+          that can take the better part of an hour — so the on-duty advocate's
+          drawing and a "waiting" pill, not a "being produced" message. */}
       {shown === "lawyerReview" ? (
-        <div className="docpend" role="status" data-ai-id="documents.constructor.status" data-ai-type="section">
-          <span className="docpend__ic docpend__ic--lawyer"><IconHeadset /></span>
-          <b>{t("lawyerReviewTitle")}</b>
+        <div className="docpend lxdp-card" role="status" data-ai-id="documents.constructor.status" data-ai-type="section">
+          <span className="lxdp-art" style={art("Tezkor_Advokat")} aria-hidden="true" />
+          <b className="lxdp-t">{t("lawyerReviewTitle")}</b>
           <span className="docpend__sub">{t("lawyerReviewSub")}</span>
-          <span className="docpend__badge">
-            <span className="docpend__dot" />
+          <span className="docpend__badge cx-pill cx-pill--blue">
+            <Hourglass aria-hidden="true" />
             {t("lawyerReviewStatus")}
           </span>
           {stoppedNote}
-          <button className="btn btn--soft btn--full" type="button" onClick={refresh} disabled={busy}>
-            {busy ? t("processingShort") : t("checkStatus")}
-          </button>
           {/* THE WAY OUT.
               Until now these two wait cards offered "Holatni tekshirish" and
               nothing else, so a client whose document had gone to an advocate
@@ -932,11 +932,17 @@ export default function DocumentRequestPanel({
               The reason is shown where the client is actually stuck, and when the
               backend says the constructor is still open, so is the door to it. */}
           {req.lawyerRequestBlockReason ? (
-            <small className="docpend__why">{req.lawyerRequestBlockReason}</small>
+            <small className="docpend__why lxdp-why">
+              <Info aria-hidden="true" />
+              {req.lawyerRequestBlockReason}
+            </small>
           ) : null}
-          {req.constructorAction?.available ? (
-            <ConstructorEscape req={req} onOpenConstructor={onOpenConstructor} />
-          ) : null}
+          <div className="lxdp-acts">
+            <button className="btn btn--line" type="button" onClick={refresh} disabled={busy}>
+              {busy ? t("processingShort") : t("checkStatus")}
+            </button>
+            {req.constructorAction?.available ? <ConstructorEscape req={req} onOpenConstructor={onOpenConstructor} /> : null}
+          </div>
         </div>
       ) : null}
 
@@ -944,19 +950,16 @@ export default function DocumentRequestPanel({
           now get a meeting invite from them, so this screen says so rather
           than repeating "waiting for someone to pick it up". */}
       {shown === "claimed" ? (
-        <div className="docpend" role="status" data-ai-id="documents.constructor.status" data-ai-type="section">
-          <span className="docpend__ic docpend__ic--lawyer"><IconHeadset /></span>
-          <b>{t("claimedTitle")}</b>
+        <div className="docpend lxdp-card" role="status" data-ai-id="documents.constructor.status" data-ai-type="section">
+          <span className="lxdp-art" style={art("Advokat_tekshiruvi")} aria-hidden="true" />
+          <b className="lxdp-t">{t("claimedTitle")}</b>
           <span className="docpend__sub">{t("claimedSub")}</span>
-          <span className="docpend__badge">
-            <span className="docpend__dot" />
+          <span className="docpend__badge cx-pill cx-pill--blue">
+            <Sparkles aria-hidden="true" />
             {t("claimedStatus")}
           </span>
           {req.assignedLawyerName ? <small className="advmuted">{t("assignedLawyer", { name: req.assignedLawyerName })}</small> : null}
           {stoppedNote}
-          <button className="btn btn--soft btn--full" type="button" onClick={refresh} disabled={busy}>
-            {busy ? t("processingShort") : t("checkStatus")}
-          </button>
           {/* THE WAY OUT.
               Until now these two wait cards offered "Holatni tekshirish" and
               nothing else, so a client whose document had gone to an advocate
@@ -967,11 +970,17 @@ export default function DocumentRequestPanel({
               The reason is shown where the client is actually stuck, and when the
               backend says the constructor is still open, so is the door to it. */}
           {req.lawyerRequestBlockReason ? (
-            <small className="docpend__why">{req.lawyerRequestBlockReason}</small>
+            <small className="docpend__why lxdp-why">
+              <Info aria-hidden="true" />
+              {req.lawyerRequestBlockReason}
+            </small>
           ) : null}
-          {req.constructorAction?.available ? (
-            <ConstructorEscape req={req} onOpenConstructor={onOpenConstructor} />
-          ) : null}
+          <div className="lxdp-acts">
+            <button className="btn btn--line" type="button" onClick={refresh} disabled={busy}>
+              {busy ? t("processingShort") : t("checkStatus")}
+            </button>
+            {req.constructorAction?.available ? <ConstructorEscape req={req} onOpenConstructor={onOpenConstructor} /> : null}
+          </div>
         </div>
       ) : null}
 
@@ -981,18 +990,23 @@ export default function DocumentRequestPanel({
           amount, and the page breakdown that explains where the amount came
           from — and hence no "advokatlarga yuborildi" anywhere on it. */}
       {shown === "payGate" ? (
-        <div className="docpend pgate" role="status" data-ai-id="documents.constructor.payment-gate" data-ai-type="payment_gate">
-          <span className="docpend__ic docpend__ic--pay"><IconCard /></span>
-          <b>{t("gateTitle")}</b>
+        // `docpend--gate`, not `pgate`: .pgate is PlanGateCard's own class
+        // (components/ui/planGate.css — a 44px + 1fr grid on an amber
+        // gradient), and wearing it squeezed this card into its first column.
+        <div className="docpend docpend--gate lxdp-card" role="status" data-ai-id="documents.constructor.payment-gate" data-ai-type="payment_gate">
+          <span className="lxdp-art" style={art("Xavfsiz_tolov")} aria-hidden="true" />
+          <b className="lxdp-t">{t("gateTitle")}</b>
           <span className="docpend__sub">{t("gateSub")}</span>
-          <span className="docpend__badge docpend__badge--pay">
-            <span className="docpend__dot" />
+          <span className="docpend__badge docpend__badge--pay cx-pill cx-pill--warn">
+            <Loader aria-hidden="true" />
             {t("gateStatus")}
           </span>
           {shownGate ? <DocGateFacts gate={shownGate} telegram={!!knownGate} /> : <p className="pgate__none">{t("gateNoFacts")}</p>}
-          <button className="btn btn--soft btn--full" type="button" onClick={refresh} disabled={busy}>
-            {busy ? t("processingShort") : t("checkStatus")}
-          </button>
+          <div className="lxdp-acts">
+            <button className="btn btn--line" type="button" onClick={refresh} disabled={busy}>
+              {busy ? t("processingShort") : t("checkStatus")}
+            </button>
+          </div>
           <small className="advmuted">{t("gateRefreshHint")}</small>
         </div>
       ) : null}
@@ -1002,41 +1016,48 @@ export default function DocumentRequestPanel({
           this card has no pulse and no poll — only the fact and the way
           back. */}
       {shown === "payCancelled" ? (
-        <div className="docpend pgate pgate--off" data-ai-id="documents.constructor.status" data-ai-type="section">
-          <span className="docpend__ic docpend__ic--off"><IconAlert /></span>
-          <b>{t("cancelledTitle")}</b>
+        <div className="docpend docpend--gate docpend--off lxdp-card" data-ai-id="documents.constructor.status" data-ai-type="section">
+          <span className="docpend__ic docpend__ic--off lxdp-ic lxdp-ic--err" aria-hidden="true"><IconAlert /></span>
+          <b className="lxdp-t">{t("cancelledTitle")}</b>
           <span className="docpend__sub">{t("cancelledSub")}</span>
-          <span className="docpend__badge docpend__badge--off">{t("cancelledStatus")}</span>
+          <span className="docpend__badge docpend__badge--off cx-pill lxdp-pill--err">
+            <CircleX aria-hidden="true" />
+            {t("cancelledStatus")}
+          </span>
           {knownGate ? <DocGateFacts gate={knownGate} telegram={false} /> : null}
-          {onRetry ? (
-            <button className="btn btn--grad btn--full" type="button" onClick={onRetry}>
-              {t("gateRetry")}
+          <div className="lxdp-acts">
+            {onRetry ? (
+              <button className="btn btn--pri" type="button" onClick={onRetry}>
+                {t("gateRetry")}
+              </button>
+            ) : null}
+            <button className="btn btn--line" type="button" onClick={refresh} disabled={busy}>
+              {busy ? t("processingShort") : t("checkStatus")}
             </button>
-          ) : null}
-          <button className="btn btn--soft btn--full" type="button" onClick={refresh} disabled={busy}>
-            {busy ? t("processingShort") : t("checkStatus")}
-          </button>
+          </div>
         </div>
       ) : null}
 
       {shown === "pending" ? (
-        <div className="docpend" role="status" data-ai-id="documents.constructor.status" data-ai-type="section">
-          <span className="docpend__ic"><IconClock /></span>
-          <b>{t("pendingTitle")}</b>
+        <div className="docpend lxdp-card" role="status" data-ai-id="documents.constructor.status" data-ai-type="section">
+          <span className="lxdp-art" style={art("Xavfsiz_karta")} aria-hidden="true" />
+          <b className="lxdp-t">{t("pendingTitle")}</b>
           <span className="docpend__sub">{t("pendingSub")}</span>
-          <span className="docpend__badge">
-            <span className="docpend__dot" />
+          <span className="docpend__badge cx-pill cx-pill--warn">
+            <Loader aria-hidden="true" />
             {t("pendingStatus")}
           </span>
           {stoppedNote}
-          <button className="btn btn--soft btn--full" type="button" onClick={refresh} disabled={busy}>
-            {busy ? t("processingShort") : t("checkStatus")}
-          </button>
+          <div className="lxdp-acts">
+            <button className="btn btn--line" type="button" onClick={refresh} disabled={busy}>
+              {busy ? t("processingShort") : t("checkStatus")}
+            </button>
+          </div>
         </div>
       ) : null}
 
       {shown === "done" ? (
-        <div className="docdone" data-ai-target="documents:result" data-ai-id="documents.constructor.result" data-ai-type="section" data-ai-entity-type="document_request" data-ai-entity-id={req.id}>
+        <div className="docdone lxdp-card lxdp-card--done" data-ai-target="documents:result" data-ai-id="documents.constructor.result" data-ai-type="section" data-ai-entity-type="document_request" data-ai-entity-id={req.id}>
           {/* Reopening a request created before this template had any fields
               (or simply never filled in) shows the same blank contractFile it
               generated back then — nothing here re-checks that against the
@@ -1053,11 +1074,16 @@ export default function DocumentRequestPanel({
               ) : null}
             </>
           ) : null}
-          <span className="docdone__i"><IconCheck /></span>
-          <b>{t("ready")}</b>
-          <span className="docdone__f">{req.contractFile?.fileName || t("fileGeneric")}</span>
+          {/* The dashboard's "Hujjat tayyor" drawing in a white circle, in
+              place of the green check in a halo ring. */}
+          <span className="docdone__i lxdp-art" style={art("Hujjat_tayyor")} aria-hidden="true" />
+          <b className="lxdp-t">{t("ready")}</b>
+          <span className="docdone__f lxdp-file">
+            <FileText aria-hidden="true" />
+            {req.contractFile?.fileName || t("fileGeneric")}
+          </span>
           {aiGenerated ? <AiLabel /> : null}
-          <div className="docdone__act">
+          <div className="docdone__act lxdp-acts">
             <button className="btn btn--pri" type="button" onClick={() => getFile(false)} disabled={pdfBusy} data-ai-id="documents.constructor.result.open">
               <IconExternal />
               {t("open")}
@@ -1069,16 +1095,20 @@ export default function DocumentRequestPanel({
           </div>
           <small className="advmuted">{t("keptInCabinet")}</small>
           {onStartNew && !isStale ? (
-            <button className="rf__link" type="button" onClick={onStartNew}>
+            <button className="rf__link lxdp-link" type="button" onClick={onStartNew}>
               {t("startNew")}
             </button>
           ) : null}
           {/* Hand this finished document to a call-center advocate to check
               — the same pool the from-scratch flows land in. */}
+          {/* `docgate`, not `pgate`: see the payment-gate card above. */}
           {reviewRefused ? (
-            <p className="dgate__note">{reviewRefused}</p>
+            <p className="dgate__note lxdp-why">
+              <Info aria-hidden="true" />
+              {reviewRefused}
+            </p>
           ) : reviewSent && gate && gateOutcome ? (
-            <div className={`pgate pgate--inline pgate--${gateOutcome}`} role="status">
+            <div className={`docgate docgate--inline docgate--${gateOutcome}`} role="status">
               <span className="pgate__icon" aria-hidden="true">{gateOutcome === "pooled" ? <IconCircleCheck /> : <IconCircleX />}</span>
               <b className="pgate__t">{gateOutcome === "pooled" ? t("gatePooled") : t("cancelledTitle")}</b>
               <span className="pgate__sub">{gateOutcome === "pooled" ? t("gatePooledSub") : t("cancelledSub")}</span>
@@ -1088,18 +1118,18 @@ export default function DocumentRequestPanel({
                (MD L124), so the green "yuborildi" notice is replaced by the
                wait — with the amount, the page breakdown and whether the
                Telegram request was actually sent. */
-            <div className="pgate pgate--inline">
+            <div className="docgate docgate--inline">
               <b className="pgate__t">{t("gateTitle")}</b>
               <span className="pgate__sub">{t("gateSub")}</span>
               <DocGateFacts gate={gate} />
-              <button className="btn btn--soft btn--sm" type="button" onClick={refresh} disabled={busy}>
+              <button className="btn btn--line btn--sm" type="button" onClick={refresh} disabled={busy}>
                 {busy ? t("processingShort") : t("checkStatus")}
               </button>
             </div>
           ) : reviewSent ? (
             <InlineAlert tone="success">{t("reviewSent")}</InlineAlert>
           ) : reviewOpen ? (
-            <div className="docreview" data-ai-private>
+            <div className="docreview lxdp-review" data-ai-private>
               {/* GM 2026-09-29: "agar Hujjat turi mavjud bo'lsa, u hujjat
                   turi 1-chida turishi shart." Which kind of document this is
                   comes before what to look at inside it — it is also the
@@ -1126,7 +1156,7 @@ export default function DocumentRequestPanel({
                 data-ai-private
               />
               <div className="docreview__btns">
-                <button className="btn btn--grad btn--sm" type="button" onClick={sendToLawyerReview} disabled={reviewBusy} data-ai-id="documents.constructor.result.review-submit" data-ai-label={t("reviewSubmit")}>
+                <button className="btn btn--pri btn--sm" type="button" onClick={sendToLawyerReview} disabled={reviewBusy} data-ai-id="documents.constructor.result.review-submit" data-ai-label={t("reviewSubmit")}>
                   {reviewBusy ? t("processingShort") : t("reviewSubmit")}
                 </button>
                 <button className="rf__link rf__link--muted" type="button" onClick={() => setReviewOpen(false)} disabled={reviewBusy}>
@@ -1137,7 +1167,10 @@ export default function DocumentRequestPanel({
           ) : (
             // A lawyer already holds the document: the reason, no dead button.
             lawyerHeldNote ? (
-              <p className="dgate__note">{lawyerHeldNote}</p>
+              <p className="dgate__note lxdp-why">
+                <Info aria-hidden="true" />
+                {lawyerHeldNote}
+              </p>
             ) : (
               <button className="btn btn--line btn--sm" type="button" onClick={() => setReviewOpen(true)} data-ai-id="documents.constructor.result.review">
                 <IconHeadset />
@@ -1145,12 +1178,23 @@ export default function DocumentRequestPanel({
               </button>
             )
           )}
-          <div className="docoffer">
+          {/* The two next steps as the dashboard's picture cards: the drawing
+              in a white circle, what it is and its price, and the round
+              arrow that turns blue — a whole card is the link. */}
+          <div className="docoffer lxdp-offer">
             <b>{t("offerTitle")}</b>
             <span>{t("offerLead")}</span>
-            <div className="docoffer__btns">
-              <Link href={`/portal/client/doc-analysis?request=${encodeURIComponent(req.id)}`} className="btn btn--pri btn--sm">{t("offerReview", { price: fmtUzs(policies?.documentAnalysis.ranges[0]?.amount || 149000) })}</Link>
-              <Link href="/portal/client/services?q=shablon" className="btn btn--line btn--sm">{t("offerHelp", { price: fmtUzs(399000) })}</Link>
+            <div className="docoffer__btns lxdp-offer__opts">
+              <Link href={`/portal/client/doc-analysis?request=${encodeURIComponent(req.id)}`} className="lxdp-opt">
+                <span className="lxdp-opt__art" style={art("Advokat_tekshiruvi")} aria-hidden="true" />
+                <span className="lxdp-opt__t">{t("offerReview", { price: fmtUzs(policies?.documentAnalysis.ranges[0]?.amount || 149000) })}</span>
+                <span className="lxdp-opt__go" aria-hidden="true"><ArrowUpRight /></span>
+              </Link>
+              <Link href="/portal/client/services?q=shablon" className="lxdp-opt">
+                <span className="lxdp-opt__art" style={art("Huquqiy_hujjatlar")} aria-hidden="true" />
+                <span className="lxdp-opt__t">{t("offerHelp", { price: fmtUzs(399000) })}</span>
+                <span className="lxdp-opt__go" aria-hidden="true"><ArrowUpRight /></span>
+              </Link>
             </div>
           </div>
           {/* T1-13: the generated document is a contract to sign with a Telegram code. */}
@@ -1178,7 +1222,7 @@ export default function DocumentRequestPanel({
           their mind. */}
       <Modal open={askCtor} onClose={() => setAskCtor(false)} title={req.constructorAction?.title || t("ctorAskTitle")}>
         <div
-          className="cform"
+          className="cform lxd-dlg"
           style={{ maxWidth: "none" }}
           data-ai-id="documents.constructor.continue-prompt"
           data-ai-type="modal"
@@ -1186,17 +1230,17 @@ export default function DocumentRequestPanel({
           data-ai-entity-type="document_request"
           data-ai-entity-id={req.id}
         >
-          <p className="dexit__lead">
-            <span className="dexit__i"><IconHeadset /></span>
-            {req.constructorAction?.message || t("ctorAskLead")}
-          </p>
-          <div className="dexit__btns">
+          <div className="lxd-dlg__intro">
+            <span className="lxd-dlg__art" style={art("Tezkor_Advokat")} aria-hidden="true" />
+            <p className="dexit__lead lxd-dlg__lead">{req.constructorAction?.message || t("ctorAskLead")}</p>
+          </div>
+          <div className="dexit__btns lxd-dlg__btns">
             <button type="button" className="btn btn--line btn--full" onClick={() => setAskCtor(false)}>
               {t("ctorAskWait")}
             </button>
             <button
               type="button"
-              className="btn btn--grad btn--full"
+              className="btn btn--pri btn--full"
               onClick={() => {
                 setAskCtor(false);
                 if (onOpenConstructor) onOpenConstructor();

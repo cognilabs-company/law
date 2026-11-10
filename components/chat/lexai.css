@@ -177,10 +177,29 @@ body:has(.lxai--full) .fab { display: none }
 
 /* drawer on narrow screens */
 .lxai__scrim { display: none }
+/* In the portal the history turns into the drawer by the room the chat
+   gets, not the window's width: beside the portal's own sidebar a 1024px
+   screen left the conversation ~330px, and the starter cards' words ran
+   out of them. */
+.pbody:has(.lxai--embed) .pbody__in { container: lxai / inline-size }
+@container lxai (max-width: 899px) {
+  .lxai { grid-template-columns: minmax(0, 1fr) }
+  /* closed: off-canvas and out of the Tab order (visibility flips after the slide) */
+  .lxai__side { position: absolute; inset: 0 auto 0 0; width: min(320px, 86%); z-index: 20; transform: translateX(-102%); visibility: hidden; transition: transform .28s cubic-bezier(.3, 1, .4, 1), visibility 0s linear .28s; box-shadow: var(--s3) }
+  .lxai__side.on { transform: none; visibility: visible; transition: transform .28s cubic-bezier(.3, 1, .4, 1), visibility 0s }
+  /* the drawer keeps its own header with the X: from 861px the embed hides
+     that row, the page header naming the assistant */
+  .lxai.lxai--embed .lxai__brand { display: flex }
+  .lxai.lxai--embed .lxai__new { margin-top: 0 }
+  .lxai__close { display: grid }
+  .lxai__burger { display: grid }
+  .lxai__scrim { display: block; position: absolute; inset: 0; z-index: 15; background: rgba(3, 16, 43, .42); opacity: 0; pointer-events: none; transition: opacity .22s }
+  .lxai__scrim.on { opacity: 1; pointer-events: auto }
+}
 @media (max-width: 860px) {
   .lxai { grid-template-columns: minmax(0, 1fr) }
-  .lxai__side { position: absolute; inset: 0 auto 0 0; width: min(320px, 86vw); z-index: 20; transform: translateX(-102%); transition: transform .28s cubic-bezier(.3, 1, .4, 1); box-shadow: var(--s3) }
-  .lxai__side.on { transform: none }
+  .lxai__side { position: absolute; inset: 0 auto 0 0; width: min(320px, 86vw); z-index: 20; transform: translateX(-102%); visibility: hidden; transition: transform .28s cubic-bezier(.3, 1, .4, 1), visibility 0s linear .28s; box-shadow: var(--s3) }
+  .lxai__side.on { transform: none; visibility: visible; transition: transform .28s cubic-bezier(.3, 1, .4, 1), visibility 0s }
   .lxai__close { display: grid }
   .lxai__burger { display: grid }
   .lxai__scrim { display: block; position: absolute; inset: 0; z-index: 15; background: rgba(3, 16, 43, .42); opacity: 0; pointer-events: none; transition: opacity .22s }
@@ -339,6 +358,7 @@ html[data-theme="dark"] .lxai__empty h2 {
 }
 .lxai__sugg button > .lxai__sugg-ic svg { width: 18px; height: 18px }
 .lxai__sugg button > .lxai__sugg-t {
+  overflow-wrap: anywhere;
   display: block;
   flex: 1;
   width: auto;

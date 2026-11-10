@@ -1,5 +1,6 @@
 "use client";
 
+import "./profile1920.css";
 import { useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth, requiresTwoFactor } from "@/lib/auth";
@@ -8,6 +9,7 @@ import { ApiError, errDetail, isOffline, isOtpExpired, isRateLimited, retryAfter
 import { OTP_RESEND_SEC, fmtClock, useOtpTimer } from "@/lib/useOtpTimer";
 import { notify } from "@/lib/toast";
 import FieldError from "@/components/ui/FieldError";
+import CodeSlots from "@/components/CodeSlots";
 import { OtpCountdown, OtpResendButton } from "@/components/auth/OtpStatus";
 import { IconShield, IconShieldCheck, IconChevronLeft, IconLock, IconSend } from "@/components/icons";
 
@@ -196,27 +198,24 @@ export default function TwoFactorCard() {
       {stage === "sms" ? (
         <div className="cform" style={{ maxWidth: "none" }} data-ai-private>
           <div>
-            <label>{t("codeLabel")}</label>
-            <input
+            <label htmlFor={`${uid}-code-in`}>{t("codeLabel")}</label>
+            <CodeSlots
+              id={`${uid}-code-in`}
               value={code}
-              onChange={(e) => {
-                setCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+              onChange={(v) => {
+                setCode(v);
                 if (codeErr) setCodeErr("");
               }}
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              placeholder={t("codePh")}
               autoFocus
-              aria-invalid={codeErr ? true : undefined}
-              aria-describedby={codeErr ? `${uid}-code` : undefined}
+              describedBy={codeErr ? `${uid}-code` : undefined}
             />
             <FieldError id={`${uid}-code`} msg={codeErr} />
           </div>
           <OtpCountdown timer={otp} showExpiry={false} />
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <div className="tfa__acts" style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
             <button className="btn btn--line btn--sm" type="button" onClick={reset}><IconChevronLeft />{t("back")}</button>
             <button
-              className="btn btn--grad"
+              className="btn btn--pri btn--sm"
               type="button"
               onClick={verifySms}
               disabled={busy || resending || code.length !== 6 || otp.expired || otp.blockedIn > 0}
@@ -243,30 +242,27 @@ export default function TwoFactorCard() {
           ) : null}
           {totp.secret ? (
             <div>
-              <label>{t("secretLabel")}</label>
-              <input value={totp.secret} readOnly onFocus={(e) => e.currentTarget.select()} className="tfa__secret" />
+              <label htmlFor={`${uid}-secret`}>{t("secretLabel")}</label>
+              <input id={`${uid}-secret`} value={totp.secret} readOnly onFocus={(e) => e.currentTarget.select()} className="tfa__secret" />
             </div>
           ) : null}
           <div>
-            <label>{t("totpCodeLabel")}</label>
-            <input
+            <label htmlFor={`${uid}-code-in`}>{t("totpCodeLabel")}</label>
+            <CodeSlots
+              id={`${uid}-code-in`}
               value={code}
-              onChange={(e) => {
-                setCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+              onChange={(v) => {
+                setCode(v);
                 if (codeErr) setCodeErr("");
               }}
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              placeholder={t("codePh")}
               autoFocus
-              aria-invalid={codeErr ? true : undefined}
-              aria-describedby={codeErr ? `${uid}-code` : undefined}
+              describedBy={codeErr ? `${uid}-code` : undefined}
             />
             <FieldError id={`${uid}-code`} msg={codeErr} />
           </div>
-          <div style={{ display: "flex", gap: 10 }}>
+          <div className="tfa__acts" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button className="btn btn--line btn--sm" type="button" onClick={reset}><IconChevronLeft />{t("back")}</button>
-            <button className="btn btn--grad" type="button" onClick={verifyTotp} disabled={busy || code.length !== 6}>
+            <button className="btn btn--pri btn--sm" type="button" onClick={verifyTotp} disabled={busy || code.length !== 6}>
               {busy ? t("verifying") : t("verify")}
             </button>
           </div>

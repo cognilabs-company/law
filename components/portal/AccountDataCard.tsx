@@ -1,6 +1,7 @@
 "use client";
 
 import "./accountData.css";
+import "./profile1920.css";
 import type { ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";

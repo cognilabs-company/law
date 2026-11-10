@@ -1,7 +1,12 @@
 "use client";
 
+import "@/components/portal/ordersList1920.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { ArrowRight, ArrowUpRight, CircleCheck, CircleX, Clock, Coins, Loader, Pause, RefreshCw, Search, ShoppingBag, Sparkles, TriangleAlert } from "lucide-react";
+import { clientStageOf } from "@/lib/orderStatus";
+import { initials } from "@/lib/lawyers";
+import { personName } from "@/lib/labels";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
@@ -45,6 +50,7 @@ import "./order/orderList.css";
 import SellerOrderActions from "@/components/portal/OrderActions";
 import { clockOf, useCountdown } from "@/lib/useCountdown";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
+import { useFitPlaceholder } from "@/lib/useFitPlaceholder";
 
 type View = "client" | "seller";
 type Tab = "all" | MarketStage;
@@ -64,6 +70,12 @@ const haystackOf = (o: MarketOrder, view: View) => [o.serviceTitle, o.workId, vi
 
 export default function MarketOrders({ view }: { view: View }) {
   const t = useTranslations("marketplace.orders");
+  const tl = useTranslations("lxOrders");
+  // The client's list is drawn in the client dashboard's vocabulary
+  // (components/portal/ordersList1920.css); the seller's keeps its own look.
+  const client = view === "client";
+  // the hint whole: just "Qidirish" where the full one would be cut (a phone)
+  const [qPh, qRef] = useFitPlaceholder([view === "client" ? t("searchPhClient") : t("searchPhSeller"), t("searchPhShort")]);
   const locale = useLocale();
   const pathname = usePathname();
   const [orders, setOrders] = useState<MarketOrder[]>([]);
@@ -188,22 +200,45 @@ export default function MarketOrders({ view }: { view: View }) {
   const patch = (id: string, next: Partial<MarketOrder>) => setOrders((cur) => cur.map((o) => (o.id === id ? { ...o, ...next, canCancel: false, canComplete: false } : o)));
 
   return (
-    <section className="mk mk-orders">
-      <header className="mk-orders__head">
-        <div>
-          <h1 className="mk-orders__t">{view === "client" ? t("clientTitle") : t("sellerTitle")}</h1>
-          <p className="mk-orders__l">{view === "client" ? t("clientLead") : t("sellerLead")}</p>
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
-          {view === "seller" ? (
-            <CopilotLauncher surface="lawyer_work_queue" context={{ label: t("sellerTitle"), status_filter: tab, count: status === "ready" ? shown.length : undefined }} />
-          ) : null}
-          <button type="button" className="btn btn--line btn--sm" onClick={() => void load(true)} disabled={refreshing || status === "loading"}>
-            <IconRefresh className={refreshing ? "mk-spin" : undefined} />
-            {t("refresh")}
+    <section className={`mk mk-orders${client ? " mko-lx" : ""}`}>
+      {client ? (
+        // The shell already titles the page; this is the card's own head, as
+        // the dashboard's "Jarayondagi ishlar": a small title with its count
+        // and the one tool on the right.
+        <div className="mko-lx__head">
+          <div className="mko-lx__headt">
+            <h2 className="cx-h3">
+              {tl("orders.listTitle")}
+              {status === "ready" ? <span className="cx-count">{orders.length}</span> : null}
+            </h2>
+            <p className="lx-sub">{t("clientLead")}</p>
+          </div>
+          <button
+            type="button"
+            className="cx-iconbtn mko-lx__refresh"
+            onClick={() => void load(true)}
+            disabled={refreshing || status === "loading"}
+            aria-label={t("refresh")}
+            title={t("refresh")}
+          >
+            <RefreshCw className={refreshing ? "mk-spin" : undefined} aria-hidden />
           </button>
         </div>
-      </header>
+      ) : (
+        <header className="mk-orders__head">
+          <div>
+            <h1 className="mk-orders__t">{t("sellerTitle")}</h1>
+            <p className="mk-orders__l">{t("sellerLead")}</p>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+            <CopilotLauncher surface="lawyer_work_queue" context={{ label: t("sellerTitle"), status_filter: tab, count: status === "ready" ? shown.length : undefined }} />
+            <button type="button" className="btn btn--line btn--sm" onClick={() => void load(true)} disabled={refreshing || status === "loading"}>
+              <IconRefresh className={refreshing ? "mk-spin" : undefined} />
+              {t("refresh")}
+            </button>
+          </div>
+        </header>
+      )}
 
       {flash ? (
         <div className="mk-flash" role="status">
@@ -237,7 +272,8 @@ export default function MarketOrders({ view }: { view: View }) {
             value={q}
             maxLength={SEARCH_MAX}
             onChange={(e) => setQ(e.target.value.slice(0, SEARCH_MAX))}
-            placeholder={view === "client" ? t("searchPhClient") : t("searchPhSeller")}
+            ref={qRef}
+            placeholder={qPh}
             aria-label={t("searchLabel")}
             data-ai-id={`${ai}.search`}
           />
@@ -266,7 +302,8 @@ export default function MarketOrders({ view }: { view: View }) {
           ))}
         </div>
       ) : status === "error" ? (
-        <div className="mk-empty">
+        <div className={`mk-empty${client ? " cx-empty" : ""}`}>
+          {client ? <span className="cx-empty__ic"><TriangleAlert aria-hidden /></span> : null}
           <b>{t("error")}</b>
           <button
             type="button"
@@ -281,19 +318,26 @@ export default function MarketOrders({ view }: { view: View }) {
           </button>
         </div>
       ) : !orders.length ? (
-        <div className="mk-empty" data-ai-target={view === "client" ? "client:marketplace-orders" : "seller:marketplace-orders"} data-ai-id={`${ai}.list`} data-ai-type="list">
-          <IconSparkle />
+        <div className={`mk-empty${client ? " cx-empty" : ""}`} data-ai-target={view === "client" ? "client:marketplace-orders" : "seller:marketplace-orders"} data-ai-id={`${ai}.list`} data-ai-type="list">
+          {client ? <span className="cx-empty__ic"><ShoppingBag aria-hidden /></span> : <IconSparkle />}
           <b>{view === "client" ? t("emptyClient") : t("emptySeller")}</b>
           <span>{view === "client" ? t("emptyClientText") : t("emptySellerText")}</span>
           {view === "client" ? (
-            <Link href="/portal/client/lawyers" className="btn btn--grad btn--sm">
+            <Link href="/portal/client/lawyers" className="btn btn--pri btn--sm">
               {t("browse")}
+              <ArrowRight aria-hidden />
             </Link>
           ) : null}
         </div>
       ) : !shown.length && !fresh.length ? (
-        <div className="mk-empty mk-empty--flat" data-ai-target={view === "client" ? "client:marketplace-orders" : "seller:marketplace-orders"} data-ai-id={`${ai}.list`} data-ai-type="list">
+        <div className={`mk-empty mk-empty--flat${client ? " cx-empty" : ""}`} data-ai-target={view === "client" ? "client:marketplace-orders" : "seller:marketplace-orders"} data-ai-id={`${ai}.list`} data-ai-type="list">
+          {client ? <span className="cx-empty__ic"><Search aria-hidden /></span> : null}
           <span>{t("emptyFilter")}</span>
+          {client ? (
+            <button type="button" className="btn btn--line btn--sm" onClick={resetFilters}>
+              {tl("orders.clearFilter")}
+            </button>
+          ) : null}
         </div>
       ) : !shown.length ? null : (
         <div
@@ -303,19 +347,23 @@ export default function MarketOrders({ view }: { view: View }) {
           data-ai-type="list"
           data-ai-label={view === "client" ? t("clientTitle") : t("sellerTitle")}
         >
-          {shown.map((o) => (
-            <OrderCard
-              key={o.id}
-              o={o}
-              view={view}
-              locale={locale}
-              listHref={pathname}
-              onCancel={() => setCancelFor(o)}
-              onComplete={() => setCompleteFor(o)}
-              onSupplemental={() => setSupFor(o)}
-              onRated={() => void load(true)}
-            />
-          ))}
+          {shown.map((o) =>
+            client ? (
+              <ClientOrderCard key={o.id} o={o} locale={locale} listHref={pathname} onCancel={() => setCancelFor(o)} onRated={() => void load(true)} />
+            ) : (
+              <OrderCard
+                key={o.id}
+                o={o}
+                view={view}
+                locale={locale}
+                listHref={pathname}
+                onCancel={() => setCancelFor(o)}
+                onComplete={() => setCompleteFor(o)}
+                onSupplemental={() => setSupFor(o)}
+                onRated={() => void load(true)}
+              />
+            ),
+          )}
         </div>
       )}
 
@@ -364,6 +412,222 @@ export default function MarketOrders({ view }: { view: View }) {
         }}
       />
     </section>
+  );
+}
+
+// The dashboard's four steps (components/portal/dash/ClientHome.tsx WorkCard)
+// and the status pill's tone per list stage.
+const STEP: Record<string, number> = { request: 1, matching: 1, payment: 2, work: 3, done: 4 };
+const TONE: Record<MarketStage, "warn" | "blue" | "ok" | "mute"> = { pending: "warn", active: "blue", completed: "ok", cancelled: "mute" };
+
+// A client's order, drawn as the dashboard's in-progress work card: a chip
+// card with the title and its status pill, the grey "MP-… · date" line, the
+// four-step bar and its sentence, the order's own facts and blocks, then who
+// has it, the price and the actions — the chat as the dashboard's square
+// icon button, the way in as its arrow.
+function ClientOrderCard({
+  o,
+  locale,
+  listHref,
+  onCancel,
+  onRated,
+}: {
+  o: MarketOrder;
+  locale: string;
+  listHref: string;
+  onCancel: () => void;
+  onRated: () => void;
+}) {
+  const t = useTranslations("marketplace.orders");
+  const tod = useTranslations("marketplace.orderDetail.card");
+  const tph = useTranslations("marketplace.orderDetail.phase");
+  const tch = useTranslations("marketplace.purchase.channels");
+  const tpk = useTranslations("portal.client.packages");
+  const te = useTranslations("enums");
+  const tl = useTranslations("lxOrders");
+  const speedText = useContactSpeedText();
+  const router = useRouter();
+  const stage = marketStageOf(o);
+  const phase = marketPhaseOf(o);
+  const dealOpen = phase === "pending" && !!o.negotiation && DEAL_OPEN.test(o.negotiation.status);
+  const dealAmount = o.negotiation ? dealOf(o.negotiation) : 0;
+  const awaiting = awaitingSeller(o);
+  const stageLabel = awaiting ? t("awaitingClient") : phase === "paid" ? tph("paid") : t(`stage.${stage}`);
+  const currency = !o.currency || o.currency === "UZS" ? te("currency") : o.currency;
+  const [calling, setCalling] = useState<"" | "audio" | "video">("");
+  const [callErr, setCallErr] = useState("");
+  const refusedFor = useRefused();
+  const who = personName(o.lawyerName);
+  const chatHref = marketChatHref(o);
+  const contact = o.canStartChat;
+  const speed = speedText(o);
+  const item = o.id ? aiId(`${aiBaseOf("client")}.item`, o.id) : undefined;
+  const sub = (s: string) => (item ? `${item}.${s}` : undefined);
+  const cs = clientStageOf(o.status) ?? (stage === "completed" ? "done" : stage === "active" ? "work" : stage === "pending" ? "payment" : "closed");
+  const step = STEP[cs] ?? 0;
+  const tone = TONE[stage];
+
+  // The contact menu floats over the cards below it, so a press anywhere
+  // else closes it (its own Escape and toggle still work).
+  const foot = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onDown = (e: PointerEvent) => {
+      const btn = foot.current?.querySelector<HTMLButtonElement>(".mkc.is-open > .mkc__trigger");
+      const box = btn?.parentElement;
+      if (btn && box && !box.contains(e.target as Node)) btn.click();
+    };
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, []);
+
+  async function call(kind: "audio" | "video") {
+    if (calling || !o.roomId) return;
+    setCalling(kind);
+    setCallErr("");
+    try {
+      const c = await startCall(o.roomId, kind, o.serviceTitle || o.workId || "LexGo", o.lawyerUserId ? { participantUserIds: [o.lawyerUserId] } : undefined);
+      router.push(`/portal/chat/${encodeURIComponent(o.roomId)}?join=${encodeURIComponent(c.id)}`);
+    } catch (e) {
+      setCallErr(errDetail(e) || t("callError"));
+      setCalling("");
+      if (isForbidden(e)) markRefused(o.id, "call");
+    }
+  }
+
+  const title = o.serviceTitle || o.packageTitle || "—";
+  const facts = [
+    o.lawyerPhone && lawyerPhoneShow(o) === "show" ? { k: "tel", icon: <IconPhone aria-hidden="true" />, text: <a href={telHref(o.lawyerPhone)}>{o.lawyerPhone}</a> } : null,
+    o.preferredChannel ? { k: "ch", icon: <IconChat aria-hidden="true" />, text: tch.has(o.preferredChannel) ? tch(o.preferredChannel) : o.preferredChannel } : null,
+    speed || o.preferredTime ? { k: "speed", icon: <IconClock aria-hidden="true" />, text: speed || o.preferredTime } : null,
+  ].filter(Boolean) as { k: string; icon: React.ReactNode; text: React.ReactNode }[];
+  const chips = [
+    isReworkOrder(o) ? { k: "rework", tone: "warn", icon: <RefreshCw aria-hidden />, text: t("rework") } : null,
+    o.workPaused ? { k: "paused", tone: "warn", icon: <Pause aria-hidden />, text: t("paused") } : null,
+    phase === "review" ? { k: "review", tone: "warn", icon: <Pause aria-hidden />, text: tod("review") } : null,
+    phase === "in_progress" && o.expectedCompletedAt ? { k: "due", tone: "blue", icon: <Clock aria-hidden />, text: tod("due", { date: shortDateTime(o.expectedCompletedAt, locale) }) } : null,
+    dealOpen && dealAmount > 0 ? { k: "deal", tone: "blue", icon: <Coins aria-hidden />, text: tod("negotiation", { amount: `${fmtUzs(dealAmount)} ${currency}` }) } : null,
+  ].filter(Boolean) as { k: string; tone: string; icon: React.ReactNode; text: string }[];
+  const detail = o.serviceTitle || o.packageTitle || o.workId ? tod("detailNamed", { service: o.serviceTitle || o.packageTitle || o.workId }) : tod("detail");
+
+  return (
+    <article
+      className="mko-card cx-work mko-lx__card"
+      data-stage={stage}
+      data-ai-target={o.id ? `orders.item.${o.id}` : undefined}
+      data-ai-id={item}
+      data-ai-type="card"
+      data-ai-entity-type="marketplace_order"
+      data-ai-entity-id={o.id || undefined}
+      data-ai-label={[o.serviceTitle, stageLabel].filter(Boolean).join(" · ")}
+      data-ai-private
+    >
+      <div className="cx-work__h">
+        <h3 className="mko-card__title">
+          {o.id ? (
+            <Link href={orderDetailHref(listHref, o.id)} className="mko-card__link cx-work__t">
+              {title}
+            </Link>
+          ) : (
+            title
+          )}
+        </h3>
+        <span className={`mko-stage cx-pill cx-pill--${tone}`} data-stage={stage}>
+          {tone === "warn" ? <Loader aria-hidden /> : tone === "ok" ? <CircleCheck aria-hidden /> : tone === "mute" ? <CircleX aria-hidden /> : <Sparkles aria-hidden />}
+          {stageLabel}
+        </span>
+      </div>
+      <span className="cx-work__meta">{[o.workId, o.createdAt ? shortDateTime(o.createdAt, locale) : ""].filter(Boolean).join(" · ")}</span>
+      {chips.length ? (
+        <div className="mko-card__chips mko-lx__chips">
+          {chips.map((c) => (
+            <span key={c.k} className={`mko-chip cx-pill cx-pill--${c.tone}`}>
+              {c.icon}
+              {c.text}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {step ? (
+        <>
+          <span className={`cx-steps cx-steps--${tone === "mute" ? "blue" : tone}`} aria-hidden="true">
+            {[1, 2, 3, 4].map((n) => (
+              <i key={n} className={n <= step ? "on" : ""} />
+            ))}
+          </span>
+          <span className="cx-work__stage">
+            {tl("step", { n: step })} · {o.clientMessage || tl(`stageText.${cs}`)}
+          </span>
+        </>
+      ) : null}
+
+      <div className="mko-card__body">
+        {o.packageTitle || o.packageTier ? (
+          <span className="mko-pkg">
+            <IconPackage aria-hidden="true" />
+            {[o.packageTitle, o.packageTier && tpk.has(`tiers.${o.packageTier}`) ? tpk(`tiers.${o.packageTier}`) : o.packageTier].filter(Boolean).join(" · ")}
+          </span>
+        ) : null}
+        <OptionLines options={o.selectedOptions} title={t("optionsTitle")} />
+        {facts.length ? (
+          <ul className="mko-facts">
+            {facts.map((f) => (
+              <li key={f.k}>
+                {f.icon}
+                <span>{f.text}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {o.note ? <p className="mko-note">{o.note}</p> : null}
+        {stage === "pending" && !awaiting ? <p className="mko-hint">{t("waitNote")}</p> : null}
+        <SupplementalPanel o={o} view="client" />
+        {stage === "completed" ? <ResultBlock o={o} /> : null}
+        {stage === "completed" ? <RatingPanel o={o} onRated={onRated} /> : null}
+        {callErr ? <Notice ok={false} msg={callErr} /> : null}
+      </div>
+
+      <div className="cx-work__foot mko-lx__foot" ref={foot}>
+        <span className="cx-work__who">
+          {who ? <span className="cx-av" aria-hidden>{initials(who)}</span> : null}
+          {who ? tl("who", { name: who }) : null}
+        </span>
+        <div className="mko-card__acts mko-lx__acts">
+          <b className="mko-price sx-num">
+            {o.price ? fmtUzs(o.price) : "—"} <small>{currency}</small>
+          </b>
+          {o.canCancel && stage === "pending" && !refusedFor(o.id, "cancel") ? (
+            <button type="button" className="btn btn--line btn--sm mk-danger" onClick={onCancel} data-ai-id={sub("cancel")} data-ai-label={t("cancel")}>
+              <IconClose />
+              {t("cancel")}
+            </button>
+          ) : null}
+          {!contact && o.canCreateCall && o.callsAllowed && stage !== "cancelled" && stage !== "completed" && !refusedFor(o.id, "call") ? (
+            <span className="mk-callgrp" role="group" aria-label={t("call")} data-ai-id={sub("call")} data-ai-type="call_button" data-ai-label={t("call")}>
+              {o.callTypes.includes("audio") ? (
+                <button type="button" className="btn btn--line btn--sm" disabled={!!calling} onClick={() => void call("audio")}>
+                  <IconPhone />
+                  {calling === "audio" ? t("calling") : t("audio")}
+                </button>
+              ) : null}
+              {o.callTypes.includes("video") ? (
+                <button type="button" className="btn btn--line btn--sm" disabled={!!calling} onClick={() => void call("video")}>
+                  <IconVideo />
+                  {calling === "video" ? t("calling") : t("video")}
+                </button>
+              ) : null}
+            </span>
+          ) : null}
+          {contact ? (
+            <ContactAdvocate tone="site" size="sm" chatHref={chatHref} roomId={o.roomId} callTitle={o.serviceTitle || o.workId || "LexGo"} counterpartId={o.lawyerUserId} calls={stage === "cancelled" || stage === "completed" ? "closed" : refusedFor(o.id, "call") ? "unavailable" : callStateOf(o)} callTypes={o.callTypes} aiId={sub("contact") ?? "marketplace.orders.item.contact"} chatAiId={sub("chat")} />
+          ) : null}
+          {o.id ? (
+            <Link href={orderDetailHref(listHref, o.id)} className="mko-more cx-iconbtn" aria-label={detail} title={tod("detail")} data-ai-id={sub("detail")} data-ai-label={tod("detail")}>
+              <ArrowUpRight aria-hidden="true" />
+            </Link>
+          ) : null}
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -687,10 +951,11 @@ function ActionDialog({
 
   return (
     <Modal open onClose={busy ? () => undefined : onClose} title={title}>
-      <div className="mk-act" data-ai-id={modalAiId} data-ai-type="modal" data-ai-label={title} data-ai-private>
+      <div className="mk-act olx-act" data-ai-id={modalAiId} data-ai-type="modal" data-ai-label={title} data-ai-private>
+        {/* the order it is about: its name, and the work id as grey meta */}
         <div className="mk-act__head">
-          {target.workId ? <span className="wid">{target.workId}</span> : null}
           <b>{target.serviceTitle}</b>
+          {target.workId ? <span className="wid">{target.workId}</span> : null}
         </div>
         <p>{lead}</p>
         <label className="mk-in">
@@ -698,15 +963,16 @@ function ActionDialog({
           <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} rows={3} maxLength={500} />
         </label>
         {err ? <Notice ok={false} msg={err} /> : null}
-        <div className="mk-buy__acts">
-          {refused?.(target) ? null : (
-            <button type="button" className={`btn ${danger ? "btn--line mk-danger" : "btn--grad"}`} disabled={busy} onClick={() => void go()}>
-              {busy ? busyLabel : confirm}
-            </button>
-          )}
+        {/* the dialog's foot: the way back first, the action on the right */}
+        <div className="mk-buy__acts olx-act__foot">
           <button type="button" className="btn btn--line" disabled={busy} onClick={onClose}>
             {keep}
           </button>
+          {refused?.(target) ? null : (
+            <button type="button" className={`btn ${danger ? "btn--line mk-danger olx-danger" : "btn--grad"}`} disabled={busy} onClick={() => void go()}>
+              {busy ? busyLabel : confirm}
+            </button>
+          )}
         </div>
       </div>
     </Modal>

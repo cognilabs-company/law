@@ -1,0 +1,611 @@
+/* ═══ LexGo 1920 — specialist profile, purchase, packages (client) ═══
+   The specialist's profile (SellerProfile + SellerParts, RatingBreakdown,
+   PublicAchievements, PricingExplainer), the purchase dialog (PurchaseDialog
+   + PriceOptions + runtime/*), the package-sellers dialog and the packages
+   page, drawn in the client dashboard's vocabulary
+   (components/portal/dash/ClientHome.tsx + dash1920.css), as Tezkor Advokat
+   was (components/portal/urgent1920.css):
+   - the profile head is the dashboard's specialist card (.cx-exp / 1b): a
+     white card, the photo slot with navy initials, the role with the green
+     "verified" mark, grey area chips, where and in which languages, and the
+     numbers as chip tiles — no glowing navy hero, conic ring or glass tiles;
+   - every panel is an .lx-card (radius 24, a 1px line, no shadow); rows are
+     chip-coloured inner cards (radius 16); a picked row is blue;
+   - pictures from image-catalog.md: black line drawings in white circles,
+     navy/blue drawings on light plates (both stay light in dark mode);
+   - the purchase steps are the dashboard's 4-segment bar, the order summary
+     a chip card with its picture, the price and the send pinned in the
+     dialog's footer; states as .cx-empty tiles in the status tones.
+   The old rules live in app/globals.css (.mk-*, .pks__*, .pkg__*, .pxo__*,
+   .mkpx__*), runtime/checkout.css, runtime/runtime.css and
+   ratingBreakdown.css; the selectors here carry enough weight to win over
+   every one of them whatever order the sheets load in. Dialogs are portalled
+   to <body>, outside .portal.lx: their rules are scoped to the cabinet with
+   :where(html:has(.portal.lx)) (no weight), the public site keeps its look. */
+
+/* ── pictures ─────────────────────────────────────────────── */
+.lxp-art{
+  display:block;flex:none;width:64px;height:64px;border-radius:50%;
+  background:var(--art) center/62% no-repeat,#fff;box-shadow:inset 0 0 0 1px var(--lx-line,#E4EBF5);
+}
+.lxp-art--sm{width:44px;height:44px}
+.lxp-art--lg{width:88px;height:88px}
+.lxp-plate{
+  display:block;flex:none;width:96px;height:96px;border-radius:16px;
+  background:var(--img) center/86% no-repeat,linear-gradient(168deg,#F1F6FF 0%,#FAFCFF 56%,#E9F1FD 100%);
+  box-shadow:inset 0 0 0 1px var(--lx-line,#E4EBF5);
+}
+.lxp-plate--wide{height:auto;aspect-ratio:232/161;background-size:contain,auto}
+html[data-theme="dark"] .lxp-art{box-shadow:none}
+html[data-theme="dark"] .lxp-plate{background:var(--img) center/86% no-repeat,linear-gradient(168deg,#E8EFFA 0%,#F4F8FF 56%,#E1EAF8 100%);box-shadow:none}
+html[data-theme="dark"] .lxp-plate--wide{background-size:contain,auto}
+
+/* ── tier pills (packages page, package-sellers dialog) ───── */
+.lxp-tier{
+  display:inline-flex;align-items:center;align-self:flex-start;justify-self:start;width:auto;height:26px;padding:0 12px;border-radius:999px;
+  font-size:.76rem;font-weight:700;letter-spacing:.01em;text-transform:none;white-space:nowrap;line-height:1;
+  background:var(--lx-chip,#F2F6FC);color:var(--lx-ink,#0A1526);
+}
+.lxp-tier--standard{background:var(--lx-blue-tint,#EFF4FE);color:var(--lx-blue-ink,#154CB0)}
+.lxp-tier--premium{background:var(--lx-navy,#0A1526);color:#fff}
+html[data-theme="dark"] .lxp-tier--premium{background:#E7EEF8;color:#0A1526}
+
+/* ═══ the profile page ═══ */
+.portal.lx .mk.mk-prof{gap:24px}
+.portal.lx .mk-prof .ccp-top{gap:10px 16px}
+/* back: the dashboard's blue link */
+.portal.lx .mk-prof .ccp-top .mk-back{gap:6px;padding:6px 4px;border-radius:8px;color:var(--lx-link);font-size:.92rem;font-weight:600;background:none}
+.portal.lx .mk-prof .ccp-top .mk-back:hover{background:none;color:var(--lx-link);text-decoration:underline}
+.portal.lx .mk-prof .ccp-top .mk-back svg{width:17px;height:17px}
+/* "AI yordamchi": a chip pill (btn--soft btn--pill), the sparkles in blue */
+.portal.lx .mk-prof .ccp-top .cpl-launch{height:40px;padding:0 16px 0 12px;gap:8px;border-radius:999px;background:var(--lx-chip);box-shadow:none;color:var(--lx-ink);font-size:.9rem;font-weight:600}
+.portal.lx .mk-prof .ccp-top .cpl-launch:hover{background:#E6EDF8;box-shadow:none}
+html[data-theme="dark"] .portal.lx .mk-prof .ccp-top .cpl-launch:hover{background:#22314F}
+.portal.lx .mk-prof .ccp-top .cpl-launch[data-cpl-on]{box-shadow:inset 0 0 0 1.5px var(--lx-blue)}
+.portal.lx .mk-prof .ccp-top .cpl-launch__ic{width:auto;height:auto;border-radius:0;background:none;color:var(--lx-link)}
+.portal.lx .mk-prof .ccp-top .cpl-launch:hover .cpl-launch__ic{transform:none}
+.portal.lx .mk-prof .ccp-top .cpl-launch__t{overflow:visible;text-overflow:clip}
+
+/* ── the head: the dashboard's specialist card ── */
+.portal.lx .mk-prof .mk-prof__hero.lxp-hero{
+  position:relative;overflow:visible;isolation:auto;
+  display:grid;grid-template-columns:clamp(150px,16vw,208px) minmax(0,1fr);gap:24px;align-items:stretch;
+  padding:24px;border-radius:24px;background:var(--lx-card);color:var(--lx-ink);
+  border:1px solid var(--lx-line-2);box-shadow:none;animation:none;
+}
+html[data-theme="dark"] .portal.lx .mk-prof .mk-prof__hero.lxp-hero{border-color:var(--lx-line)}
+.portal.lx .lxp-hero__ph{
+  display:grid;place-items:center;min-height:208px;border-radius:16px;
+  border:1px dashed #BFCBDD;background:linear-gradient(160deg,var(--lx-chip),var(--lx-blue-tint));
+}
+html[data-theme="dark"] .portal.lx .lxp-hero__ph{border-color:#2C3D60}
+.portal.lx .lxp-hero__av{width:96px;height:96px;border-radius:50%;display:grid;place-items:center;background:var(--lx-navy);color:#fff;font-size:1.6rem;font-weight:700;letter-spacing:.01em}
+html[data-theme="dark"] .portal.lx .lxp-hero__av{background:var(--lx-blue)}
+.portal.lx .lxp-hero__main{display:grid;gap:12px;align-content:start;min-width:0}
+.portal.lx .mk-prof .mk-prof__name.lxp-hero__name{
+  margin:0;font-family:var(--fd);font-size:clamp(1.4rem,1.8vw,1.75rem);font-weight:700;letter-spacing:-.015em;line-height:1.2;
+  color:var(--lx-ink);overflow-wrap:anywhere;word-break:normal;
+}
+.portal.lx .lxp-hero__role{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;font-size:.95rem;color:var(--lx-gray);margin-top:-4px}
+.portal.lx .lxp-hero__role .vbadge{font-size:.86rem}
+.portal.lx .lxp-hero__on i{width:7px;height:7px;border-radius:50%;background:currentColor;margin:0 2px 0 3px}
+.portal.lx .mk-prof .lxp-hero__ad.mk-card__ad{
+  position:static;display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;
+  background:var(--lx-chip);color:var(--lx-gray);font-size:.72rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;box-shadow:none;
+}
+.portal.lx .lxp-hero__tags{display:flex;flex-wrap:wrap;gap:6px}
+.portal.lx .lxp-hero__bio{margin:0;max-width:78ch;font-size:.95rem;line-height:1.6;color:var(--lx-gray)}
+.portal.lx .lxp-hero__geo{display:flex;flex-wrap:wrap;gap:6px 20px;font-size:.88rem;color:var(--lx-gray)}
+.portal.lx .lxp-hero__geo span{display:inline-flex;align-items:center;gap:6px;min-width:0}
+.portal.lx .lxp-hero__geo svg{width:16px;height:16px;flex:none;color:var(--lx-gray2)}
+/* the numbers: chip tiles, label over value (1b's .sp-facts) — one row where
+   they fit, else three or two per row, never one left alone on a row */
+.portal.lx .lxp-hero__main{container:lxph / inline-size}
+.portal.lx .lxp-hero__facts{display:grid;grid-template-columns:repeat(var(--n,6),minmax(0,1fr));gap:10px;margin:4px 0 0}
+@container lxph (max-width:759px){
+  .portal.lx .lxp-hero__facts{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .portal.lx .lxp-hero__facts > div:last-child:nth-child(3n+1){grid-column:1 / -1}
+  .portal.lx .lxp-hero__facts > div:last-child:nth-child(3n+2){grid-column:span 2}
+}
+@container lxph (max-width:439px){
+  .portal.lx .lxp-hero__facts{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .portal.lx .lxp-hero__facts > div:last-child:is(:nth-child(3n+1),:nth-child(3n+2)){grid-column:auto}
+  .portal.lx .lxp-hero__facts > div:last-child:nth-child(odd){grid-column:1 / -1}
+}
+.portal.lx .lxp-hero__facts > div{display:grid;gap:3px;align-content:start;min-width:0;padding:12px 14px;border-radius:12px;background:var(--lx-chip)}
+.portal.lx .lxp-hero__facts dt{font-size:.78rem;font-weight:500;line-height:1.3;color:var(--lx-gray)}
+.portal.lx .lxp-hero__facts dd{margin:0;font-family:var(--fd);font-size:1.16rem;font-weight:700;letter-spacing:-.01em;line-height:1.25;color:var(--lx-ink);overflow-wrap:anywhere}
+.portal.lx .lxp-hero__facts dd.lxp-hero__sub{font-family:inherit;font-size:.74rem;font-weight:500;letter-spacing:0;color:var(--lx-gray2)}
+
+/* ── the body: two columns of cards ── */
+.portal.lx .mk-prof .mk-prof__body{grid-template-columns:minmax(0,1fr) 360px;gap:24px}
+.portal.lx .mk-prof .mk-prof__main{gap:24px}
+.portal.lx .mk-prof .mk-panel{padding:28px;border-radius:24px;background:var(--lx-card);box-shadow:none;border:1px solid var(--lx-line-2)}
+html[data-theme="dark"] .portal.lx .mk-prof .mk-panel{border-color:var(--lx-line)}
+.portal.lx .mk-prof .mk-panel__t{margin:0 0 4px;font-family:var(--fd);font-size:1.18rem;font-weight:700;letter-spacing:-.015em;line-height:1.3;color:var(--lx-ink)}
+.portal.lx .mk-prof .mk-panel__l{margin:4px 0 18px;font-size:.92rem;line-height:1.55;color:var(--lx-gray)}
+.portal.lx .mk-prof .mkpx-row{margin:0 0 2px}
+
+/* services: chip rows; the picked one blue (1b .sp-areas li.on) */
+.portal.lx .mk-prof .mk-svcs{gap:12px}
+.portal.lx .mk-prof .mk-svc{gap:16px;padding:14px 16px;border-radius:16px;background:var(--lx-chip);border:1px solid transparent;box-shadow:none;transition:border-color .15s,background .15s}
+.portal.lx .mk-prof .mk-svc::before,.portal.lx .mk-prof .mk-svc::after{display:none}
+.portal.lx .mk-prof .mk-svc:hover{border-color:#C7D6EC}
+html[data-theme="dark"] .portal.lx .mk-prof .mk-svc:hover{border-color:#3A4E75}
+.portal.lx .mk-prof .mk-svc.is-on{background:var(--lx-blue-tint);border-color:var(--lx-blue);box-shadow:0 0 0 1px var(--lx-blue)}
+.portal.lx .mk-prof .mk-svc .mk-svc__radio{width:20px;height:20px;margin-top:1px;background:var(--lx-card);box-shadow:inset 0 0 0 2px #9AA8BC}
+.portal.lx .mk-prof .mk-svc.is-on .mk-svc__radio{background:#fff;box-shadow:inset 0 0 0 6px var(--lx-blue)}
+.portal.lx .mk-prof .mk-svc .mk-svc__txt{gap:5px}
+.portal.lx .mk-prof .mk-svc .mk-svc__txt b{font-size:.98rem;font-weight:600;color:var(--lx-ink)}
+.portal.lx .mk-prof .mk-svc .mk-svc__txt > span{font-size:.82rem;color:var(--lx-gray)}
+.portal.lx .mk-prof .mk-svc .mk-svc__top{background:var(--lx-card);color:var(--lx-gray);box-shadow:inset 0 0 0 1px var(--lx-line)}
+.portal.lx .mk-prof .mk-svc .mk-svc__end{width:auto;min-width:128px;gap:10px;padding-left:0;border-left:0}
+.portal.lx .mk-prof .mk-svc .mk-svc__end > b{font-family:var(--fd);font-size:1.08rem;font-weight:700;letter-spacing:-.01em}
+/* the guarantees on a row: the dashboard's green pills */
+.portal.lx .mk-prof .mk-svc .mkrt-gb{gap:6px;margin-top:4px}
+.portal.lx .mk-prof .mk-svc .mkrt-gb__i{height:24px;padding:0 9px 0 7px;gap:5px;border-radius:999px;background:var(--lx-ok-bg);color:var(--lx-ok);font-size:.74rem;font-weight:600}
+.portal.lx .mk-prof .mk-svc .mkrt-gb__more{height:24px;padding:0 9px;border-radius:999px;background:var(--lx-card);color:var(--lx-gray);font-size:.74rem;font-weight:600}
+.portal.lx .mk-prof .mk-svc .mk-bought{border-radius:10px}
+
+/* what the picked service is: a quiet section under the rows */
+.portal.lx .mk-prof .mkrt-facts--detail{gap:16px;margin-top:22px;padding-top:20px;border-top:1px solid var(--lx-line-2)}
+html[data-theme="dark"] .portal.lx .mk-prof .mkrt-facts--detail{border-top-color:var(--lx-line)}
+.portal.lx .mk-prof .mkrt-facts__t{font-family:var(--fd);font-size:1.02rem;font-weight:700;color:var(--lx-ink)}
+:is(.portal.lx .mk-prof, :where(html:has(.portal.lx)) .mk-buy) .mkrt-h{margin:0 0 6px;font-size:.92rem;font-weight:600;letter-spacing:0;text-transform:none;color:var(--lx-ink)}
+:is(.portal.lx .mk-prof, :where(html:has(.portal.lx)) .mk-buy) .mkrt-lead{font-size:.86rem;color:var(--lx-gray)}
+:is(.portal.lx .mk-prof, :where(html:has(.portal.lx)) .mk-buy) .mkrt-ck__list li::before{background:var(--lx-blue-tint);color:var(--lx-link)}
+:is(.portal.lx .mk-prof, :where(html:has(.portal.lx)) .mk-buy) .mkrt-rl__item{border-radius:12px;background:var(--lx-chip);box-shadow:none}
+:is(.portal.lx .mk-prof, :where(html:has(.portal.lx)) .mk-buy) .mkrt-rl__item:hover,:is(.portal.lx .mk-prof, :where(html:has(.portal.lx)) .mk-buy) .mkrt-rl__item[open]{box-shadow:inset 0 0 0 1px var(--lx-line)}
+:is(.portal.lx .mk-prof, :where(html:has(.portal.lx)) .mk-buy) .mkrt-rl[data-side="client"] .mkrt-rl__item > summary::before{background:var(--lx-blue)}
+:is(.portal.lx .mk-prof, :where(html:has(.portal.lx)) .mk-buy) .mkrt-fx__row{border-radius:12px;background:var(--lx-chip)}
+:is(.portal.lx .mk-prof, :where(html:has(.portal.lx)) .mk-buy) .mkrt-fx__row b{color:var(--lx-blue-ink)}
+:is(.portal.lx .mk-prof, :where(html:has(.portal.lx)) .mk-buy) .mkrt-req__chips li{background:var(--lx-chip);color:var(--lx-ink);font-weight:500}
+:is(.portal.lx .mk-prof, :where(html:has(.portal.lx)) .mk-buy) .mkrt-req__chips svg{color:var(--lx-ok)}
+:is(.portal.lx .mk-prof, :where(html:has(.portal.lx)) .mk-buy) .mkrt-more{background:var(--lx-chip);color:var(--lx-link);font-weight:600}
+:is(.portal.lx .mk-prof, :where(html:has(.portal.lx)) .mk-buy) .mkrt-dur__cal{background:var(--lx-blue-tint);color:var(--lx-blue-ink);font-weight:600}
+
+/* rating: chip tiles with ink numbers, blue bars */
+.portal.lx .mk-prof .rbd{gap:18px;padding:28px;border-radius:24px;background:var(--lx-card);box-shadow:none;border:1px solid var(--lx-line-2)}
+html[data-theme="dark"] .portal.lx .mk-prof .rbd{border-color:var(--lx-line)}
+.portal.lx .mk-prof .rbd.rbd--ghost{min-height:220px;border:0;background:linear-gradient(90deg,var(--lx-chip),#E9EFF8,var(--lx-chip));background-size:200% 100%}
+html[data-theme="dark"] .portal.lx .mk-prof .rbd.rbd--ghost{background:linear-gradient(90deg,#18253E,#1E2D4A,#18253E);background-size:200% 100%}
+.portal.lx .mk-prof .rbd .rbd__score,.portal.lx .mk-prof .rbd .rbd__score[data-rated]{border-radius:16px;background:var(--lx-chip)}
+.portal.lx .mk-prof .rbd .rbd__score svg{color:var(--lx-blue)}
+.portal.lx .mk-prof .rbd .rbd__score > b{font-family:var(--fd);font-size:1.7rem;font-weight:800;color:var(--lx-ink)}
+.portal.lx .mk-prof .rbd .rbd__score > small,.portal.lx .mk-prof .rbd .rbd__rank small{font-size:.74rem;color:var(--lx-gray)}
+.portal.lx .mk-prof .rbd .rbd__titles h2{font-family:var(--fd);font-size:1.18rem;font-weight:700;letter-spacing:-.015em;color:var(--lx-ink)}
+.portal.lx .mk-prof .rbd .rbd__titles p{font-size:.88rem;color:var(--lx-gray)}
+.portal.lx .mk-prof .rbd .rbd__rank{border-radius:16px;background:var(--lx-chip);box-shadow:none;padding:10px 14px}
+.portal.lx .mk-prof .rbd .rbd__rank b{font-family:var(--fd);font-size:1.3rem;font-weight:800;color:var(--lx-ink)}
+.portal.lx .mk-prof .rbd .rbd__bars{gap:10px}
+.portal.lx .mk-prof .rbd .rbd__bars li{font-size:.86rem}
+.portal.lx .mk-prof .rbd .rbd__bar{height:6px;background:#E1E8F2}
+html[data-theme="dark"] .portal.lx .mk-prof .rbd .rbd__bar{background:#26365A}
+.portal.lx .mk-prof .rbd .rbd__bar > i[data-level]{background:var(--lx-blue)}
+.portal.lx .mk-prof .rbd .rbd__bars b{color:var(--lx-ink);font-weight:600}
+.portal.lx .mk-prof .rbd .rbd__facts{gap:10px}
+.portal.lx .mk-prof .rbd .rbd__facts > div{padding:12px 14px;border-radius:12px;background:var(--lx-chip)}
+.portal.lx .mk-prof .rbd .rbd__facts dt{font-size:.78rem;font-weight:500;letter-spacing:0;text-transform:none;color:var(--lx-gray)}
+.portal.lx .mk-prof .rbd .rbd__facts dd{margin-top:3px;font-size:.98rem;font-weight:700;color:var(--lx-ink)}
+.portal.lx .mk-prof .rbd .rbd__foot{font-size:.78rem;color:var(--lx-gray2)}
+
+/* achievements: .cx-work rows, a white icon tile, the green pill */
+.portal.lx .mk-prof .mk-ach .mk-ach__list{gap:12px;margin-top:16px}
+.portal.lx .mk-prof .mk-ach .mk-ach__item{gap:14px;padding:16px 18px;border-radius:16px;background:var(--lx-chip)}
+.portal.lx .mk-prof .mk-ach .mk-ach__ic{width:40px;height:40px;border-radius:12px;background:var(--lx-card);border:1px solid var(--lx-line);color:var(--lx-ink);box-shadow:none}
+.portal.lx .mk-prof .mk-ach .mk-ach__m{gap:4px}
+.portal.lx .mk-prof .mk-ach .mk-ach__m b{font-size:.98rem;font-weight:600;color:var(--lx-ink)}
+.portal.lx .mk-prof .mk-ach .mk-ach__m small{font-size:.82rem;color:var(--lx-gray)}
+.portal.lx .mk-prof .mk-ach .mk-ach__m p{display:block;overflow:visible;-webkit-line-clamp:unset;line-clamp:unset;margin-top:2px;font-size:.9rem;line-height:1.55;color:var(--lx-ink)}
+.portal.lx .mk-prof .mk-ach .mk-ach__ok{height:26px;margin-top:6px;padding:0 10px 0 7px;gap:5px;font-size:.74rem;font-weight:600}
+.portal.lx .mk-prof .mk-ach .mk-ach__ok svg{width:14px;height:14px}
+
+/* reviews: chip cards; the reply a white inner card, no coloured edge */
+.portal.lx .mk-prof .mk-reviews{gap:12px;margin-top:16px}
+.portal.lx .mk-prof .mk-review{padding:16px 18px;border-radius:16px;background:var(--lx-chip)}
+.portal.lx .mk-prof .mk-review.mk-review--ghost{height:96px;background:linear-gradient(90deg,var(--lx-chip),#E9EFF8,var(--lx-chip));background-size:200% 100%}
+html[data-theme="dark"] .portal.lx .mk-prof .mk-review.mk-review--ghost{background:linear-gradient(90deg,#18253E,#1E2D4A,#18253E);background-size:200% 100%}
+.portal.lx .mk-prof .mk-review .mk-review__h{gap:8px 12px}
+.portal.lx .mk-prof .mk-review .mk-review__h b{font-weight:600;color:var(--lx-ink)}
+.portal.lx .mk-prof .mk-review .mk-review__h time{font-size:.8rem;color:var(--lx-gray)}
+.portal.lx .mk-prof .mk-stars svg{fill:#D5DEEA}
+html[data-theme="dark"] .portal.lx .mk-prof .mk-stars svg{fill:#2E4268}
+.portal.lx .mk-prof .mk-stars svg.on{fill:var(--lx-blue)}
+.portal.lx .mk-prof .mk-review > p{margin-top:8px;font-size:.95rem;line-height:1.6;color:var(--lx-ink)}
+.portal.lx .mk-prof .mk-review blockquote{margin:12px 0 0;padding:12px 14px;border:1px solid var(--lx-line);border-radius:12px;background:var(--lx-card);color:var(--lx-ink);font-size:.9rem;line-height:1.5}
+.portal.lx .mk-prof .mk-review blockquote small{margin-bottom:4px;font-size:.78rem;font-weight:600;color:var(--lx-gray)}
+
+/* empty / not found / error: .cx-empty, a picture or a status tile */
+.portal.lx .mk-prof .mk-empty.lxp-empty{gap:8px;padding:24px 12px 8px;border-radius:0;background:none;box-shadow:none}
+.portal.lx .mk-prof .mk-empty.lxp-empty > :is(.lxp-art,.lxp-plate){margin-bottom:6px}
+.portal.lx .mk-prof .mk-empty.lxp-empty b{font-family:inherit;font-size:.98rem;font-weight:700;color:var(--lx-ink)}
+.portal.lx .mk-prof .mk-empty.lxp-empty p{margin:0;max-width:320px;font-size:.88rem;line-height:1.5;color:var(--lx-gray)}
+.portal.lx .mk-prof .mk-empty.lxp-state{gap:8px;padding:48px 24px;border-radius:24px;background:var(--lx-card);box-shadow:none;border:1px solid var(--lx-line-2)}
+.portal.lx .mk-prof .mk-empty.lxp-state > :is(.lxp-art,.cx-empty__ic){margin-bottom:6px}
+.portal.lx .mk-prof .mk-empty.lxp-state b{font-family:var(--fd);font-size:1.12rem;font-weight:700;color:var(--lx-ink)}
+.portal.lx .mk-prof .mk-empty.lxp-state p{margin:0;max-width:360px;font-size:.9rem;line-height:1.5;color:var(--lx-gray)}
+.portal.lx .mk-prof .mk-empty.lxp-state .mk-buy__acts{margin-top:10px;gap:10px}
+:is(.portal.lx, :where(html:has(.portal.lx)) .pks) .lxp-state--err .lxp-state__ic{background:var(--lx-err-bg);color:var(--lx-err)}
+/* loading: the dashboard's skeleton blocks in the page's shape */
+.portal.lx .lxp-skel{display:grid;gap:24px}
+.portal.lx .lxp-skel__hero{display:block;height:248px;border-radius:24px}
+.portal.lx .lxp-skel__body{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:24px;align-items:start}
+.portal.lx .lxp-skel__body > i{display:block;height:420px;border-radius:24px}
+.portal.lx .lxp-skel__body > i + i{height:240px}
+
+/* the side column: the buy card, the guarantees, the second opinion */
+.portal.lx .mk-prof .mk-side{gap:24px;top:16px}
+.portal.lx .mk-prof .mk-side__card{gap:12px;padding:24px;border-radius:24px;background:var(--lx-card);box-shadow:none;border:1px solid var(--lx-line-2)}
+html[data-theme="dark"] .portal.lx .mk-prof .mk-side__card{border-color:var(--lx-line)}
+.portal.lx .mk-prof .mk-side__card > small{font-size:.9rem;font-weight:600;color:var(--lx-gray)}
+.portal.lx .mk-prof .mk-side__price{font-family:var(--fd);font-size:2rem;font-weight:800;letter-spacing:-.025em;color:var(--lx-ink)}
+.portal.lx .mk-prof .mk-side__price span{font-size:1rem;font-weight:600;color:var(--lx-gray)}
+.portal.lx .mk-prof .mk-side__eta{font-size:.86rem;color:var(--lx-gray)}
+.portal.lx .mk-prof .mk-side__eta b{color:var(--lx-ink)}
+.portal.lx .mk-prof .mk-side__block{border-radius:12px;background:var(--lx-warn-bg);color:var(--lx-warn)}
+.portal.lx .mk-prof .mk-side__bought{border-radius:12px;background:var(--lx-ok-bg);color:var(--lx-ok)}
+.portal.lx .mk-prof .mk-safe{padding:22px 24px;border-radius:24px;background:var(--lx-card);color:var(--lx-ink);box-shadow:none;border:1px solid var(--lx-line-2)}
+html[data-theme="dark"] .portal.lx .mk-prof .mk-safe{border-color:var(--lx-line)}
+.portal.lx .mk-prof .mk-safe > b{display:flex;align-items:center;gap:12px;font-family:var(--fd);font-size:1.05rem;font-weight:700;color:var(--lx-ink)}
+.portal.lx .mk-prof .mk-safe .mkrt-gl{gap:10px;margin:14px 0 0}
+.portal.lx .mk-prof .mk-safe .mkrt-gl li > svg{color:var(--lx-ok)}
+.portal.lx .mk-prof .mk-safe .mkrt-gl b{font-size:.88rem;font-weight:600;color:var(--lx-ink)}
+.portal.lx .mk-prof .mk-safe .mkrt-gl small{font-size:.8rem;color:var(--lx-gray)}
+.portal.lx .mk-prof .mk-safe ul:not(.mkrt-gl){margin:14px 0 0;font-size:.86rem;color:var(--lx-gray)}
+/* second opinion: the dashboard's navy banner (.cx-gift), compact, with the
+   "Ikkinchi fikr" drawing in a white circle */
+.portal.lx .mk-prof .sxo-entry.sxo-entry--side{
+  margin:0;padding:22px;gap:14px 16px;border-radius:24px;background:var(--lx-navy);color:#fff;box-shadow:none;animation:none;
+}
+html[data-theme="dark"] .portal.lx .mk-prof .sxo-entry.sxo-entry--side{background:#0B1830;box-shadow:inset 0 0 0 1px var(--lx-navy-line)}
+.portal.lx .mk-prof .sxo-entry .sxo-entry__mark{width:56px;height:56px;border-radius:50%;background:url(/img/xizmatlar/Ikkinchi_fikr.webp) center/62% no-repeat,#fff;color:transparent}
+.portal.lx .mk-prof .sxo-entry .sxo-entry__mark svg{display:none}
+.portal.lx .mk-prof .sxo-entry .sxo-entry__title{font-size:1rem;font-weight:700;color:#fff}
+.portal.lx .mk-prof .sxo-entry .sxo-entry__lead{font-size:.86rem;line-height:1.55;color:#C9D4E3}
+.portal.lx .mk-prof .sxo-entry .sxo-entry__note,.portal.lx .mk-prof .sxo-entry .sxo-entry__login{color:#8494AB}
+.portal.lx .mk-prof .sxo-entry .sxo-entry__acts{gap:10px}
+.portal.lx .mk-prof .sxo-entry .sxo-entry__btn.btn--grad{background:#fff;color:var(--lx-navy);border:0}
+.portal.lx .mk-prof .sxo-entry .sxo-entry__btn.btn--grad:hover{background:#E9EFF8}
+.portal.lx .mk-prof .sxo-entry .sxo-entry__btn.btn--line{background:rgba(255,255,255,.08);color:#fff;border-color:transparent}
+.portal.lx .mk-prof .sxo-entry .sxo-entry__btn.btn--line:hover{background:rgba(255,255,255,.14);color:#fff}
+
+/* "Narx qanday hisoblanadi?": a chip pill; the popover a 16px card */
+.portal.lx .mk-prof .mkpx__btn{gap:6px;height:34px;padding:0 14px 0 10px;border-radius:999px;background:var(--lx-chip);box-shadow:none;color:var(--lx-ink);font-size:.84rem;font-weight:600}
+.portal.lx .mk-prof .mkpx__btn:hover,.portal.lx .mk-prof .mkpx__btn[aria-expanded="true"]{background:#E6EDF8;box-shadow:none;color:var(--lx-ink)}
+html[data-theme="dark"] .portal.lx .mk-prof .mkpx__btn:hover,html[data-theme="dark"] .portal.lx .mk-prof .mkpx__btn[aria-expanded="true"]{background:#22314F}
+.portal.lx .mk-prof .mkpx__btn svg{color:var(--lx-link)}
+.portal.lx .mk-prof .mkpx__pop{gap:14px;padding:20px;border-radius:16px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line),0 20px 40px -18px rgba(10,21,38,.3)}
+.portal.lx .mk-prof .mkpx__h b{font-family:var(--fd);font-size:1.02rem;font-weight:700;color:var(--lx-ink)}
+.portal.lx .mk-prof .mkpx__x{width:32px;height:32px;border-radius:10px;background:var(--lx-chip);color:var(--lx-ink)}
+.portal.lx .mk-prof .mkpx__lead{font-size:.86rem;color:var(--lx-gray)}
+.portal.lx .mk-prof .mkpx__svc{border-radius:12px;background:var(--lx-chip);color:var(--lx-ink);font-weight:500}
+.portal.lx .mk-prof .mkpx__ic{width:32px;height:32px;border-radius:10px;background:var(--lx-card);box-shadow:inset 0 0 0 1px var(--lx-line);color:var(--lx-ink)}
+.portal.lx .mk-prof .mkpx__txt b{font-size:.88rem;font-weight:600}
+.portal.lx .mk-prof .mkpx__txt span{font-size:.82rem;color:var(--lx-gray)}
+.portal.lx .mk-prof .mkpx__foot{border-top-color:var(--lx-line-2);color:var(--lx-gray)}
+.portal.lx .mk-prof .mkpx__foot svg{color:var(--lx-ok)}
+
+/* ═══ the purchase dialog (portalled) ═══ */
+:where(html:has(.portal.lx)) .mk-buy.mk-buy{gap:18px}
+/* the steps: the dashboard's segment bar, each step's name under its
+   segment; on a phone only the current one, "2/4 · To'liq to'lov" */
+:where(html:has(.portal.lx)) :is(.mk-buy,.pks) > .lxp-steps.mk-steps{
+  position:relative;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);grid-template-columns:none;gap:6px;margin:0;padding:2px 0 0;
+}
+:where(html:has(.portal.lx)) :is(.mk-buy,.pks) > .lxp-steps.mk-steps > li{
+  position:static;display:flex;flex-direction:column;align-items:stretch;gap:8px;min-width:0;
+  font-size:.78rem;font-weight:500;line-height:1.3;text-align:left;color:var(--lx-gray2);
+}
+:where(html:has(.portal.lx)) :is(.mk-buy,.pks) > .lxp-steps.mk-steps > li::before{
+  content:"";position:static;display:block;inset:auto;width:auto;height:4px;border-radius:4px;background:#E1E8F2;transform:none;transition:background .3s;
+}
+html[data-theme="dark"]:has(.portal.lx) :is(.mk-buy,.pks) > .lxp-steps.mk-steps > li::before{background:#26365A}
+:where(html:has(.portal.lx)) :is(.mk-buy,.pks) > .lxp-steps.mk-steps > li::after{display:none}
+:where(html:has(.portal.lx)) :is(.mk-buy,.pks) > .lxp-steps.mk-steps > li:is(.is-done,.is-now)::before{background:var(--lx-blue)}
+:where(html:has(.portal.lx)) :is(.mk-buy,.pks) > .lxp-steps.mk-steps > li.is-fail::before{background:var(--lx-err)}
+:where(html:has(.portal.lx)) :is(.mk-buy,.pks) > .lxp-steps.mk-steps > li.is-done{color:var(--lx-gray)}
+:where(html:has(.portal.lx)) :is(.mk-buy,.pks) > .lxp-steps.mk-steps > li.is-now{color:var(--lx-ink);font-weight:600}
+:where(html:has(.portal.lx)) :is(.mk-buy,.pks) > .lxp-steps.mk-steps > li.is-fail{color:var(--lx-err);font-weight:600}
+:where(html:has(.portal.lx)) :is(.mk-buy,.pks) .lxp-steps .lxp-steps__t{display:block;font-size:inherit;font-weight:inherit;color:inherit}
+:where(html:has(.portal.lx)) :is(.mk-buy,.pks) .lxp-steps .lxp-steps__n{display:none;font-style:normal}
+
+/* the order: a chip card with its picture; the price joins it once sent */
+:where(html:has(.portal.lx)) .mk-buy .lxp-ticket.mk-buy__ticket{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px 16px;
+  padding:16px 18px;border-radius:16px;background:var(--lx-chip);color:var(--lx-ink);box-shadow:none;overflow:visible;
+}
+:where(html:has(.portal.lx)) .mk-buy .lxp-ticket.lxp-ticket--form{grid-template-columns:auto minmax(0,1fr)}
+:where(html:has(.portal.lx)) .mk-buy .lxp-ticket.mk-buy__ticket::before,:where(html:has(.portal.lx)) .mk-buy .lxp-ticket.mk-buy__ticket::after{display:none}
+:where(html:has(.portal.lx)) .mk-buy .lxp-ticket .lxp-ticket__art{width:56px;height:56px;align-self:start}
+:where(html:has(.portal.lx)) .mk-buy .lxp-ticket .lxp-ticket__art.lxp-plate{border-radius:14px}
+:where(html:has(.portal.lx)) .mk-buy .lxp-ticket .lxp-ticket__info{display:flex;flex-direction:column;gap:3px;min-width:0}
+:where(html:has(.portal.lx)) .mk-buy .lxp-ticket .lxp-ticket__info > small{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--lx-gray2)}
+:where(html:has(.portal.lx)) .mk-buy .lxp-ticket .lxp-ticket__info > b{font-family:inherit;font-size:1rem;font-weight:600;line-height:1.35;color:var(--lx-ink);overflow-wrap:anywhere}
+:where(html:has(.portal.lx)) .mk-buy .lxp-ticket .lxp-ticket__info > p{margin:0;font-size:.9rem;line-height:1.4;color:var(--lx-gray)}
+:where(html:has(.portal.lx)) .mk-buy .lxp-ticket .mk-buy__eta{margin-top:4px;font-size:.82rem;line-height:1.4;color:var(--lx-gray)}
+:where(html:has(.portal.lx)) .mk-buy .lxp-ticket .mk-buy__eta svg{color:var(--lx-gray2)}
+:where(html:has(.portal.lx)) .mk-buy .lxp-ticket .mkrt-gl--ticket{gap:6px;margin-top:8px}
+:where(html:has(.portal.lx)) .mk-buy .lxp-ticket .mkrt-gl--ticket li{font-size:.82rem;color:var(--lx-ink)}
+:where(html:has(.portal.lx)) .mk-buy .lxp-ticket .mkrt-gl--ticket li > svg{color:var(--lx-ok)}
+:where(html:has(.portal.lx)) .mk-buy .lxp-ticket .mkrt-gl--ticket b{font-family:inherit;font-size:.84rem;font-weight:600;color:var(--lx-ink)}
+:where(html:has(.portal.lx)) .mk-buy .lxp-ticket .mkrt-gl--ticket small{font-size:.78rem;font-weight:400;letter-spacing:0;text-transform:none;color:var(--lx-gray)}
+:where(html:has(.portal.lx)) .mk-buy .lxp-ticket .mkrt-gl__more{color:var(--lx-gray)}
+:where(html:has(.portal.lx)) .mk-buy .lxp-ticket .mk-buy__sum{width:auto;min-width:0;align-self:stretch;justify-content:center;padding-left:16px;border-left:1px solid var(--lx-line)}
+:where(html:has(.portal.lx)) .mk-buy .lxp-ticket .mk-buy__sum small{font-size:.7rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--lx-gray2);white-space:nowrap}
+:where(html:has(.portal.lx)) .mk-buy .lxp-ticket .mk-buy__sum b{font-family:var(--fd);font-size:1.3rem;font-weight:800;letter-spacing:-.02em;color:var(--lx-ink);white-space:nowrap}
+:where(html:has(.portal.lx)) .mk-buy .lxp-ticket .mk-buy__sum span{font-size:.8rem;color:var(--lx-gray)}
+
+/* the states after sending: .cx-empty with a tile in the status's tone */
+:where(html:has(.portal.lx)) .mk-buy .mk-receipt{gap:10px;padding:10px 8px 0}
+:where(html:has(.portal.lx)) .mk-buy .mk-receipt__in{gap:10px}
+:where(html:has(.portal.lx)) .mk-buy .lxp-stamp.mk-receipt__stamp{
+  width:48px;height:48px;border-radius:14px;box-shadow:none;animation:none;background:var(--lx-warn-bg);color:var(--lx-warn);
+}
+:where(html:has(.portal.lx)) .mk-buy .lxp-stamp.mk-receipt__stamp svg{width:22px;height:22px;animation:none}
+:where(html:has(.portal.lx)) .mk-buy .lxp-stamp.mk-receipt__stamp::before,:where(html:has(.portal.lx)) .mk-buy .lxp-stamp.mk-receipt__stamp::after{display:none}
+:where(html:has(.portal.lx)) .mk-buy .lxp-stamp.mk-receipt__stamp svg path{stroke-dasharray:none;stroke-dashoffset:0;animation:none}
+:where(html:has(.portal.lx)) .mk-buy .lxp-stamp.lxp-stamp--ok{background:var(--lx-ok-bg);color:var(--lx-ok)}
+:where(html:has(.portal.lx)) .mk-buy .lxp-stamp.lxp-stamp--err{background:var(--lx-err-bg);color:var(--lx-err)}
+:where(html:has(.portal.lx)) .mk-buy .lxp-stamp.lxp-stamp--info{background:var(--lx-blue-tint);color:var(--lx-link)}
+:where(html:has(.portal.lx)) .mk-buy .mk-receipt .mk-receipt__t{font-family:var(--fd);font-size:1.15rem;font-weight:700;line-height:1.3;color:var(--lx-ink)}
+:where(html:has(.portal.lx)) .mk-buy .mk-receipt .wid{padding:3px 10px;border-radius:999px;background:var(--lx-chip);font-size:.72rem;font-weight:600;letter-spacing:.02em}
+:where(html:has(.portal.lx)) .mk-buy .mk-pending.cx-pill{height:26px;padding:0 10px 0 8px;gap:5px;border-radius:999px;font-size:.76rem;font-weight:600}
+:where(html:has(.portal.lx)) .mk-buy .mk-pending.cx-pill > i{display:none}
+:where(html:has(.portal.lx)) .mk-buy .mk-pending.cx-pill > svg{width:14px;height:14px;flex:none}
+:where(html:has(.portal.lx)) .mk-buy .mk-receipt p{max-width:420px;font-size:.9rem;line-height:1.55;color:var(--lx-gray)}
+:where(html:has(.portal.lx)) .mk-buy .mk-receipt p.mk-receipt__note{font-size:.82rem;color:var(--lx-gray2)}
+:where(html:has(.portal.lx)) .mk-buy .mk-receipt .mk-live{font-size:.8rem;color:var(--lx-gray);animation:none}
+:where(html:has(.portal.lx)) .mk-buy .mk-receipt .mk-live i{box-shadow:none;background:var(--lx-ok)}
+:where(html:has(.portal.lx)) .mk-buy .mk-receipt .mk-live__note{color:var(--lx-gray2)}
+:where(html:has(.portal.lx)) .mk-buy .mk-receipt .mk-live--off{background:var(--lx-warn-bg);color:var(--lx-warn)}
+:where(html:has(.portal.lx)) .mk-buy .mk-receipt .mk-buy__acts{margin-top:8px;gap:10px}
+
+/* the form */
+:where(html:has(.portal.lx)) .mk-buy .mk-buy__form{gap:18px}
+:where(html:has(.portal.lx)) .mk-buy .mk-buy__back{gap:6px;margin:-4px 0 -4px;padding:4px 4px 4px 0;border-radius:8px;color:var(--lx-link);font-size:.9rem;font-weight:600;background:none}
+:where(html:has(.portal.lx)) .mk-buy .mk-buy__back:hover{background:none;text-decoration:underline}
+/* the question: one box, as the dashboard's AI composer */
+:where(html:has(.portal.lx)) .mk-buy .mk-buy__compose{gap:12px;padding:16px;border-radius:18px;background:var(--lx-card);box-shadow:none;border:1px solid var(--lx-line);transition:border-color .15s,box-shadow .15s}
+:where(html:has(.portal.lx)) .mk-buy .mk-buy__compose:focus-within{border-color:var(--lx-blue);box-shadow:0 0 0 3px rgba(22,104,240,.12)}
+:where(html:has(.portal.lx)) .mk-buy .mk-buy__compose .mk-buy__main > span{font-family:var(--fd);font-size:1rem;font-weight:700;color:var(--lx-ink)}
+:where(html:has(.portal.lx)) .mk-buy .mk-buy__compose .mk-in textarea{border-radius:12px;background:var(--lx-chip);box-shadow:none}
+:where(html:has(.portal.lx)) .mk-buy .mk-buy__compose .mk-in textarea:focus{background:var(--lx-chip);box-shadow:none}
+/* the contact guard: nothing when there is nothing to say; a refusal in
+   the error tone, no frame */
+:where(html:has(.portal.lx)) .mk-buy .mk-buy__form > .cgn:empty{display:none}
+:where(html:has(.portal.lx)) .mk-buy .cgn .cgn__bad{border:0;border-radius:16px;background:var(--lx-err-bg);box-shadow:none}
+:where(html:has(.portal.lx)) .mk-buy .cgn .cgn__ic{width:40px;height:40px;border-radius:12px}
+/* section labels in sentence case (1c), not uppercase */
+:where(html:has(.portal.lx)) .mk-buy :is(.mk-buy__ch,.mk-pay) > legend{margin-bottom:10px;font-size:.92rem;font-weight:600;letter-spacing:0;text-transform:none;color:var(--lx-ink)}
+:where(html:has(.portal.lx)) .mk-buy .mk-seg .mk-seg__b{gap:6px;padding:12px 6px;border:1px solid var(--lx-line);border-radius:12px;background:var(--lx-card);color:var(--lx-ink);font-size:.8rem;font-weight:600;box-shadow:none}
+:where(html:has(.portal.lx)) .mk-buy .mk-seg .mk-seg__b svg{color:var(--lx-gray2)}
+:where(html:has(.portal.lx)) .mk-buy .mk-seg .mk-seg__b:hover{border-color:#C7D6EC;color:var(--lx-ink)}
+:where(html:has(.portal.lx)) .mk-buy .mk-seg .mk-seg__b[aria-pressed="true"]{border-color:var(--lx-blue);background:var(--lx-blue-tint);color:var(--lx-blue-ink);box-shadow:inset 0 0 0 1px var(--lx-blue)}
+:where(html:has(.portal.lx)) .mk-buy .mk-seg .mk-seg__b[aria-pressed="true"] svg{color:var(--lx-link)}
+/* extra options: no violet tile; white rows, the picked one blue */
+:where(html:has(.portal.lx)) .mk-buy .pxo .pxo__ico{display:none}
+:where(html:has(.portal.lx)) .mk-buy .pxo .pxo__head b{font-size:.98rem;font-weight:600;color:var(--lx-ink)}
+:where(html:has(.portal.lx)) .mk-buy .pxo .pxo__head small{font-size:.82rem;color:var(--lx-gray)}
+:where(html:has(.portal.lx)) .mk-buy .pxo .pxo__count{height:26px;display:inline-flex;align-items:center;padding:0 10px;font-size:.74rem;font-weight:600;background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
+:where(html:has(.portal.lx)) .mk-buy .pxo .pxo__sec legend b{font-size:.84rem;font-weight:600;letter-spacing:0;text-transform:none;color:var(--lx-gray)}
+:where(html:has(.portal.lx)) .mk-buy .pxo .pxo__opt{padding:12px 14px;border-radius:14px;border:1px solid var(--lx-line);background:var(--lx-card);box-shadow:none}
+:where(html:has(.portal.lx)) .mk-buy .pxo .pxo__opt:hover{border-color:#C7D6EC;box-shadow:none}
+:where(html:has(.portal.lx)) .mk-buy .pxo .pxo__opt:has(input:focus-visible){box-shadow:0 0 0 3px rgba(22,104,240,.18)}
+:where(html:has(.portal.lx)) .mk-buy .pxo .pxo__opt.is-on{border-color:var(--lx-blue);background:var(--lx-blue-tint);box-shadow:inset 0 0 0 1px var(--lx-blue)}
+:where(html:has(.portal.lx)) .mk-buy .pxo .pxo__box{border-radius:6px;background:var(--lx-card);box-shadow:inset 0 0 0 2px #9AA8BC}
+:where(html:has(.portal.lx)) .mk-buy .pxo .pxo__opt.is-on .pxo__box{background:var(--lx-blue);box-shadow:none;color:#fff}
+:where(html:has(.portal.lx)) .mk-buy .pxo .pxo__txt b{font-weight:600}
+:where(html:has(.portal.lx)) .mk-buy .pxo .pxo__add,:where(html:has(.portal.lx)) .mk-buy .pxo .pxo__opt.is-on .pxo__add{color:var(--lx-blue-ink);font-weight:700}
+:where(html:has(.portal.lx)) .mk-buy .pxo .pxo__sum{gap:8px;padding:14px 16px;border:0;border-radius:16px;background:var(--lx-chip)}
+:where(html:has(.portal.lx)) .mk-buy .pxo .pxo__row.is-add b{color:var(--lx-blue-ink)}
+:where(html:has(.portal.lx)) .mk-buy .pxo .pxo__row.is-total{border-top-color:var(--lx-line)}
+:where(html:has(.portal.lx)) .mk-buy .pxo .pxo__row.is-total b{font-family:var(--fd);font-weight:800}
+:where(html:has(.portal.lx)) .mk-buy .pxo .pxo__err{border-radius:12px;background:var(--lx-err-bg);color:var(--lx-err)}
+:where(html:has(.portal.lx)) .mk-buy .pxo .pxo__sk span{border-radius:14px;background:linear-gradient(90deg,var(--lx-chip),#E9EFF8,var(--lx-chip));background-size:200% 100%}
+/* what the service is, read before paying: a chip card, white rows */
+:where(html:has(.portal.lx)) .mk-buy .mk-buy__facts{gap:16px;padding:16px;border-radius:16px;background:var(--lx-chip);box-shadow:none}
+:where(html:has(.portal.lx)) .mk-buy .mk-buy__facts :is(.mkrt-fx__row,.mkrt-rl__item){background:var(--lx-card)}
+/* how to keep in touch: a chip row that opens */
+:where(html:has(.portal.lx)) .mk-buy .mk-buy__chx-t{min-height:48px;padding:10px 14px;border-radius:12px;background:var(--lx-chip)}
+:where(html:has(.portal.lx)) .mk-buy .mk-buy__chx-t:hover{box-shadow:inset 0 0 0 1px #C7D6EC}
+:where(html:has(.portal.lx)) .mk-buy .mk-buy__chx-l{font-size:.92rem;font-weight:600;letter-spacing:0;text-transform:none;color:var(--lx-ink)}
+:where(html:has(.portal.lx)) .mk-buy .mk-buy__chx-v{display:inline-flex;align-items:center;height:26px;padding:0 10px;font-size:.76rem;font-weight:600;background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
+:where(html:has(.portal.lx)) .mk-buy .mk-buy__chx-h{font-size:.84rem;color:var(--lx-gray)}
+/* the way to pay: neutral rows — the provider's own name, a quiet mark,
+   a blue radio; never a brand hue or a cut name */
+:where(html:has(.portal.lx)) .mk-buy .mk-pay .mk-pay__opts{grid-template-columns:minmax(0,1fr);gap:8px}
+:where(html:has(.portal.lx)) .mk-buy .mk-pay .mk-pay__opt[data-p]{
+  --brand:var(--lx-blue);grid-template-columns:auto minmax(0,1fr) auto;gap:12px;padding:12px 14px;
+  border:1px solid var(--lx-line);border-radius:14px;background:var(--lx-card);box-shadow:none;
+}
+:where(html:has(.portal.lx)) .mk-buy .mk-pay .mk-pay__opt[data-p]:hover{border-color:#C7D6EC;box-shadow:none}
+:where(html:has(.portal.lx)) .mk-buy .mk-pay .mk-pay__opt[data-p][aria-pressed="true"]{border-color:var(--lx-blue);background:var(--lx-blue-tint);box-shadow:inset 0 0 0 1px var(--lx-blue)}
+:where(html:has(.portal.lx)) .mk-buy .mk-pay .mk-pay__opt[data-p] .mk-pay__ic{width:36px;height:36px;border-radius:10px;background:var(--lx-chip);color:var(--lx-ink)}
+:where(html:has(.portal.lx)) .mk-buy .mk-pay .mk-pay__opt[data-p][aria-pressed="true"] .mk-pay__ic{background:var(--lx-card)}
+:where(html:has(.portal.lx)) .mk-buy .mk-pay .mk-pay__opt[data-p] .mk-pay__m{padding-right:0}
+:where(html:has(.portal.lx)) .mk-buy .mk-pay .mk-pay__opt[data-p] .mk-pay__m b{overflow:visible;white-space:normal;text-overflow:clip;overflow-wrap:break-word;font-size:.92rem;font-weight:600;line-height:1.3}
+:where(html:has(.portal.lx)) .mk-buy .mk-pay .mk-pay__opt[data-p] .mk-pay__m small{font-size:.8rem}
+:where(html:has(.portal.lx)) .mk-buy .mk-pay .mk-pay__opt[data-p] .mk-pay__tick{
+  position:static;width:20px;height:20px;opacity:1;transform:none;background:transparent;box-shadow:inset 0 0 0 2px #9AA8BC;
+}
+:where(html:has(.portal.lx)) .mk-buy .mk-pay .mk-pay__opt[data-p] .mk-pay__tick svg{opacity:0}
+:where(html:has(.portal.lx)) .mk-buy .mk-pay .mk-pay__opt[data-p][aria-pressed="true"] .mk-pay__tick{background:var(--lx-blue);box-shadow:none}
+:where(html:has(.portal.lx)) .mk-buy .mk-pay .mk-pay__opt[data-p][aria-pressed="true"] .mk-pay__tick svg{opacity:1}
+:where(html:has(.portal.lx)) .mk-buy .mk-buy__note{font-size:.84rem;line-height:1.5;color:var(--lx-gray)}
+:where(html:has(.portal.lx)) .mk-buy .mk-buy__alerts{display:flex;flex-direction:column;gap:12px}
+:where(html:has(.portal.lx)) .mk-buy .mk-buy__alerts:empty{display:none}
+:where(html:has(.portal.lx)) .mk-buy .mk-pay__fallback{padding:14px 16px;border-radius:16px;background:var(--lx-warn-bg);box-shadow:none;color:var(--lx-ink)}
+:where(html:has(.portal.lx)) .mk-buy .mk-pay__fallback > svg{color:var(--lx-warn)}
+:where(html:has(.portal.lx)) :is(.mk-buy,.lxp-notice) .anote--err{padding:12px 14px;border-radius:14px;background:var(--lx-err-bg);color:var(--lx-err);font-weight:600}
+/* the pinned footer: what is paid, and the send (the dashboard's order form) */
+:where(html:has(.portal.lx)) .amodal__f:has(> .mk-buy__foot){padding:16px 24px}
+:where(html:has(.portal.lx)) .amodal__f > .mk-buy__foot{display:flex;flex:1 1 100%;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:10px 16px;min-width:0}
+:where(html:has(.portal.lx)) .mk-buy__foot .mk-buy__total{display:flex;flex-direction:column;gap:2px;min-width:0;margin-right:auto}
+:where(html:has(.portal.lx)) .mk-buy__foot .mk-buy__total small{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--lx-gray)}
+:where(html:has(.portal.lx)) .mk-buy__foot .mk-buy__total b{font-family:var(--fd);font-size:1.3rem;font-weight:800;line-height:1.2;letter-spacing:-.015em;color:var(--lx-ink);white-space:nowrap}
+:where(html:has(.portal.lx)) .mk-buy__foot .mk-buy__total b span{font-size:.92rem;font-weight:600;color:var(--lx-gray)}
+:where(html:has(.portal.lx)) .mk-buy__foot .mk-buy__send{flex:0 1 auto;min-width:0;white-space:nowrap}
+:where(html:has(.portal.lx)) .mk-buy__foot .mk-buy__self{flex:1 1 100%;order:3;white-space:nowrap}
+
+/* ═══ the package-sellers dialog (portalled) ═══ */
+:where(html:has(.portal.lx)) .pks.pks{gap:16px}
+:where(html:has(.portal.lx)) .pks .pks__pkg{gap:14px;padding:14px 16px;border-radius:16px;background:var(--lx-chip);box-shadow:none;color:var(--lx-ink)}
+:where(html:has(.portal.lx)) .pks .pks__pkg.pks__pkg--premium{background:var(--lx-navy);color:#fff}
+html[data-theme="dark"]:has(.portal.lx) .pks .pks__pkg.pks__pkg--premium{background:#0B1830;box-shadow:inset 0 0 0 1px var(--lx-navy-line)}
+:where(html:has(.portal.lx)) .pks .pks__pkg .pks__ti.lxp-plate{width:56px;height:56px;border-radius:14px;color:transparent}
+:where(html:has(.portal.lx)) .pks .pks__pkg .pks__pkgt{gap:4px}
+:where(html:has(.portal.lx)) .pks .pks__pkg .pks__pkgt b{font-family:var(--fd);font-size:1.02rem;font-weight:700;color:var(--lx-ink)}
+:where(html:has(.portal.lx)) .pks .pks__pkg .pks__pkgt small.lxp-tier--basic{background:var(--lx-card)}
+:where(html:has(.portal.lx)) .pks .pks__pkg--premium .pks__pkgt small.lxp-tier{background:rgba(255,255,255,.12);color:#fff}
+:where(html:has(.portal.lx)) .pks .pks__pkg--premium .pks__pkgt b{color:#fff}
+:where(html:has(.portal.lx)) .pks .pks__pkg .pks__dur{font-size:.82rem;color:var(--lx-gray)}
+:where(html:has(.portal.lx)) .pks .pks__pkg--premium .pks__dur{color:#C9D4E3}
+:where(html:has(.portal.lx)) .pks .pks__pkg .pks__price b{font-family:var(--fd);font-size:1.25rem;font-weight:800;color:var(--lx-ink)}
+:where(html:has(.portal.lx)) .pks .pks__pkg .pks__price small{color:var(--lx-gray)}
+:where(html:has(.portal.lx)) .pks .pks__pkg--premium .pks__price b{color:#fff}
+:where(html:has(.portal.lx)) .pks .pks__pkg--premium .pks__price small{color:#C9D4E3}
+:where(html:has(.portal.lx)) .pks .pks__policy{padding:12px 14px;border-radius:12px;background:var(--lx-chip);color:var(--lx-gray);font-size:.86rem}
+:where(html:has(.portal.lx)) .pks .pks__policy svg{color:var(--lx-link)}
+:where(html:has(.portal.lx)) .pks .pks__policy.is-premium{background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
+:where(html:has(.portal.lx)) .pks .pks__count{font-weight:600;font-size:.92rem;color:var(--lx-ink)}
+:where(html:has(.portal.lx)) .pks .pks__count span{font-size:.8rem;font-weight:500;color:var(--lx-gray)}
+/* the sellers: the dashboard's specialist rows (.cx-exp) */
+:where(html:has(.portal.lx)) .pks .pks__list{gap:12px}
+:where(html:has(.portal.lx)) .pks .pks__card{gap:14px;padding:16px;border-radius:16px;border:1px solid var(--lx-line);background:var(--lx-card);box-shadow:none}
+:where(html:has(.portal.lx)) .pks .pks__card:hover{border-color:#C7D6EC;box-shadow:none;transform:none}
+html[data-theme="dark"]:has(.portal.lx) .pks .pks__card:hover{border-color:#3A4E75}
+:where(html:has(.portal.lx)) .pks .pks__card.is-off{opacity:1;background:var(--lx-chip);border-color:transparent}
+:where(html:has(.portal.lx)) .pks .pks__card.is-off:hover{box-shadow:none;border-color:transparent}
+:where(html:has(.portal.lx)) .pks .pks__av.cx-av{width:48px;height:48px;font-size:.9rem;background:var(--lx-navy);color:#fff}
+html[data-theme="dark"]:has(.portal.lx) .pks .pks__av.cx-av{background:var(--lx-blue)}
+:where(html:has(.portal.lx)) .pks .pks__on{background:var(--lx-ok);box-shadow:0 0 0 2.5px var(--lx-card)}
+:where(html:has(.portal.lx)) .pks .pks__name{font-weight:600;color:var(--lx-ink)}
+:where(html:has(.portal.lx)) .pks .pks__vf{width:17px;height:17px;color:var(--lx-ok)}
+:where(html:has(.portal.lx)) .pks .pks__meta{gap:4px 14px;font-size:.82rem;color:var(--lx-gray)}
+:where(html:has(.portal.lx)) .pks .pks__meta span:first-child svg{color:var(--lx-blue)}
+:where(html:has(.portal.lx)) .pks .pks__tag{height:24px;padding:0 10px;gap:5px;border-radius:999px;background:var(--lx-chip);color:var(--lx-ink);font-size:.76rem;font-weight:500}
+:where(html:has(.portal.lx)) .pks .pks__card.is-off .pks__tag{background:var(--lx-card)}
+:where(html:has(.portal.lx)) .pks .pks__tag.is-ext{background:var(--lx-blue-tint);color:var(--lx-blue-ink);font-weight:600}
+:where(html:has(.portal.lx)) .pks .pks__tag.is-on{background:var(--lx-ok-bg);color:var(--lx-ok);font-weight:600}
+:where(html:has(.portal.lx)) .pks .pks__why{font-size:.8rem;font-weight:600;color:var(--lx-warn)}
+:where(html:has(.portal.lx)) .pks .pks__state.lxp-state{gap:8px;padding:28px 12px 20px;border-radius:16px;background:none}
+:where(html:has(.portal.lx)) .pks .pks__state.lxp-state > :is(.lxp-art,.cx-empty__ic){margin-bottom:6px}
+:where(html:has(.portal.lx)) .pks .pks__state.lxp-state b{font-size:1rem;font-weight:700;color:var(--lx-ink)}
+:where(html:has(.portal.lx)) .pks .pks__state.lxp-state p{max-width:360px;font-size:.88rem;color:var(--lx-gray)}
+:where(html:has(.portal.lx)) .pks .pks__sk span{border-radius:16px;background:linear-gradient(90deg,var(--lx-chip),#E9EFF8,var(--lx-chip));background-size:200% 100%}
+html[data-theme="dark"]:has(.portal.lx) :is(.pks .pks__sk span,.mk-buy .pxo .pxo__sk span){background:linear-gradient(90deg,#18253E,#1E2D4A,#18253E);background-size:200% 100%}
+
+/* ═══ the packages page ═══ */
+.portal.lx .lxp-pk .lxp-pk__h{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0}
+.portal.lx .lxp-pk .lxp-pk__lead{margin:4px 0 20px;font-size:.95rem;line-height:1.55;color:var(--lx-gray)}
+.portal.lx .lxp-pk .pkg{margin-top:24px;padding-top:24px;border-top:1px solid var(--lx-line-2)}
+html[data-theme="dark"] .portal.lx .lxp-pk .pkg{border-top-color:var(--lx-line)}
+.portal.lx .lxp-pk .pkg__h{flex-wrap:nowrap;align-items:center;justify-content:flex-start;gap:16px;margin-bottom:18px}
+.portal.lx .lxp-pk .pkg__h .pkg__hi.lxp-plate{width:104px;height:auto;border-radius:14px;color:transparent}
+.portal.lx .lxp-pk .lxp-pk__gt{display:grid;gap:3px;min-width:0}
+.portal.lx .lxp-pk .lxp-pk__gt b{font-family:var(--fd);font-size:1.18rem;font-weight:700;letter-spacing:-.015em;line-height:1.3;color:var(--lx-ink);overflow-wrap:anywhere}
+.portal.lx .lxp-pk .lxp-pk__gt .advmuted{font-size:.88rem;color:var(--lx-gray)}
+.portal.lx .lxp-pk .pkg__tiers{grid-template-columns:repeat(auto-fit,minmax(min(250px,100%),1fr));gap:16px}
+/* a tier: a flat inner card; the most chosen one framed in blue */
+.portal.lx .lxp-pk .pkg__tier{
+  display:flex;flex-direction:column;align-items:stretch;gap:10px;padding:22px 20px 20px;
+  border-radius:16px;border:1px solid var(--lx-line);background:var(--lx-card);box-shadow:none;transform:none;
+}
+.portal.lx .lxp-pk .pkg__tier:hover{transform:none;box-shadow:none;border-color:#C7D6EC}
+html[data-theme="dark"] .portal.lx .lxp-pk .pkg__tier:hover{border-color:#3A4E75}
+.portal.lx .lxp-pk .pkg__tier.pkg__tier--best,.portal.lx .lxp-pk .pkg__tier.pkg__tier--best:hover{border:1.5px solid var(--lx-blue);box-shadow:none}
+.portal.lx .lxp-pk .pkg__tier.pkg__tier--premium{background:var(--lx-card)}
+.portal.lx .lxp-pk .pkg__tier.pkg__tier--premium:hover{box-shadow:none}
+.portal.lx .lxp-pk .pkg__best{
+  top:-13px;display:inline-flex;align-items:center;height:26px;padding:0 12px;border-radius:999px;
+  background:var(--lx-blue);color:#fff;box-shadow:0 0 0 3px var(--lx-card);font-size:.74rem;font-weight:600;letter-spacing:0;
+}
+.portal.lx .lxp-pk .pkg__tier .pkg__ti{display:none}
+.portal.lx .lxp-pk .pkg__tier .pkg__tariff.lxp-tier{font-size:.76rem;font-weight:700;letter-spacing:.01em;text-transform:none}
+.portal.lx .lxp-pk .pkg__tier .pkg__price{font-family:var(--fd);font-size:1.5rem;font-weight:800;letter-spacing:-.02em;line-height:1.2;color:var(--lx-ink)}
+.portal.lx .lxp-pk .pkg__tier .pkg__price small{font-size:.82rem;font-weight:600;color:var(--lx-gray)}
+.portal.lx .lxp-pk .pkg__tier .pkg__save.cx-pill{align-self:flex-start;padding:0 10px 0 8px}
+.portal.lx .lxp-pk .pkg__tier .pkg__save svg{width:13px;height:13px}
+.portal.lx .lxp-pk .pkg__tier .pkg__cmp{font-size:.8rem;font-weight:500;color:var(--lx-gray)}
+.portal.lx .lxp-pk .pkg__tier .pkg__dur{gap:6px;font-size:.84rem;color:var(--lx-gray)}
+.portal.lx .lxp-pk .pkg__tier .pkg__dur svg{width:15px;height:15px}
+.portal.lx .lxp-pk .pkg__tier .pkg__req{font-size:.8rem;color:var(--lx-blue-ink)}
+.portal.lx .lxp-pk .pkg__tier .pkg__inc{gap:7px;font-size:.86rem;color:var(--lx-ink)}
+.portal.lx .lxp-pk .pkg__tier .pkg__inc li svg{width:15px;height:15px;color:var(--lx-ok)}
+.portal.lx .lxp-pk .pkg__tier .pkg__inc li.no{color:var(--lx-gray)}
+.portal.lx .lxp-pk .pkg__tier .pkg__inc li.no svg{color:var(--lx-gray2)}
+.portal.lx .lxp-pk .pkg__tier .pkg__acts{margin-top:auto;padding-top:8px;gap:10px}
+.portal.lx .lxp-pk .lxp-pk__empty{padding:40px 12px 24px}
+.portal.lx .lxp-pk .lxp-pk__empty .lxp-plate{margin-bottom:6px}
+.portal.lx .lxp-pk .lxp-pk__empty p{max-width:320px}
+/* the package, opened: chip facts, the result as a chip panel */
+:where(html:has(.portal.lx)) .lxp-pkgd.pkgd{gap:12px}
+:where(html:has(.portal.lx)) .lxp-pkgd .pkv{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+:where(html:has(.portal.lx)) .lxp-pkgd .pkv .pkv__i{min-width:0;padding:12px 14px;border-radius:12px;background:var(--lx-chip)}
+:where(html:has(.portal.lx)) .lxp-pkgd .pkv .pkv__i label{margin-bottom:3px;font-size:.78rem;font-weight:500;letter-spacing:0;text-transform:none;color:var(--lx-gray)}
+:where(html:has(.portal.lx)) .lxp-pkgd .pkv .pkv__i b{display:block;font-size:.94rem;font-weight:600;color:var(--lx-ink);overflow-wrap:anywhere}
+:where(html:has(.portal.lx)) .lxp-pkgd .lxp-pkgd__res.rf__benefit{margin:4px 0 0;padding:14px 16px;border:0;border-radius:16px;background:var(--lx-chip);color:var(--lx-ink);font-size:.9rem;line-height:1.55}
+:where(html:has(.portal.lx)) .lxp-pkgd .lxp-pkgd__res b{font-weight:600}
+:where(html:has(.portal.lx)) .lxp-pkgd .pkgd__h{margin-top:6px;font-size:.92rem;font-weight:600;color:var(--lx-ink)}
+:where(html:has(.portal.lx)) .lxp-pkgd .pkg__inc{gap:7px;font-size:.88rem}
+:where(html:has(.portal.lx)) .lxp-pkgd .pkg__inc li svg{width:15px;height:15px;color:var(--lx-ok)}
+:where(html:has(.portal.lx)) .lxp-pkgd .pkg__inc li.no svg{color:var(--lx-gray2)}
+
+/* ═══ by the width the page gets ═══ */
+@media (max-width:1100px){
+  .portal.lx .mk-prof .mk-prof__body,.portal.lx .lxp-skel__body{grid-template-columns:minmax(0,1fr)}
+  .portal.lx .mk-prof .mk-side{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));align-items:start}
+}
+@media (max-width:900px){
+  .portal.lx .mk-prof .mk-panel,.portal.lx .mk-prof .rbd{padding:20px;border-radius:20px}
+  .portal.lx .mk-prof .mk-prof__hero.lxp-hero{padding:20px;border-radius:20px}
+}
+@media (max-width:700px){
+  /* the photo slot shrinks to the initials circle beside the name */
+  .portal.lx .mk-prof .mk-prof__hero.lxp-hero{grid-template-columns:minmax(0,1fr);gap:14px}
+  .portal.lx .lxp-hero__ph{justify-self:start;min-height:0;padding:0;border:0;background:none}
+  .portal.lx .lxp-hero__av{width:64px;height:64px;font-size:1.2rem}
+}
+@media (max-width:560px){
+  .portal.lx .mk.mk-prof{gap:16px}
+  .portal.lx .mk-prof .mk-prof__main,.portal.lx .mk-prof .mk-side{gap:16px}
+  .portal.lx .mk-prof .mk-panel,.portal.lx .mk-prof .rbd,.portal.lx .mk-prof .mk-side__card,.portal.lx .mk-prof .mk-safe,.portal.lx .mk-prof .sxo-entry.sxo-entry--side{padding:16px;border-radius:18px}
+  .portal.lx .mk-prof .mk-prof__hero.lxp-hero{padding:16px;border-radius:18px}
+  .portal.lx .lxp-hero__facts > div{padding:10px 12px}
+  .portal.lx .mk-prof .mk-svc{padding:14px}
+  .portal.lx .mk-prof .mk-svc .mk-svc__end{width:auto;min-width:0;padding:12px 0 0;border-top:1px solid var(--lx-line)}
+  .portal.lx .mk-prof .mk-svc.is-on .mk-svc__end{border-top-color:#C7D6EC}
+  html[data-theme="dark"] .portal.lx .mk-prof .mk-svc.is-on .mk-svc__end{border-top-color:#2E4268}
+  .portal.lx .mk-prof .mk-ach .mk-ach__item,.portal.lx .mk-prof .mk-review{padding:14px}
+  .portal.lx .lxp-skel__hero{height:200px}
+  /* the dialogs */
+  :where(html:has(.portal.lx)) :is(.mk-buy,.pks) > .lxp-steps.mk-steps{padding-bottom:22px}
+  :where(html:has(.portal.lx)) :is(.mk-buy,.pks) > .lxp-steps.mk-steps > li{gap:0}
+  :where(html:has(.portal.lx)) :is(.mk-buy,.pks) .lxp-steps > li .lxp-steps__t{display:none}
+  :where(html:has(.portal.lx)) :is(.mk-buy,.pks) .lxp-steps > li:is(.is-now,.is-fail) .lxp-steps__t{display:block;position:absolute;left:0;right:0;bottom:0;line-height:18px}
+  :where(html:has(.portal.lx)) :is(.mk-buy,.pks) .lxp-steps .lxp-steps__n{display:inline}
+  :where(html:has(.portal.lx)) .mk-buy .lxp-ticket.mk-buy__ticket{grid-template-columns:auto minmax(0,1fr);gap:12px 14px;padding:14px}
+  :where(html:has(.portal.lx)) .mk-buy .lxp-ticket .lxp-ticket__art{width:48px;height:48px}
+  :where(html:has(.portal.lx)) .mk-buy .lxp-ticket .mk-buy__sum{grid-column:1 / -1;flex-direction:row;flex-wrap:wrap;align-items:baseline;justify-content:flex-start;gap:4px 8px;padding:12px 0 0;border-left:0;border-top:1px solid var(--lx-line)}
+  :where(html:has(.portal.lx)) .mk-buy .lxp-ticket .mk-buy__sum small{margin-right:auto}
+  :where(html:has(.portal.lx)) .amodal__f:has(> .mk-buy__foot){padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px))}
+  :where(html:has(.portal.lx)) .mk-buy__foot .mk-buy__send{flex:1 1 auto}
+  :where(html:has(.portal.lx)) .pks .pks__pkg{flex-wrap:wrap}
+  :where(html:has(.portal.lx)) .pks .pks__pkg .pks__price{border-top:1px solid var(--lx-line);padding-top:10px}
+  :where(html:has(.portal.lx)) .pks .pks__pkg--premium .pks__price{border-top-color:rgba(255,255,255,.16)}
+  :where(html:has(.portal.lx)) .lxp-pkgd .pkv{grid-template-columns:minmax(0,1fr)}
+  .portal.lx .lxp-pk .pkg__h{gap:12px}
+  .portal.lx .lxp-pk .pkg__h .pkg__hi.lxp-plate{width:80px}
+  .portal.lx .lxp-pk .lxp-pk__gt b{font-size:1.06rem}
+  .portal.lx .lxp-pk .pkg__tier{padding:20px 16px 16px}
+}
+@media (max-width:420px){
+  /* the two buttons under a package each take the row's half, or the whole row */
+  .portal.lx .lxp-pk .pkg__tier .pkg__acts .btn{flex:1 1 auto;justify-content:center}
+  :where(html:has(.portal.lx)) .mk-buy__foot .mk-buy__total{flex:1 1 100%;flex-direction:row;align-items:baseline;justify-content:space-between;gap:8px;margin-right:0}
+  :where(html:has(.portal.lx)) .mk-buy__foot .mk-buy__send{flex:1 1 100%}
+}
+@media (prefers-reduced-motion:reduce){
+  .portal.lx .mk-prof .mk-svc,:where(html:has(.portal.lx)) .mk-buy .mk-buy__compose{transition:none}
+  :where(html:has(.portal.lx)) :is(.mk-buy,.pks) > .lxp-steps.mk-steps > li::before{transition:none}
+}

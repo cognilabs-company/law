@@ -7,6 +7,7 @@ import { levelOf } from "@/components/VoicePill";
 import { VoiceNotePlayer } from "@/components/portal/AttachmentPreview";
 import { voiceDuration, type VoiceNote, type VoiceRecorder } from "@/lib/voiceRecorder";
 import { SECURE_UPLOAD_ACCEPT } from "@/lib/secureUpload";
+import { breakName } from "./format";
 
 // The secure chat composer's own controls, kept out of SecureChat.tsx:
 //   VoiceBar     record with a live waveform, pause and carry on, then
@@ -278,7 +279,7 @@ export function AttachTray({ items, onRemove, onClear }: { items: readonly Pendi
                 </span>
               )}
               <span className="mxt__meta">
-                <b title={p.file.name}>{p.file.name || t("fileGeneric")}</b>
+                <b title={p.file.name}>{p.file.name ? breakName(p.file.name) : t("fileGeneric")}</b>
                 <small>{sizeOf(p.file.size)}</small>
               </span>
               <button type="button" className="mxt__x" onClick={() => onRemove(p.id)} aria-label={t("trayRemove", { name: p.file.name })} title={t("trayRemove", { name: p.file.name })}>

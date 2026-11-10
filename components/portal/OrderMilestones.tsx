@@ -1,5 +1,6 @@
 "use client";
 
+import "./ordersList1920.css";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
@@ -154,6 +155,8 @@ export default function OrderMilestones({ orderId }: { orderId: string }) {
   // per_milestone: the client pays each stage before it starts, in order.
   const firstUnpaid = rows.findIndex((m) => m.status === "waiting_payment" || m.status === "payment_pending" || m.status === "pending");
   const statusLabel = (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : humanizeSlug(s));
+  // The dashboard's status pill: paid green, waiting amber, passed on grey.
+  const toneOf = (s: string) => (s === "paid" || s === "held" ? "ok" : s === "released" ? "mute" : /^(waiting_payment|payment_pending|pending)$/.test(s) ? "warn" : "blue");
 
   return (
     <div className="omile" data-ai-target="order:milestones">
@@ -168,8 +171,9 @@ export default function OrderMilestones({ orderId }: { orderId: string }) {
               <span className="omile__n">{done ? <IconCheck /> : m.index || i + 1}</span>
               <span className="omile__m">
                 <b>{m.title || t("stage", { n: m.index || i + 1 })}</b>
-                <small>{[m.percent ? `${m.percent}%` : "", `${fmtUzs(m.amount)} ${tp("som")}`, statusLabel(m.status)].filter(Boolean).join(" · ")}</small>
+                <small>{[m.percent ? `${m.percent}%` : "", `${fmtUzs(m.amount)} ${tp("som")}`].filter(Boolean).join(" · ")}</small>
               </span>
+              <span className={`omile__st cx-pill cx-pill--${toneOf(m.status)}`}>{statusLabel(m.status)}</span>
               {payable ? (
                 <button className="btn btn--pri btn--sm" type="button" disabled={!!busy} onClick={() => pay(m)}>
                   {busy === m.id ? t("paying") : t("pay")}
@@ -190,11 +194,12 @@ export default function OrderMilestones({ orderId }: { orderId: string }) {
                   </button>
                 )
               ) : null}
+              {/* what confirming means, said in the row it is about */}
+              {confirmId === m.id ? <p className="omile__hint">{t("releaseConfirm")}</p> : null}
             </li>
           );
         })}
       </ol>
-      {confirmId ? <p className="omile__hint">{t("releaseConfirm")}</p> : null}
       {intent ? <CheckoutIntent intent={intent} onCancel={() => { setIntent(null); reload(); }} /> : null}
     </div>
   );

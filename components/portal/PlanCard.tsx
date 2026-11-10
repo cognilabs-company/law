@@ -1,7 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { IconCheck, IconCrown, IconGem, IconLeaf, IconStar } from "@/components/icons";
+import "./plans1920.css";
+import type { CSSProperties, ReactNode } from "react";
+import { BadgePercent, CircleCheck, Star } from "lucide-react";
+import { IconCheck, IconCrown, IconGem, IconLeaf } from "@/components/icons";
 
 // ── One tariff card for the whole app ──────────────────────────────
 // The GM asked for the Tariflar page's card to appear inside the upgrade
@@ -35,13 +37,30 @@ export function tierIcon(slug: string) {
   return null;
 }
 
+// The dashboard's vocabulary (components/portal/dash): a tariff is drawn as a
+// picture card — the plan's own navy + blue drawing (public/img/doc-catalog
+// Tarif_*) on the light plate the dashboard's area cards use — not a crown,
+// gem or leaf in a gold / pastel tile. Any tariff the backend adds later gets
+// the nearest picture by its slug, and "Paketlar" when nothing fits.
+export function planArt(slug: string): string {
+  const s = (slug || "").toLowerCase();
+  if (s === "lexgo-ai-free" || /ai.*(free|bepul)/.test(s)) return "Tarif_ai_free";
+  if (s === "lexgo-ai-pro" || /ai.*pro/.test(s)) return "Tarif_ai_pro";
+  if (s === "lexgo-ai-lite" || /lexgo-ai|(^|-)ai(-|$)/.test(s)) return "Tarif_ai_lite";
+  if (/premium/.test(s)) return "Tarif_advokat_premium";
+  if (/standart|standard|shaxsiy|personal|advokat|lawyer/.test(s)) return "Tarif_advokat_standart";
+  return "Paketlar";
+}
+/** `--img` for a light plate: the wide picture, or the square one (`sq`). */
+export const planPlate = (slug: string, sq = false) =>
+  ({ "--img": `url(/img/doc-catalog/${planArt(slug)}${sq ? "-sq" : ""}.webp)` }) as CSSProperties;
+
 // The recommended plan's button is the one thing on a plan grid that is meant
-// to be noticed, so it gets btn--unlock on top of the house btn--grad: a
-// blue→cyan gradient painted three times wider than the button, which slides
-// on hover, and a crown that fills in with it (globals.css wp-plans). Every
-// other plan keeps btn--line — if all of them shouted, none of them would.
-// It travels with the card so a featured card looks featured everywhere.
-export const FEATURED_CTA = "btn--grad btn--unlock";
+// to be noticed, so it is the flat primary blue (the dashboard has no
+// gradients and no glow); every other plan keeps btn--line — if all of them
+// shouted, none of them would. It travels with the card so a featured card
+// looks featured everywhere.
+export const FEATURED_CTA = "btn--pri";
 
 export type PlanCardPrice = {
   /** Headline, already formatted: "49 000", or the free label. */
@@ -70,9 +89,9 @@ export type PlanCardProps = {
   name: string;
   features: string[];
   price: PlanCardPrice;
-  /** "current" paints the frame green, "featured" lifts and glows it. */
+  /** "featured" draws the blue frame; "current" only changes the pill. */
   state?: "plain" | "featured" | "current";
-  /** The banner across the top edge. Absent → no banner. */
+  /** The pill on the picture ("Tavsiya etiladi" / "Joriy tarif"). Absent → none. */
   ribbon?: string;
   /** "12 oy — jami 962 280 so'm". Absent → not shown. */
   totalNote?: string;
@@ -110,7 +129,6 @@ export default function PlanCard({
   aiId,
   planId,
 }: PlanCardProps) {
-  const tier = tierIcon(slug);
   const frame =
     state === "current" ? " splan--current" : state === "featured" ? " splan--feat" : "";
   // splan--pick only says "this card answers to a click"; splan--sel is the
@@ -122,7 +140,7 @@ export default function PlanCard({
 
   return (
     <div
-      className={`splan${frame}${pick}`}
+      className={`splan plx-plan${frame}${pick}`}
       onClick={onSelect}
       data-ai-target={`plan:${slug}`}
       data-ai-id={aiId}
@@ -131,25 +149,29 @@ export default function PlanCard({
       data-ai-entity-id={entityId}
       data-ai-entity-slug={entitySlug}
     >
-      {ribbon ? (
-        <span className={`splan__ribbon${state === "current" ? " splan__ribbon--current" : ""}`}>
-          {state === "current" ? <IconCheck /> : <IconStar />}
-          {ribbon}
-        </span>
-      ) : null}
-      {tier ? (
-        <span className={`splan__icon splan__icon--${tier.cls}`}>
-          <tier.Icon />
-        </span>
-      ) : null}
+      {/* The plan's picture on the dashboard's light plate; "recommended" /
+          "your plan" sit on it as the dashboard's status pills. */}
+      <span className="plx-plan__art" style={planPlate(slug)}>
+        {ribbon ? (
+          <span className={`splan__ribbon cx-pill ${state === "current" ? "splan__ribbon--current cx-pill--ok" : "cx-pill--blue"}`}>
+            {state === "current" ? <CircleCheck aria-hidden /> : <Star aria-hidden />}
+            {ribbon}
+          </span>
+        ) : null}
+      </span>
       <div className="splan__h">
         <b className="splan__name">{name}</b>
-        {(saves ?? []).map((s, i) => (
-          <span className="splan__save" key={i}>
-            {s}
-          </span>
-        ))}
       </div>
+      {saves?.length ? (
+        <div className="plx-plan__saves">
+          {saves.map((s, i) => (
+            <span className="splan__save cx-pill cx-pill--ok" key={i}>
+              <BadgePercent aria-hidden />
+              {s}
+            </span>
+          ))}
+        </div>
+      ) : null}
       <div className="splan__price">
         <b>{price.amount}</b>
         {price.unit ? <span>{price.unit}</span> : null}

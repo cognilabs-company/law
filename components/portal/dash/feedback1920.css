@@ -11,7 +11,7 @@
 .lfb-lbl--row small{font-weight:500;color:var(--lx-gray);font-size:.82rem}
 .lfb-kinds{border:0;margin:0;padding:0;min-width:0}
 .lfb-kinds__row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.lfb-kind{position:relative;display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--lx-line);border-radius:14px;cursor:pointer;background:var(--lx-card);min-width:0}
+.lfb-kind{position:relative;display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--lx-line);border-radius:16px;cursor:pointer;background:var(--lx-card);min-width:0}
 .lfb-kind input{position:absolute;opacity:0;pointer-events:none}
 .lfb-kind:has(input:focus-visible){outline:3px solid var(--focus);outline-offset:2px}
 .lfb-kind.on{border-color:var(--lx-blue);background:var(--lx-blue-tint);box-shadow:0 0 0 1px var(--lx-blue)}
@@ -24,8 +24,10 @@
 .lfb-kind__dot{width:22px;height:22px;border-radius:50%;border:2px solid #9AA8BC;flex:none;display:grid;place-items:center}
 .lfb-kind.on .lfb-kind__dot{border-color:var(--lx-blue)}
 .lfb-kind.on .lfb-kind__dot::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--lx-blue)}
-.lfb-two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.lfb-field{display:grid;min-width:0}
+.lfb-two{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+/* from the top: a field with an error line under it no longer pulls its
+   neighbour's label and box down */
+.lfb-field{display:grid;min-width:0;align-content:start}
 .lfb-sel button{width:100%}
 .lfb-sel button[aria-haspopup]{height:52px;border-radius:12px;background:var(--lx-chip);border:1px solid var(--lx-line);box-shadow:none;font-weight:600}
 .lfb-input{height:52px;border-radius:12px;border:1px solid var(--lx-line);background:var(--lx-chip);padding:0 16px;font-size:.95rem;color:var(--lx-ink);outline:0;width:100%}
@@ -33,12 +35,13 @@
 .lfb-input.is-bad{border-color:var(--lx-err)}
 .lfb-area{height:172px;padding:14px 16px;resize:vertical;line-height:1.55;font-family:inherit}
 .lfb-err{color:var(--lx-err);font-size:.8rem;margin-top:6px}
-.lfb-drop{display:flex;align-items:center;gap:14px;padding:16px;border:1.5px dashed #BFCBDD;border-radius:14px;background:var(--lx-card)}
+.lfb-drop{display:flex;align-items:center;gap:14px;padding:16px;border:1.5px dashed #BFCBDD;border-radius:16px;background:var(--lx-card)}
 .lfb-drop.is-drag{border-color:var(--lx-blue);background:var(--lx-blue-tint)}
 .lfb-drop__ic{width:44px;height:44px;border-radius:10px;background:var(--lx-chip);display:grid;place-items:center;color:var(--lx-ink);flex:none}
 .lfb-drop__ic svg{width:20px;height:20px}
 .lfb-drop__t{display:grid;gap:2px;flex:1;min-width:0}
-.lfb-drop__t b{font-size:.92rem;font-weight:600;color:var(--lx-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* the hint (or the chosen file's name) wraps rather than ending in "…" */
+.lfb-drop__t b{font-size:.92rem;font-weight:600;line-height:1.35;color:var(--lx-ink);overflow-wrap:anywhere}
 .lfb-drop__t small{font-size:.8rem;color:var(--lx-gray)}
 .lfb-drop .btn svg{width:15px;height:15px}
 .lfb-notify .cbx__tx{font-size:.95rem;color:var(--lx-ink)}
@@ -47,10 +50,15 @@
 .lfb-eta svg{width:16px;height:16px}
 .lfb-foot .btn--lg{height:52px}
 .lfb-spin{animation:spin 1s linear infinite}
-.lfb-side{display:grid;gap:22px;align-content:start}
+/* align-items:start — side by side (under the form) the navy tips card used
+   to stretch to the list's height around a large empty navy block */
+.lfb-side{display:grid;gap:22px;align-content:start;align-items:start}
 .lfb-list{padding:24px!important}
 .lfb-list ul{list-style:none;margin:0;padding:0;display:grid;gap:12px}
-.lfb-item{display:grid;gap:8px;padding:16px;border:1px solid var(--lx-line);border-radius:14px;text-decoration:none;color:var(--lx-ink)}
+/* the list's empty / error state: the dashboard's .cx-empty */
+.lfb-empty{padding:20px 8px 12px}
+.lfb-empty .cx-empty__ic.lfb-empty__ic--err{background:var(--lx-err-bg);color:var(--lx-err)}
+.lfb-item{display:grid;gap:8px;padding:16px;border:1px solid var(--lx-line);border-radius:16px;text-decoration:none;color:var(--lx-ink)}
 .lfb-item:hover{border-color:#C7D6EC}
 .lfb-item__h{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .lfb-item__id{font-size:.8rem;font-weight:600;color:var(--lx-gray)}
@@ -69,6 +77,21 @@ html[data-theme="dark"] .lfb-tips{background:#0B1830;box-shadow:inset 0 0 0 1px 
   .lfb{grid-template-columns:1fr}
   .lfb-side{grid-template-columns:1fr 1fr}
 }
+/* By the room the page and the form get, not the window: beside the
+   portal's sidebar a 1366-1512px screen left the form ~480px for three
+   request kinds, and "ishlamayapti" ran under the radio dot. */
+.pbody__in:has(> .lfb){container:lfbpage / inline-size}
+.lfb-form{container:lfbform / inline-size}
+@container lfbpage (max-width:1199px){
+  .lfb{grid-template-columns:1fr}
+  .lfb-side{grid-template-columns:1fr 1fr}
+}
+@container lfbform (max-width:759px){
+  .lfb-kinds__row{grid-template-columns:1fr}
+}
+@container lfbform (max-width:519px){
+  .lfb-two{grid-template-columns:1fr}
+}
 @media (max-width:900px){
   .lfb-kinds__row,.lfb-two,.lfb-side{grid-template-columns:1fr}
   .lfb-form{padding:20px!important}
@@ -77,5 +100,10 @@ html[data-theme="dark"] .lfb-tips{background:#0B1830;box-shadow:inset 0 0 0 1px 
   .lfb-drop{flex-wrap:wrap}
   .lfb-drop .btn{width:100%}
   .lfb-foot .btn{flex:1}
+  .portal.lx .lfb-foot .btn--lg{padding-inline:14px}
   .lfb-eta{width:100%}
+}
+/* a 320px phone: "Tozalash" and "Yuborish" one under the other, each whole */
+@media (max-width:360px){
+  .lfb-foot .btn{flex:1 1 100%}
 }

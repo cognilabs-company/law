@@ -1,6 +1,7 @@
 "use client";
 
-import { Suspense, useId, useState } from "react";
+import "@/components/portal/profile1920.css";
+import { Suspense, useId, useState, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -34,6 +35,7 @@ import Tabs, { type TabItem } from "@/components/ui/Tabs";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import {
+  IconArrowRight,
   IconBell,
   IconCard,
   IconCheck,
@@ -49,13 +51,14 @@ import {
   IconUser,
   IconUsers,
 } from "@/components/icons";
+import { initials } from "@/lib/lawyers";
 import IdentityVerify from "@/components/portal/IdentityVerify";
 import PhotoUpload from "@/components/register/PhotoUpload";
 import TwoFactorCard from "@/components/portal/TwoFactorCard";
 import OtpDeliveryCard from "@/components/portal/OtpDeliveryCard";
 import TelegramLinkCard from "@/components/portal/TelegramLinkCard";
 import NotificationPrefsCard from "@/components/portal/NotificationPrefsCard";
-import AccountAudit from "@/components/portal/AccountAudit";
+import AccountAudit, { DeviceIcon } from "@/components/portal/AccountAudit";
 import AccountDataCard from "@/components/portal/AccountDataCard";
 import ClientPayments from "@/components/portal/ClientPayments";
 import ClientComplaints from "@/components/complaints/ClientComplaints";
@@ -64,6 +67,11 @@ import { statusLabel } from "@/lib/labels";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const EXPIRES = /^(0[1-9]|1[0-2])\/(\d{2})$/;
+
+// The dashboard's pictures (public/img, see profile1920.css): a black line
+// drawing goes in a white circle, a navy + blue one on a light plate.
+const art = (url: string) => ({ "--art": `url(${url})` }) as CSSProperties;
+
 
 const TAB_ICON: Record<ProfileTab, typeof IconUser> = {
   personal: IconUser,
@@ -261,7 +269,7 @@ function ProfileHead({
               </Link>
             ) : null}
           </div>
-          <button className="btn btn--soft btn--sm cprof__edit" type="button" onClick={onEdit} data-ai-id="profile.personal.edit">
+          <button className="btn btn--soft btn--sm btn--pill cprof__edit" type="button" onClick={onEdit} data-ai-id="profile.personal.edit">
             <IconEdit />
             {t("edit")}
           </button>
@@ -311,9 +319,10 @@ function PersonalTab({ reloadKey, onChanged }: { reloadKey: number; onChanged: (
               <IconUsers />
             </span>
             {t("family")}
+            {family.data.length ? <span className="cx-count">{family.data.length}</span> : null}
           </b>
           {family.data.length ? (
-            <button className="btn btn--soft btn--sm" type="button" onClick={() => setFamOpen(true)} data-ai-id="profile.family.add">
+            <button className="btn btn--soft btn--sm btn--pill" type="button" onClick={() => setFamOpen(true)} data-ai-id="profile.family.add">
               <IconPlus />
               {t("addFamily")}
             </button>
@@ -325,23 +334,34 @@ function PersonalTab({ reloadKey, onChanged }: { reloadKey: number; onChanged: (
         ) : family.status === "error" ? (
           <ErrorState error={family.error} onRetry={reload} compact />
         ) : !family.data.length ? (
-          <EmptyState size="sm" icon={<IconUsers />} title={t("noFamily")} text={t("noFamilyText")} action={{ label: t("addFamily"), onClick: () => setFamOpen(true), aiId: "profile.family.add" }} />
+          <EmptyState
+            size="sm"
+            className="pf-empty"
+            icon={<span className="pf-emptyart pf-emptyart--plate" style={art("/img/category/Oila_huquqi.webp")} aria-hidden="true" />}
+            title={t("noFamily")}
+            text={t("noFamilyText")}
+            action={{ label: t("addFamily"), onClick: () => setFamOpen(true), aiId: "profile.family.add" }}
+          />
         ) : (
-          <div className="alist" data-ai-private>
+          <div className="alist pf-list" data-ai-private>
             {family.data.map((m) => (
-              <div className="creq" key={m.id}>
-                <span className="creq__st" />
+              <div className="creq pf-row" key={m.id}>
+                <span className="cx-av pf-row__av" aria-hidden="true">
+                  {initials(m.name)}
+                </span>
                 <div className="creq__m">
                   <b>{m.name}</b>
                   <span>{[m.phone, m.relation].filter(Boolean).join(" · ")}</span>
                 </div>
-                <button type="button" className={`famshare${m.sharedAccess ? " on" : ""}`} aria-pressed={m.sharedAccess} onClick={() => toggleShare(m.id, !m.sharedAccess)}>
-                  {m.sharedAccess ? <IconCheck /> : null}
-                  {m.sharedAccess ? t("shared") : t("share")}
-                </button>
-                <button className="calev__x" type="button" aria-label={`${t("remove")}: ${m.name}`} onClick={() => void remove(m.id, m.name)}>
-                  <IconClose />
-                </button>
+                <div className="pf-row__end">
+                  <button type="button" className={`famshare${m.sharedAccess ? " on" : ""}`} aria-pressed={m.sharedAccess} onClick={() => toggleShare(m.id, !m.sharedAccess)}>
+                    {m.sharedAccess ? <IconCheck /> : null}
+                    {m.sharedAccess ? t("shared") : t("share")}
+                  </button>
+                  <button className="calev__x cx-iconbtn pf-row__x" type="button" aria-label={`${t("remove")}: ${m.name}`} onClick={() => void remove(m.id, m.name)}>
+                    <IconClose />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -384,9 +404,10 @@ function PaymentsTab({ reloadKey, sub, loading }: { reloadKey: number; sub?: MyS
                 <IconCard />
               </span>
               {t("cards")}
+              {methods.data.length ? <span className="cx-count">{methods.data.length}</span> : null}
             </b>
             {methods.data.length ? (
-              <button className="btn btn--soft btn--sm" type="button" onClick={() => setCardOpen(true)} data-ai-id="profile.cards.add">
+              <button className="btn btn--soft btn--sm btn--pill" type="button" onClick={() => setCardOpen(true)} data-ai-id="profile.cards.add">
                 <IconPlus />
                 {t("addCard")}
               </button>
@@ -397,21 +418,35 @@ function PaymentsTab({ reloadKey, sub, loading }: { reloadKey: number; sub?: MyS
           ) : methods.status === "error" ? (
             <ErrorState error={methods.error} onRetry={reload} compact />
           ) : !methods.data.length ? (
-            <EmptyState size="sm" icon={<IconCard />} title={t("noCards")} text={t("noCardsText")} action={{ label: t("addCard"), onClick: () => setCardOpen(true), aiId: "profile.cards.add" }} />
+            <EmptyState
+              size="sm"
+              className="pf-empty"
+              icon={<span className="pf-emptyart pf-emptyart--circle" style={art("/img/xizmatlar/Xavfsiz_karta.webp")} aria-hidden="true" />}
+              title={t("noCards")}
+              text={t("noCardsText")}
+              action={{ label: t("addCard"), onClick: () => setCardOpen(true), aiId: "profile.cards.add" }}
+            />
           ) : (
-            <div className="alist" data-ai-private>
+            <div className="alist pf-list" data-ai-private>
               {methods.data.map((m) => {
                 const label = [m.brand ? m.brand.toUpperCase() : t("cardFallback"), `•••• ${m.last4}`].join(" · ");
                 return (
-                  <div className="creq" key={m.id}>
-                    <span className="creq__st" />
+                  <div className="creq pf-row" key={m.id}>
+                    <span className="pf-row__ic" aria-hidden="true">
+                      <IconCard />
+                    </span>
                     <div className="creq__m">
-                      <b>{label}</b>
-                      <span>{[m.expires, m.isDefault ? t("defaultCard") : ""].filter(Boolean).join(" · ")}</span>
+                      <b>
+                        {label}
+                        {m.isDefault ? <em className="pf-tag">{t("defaultCard")}</em> : null}
+                      </b>
+                      {m.expires ? <span>{m.expires}</span> : null}
                     </div>
-                    <button className="calev__x" type="button" aria-label={`${t("remove")}: ${label}`} onClick={() => void remove(m.id, label)}>
-                      <IconClose />
-                    </button>
+                    <div className="pf-row__end">
+                      <button className="calev__x cx-iconbtn pf-row__x" type="button" aria-label={`${t("remove")}: ${label}`} onClick={() => void remove(m.id, label)}>
+                        <IconClose />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -428,8 +463,9 @@ function PaymentsTab({ reloadKey, sub, loading }: { reloadKey: number; sub?: MyS
               {t("subscription")}
             </b>
             {sub ? (
-              <Link href="/portal/client/subscription" className="btn btn--soft btn--sm" data-ai-id="profile.subscription.manage">
+              <Link href="/portal/client/subscription" className="btn btn--soft btn--sm btn--pill" data-ai-id="profile.subscription.manage">
                 {t("subManage")}
+                <IconArrowRight />
               </Link>
             ) : null}
           </div>
@@ -459,7 +495,14 @@ function PaymentsTab({ reloadKey, sub, loading }: { reloadKey: number; sub?: MyS
               ) : null}
             </dl>
           ) : (
-            <EmptyState size="sm" icon={<IconSparkle />} title={t("noSub")} text={t("noSubText")} action={{ label: t("subChoose"), href: "/portal/client/subscription", aiId: "profile.subscription.choose" }} />
+            <EmptyState
+              size="sm"
+              className="pf-empty"
+              icon={<span className="pf-emptyart pf-emptyart--plate" style={art("/img/doc-catalog/Paketlar-sq.webp")} aria-hidden="true" />}
+              title={t("noSub")}
+              text={t("noSubText")}
+              action={{ label: t("subChoose"), href: "/portal/client/subscription", aiId: "profile.subscription.choose" }}
+            />
           )}
         </div>
       </div>
@@ -517,6 +560,7 @@ function SecurityTab() {
               <IconMonitor />
             </span>
             {t("sessions")}
+            {sessions.data.length ? <span className="cx-count">{sessions.data.length}</span> : null}
           </b>
         </div>
         {sessions.status === "loading" ? (
@@ -526,10 +570,12 @@ function SecurityTab() {
         ) : !sessions.data.length ? (
           <EmptyState size="sm" icon={<IconMonitor />} title={t("noSessions")} />
         ) : (
-          <div className="alist" data-ai-private>
+          <div className="alist pf-list" data-ai-private>
             {sessions.data.map((s) => (
-              <div className="creq" key={s.id}>
-                <span className={`creq__st${s.current ? " is-on" : ""}`} />
+              <div className={`creq pf-row${s.current ? " is-current" : ""}`} key={s.id}>
+                <span className="pf-row__ic" aria-hidden="true">
+                  <DeviceIcon label={s.deviceLabel || ""} />
+                </span>
                 <div className="creq__m">
                   <b>
                     {s.deviceLabel || s.ip || t("device")}
@@ -537,9 +583,11 @@ function SecurityTab() {
                   </b>
                   <span>{[s.ip, s.lastUsedAt ? dateTimeFull(s.lastUsedAt, locale) : ""].filter(Boolean).join(" · ")}</span>
                 </div>
-                <button className="btn btn--line btn--sm" type="button" onClick={() => revoke(s.id)}>
-                  {t("revoke")}
-                </button>
+                <div className="pf-row__end">
+                  <button className="btn btn--line btn--sm" type="button" onClick={() => revoke(s.id)}>
+                    {t("revoke")}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -615,8 +663,15 @@ function EditModal({
   useAiField("profile.personal.email", { get: () => email, set: setEmail });
 
   return (
-    <Modal open={open} onClose={onClose} title={t("editTitle")}>
-      <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit} noValidate data-ai-id="profile.personal.edit-modal" data-ai-type="modal" data-ai-label={t("editTitle")} data-ai-private>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={t("editTitle")}
+      footer={
+        <DialogFoot formId={`${uid}-form`} busy={busy} onCancel={onClose} />
+      }
+    >
+      <form id={`${uid}-form`} className="cform pfdlg" style={{ maxWidth: "none" }} onSubmit={submit} noValidate data-ai-id="profile.personal.edit-modal" data-ai-type="modal" data-ai-label={t("editTitle")} data-ai-private>
         <PhotoUpload value={photo} name={name} onChange={setPhoto} label={t("photo")} hint={t("photoHint")} />
         <div>
           <label htmlFor={`${uid}-name`}>{t("name")}</label>
@@ -661,11 +716,25 @@ function EditModal({
           />
           <FieldError id={`${uid}-email-err`} msg={errs.email} />
         </div>
-        <button className="btn btn--pri btn--full" type="submit" disabled={busy}>
-          {busy ? t("saving") : t("save")}
-        </button>
       </form>
     </Modal>
+  );
+}
+
+// The dialogs' footer, as the dashboard's: an outlined "Cancel" and the blue
+// "Save" — the submit button sits outside the form, tied to it by id.
+function DialogFoot({ formId, busy, onCancel }: { formId: string; busy: boolean; onCancel: () => void }) {
+  const t = useTranslations("portal.client.profile");
+  const tl = useTranslations("lxProfile");
+  return (
+    <>
+      <button className="btn btn--line" type="button" onClick={onCancel} disabled={busy}>
+        {tl("cancel")}
+      </button>
+      <button className="btn btn--pri" type="submit" form={formId} disabled={busy}>
+        {busy ? t("saving") : t("save")}
+      </button>
+    </>
   );
 }
 
@@ -710,8 +779,8 @@ function FamilyModal({ open, onClose, onSaved }: { open: boolean; onClose: () =>
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={t("addFamily")}>
-      <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit} noValidate data-ai-id="profile.family.add-modal" data-ai-type="modal" data-ai-label={t("addFamily")} data-ai-private>
+    <Modal open={open} onClose={onClose} title={t("addFamily")} footer={<DialogFoot formId={`${uid}-form`} busy={busy} onCancel={onClose} />}>
+      <form id={`${uid}-form`} className="cform pfdlg" style={{ maxWidth: "none" }} onSubmit={submit} noValidate data-ai-id="profile.family.add-modal" data-ai-type="modal" data-ai-label={t("addFamily")} data-ai-private>
         <div>
           <label htmlFor={`${uid}-name`}>{t("memberName")}</label>
           <input
@@ -750,9 +819,6 @@ function FamilyModal({ open, onClose, onSaved }: { open: boolean; onClose: () =>
           <label htmlFor={`${uid}-rel`}>{t("relation")}</label>
           <input id={`${uid}-rel`} value={relation} maxLength={60} onChange={(e) => setRelation(e.target.value)} placeholder={t("relationPh")} />
         </div>
-        <button className="btn btn--pri btn--full" type="submit" disabled={busy}>
-          {busy ? t("saving") : t("save")}
-        </button>
       </form>
     </Modal>
   );
@@ -799,8 +865,8 @@ function CardModal({ open, onClose, onSaved }: { open: boolean; onClose: () => v
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={t("addCard")}>
-      <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit} noValidate data-ai-id="profile.cards.add-modal" data-ai-type="modal" data-ai-label={t("addCard")} data-ai-private>
+    <Modal open={open} onClose={onClose} title={t("addCard")} footer={<DialogFoot formId={`${uid}-form`} busy={busy} onCancel={onClose} />}>
+      <form id={`${uid}-form`} className="cform pfdlg" style={{ maxWidth: "none" }} onSubmit={submit} noValidate data-ai-id="profile.cards.add-modal" data-ai-type="modal" data-ai-label={t("addCard")} data-ai-private>
         <div>
           <label>{t("cardBrand")}</label>
           <Select value={brand} onChange={setBrand} options={brandOpts} ariaLabel={t("cardBrand")} />
@@ -840,9 +906,6 @@ function CardModal({ open, onClose, onSaved }: { open: boolean; onClose: () => v
           />
           <FieldError id={`${uid}-exp-err`} msg={errs.expires} />
         </div>
-        <button className="btn btn--pri btn--full" type="submit" disabled={busy}>
-          {busy ? t("saving") : t("save")}
-        </button>
       </form>
     </Modal>
   );

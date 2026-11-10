@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import "./urgent1920.css";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import {
@@ -119,6 +120,29 @@ const ICONS: Record<string, typeof IconVideo> = {
 // The documented payload sends the direction as the Uzbek slug
 // (directions: ["jinoiy"]). The label beside it is the ordinary translated
 // practice area, so the picker reads in the UI language whatever it sends.
+// The dashboard's black line drawings (public/img/xizmatlar, the "Xizmatlar"
+// arches of components/portal/dash/ClientHome.tsx), one per kind — shown in a
+// white circle on the cards, in the dialogs and on the request rows, as the
+// dashboard does, instead of a small icon on a pastel tile.
+const ART_DIR = "/img/xizmatlar/";
+const ART: Record<string, string> = {
+  video_consultation: "Navbat_konsultatsiya",
+  express_video_consultation: "Express_videokonsultatsiya",
+  traffic_accident_consultation: "Avtoavariya",
+  chat_consultation: "Chat_konsultatsiya",
+  second_opinion_single: "Yakka_advokat_fikri",
+  second_opinion_group: "Advokatlar_guruhi",
+};
+// A grid card that folds several kinds into one box gets the picture of the
+// box, not of whichever kind is picked.
+const CARD_ART: Record<string, string> = {
+  video_consultation_kind: "Onlayn_konsultatsiya",
+  video_consultation: "Onlayn_konsultatsiya",
+  second_opinion: "Ikkinchi_fikr",
+};
+const artUrl = (name: string | undefined) => `url(${ART_DIR}${name || "Tezkor_Advokat"}.webp)`;
+const artStyle = (name: string | undefined) => ({ "--art": artUrl(name) }) as CSSProperties;
+
 const DIRECTIONS: { slug: string; area: string }[] = [
   { slug: "jinoiy", area: "criminal" },
   { slug: "fuqarolik", area: "civil" },
@@ -201,6 +225,8 @@ export default function UrgentAdvocatePanel() {
   // The two document flows name themselves in portal.client.newDoc — the
   // document card lists them, and one wording for both screens is the point.
   const tnd = useTranslations("portal.client.newDoc");
+  // The few lines the dashboard-style layout added (section heads).
+  const tx = useTranslations("lxUrgent");
   const locale = useLocale();
 
   const [cat, setCat] = useState<UrgentCatalog | null>(null);
@@ -585,9 +611,12 @@ export default function UrgentAdvocatePanel() {
       {/* ── Hero: what the module is, and the three numbers that govern
              every meeting inside it. ───────────────────────────────── */}
       <header className="ua__hero">
-        <span className="ua__pulse" aria-hidden><IconBolt /></span>
+        {/* The dashboard's own "Tezkor Navbatchi Advokat" picture, in the
+            same white circle, so the page reads as the card it came from. */}
+        <span className="ua__art" style={artStyle("Tezkor_Advokat")} aria-hidden />
         <div className="ua__heromain">
-          <h1 className="ua__title">{t("title")}</h1>
+          {/* h2: the page's own h1 is the shell header's "Tezkor Advokat". */}
+          <h2 className="ua__title">{t("title")}</h2>
           <p className="ua__sub">{t("lead")}</p>
         </div>
         {cat ? (
@@ -600,6 +629,23 @@ export default function UrgentAdvocatePanel() {
       </header>
 
       {/* ── The four services ─────────────────────────────────────── */}
+      {/* Headed like the dashboard's "Xizmatlar": the title and its line on
+          the left, the way to one's own requests on the right. */}
+      <div className="ua__head">
+        <div className="ua__headt">
+          <h2 className="lx-h1">{tx("servicesTitle")}</h2>
+          <p className="lx-sub">{tx("servicesSub")}</p>
+        </div>
+        <button
+          type="button"
+          className="btn btn--line btn--pill ua__headbtn"
+          onClick={() => document.getElementById("ua-mine")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+        >
+          {t("mine")}
+          {mine.length ? <span className="ua__headn">{mine.length}</span> : null}
+          <IconArrowRight />
+        </button>
+      </div>
       {catState === "loading" ? (
         <Skeleton rows={4} />
       ) : catState === "error" ? (
@@ -611,7 +657,7 @@ export default function UrgentAdvocatePanel() {
             // offers the first one when nothing is.
             const s = card.group ? card.items.find((x) => x.key === pick) ?? card.items[0] : card.items[0];
             if (!s) return null;
-            const Icon = card.group ? ICONS[card.items[0].key] ?? IconScale : ICONS[s.key] ?? IconScale;
+            const art = CARD_ART[card.key] ?? ART[s.key];
             const on = card.group ? card.items.some((x) => x.key === pick) : pick === s.key;
             const chans = urgentChannels(s);
             const name = card.group ? groupTitle(card.group) : t.has(`kinds.${s.key}`) ? t(`kinds.${s.key}`) : s.title;
@@ -640,11 +686,12 @@ export default function UrgentAdvocatePanel() {
                 aria-haspopup="dialog"
                 onClick={() => (card.group ? openKinds(card.key) : openForm(s))}
               >
-                <span className="uacard__i"><Icon /></span>
+                {/* An arch like the dashboard's "Xizmatlar" cards: the picture
+                    in a white circle, then the name, the sentence, the facts
+                    and how the work is delivered — all of it at rest, so
+                    nothing waits behind a hover. */}
+                <span className="uacard__art" style={artStyle(art)} aria-hidden />
                 <b className="uacard__t">{name}</b>
-                {/* Two lines at rest; the card grows on hover and on keyboard
-                    focus to show the rest, plus how the work is delivered and
-                    which kinds a grouped box holds. */}
                 {lead ? <span className="uacard__d">{lead}</span> : null}
                 <span className="uacard__f">
                   {/* Only channels the order form can actually send. The
@@ -661,40 +708,10 @@ export default function UrgentAdvocatePanel() {
                 {s.requiresPriorPurchase ? (
                   <span className="uacard__lock"><IconLock />{t("priorPurchaseShort")}</span>
                 ) : null}
-                <span className="uacard__go" aria-hidden><IconArrowRight /></span>
-
-                {/* What the dialog would tell you, on hover and on keyboard
-                    focus. It is absolutely positioned, so the grid row never
-                    grows and the page underneath cannot jump — the reason the
-                    in-flow version had to go. A touch device never fires
-                    hover and is given nothing here; it taps the card and gets
-                    the dialog, which carries the same sentences. Marked
-                    aria-hidden because every fact in it is already on the card
-                    or one tap away, and a screen reader should not hear the
-                    service described twice. */}
-                <span className="uacard__peek" aria-hidden>
-                  <b>{name}</b>
-                  {lead ? <span>{lead}</span> : null}
-                  <em>{how}</em>
-                  {card.group ? (
-                    <span className="uacard__peekk">
-                      {card.items.map((x) => (
-                        <b key={x.key}>{t.has(`kinds.${x.key}`) ? t(`kinds.${x.key}`) : x.title}</b>
-                      ))}
-                    </span>
-                  ) : null}
-                  {s.requiresPriorPurchase ? <em>{t("priorPurchaseShort")}</em> : null}
-                </span>
-
-                {/* The card stretches to fit this; it is not floated over
-                    anything, so it is readable at any width and cannot be
-                    clipped by the viewport. No prices — those belong to the
-                    order form, once there is something to price. */}
-                <span className="uacard__more">
-                  <span className="uacard__morei">
-                    <span className="uacard__how">{how}</span>
-                  </span>
-                </span>
+                {/* How the work is delivered, on the card's foot. No prices —
+                    those belong to the order form, once there is something to
+                    price. */}
+                <span className="uacard__how">{how}</span>
               </button>
             );
           })}
@@ -723,29 +740,13 @@ export default function UrgentAdvocatePanel() {
             data-ai-id="urgent_advokat.service.documents"
             data-ai-type="card"
           >
-            <span className="uacard__i"><IconFileText /></span>
+            <span className="uacard__art" style={artStyle("Huquqiy_hujjatlar")} aria-hidden />
             <b className="uacard__t">{t("docs.title")}</b>
             <span className="uacard__d">{t("docs.lead")}</span>
             <span className="uacard__f">
-              <em className="uacard__kinds"><IconLayers />{t("kindsN", { n: 2 })}</em>
+              <em className="uacard__kinds" title={`${tnd("scratchTitle")} · ${tnd("reviewTitle")}`}><IconLayers />{t("kindsN", { n: 2 })}</em>
             </span>
-            <span className="uacard__go" aria-hidden><IconArrowRight /></span>
-
-            <span className="uacard__peek" aria-hidden>
-              <b>{t("docs.title")}</b>
-              <span>{t("docs.lead")}</span>
-              <em>{t("deliveryPool")}</em>
-              <span className="uacard__peekk">
-                <b>{tnd("scratchTitle")}</b>
-                <b>{tnd("reviewTitle")}</b>
-              </span>
-            </span>
-
-            <span className="uacard__more">
-              <span className="uacard__morei">
-                <span className="uacard__how">{t("deliveryPool")}</span>
-              </span>
-            </span>
+            <span className="uacard__how">{t("deliveryPool")}</span>
           </button>
         </div>
       )}
@@ -761,9 +762,14 @@ export default function UrgentAdvocatePanel() {
       </Modal>
 
       {/* ── The client's own requests ─────────────────────────────── */}
-      <section className="ppanel" data-ai-target="urgent:my-requests" data-ai-id="urgent_advokat.my-requests" data-ai-type="list">
-        <div className="ppanel__h">
-          <b className="ppanel__t"><span className="pico"><IconClock /></span>{t("mine")}</b>
+      <section id="ua-mine" className="ppanel ua__mine" data-ai-target="urgent:my-requests" data-ai-id="urgent_advokat.my-requests" data-ai-type="list">
+        {/* Titled like the dashboard's "Jarayondagi ishlar": the name and a
+            count bubble, no coloured icon tile. */}
+        <div className="ppanel__h ua__mineh">
+          <h2 className="ua__minet">
+            {t("mine")}
+            {mine.length ? <span className="ua__minen">{mine.length}</span> : null}
+          </h2>
         </div>
         {mineState === "loading" ? (
           <Skeleton rows={2} />
@@ -774,7 +780,6 @@ export default function UrgentAdvocatePanel() {
         ) : (
           <ul className="ua__list">
             {mine.map((r) => {
-              const RowIcon = ICONS[r.serviceKind] ?? IconScale;
               const on = openId === r.id;
               const kind = t.has(`kinds.${r.serviceKind}`) ? t(`kinds.${r.serviceKind}`) : r.serviceTitle || r.serviceKind;
               return (
@@ -798,7 +803,7 @@ export default function UrgentAdvocatePanel() {
                   setOpenId(r.id);
                 }}
               >
-                <span className="ua__rowi"><RowIcon /></span>
+                <span className="ua__rowart" style={artStyle(ART[r.serviceKind])} aria-hidden />
                 <div className="ua__rowm">
                   {/* The name and the work id used to be two adjacent text
                       runs in one <b>, and .ua__wid is nowrap, so the last
@@ -934,7 +939,6 @@ export default function UrgentAdvocatePanel() {
             {about(kindCard.group!.key) ? <p className="uakind__lead">{about(kindCard.group!.key)}</p> : null}
             <div className="uakind__grid">
               {kindCard.items.map((x) => {
-                const XIcon = ICONS[x.key] ?? IconScale;
                 return (
                   <button
                     key={x.key}
@@ -946,7 +950,7 @@ export default function UrgentAdvocatePanel() {
                     data-ai-entity-type="urgent_service"
                     data-ai-entity-id={x.key}
                   >
-                    <span className="uakind__i"><XIcon /></span>
+                    <span className="uakind__art" style={artStyle(ART[x.key])} aria-hidden />
                     <b>{t.has(`kinds.${x.key}`) ? t(`kinds.${x.key}`) : x.title}</b>
                     {about(x.key) ? <span>{about(x.key)}</span> : null}
                     <span className="uakind__f">
@@ -984,7 +988,13 @@ export default function UrgentAdvocatePanel() {
                 </button>
               ) : null}
 
-              <p className="uaform__lead">{t("formLead")}</p>
+              {/* The kind being ordered, by its picture, beside what happens
+                  to the request — the same picture its card and its row in
+                  "Mening so'rovlarim" carry. */}
+              <div className="uaform__intro">
+                <span className="uaform__art" style={artStyle(ART[sel.key])} aria-hidden />
+                <p className="uaform__lead">{t("formLead")}</p>
+              </div>
 
               {channels.length > 1 ? (
                 <div>
@@ -1574,7 +1584,7 @@ function SecondOpinionGate({
   return (
     <Modal open={!!message} onClose={onClose} title={t("priorPurchaseTitle")}>
       <div className="uagate" data-ai-id="urgent_advokat.prior-purchase-gate" data-ai-type="modal" data-ai-label={t("priorPurchaseTitle")}>
-        <span className="uagate__i" aria-hidden><IconLock /></span>
+        <span className="uagate__art" style={artStyle("Oldindan_xarid")} aria-hidden />
         {/* The backend's own sentence first when it sent one; the recommended
             wording from the MD otherwise. */}
         <p className="uagate__lead">{message || t("priorPurchase")}</p>

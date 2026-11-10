@@ -20,7 +20,7 @@ import {
 import Select from "@/components/Select";
 import ContactBlockedNote from "@/components/ContactBlockedNote";
 import { IconAlert, IconBell, IconRefresh, IconSend } from "@/components/icons";
-import { CategoryIcon } from "./bits";
+import { categoryArt } from "./bits";
 
 export type ComplaintDraft = { category: string; subject: string; description: string; related: string };
 export type WorksState = { status: "loading" | "ready" | "error"; items: WorkRef[] };
@@ -194,9 +194,7 @@ export default function NewComplaintForm({
                   onChange={() => set({ category: c })}
                   aria-describedby={catMsg ? ids.catErr : undefined}
                 />
-                <span className="shkf__catic" aria-hidden>
-                  <CategoryIcon category={c} />
-                </span>
+                <span className="shkf__catic shkf__catic--art" style={categoryArt(c)} aria-hidden />
                 <span className="shkf__cattx">
                   <b>{t(`categories.${c}`)}</b>
                   <small>{t(`catHint.${c}`)}</small>
@@ -283,7 +281,7 @@ export default function NewComplaintForm({
         <button type="button" className="btn btn--line" onClick={onCancel}>
           {t("cancel")}
         </button>
-        <button type="submit" className="btn btn--grad" disabled={busy}>
+        <button type="submit" className="btn btn--pri" disabled={busy}>
           {busy ? null : <IconSend aria-hidden />}
           {busy ? t("sending") : t("submit")}
         </button>

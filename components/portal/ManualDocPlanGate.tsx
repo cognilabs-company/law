@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import "./builder1920.css";
+import { useState, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getSubscriptionPlans, requestPlanTelegramPurchase, refusedBillingPeriods, type BackendPlan, type ManualDocBillingPeriod, isGiftOnlyPlan } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
@@ -31,6 +32,32 @@ function periodsFor(plan: BackendPlan | undefined): ManualDocBillingPeriod[] {
   if (!allowed.length) return PERIODS;
   const only = PERIODS.filter((p) => allowed.includes(p));
   return only.length ? only : PERIODS;
+}
+
+// The dashboard's line drawing for "locked until something is bought": a
+// padlock in front of a document with a price tag (public/img/xizmatlar).
+const PLAN_ART = { "--art": "url(/img/xizmatlar/Oldindan_xarid.webp)" } as CSSProperties;
+
+// What a document screen shows on the backend's 402
+// manual_document_plan_required, wherever it is met (the builder, its
+// read-only preview, the advocate form): the dashboard's empty-state card —
+// the picture in a white circle, the title, the backend's own sentence and
+// one button — instead of a pastel padlock tile over a full-width bar. The
+// button opens the plan dialog below.
+export function ManualDocPlanNotice({ message }: { message: string }) {
+  const t = useTranslations("portal.client.documents");
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="bld-card bld-plan">
+      <span className="bld-art bld-plan__art" style={PLAN_ART} aria-hidden />
+      <h2 className="bld-plan__t">{t("planGateTitle")}</h2>
+      <p className="bld-plan__p">{message}</p>
+      <button className="btn btn--grad btn--lg bld-plan__go" type="button" onClick={() => setOpen(true)}>
+        {t("choosePlan")}
+      </button>
+      <ManualDocPlanGate open={open} onClose={() => setOpen(false)} message={message} />
+    </section>
+  );
 }
 
 function priceFor(plan: BackendPlan, period: ManualDocBillingPeriod): number {
@@ -118,8 +145,11 @@ export default function ManualDocPlanGate({
 
   return (
     <Modal open={open} onClose={onClose} title={t("planGateTitle")}>
-      <div className="cform" style={{ maxWidth: "none" }}>
-        <p className="advmuted" style={{ margin: 0 }}>{message || t("planGateLead")}</p>
+      <div className="cform mdpg" style={{ maxWidth: "none" }}>
+        <div className="mdpg__intro">
+          <span className="bld-art mdpg__art" style={PLAN_ART} aria-hidden />
+          <p className="advmuted" style={{ margin: 0 }}>{message || t("planGateLead")}</p>
+        </div>
 
         {sent ? (
           <InlineAlert tone="success" role="status">{t("planRequestSent")}</InlineAlert>

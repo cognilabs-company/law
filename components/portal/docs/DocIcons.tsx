@@ -97,6 +97,20 @@ export const KindDoc = (p: P) => (
   </svg>
 );
 
+// The kind's picture in the client dashboard's style: the navy + blue
+// duotone drawings of public/img/doc-catalog (square cut), shown on a light
+// plate like the dashboard's area cards. They replace the saturated gradient
+// tiles the glyphs below used to sit on.
+export const KIND_ART: Record<DocKind, string> = {
+  petition: "/img/doc-catalog/Sud_arizalari-sq.webp",
+  contract: "/img/doc-catalog/Shartnomalar-sq.webp",
+  claim: "/img/doc-catalog/Sud_arizalari-sq.webp",
+  order: "/img/doc-catalog/Ishonchnoma-sq.webp",
+  poa: "/img/doc-catalog/Ishonchnoma-sq.webp",
+  review: "/img/doc-catalog/Hujjat_tekshiruvi-sq.webp",
+  doc: "/img/doc-catalog/Boshqa_hujjatlar-sq.webp",
+};
+
 export const KIND_ICON: Record<DocKind, (p: P) => ReactElement> = {
   petition: KindPetition,
   contract: KindContract,

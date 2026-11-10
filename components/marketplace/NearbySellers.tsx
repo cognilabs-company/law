@@ -58,19 +58,24 @@ export type NearbyServiceOption = { value: string; label: string; categoryId?: s
 // (/portal/client/lawyers?mode=services#market-modes) instead of the hero.
 export function MarketModeSwitch({ mode, onChange }: { mode: NearbyMode; onChange: (m: NearbyMode) => void }) {
   const t = useTranslations("marketplace.mode");
+  // the short names a phone shows (the cabinet's look, directory1920.css)
+  const ts = useTranslations("lxDir.mode");
   return (
     <div className="mknb-mode" id="market-modes" role="group" aria-label={t("label")}>
       <button type="button" className="mknb-mode__b" aria-pressed={mode === "all"} onClick={() => onChange("all")} data-ai-id="marketplace.mode.all" data-ai-type="tab">
         <IconUsers aria-hidden="true" />
-        <span>{t("all")}</span>
+        <span className="mknb-mode__l">{t("all")}</span>
+        <span className="mknb-mode__s">{ts("all")}</span>
       </button>
       <button type="button" className="mknb-mode__b" aria-pressed={mode === "services"} onClick={() => onChange("services")} data-ai-id="marketplace.mode.services" data-ai-type="tab">
         <IconBriefcase aria-hidden="true" />
-        <span>{t("services")}</span>
+        <span className="mknb-mode__l">{t("services")}</span>
+        <span className="mknb-mode__s">{ts("services")}</span>
       </button>
       <button type="button" className="mknb-mode__b" aria-pressed={mode === "nearby"} onClick={() => onChange("nearby")} data-ai-id="marketplace.mode.nearby" data-ai-type="tab">
         <IconMap aria-hidden="true" />
-        <span>{t("nearby")}</span>
+        <span className="mknb-mode__l">{t("nearby")}</span>
+        <span className="mknb-mode__s">{ts("nearby")}</span>
       </button>
     </div>
   );

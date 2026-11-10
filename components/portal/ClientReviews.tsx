@@ -1,13 +1,18 @@
 "use client";
 
+import "./ordersList1920.css";
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { listReviewable, listMyReviews, submitReview, type ReviewTarget } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { notify } from "@/lib/toast";
 import Modal from "@/components/admin/Modal";
-import { IconStar, IconCheck } from "@/components/icons";
+import { IconStarRate, IconCheck } from "@/components/icons";
+import { initials } from "@/lib/lawyers";
+import { personName } from "@/lib/labels";
 
+// Five-point stars (IconStarRate — the four-point IconStar reads as "AI"),
+// filled in the dashboard's warning tone.
 function Stars({ value, onChange }: { value: number; onChange?: (n: number) => void }) {
   return (
     <div className={`stars${onChange ? " stars--input" : ""}`}>
@@ -20,7 +25,7 @@ function Stars({ value, onChange }: { value: number; onChange?: (n: number) => v
           disabled={!onChange}
           aria-label={`${n}`}
         >
-          <IconStar />
+          <IconStarRate />
         </button>
       ))}
     </div>
@@ -29,6 +34,8 @@ function Stars({ value, onChange }: { value: number; onChange?: (n: number) => v
 
 export default function ClientReviews({ children }: { children: ReactNode }) {
   const t = useTranslations("portal.client.reviews");
+  const tl = useTranslations("lxOrders");
+  const tx = useTranslations("marketplace.orderExtras");
   const pending = useResource(() => listReviewable(), []);
   const mine = useResource(() => listMyReviews(), []);
 
@@ -59,18 +66,26 @@ export default function ClientReviews({ children }: { children: ReactNode }) {
     }
   }
 
+  const whoName = (s?: string) => personName(s) || "—";
+  const targetName = personName(target?.lawyerName);
+
   return (
     <>
       {pending.data.length ? (
-        <div className="ppanel" data-ai-target="reviews:pending">
-          <div className="ppanel__h"><b>{t("pendingTitle")}</b></div>
-          <p className="ppanel__note">{t("pendingLead")}</p>
-          <div className="alist">
+        <div className="ppanel olx-rv" data-ai-target="reviews:pending">
+          <div className="ppanel__h">
+            <h2 className="ppanel__t cx-h3">
+              {t("pendingTitle")}
+              <span className="cx-count">{pending.data.length}</span>
+            </h2>
+          </div>
+          <p className="ppanel__note lx-sub olx-rv__lead">{t("pendingLead")}</p>
+          <div className="alist olx-rv__list">
             {pending.data.map((it) => (
-              <div className="aitem" key={it.id}>
-                <span className="aitem__n"><IconStar /></span>
+              <div className="aitem olx-rv__row" key={it.id}>
+                <span className="aitem__n cx-av" aria-hidden>{initials(whoName(it.lawyerName))}</span>
                 <div className="aitem__m">
-                  <b>{it.lawyerName || "—"}</b>
+                  <b>{whoName(it.lawyerName)}</b>
                   <span className="aitem__meta">{it.service}</span>
                 </div>
                 <button className="btn btn--pri btn--sm" type="button" onClick={() => open(it)}>{t("rate")}</button>
@@ -83,13 +98,19 @@ export default function ClientReviews({ children }: { children: ReactNode }) {
       {children}
 
       {mine.data.length ? (
-        <div className="ppanel" data-ai-target="reviews:mine">
-          <div className="ppanel__h"><b>{t("mineTitle")}</b></div>
-          <div className="alist">
+        <div className="ppanel olx-rv olx-rv--mine" data-ai-target="reviews:mine">
+          <div className="ppanel__h">
+            <h2 className="ppanel__t cx-h3">
+              {t("mineTitle")}
+              <span className="cx-count">{mine.data.length}</span>
+            </h2>
+          </div>
+          <div className="alist olx-rv__list">
             {mine.data.map((rv) => (
-              <div className="rvw" key={rv.id}>
+              <div className="rvw olx-rv__item" key={rv.id}>
                 <div className="rvw__top">
-                  <b>{rv.lawyerName || "—"}</b>
+                  <span className="cx-av" aria-hidden>{initials(whoName(rv.lawyerName))}</span>
+                  <b>{whoName(rv.lawyerName)}</b>
                   <Stars value={rv.rating} />
                 </div>
                 {rv.comment ? <p className="rvw__c">{rv.comment}</p> : null}
@@ -99,20 +120,40 @@ export default function ClientReviews({ children }: { children: ReactNode }) {
         </div>
       ) : null}
 
-      <Modal open={!!target} onClose={() => setTarget(null)} title={t("modalTitle")}>
-        <div className="cform" style={{ maxWidth: "none" }}>
-          <p className="advmuted" style={{ margin: 0 }}>{target?.lawyerName} · {target?.service}</p>
+      <Modal
+        open={!!target}
+        onClose={() => setTarget(null)}
+        title={t("modalTitle")}
+        footer={
+          <>
+            <button className="btn btn--line" type="button" onClick={() => setTarget(null)} disabled={busy}>
+              {tl("cancel")}
+            </button>
+            <button className="btn btn--pri" type="button" onClick={submit} disabled={busy}>
+              {busy ? t("sending") : <>{t("submit")}<IconCheck /></>}
+            </button>
+          </>
+        }
+      >
+        <div className="cform olx-rvm" style={{ maxWidth: "none" }}>
+          <div className="olx-rvm__who">
+            <span className="cx-av" aria-hidden>{initials(targetName || "—")}</span>
+            <span className="olx-rvm__wt">
+              <b>{targetName || "—"}</b>
+              {target?.service ? <small>{target.service}</small> : null}
+            </span>
+          </div>
           <div>
             <label>{t("ratingLabel")}</label>
-            <Stars value={rating} onChange={setRating} />
+            <div className="olx-rvm__stars">
+              <Stars value={rating} onChange={setRating} />
+              {rating ? <span className="olx-rvm__lbl">{tx(`rating.labels.${rating}`)}</span> : null}
+            </div>
           </div>
           <div>
             <label>{t("commentLabel")}</label>
             <textarea rows={3} value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t("commentPh")} />
           </div>
-          <button className="btn btn--pri btn--full" type="button" onClick={submit} disabled={busy}>
-            {busy ? t("sending") : <>{t("submit")}<IconCheck /></>}
-          </button>
         </div>
       </Modal>
     </>

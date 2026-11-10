@@ -11,7 +11,7 @@ import { fmtRating } from "@/lib/date";
 import { fmtUzs } from "@/lib/money";
 import type { MarketOrder, MarketPhase } from "@/lib/services/marketplace";
 import type { SecondOpinion as SecondOpinionData, SecondOpinionSeller } from "@/lib/services/marketRuntime";
-import { RefreshCwIcon, BadgeCheckIcon, StarIcon, StoreIcon, glyph } from "./icons";
+import { RefreshCwIcon, BadgeCheckIcon, StarIcon, StoreIcon, MapPinIcon, glyph } from "./icons";
 import { SECTION_ID, type LoadState } from "./types";
 import { GroupOpinionDialog, GroupPromotionCard } from "./GroupPromotion";
 import { useGroupPromotion } from "./useGroupPromotion";
@@ -56,24 +56,40 @@ export function opinionHref(s: Pick<SecondOpinionSeller, "sellerUserId" | "servi
   return serviceId ? `${base}?buy=${encodeURIComponent(serviceId)}` : base;
 }
 
+function initialsOf(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  return (words.length > 1 ? words[0][0] + words[1][0] : (words[0] ?? "").slice(0, 2)).toUpperCase();
+}
+
+// The dashboard's specialist card (.cx-exp): the photo slot with initials,
+// the name, role and "verified", the rating, price and region, one button.
 function SellerCard({ s, o, aiBase }: { s: SecondOpinionSeller; o: MarketOrder; aiBase: string }): ReactElement {
   const t = useTranslations("marketplace");
   const td = useTranslations("marketplace.orderDetail.opinion");
   const locale = useLocale();
   const id = aiId(`${aiBase}.second-opinion.seller`, s.sellerUserId);
   const name = s.name || "—";
+  const role = ROLE_KEYS.has(s.sellerType);
   return (
     <li className="mso-card" data-ai-id={id} data-ai-type="card" data-ai-label={name} data-ai-entity-type="seller" data-ai-entity-id={s.sellerUserId}>
+      <span className="mso-card__ph" aria-hidden="true">
+        <span>{s.name ? initialsOf(s.name) : "—"}</span>
+      </span>
+      <div className="mso-card__b">
       <div className="mso-card__head">
         <h3 className="mso-card__name">{name}</h3>
-        {ROLE_KEYS.has(s.sellerType) ? <p className="mso-card__role">{t(`roles.${s.sellerType}`)}</p> : null}
+        {role || s.verified ? (
+          <p className="mso-card__role">
+            {role ? <span>{t(`roles.${s.sellerType}`)}</span> : null}
+            {s.verified ? (
+              <span className="sx-pill mso-card__verified" data-tone="published" data-size="sm">
+                {glyph(BadgeCheckIcon, { size: 12 })}
+                <span className="sx-pill__text">{t("card.verified")}</span>
+              </span>
+            ) : null}
+          </p>
+        ) : null}
       </div>
-      {s.verified ? (
-        <span className="sx-pill mso-card__verified" data-tone="published" data-size="sm">
-          {glyph(BadgeCheckIcon, { size: 12 })}
-          <span className="sx-pill__text">{t("card.verified")}</span>
-        </span>
-      ) : null}
       <p className="mso-card__rating">
         {s.rating > 0 ? (
           <>
@@ -89,12 +105,18 @@ function SellerCard({ s, o, aiBase }: { s: SecondOpinionSeller; o: MarketOrder; 
         )}
       </p>
       {s.price > 0 ? <p className="mso-card__price sx-num">{t("card.priceFrom", { price: fmtUzs(s.price) })}</p> : null}
-      {s.region ? <p className="mso-card__region">{s.region}</p> : null}
+      {s.region ? (
+        <p className="mso-card__region">
+          {glyph(MapPinIcon, { size: 15 })}
+          <span>{s.region}</span>
+        </p>
+      ) : null}
       <div className="mso-card__foot">
         <SxLinkButton href={opinionHref(s, o.serviceId)} size="sm" variant="secondary" icon={StoreIcon} aiId={`${id}.view`} aiLabel={td("view")} className="mso-card__view">
           <span aria-hidden="true">{td("view")}</span>
           <span className="sx-vh">{td("viewAria", { name })}</span>
         </SxLinkButton>
+      </div>
       </div>
     </li>
   );

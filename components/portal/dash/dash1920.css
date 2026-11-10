@@ -52,11 +52,13 @@ html[data-theme="dark"] .cx-area__img{
   background:var(--img) center/contain no-repeat,linear-gradient(168deg,#E8EFFA 0%,#F4F8FF 56%,#E1EAF8 100%);
 }
 .cx-area:hover .cx-area__img{background-size:108% auto,auto}
-.cx-area__body{display:flex;align-items:center;gap:10px;padding:14px 16px 16px;flex:1}
+/* text from the top, so the titles of a row line up when one card's title
+   or line wraps; the arrow sits on the title's line */
+.cx-area__body{display:flex;align-items:flex-start;gap:10px;padding:14px 16px 16px;flex:1}
 .cx-area__txt{display:grid;gap:3px;flex:1;min-width:0}
-.cx-area__txt b{font-size:.98rem;font-weight:600}
+.cx-area__txt b{font-size:.98rem;font-weight:600;line-height:22px}
 .cx-area__txt small{font-size:.82rem;color:var(--lx-gray);line-height:1.4}
-.cx-area__go{width:32px;height:32px;border-radius:50%;background:var(--lx-chip);display:grid;place-items:center;flex:none;color:var(--lx-ink)}
+.cx-area__go{width:32px;height:32px;margin-top:-5px;border-radius:50%;background:var(--lx-chip);display:grid;place-items:center;flex:none;color:var(--lx-ink)}
 .cx-area__go svg{width:16px;height:16px}
 .cx-area:hover .cx-area__go{background:var(--lx-blue);color:#fff}
 
@@ -124,20 +126,21 @@ html[data-theme="dark"] .cx-skel{background:linear-gradient(90deg,#18253E,#1E2D4
 .cx-ai__link svg{width:16px;height:16px}
 .cx-ai__link:hover{text-decoration:underline}
 .cx-ai__lead{margin:0 0 18px;font-size:.98rem;line-height:1.5;color:var(--lx-gray);max-width:76ch}
-/* The composer: one box holding the question and the send button, the same
-   shape on every screen. The box is always at least two lines tall, so the
-   long hint fits on a laptop and the card keeps one height at any zoom (a
-   one-line field next to a button grew to two lines at 100-125% zoom and the
-   button stayed short beside it). The button sits inside, bottom-right. */
+/* The composer: one box holding the question and the send button. A line
+   of text is exactly as tall as the button (13 + 24 + 13 = 50px), so with
+   one line the text and "Javob olish" share a centre line; when the text
+   wraps the box grows and the button stays in its middle, the same space
+   above and below it (the box used to be two lines tall with the button
+   dropped 20px below a one-line hint). */
 .cx-ai__f{
-  display:flex;align-items:flex-end;gap:12px;
-  padding:8px 8px 8px 18px;border:1px solid var(--lx-line);border-radius:18px;background:var(--lx-card);
+  display:flex;align-items:center;gap:12px;
+  padding:8px 8px 8px 20px;border:1px solid var(--lx-line);border-radius:18px;background:var(--lx-card);
   transition:border-color .15s,box-shadow .15s;
 }
 .cx-ai__f:focus-within{border-color:var(--lx-blue);box-shadow:0 0 0 3px rgba(22,104,240,.12)}
 .cx-ai__q{
-  flex:1;min-width:0;align-self:stretch;min-height:66px;max-height:180px;padding:10px 0;resize:none;
-  field-sizing:content;font-family:inherit;line-height:1.45;
+  flex:1;min-width:0;min-height:50px;max-height:182px;padding:13px 0;resize:none;
+  field-sizing:content;font-family:inherit;line-height:24px;
   border:0;border-radius:0;background:none;
   font-size:.98rem;color:var(--lx-ink);outline:0;box-shadow:none;
 }
@@ -151,34 +154,39 @@ html[data-theme="dark"] .cx-ai__go{background:var(--lx-blue)}
 .cx-ai__go:hover{background:#16243C}
 html[data-theme="dark"] .cx-ai__go:hover{background:var(--lx-blue-h)}
 .cx-ai__go svg{width:18px;height:18px}
-/* starter questions: always one row — they used to wrap into a second row
-   with one chip left on its own, at some zooms and not others. Past the
-   edge the row scrolls, and the right edge fades to say so. */
+/* Starter questions: never cut, and never one left alone on a row. Where
+   they fit, the label and the four in one row at their own widths; with less
+   room the label goes; narrower than four in a row, an even two-by-two block.
+   A question that still does not fit its column (a phone) wraps inside its
+   pill, which grows a line rather than being cut. */
 .cx-ai__chips{
-  display:flex;align-items:center;gap:10px;flex-wrap:nowrap;margin-top:16px;
-  overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain;
-  -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 36px),transparent);
-  mask-image:linear-gradient(to right,#000 calc(100% - 36px),transparent);
-  padding-right:36px;
+  display:grid;grid-template-columns:auto repeat(4,minmax(0,max-content));justify-content:start;
+  align-items:stretch;gap:10px;margin-top:16px;
 }
-.cx-ai__chips::-webkit-scrollbar{display:none}
-.cx-ai__chipsL{flex:none;font-size:.88rem;font-weight:500;color:var(--lx-gray);white-space:nowrap}
+.cx-ai__chipsL{align-self:center;font-size:.88rem;font-weight:500;color:var(--lx-gray);white-space:nowrap}
 .cx-ai__chip{
-  flex:none;white-space:nowrap;
+  min-width:0;min-height:40px;white-space:normal;text-align:center;line-height:1.3;overflow-wrap:anywhere;
   border:1px solid var(--lx-line);background:var(--lx-card);color:var(--lx-ink);
-  font-size:.88rem;font-weight:500;padding:9px 16px;border-radius:999px;cursor:pointer;
+  font-size:.88rem;font-weight:500;padding:9px 16px;border-radius:20px;cursor:pointer;
   transition:border-color .15s,background .15s;
 }
 .cx-ai__chip:hover{border-color:var(--lx-blue);background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
-/* below ~1200px of room the label goes, so a 13-14" laptop shows the four
-   questions whole instead of the last one cut by the fade */
-@container cx (max-width:1199px){
+@container cx (max-width:1239px){
+  .cx-ai__chips{grid-template-columns:repeat(4,minmax(0,max-content))}
   .cx-ai__chipsL{display:none}
+}
+@container cx (max-width:1059px){
+  .cx-ai__chips{grid-template-columns:repeat(2,minmax(0,max-content))}
+}
+/* the narrowest phones (320px): two columns would break each question into
+   three lines, so they go one under another, each on one line */
+@container cx (max-width:339px){
+  .cx-ai__chips{grid-template-columns:minmax(0,1fr);gap:8px}
 }
 /* a narrow card: the button goes under the question, still inside the box */
 @container cx (max-width:599px){
-  .cx-ai__f{flex-direction:column;align-items:stretch;padding:8px 8px 8px 14px}
-  .cx-ai__q{min-height:88px}
+  .cx-ai__f{flex-direction:column;align-items:stretch;padding:4px 8px 8px 14px}
+  .cx-ai__q{min-height:74px}
   .cx-ai__go{justify-content:center;height:48px;margin-left:-6px}
 }
 
@@ -343,8 +351,24 @@ html[data-theme="dark"] .cx-gift{background:#0B1830;box-shadow:inset 0 0 0 1px v
 @container cx (max-width:759px){
   .cx-experts__grid{grid-template-columns:minmax(0,1fr)}
 }
-@media (max-width:900px){
+/* The find bar by the room it gets: field, region and button in a row where
+   the field keeps its whole hint; then the field on its own line over region
+   + button; on a phone all three stacked. */
+@container cx (max-width:859px){
+  .cx-find{grid-template-columns:minmax(0,1fr) auto}
+  .cx-find__q{grid-column:1 / -1}
+}
+@container cx (max-width:419px){
   .cx-find{grid-template-columns:minmax(0,1fr)}
+  .cx-find__q{gap:10px;padding:0 14px}
+  .cx-find__q input{font-size:.92rem}
+}
+/* 320px: the field's own magnifier goes (the "Qidirish" button under it
+   has one), so the hint fits whole */
+@container cx (max-width:339px){
+  .cx-find__q > svg{display:none}
+}
+@media (max-width:900px){
   .cx-ai{padding:22px 20px 20px}
   .cx-head{flex-direction:column;align-items:stretch}
   .cx-head__btn{align-self:flex-start}
@@ -360,7 +384,7 @@ html[data-theme="dark"] .cx-gift{background:#0B1830;box-shadow:inset 0 0 0 1px v
   .cx-ai__q{font-size:.92rem}
   .cx-ai__chips{gap:8px;margin-top:14px}
   .cx-ai__chipsL{display:none}
-  .cx-ai__chip{font-size:.82rem;padding:8px 13px}
+  .cx-ai__chip{font-size:.82rem;padding:8px 12px}
   .cx-areas__grid{gap:10px}
   .cx-area__body{padding:10px 12px 12px}
   .cx-area__txt b{font-size:.9rem}

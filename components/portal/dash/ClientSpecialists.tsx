@@ -2,9 +2,10 @@
 
 import "./dash1920.css";
 import "./specialists1920.css";
+import "@/components/marketplace/directory1920.css";
 import { useMemo, useState, type FormEvent } from "react";
-import { useTranslations } from "next-intl";
-import { CalendarCheck, CircleCheck, ImageIcon, Languages, Layers, MapPin, MessageSquareText, Search, SlidersHorizontal, Video } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { AlertCircle, CalendarCheck, CircleCheck, ImageIcon, Languages, Layers, MapPin, MessageSquareText, Search, SlidersHorizontal, Video } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useResource } from "@/lib/useResource";
 import { listMarketplace, type MarketSeller, type MarketService } from "@/lib/services/marketplace";
@@ -12,11 +13,13 @@ import { LEGAL_AREAS, areaByKey, inArea } from "@/lib/legalAreas";
 import { matchesSearch } from "@/lib/searchText";
 import { regionKeyOf, regionLabel, personName } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
+import { useFitPlaceholder } from "@/lib/useFitPlaceholder";
 import { initials } from "@/lib/lawyers";
 import Select from "@/components/Select";
 import CheckBox from "@/components/CheckBox";
 import PurchaseDialog from "@/components/marketplace/PurchaseDialog";
 import { langLabel, sellerTypeLabel, specLabel } from "@/components/marketplace/bits";
+import { categoryName } from "@/lib/categoryNames";
 
 // "Advokat va yuristlar" (reference/design-lexgo-1920/1b_mijoz_advokatlar.png):
 // the search bar, the legal-area checklist, the type switch and one card per
@@ -32,7 +35,9 @@ export default function ClientSpecialists({ initialQuery = "", initialArea = "",
   const t = useTranslations("lxSpec");
   const tc = useTranslations("lxClient");
   const te = useTranslations("enums");
+  const [qPh, qRef] = useFitPlaceholder([t("searchPh"), t("searchPhShort")]);
   const tm = useTranslations("marketplace");
+  const locale = useLocale();
   const res = useResource<MarketSeller>(async () => (await listMarketplace({ sort: "recommended" })).items, []);
 
   const [draft, setDraft] = useState(initialQuery);
@@ -80,7 +85,7 @@ export default function ClientSpecialists({ initialQuery = "", initialArea = "",
       <form className="lx-card sp-bar" role="search" onSubmit={submit}>
         <label className="sp-bar__q">
           <Search aria-hidden="true" />
-          <input type="search" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t("searchPh")} aria-label={t("searchPh")} />
+          <input ref={qRef} type="search" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={qPh} aria-label={t("searchPh")} />
         </label>
         <div className="sp-bar__sel">
           <Layers aria-hidden="true" />
@@ -135,7 +140,7 @@ export default function ClientSpecialists({ initialQuery = "", initialArea = "",
           {res.status === "loading" ? (
             <div className="sp-list"><div className="cx-skel cx-skel--tall" /><div className="cx-skel cx-skel--tall" /></div>
           ) : res.status === "error" ? (
-            <div className="lx-card cx-empty"><b>{t("error")}</b><button type="button" className="btn btn--line btn--sm" onClick={() => void res.refresh()}>{t("retry")}</button></div>
+            <div className="lx-card cx-empty" role="alert"><span className="cx-empty__ic"><AlertCircle /></span><b>{t("error")}</b><button type="button" className="btn btn--line btn--sm" onClick={() => void res.refresh()}>{t("retry")}</button></div>
           ) : !list.length ? (
             <div className="lx-card cx-empty">
               <span className="cx-empty__ic"><Search /></span>
@@ -147,7 +152,7 @@ export default function ClientSpecialists({ initialQuery = "", initialArea = "",
             <div className="sp-list">
               {list.slice(0, shown).map((s) => {
                 const name = personName(s.name);
-                const tags = (s.categories.length ? s.categories.map((c) => c.title) : s.specializations.map((x) => specLabel(te, x))).slice(0, 3);
+                const tags = [...new Set(s.categories.length ? s.categories.map((c) => categoryName(c, locale) || c.title) : s.specializations.map((x) => specLabel(te, x)))].slice(0, 3);
                 const svcs = s.services.slice(0, 3);
                 return (
                   <article key={s.userId} className="lx-card sp-card">

@@ -32,6 +32,7 @@ import { useLocale } from "next-intl";
 import Select from "@/components/Select";
 import Modal from "@/components/admin/Modal";
 import { useLxHeader } from "../shell/lxHeader";
+import { useFitPlaceholder } from "@/lib/useFitPlaceholder";
 import { sellerTypeLabel, specLabel } from "@/components/marketplace/bits";
 import { IconArrowRight, IconCheck } from "@/components/icons";
 
@@ -92,6 +93,8 @@ export default function ClientHome() {
     [orders.data],
   );
   useLxHeader(t("hello", { name: firstName(session?.name ?? "") }), active.length ? t("inProgress", { n: active.length }) : undefined);
+  // the find field's hint whole: without the verb where the full one would be cut (a phone)
+  const [findPh, findRef] = useFitPlaceholder([t("areas.searchPh"), t("areas.searchPhShort")]);
 
   const [q, setQ] = useState("");
   const [region, setRegion] = useState("tashkent");
@@ -218,7 +221,7 @@ export default function ClientHome() {
           <form className="cx-find" onSubmit={find} role="search">
             <label className="cx-find__q">
               <Search aria-hidden="true" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("areas.searchPh")} aria-label={t("areas.searchPh")} />
+              <input ref={findRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder={findPh} aria-label={t("areas.searchPh")} />
             </label>
             <div className="cx-find__region">
               <MapPin aria-hidden="true" />
@@ -383,10 +386,10 @@ export default function ClientHome() {
           <p className="cdwho__lead">{ta("whoLead")}</p>
           <div className="cdwho__grid">
             <Link href="/portal/client/urgent" className="cdwho__c cdwho__c--adv" onClick={() => setWhoOpen(false)}>
-              <WhoOption art="card-advokatga-tezkor-boglanish" title={ta("whoAdvocate")} sub={ta("whoAdvocateSub")} perks={[ta("whoAdvocatePerk1"), ta("whoAdvocatePerk2")]} cta={ta("whoAdvocateCta")} />
+              <WhoOption art="Tezkor_Advokat" title={ta("whoAdvocate")} sub={ta("whoAdvocateSub")} perks={[ta("whoAdvocatePerk1"), ta("whoAdvocatePerk2")]} cta={ta("whoAdvocateCta")} />
             </Link>
             <Link href="/portal/client/ai" className="cdwho__c cdwho__c--ai" onClick={() => setWhoOpen(false)}>
-              <WhoOption art="card-lexgo-ai-sorash" title={ta("whoAi")} sub={ta("whoAiSub")} perks={[ta("whoAiPerk1"), ta("whoAiPerk2")]} cta={ta("whoAiCta")} />
+              <WhoOption art="suniy-intelekt" title={ta("whoAi")} sub={ta("whoAiSub")} perks={[ta("whoAiPerk1"), ta("whoAiPerk2")]} cta={ta("whoAiCta")} />
             </Link>
           </div>
         </div>
@@ -434,7 +437,8 @@ function WhoOption({ art, title, sub, perks, cta }: { art: string; title: string
   return (
     <>
       <span className="cdwho__stage" aria-hidden>
-        <span className="cdwho__art" style={{ "--art": `url(/img/${art}.png)` } as CSSProperties} />
+        {/* the same black line drawing as the service arch it leads to */}
+        <span className="cdwho__art" style={{ "--art": `url(/img/xizmatlar/${art}.webp)` } as CSSProperties} />
       </span>
       <b className="cdwho__t">{title}</b>
       <span className="cdwho__sub">{sub}</span>

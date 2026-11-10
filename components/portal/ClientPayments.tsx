@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import "./profile1920.css";
+import { useState, type CSSProperties } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getPaymentReceipt, listPayments } from "@/lib/services/backend";
 import { saveBlob } from "@/lib/download";
@@ -11,7 +12,7 @@ import { fmtUzs } from "@/lib/money";
 import { humanizeSlug } from "@/lib/lawyers";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
-import { IconCalendar, IconCard, IconClipboardCheck, IconDownload, IconSearch } from "@/components/icons";
+import { IconCalendar, IconClipboardCheck, IconDownload, IconSearch } from "@/components/icons";
 import DatePicker from "@/components/DatePicker";
 import { dateOnly } from "@/lib/date";
 
@@ -24,6 +25,25 @@ const fmtDate = (s: string, locale: string) => {
 };
 
 const SLUG = /^[a-z0-9]+(_[a-z0-9]+)*$/;
+// A payment's status as the dashboard's pill tones (profile1920.css).
+const TONE: Record<string, "ok" | "warn" | "blue" | "err" | "mute"> = {
+  paid: "ok",
+  pending: "warn",
+  payment_pending: "warn",
+  unpaid: "warn",
+  awaiting_seller_acceptance: "warn",
+  processing: "blue",
+  created: "blue",
+  authorized: "blue",
+  held: "blue",
+  partially_paid: "blue",
+  failed: "err",
+  refunded: "mute",
+  partially_refunded: "mute",
+  cancelled: "mute",
+  expired: "mute",
+};
+const EMPTY_ART = { "--art": "url(/img/xizmatlar/Xavfsiz_tolov.webp)" } as CSSProperties;
 const STATUS_ORDER = ["pending", "payment_pending", "held", "paid", "partially_refunded", "refunded", "failed", "cancelled", "expired"];
 const statusRank = (s: string) => (STATUS_ORDER.includes(s) ? STATUS_ORDER.indexOf(s) : STATUS_ORDER.length);
 const slugOf = (s: string) => s.trim().toLowerCase().replace(/[\s-]+/g, "_");
@@ -171,7 +191,10 @@ export default function ClientPayments() {
       data-ai-label={t("title")}
     >
       <div className="ppanel__h">
-        <b>{t("title")}</b>
+        <b className="ppanel__t">
+          {t("title")}
+          {res.status !== "loading" && res.data.length ? <span className="cx-count">{res.data.length}</span> : null}
+        </b>
         <span className="advmuted">{t("history")}</span>
       </div>
 
@@ -187,7 +210,12 @@ export default function ClientPayments() {
       {res.status === "loading" ? (
         <Skeleton rows={4} />
       ) : !res.data.length ? (
-        <EmptyState icon={<IconCard />} title={t("empty")} text={t("emptyText")} />
+        <EmptyState
+          className="pf-empty"
+          icon={<span className="pf-emptyart pf-emptyart--circle" style={EMPTY_ART} aria-hidden="true" />}
+          title={t("empty")}
+          text={t("emptyText")}
+        />
       ) : !rows.length ? (
         <EmptyState icon={<IconSearch />} title={t("noResults")} text={t("noResultsText")} />
       ) : (
@@ -218,11 +246,11 @@ export default function ClientPayments() {
                 <span data-l={t("date")}>{fmtDate(p.createdAt, locale)}</span>
                 <span data-l={t("amount")}>{som(p.amount, p.currency, te("currency"))}</span>
                 <span data-l={t("statusCol")} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span className={`creq__badge${p.status === "paid" ? " creq__badge--ok" : ""}`}>{stLabel(p.status)}</span>
+                  <span className={`cx-pill pf-pill pf-pill--${TONE[p.status] ?? "blue"}`}>{stLabel(p.status)}</span>
                   {p.receiptUrl ? (
                     <button
                       type="button"
-                      className="btn btn--line btn--sm"
+                      className="btn btn--line btn--sm pf-receipt"
                       onClick={() => downloadReceipt(p.id)}
                       disabled={busyId === p.id}
                       aria-label={t("receipt")}

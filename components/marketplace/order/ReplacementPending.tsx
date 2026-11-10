@@ -5,7 +5,7 @@ import type { ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import { clockOf, useCountdown } from "@/lib/useCountdown";
 import type { MarketOrder } from "@/lib/services/marketplace";
-import { glyph, ArrowRightLeftIcon, LockIcon, ShieldCheckIcon, TimerIcon, MessageSquareTextIcon } from "./icons";
+import { glyph, artStyle, LockIcon, ShieldCheckIcon, TimerIcon, MessageSquareTextIcon } from "./icons";
 
 // The call center handed this paid order to another specialist, who has not
 // accepted yet (contract 2026-10-26 §3.2, §9). The client sees the backend's
@@ -21,10 +21,7 @@ export default function ReplacementPending({ o, onRefresh }: { o: MarketOrder; o
     <section className="mrp" aria-labelledby="mrp-title" role="status" aria-live="polite">
       <div className="mrp__glow" aria-hidden="true" />
       <header className="mrp__head">
-        <span className="mrp__orb" aria-hidden="true">
-          {glyph(ArrowRightLeftIcon, { size: 22 })}
-          <i />
-        </span>
+        <span className="mrp__orb odx-art" style={artStyle("Boshqa_mutaxassis")} aria-hidden="true" />
         <div className="mrp__titles">
           <h2 id="mrp-title">{t("title")}</h2>
           <p>{o.clientMessage || t("message")}</p>

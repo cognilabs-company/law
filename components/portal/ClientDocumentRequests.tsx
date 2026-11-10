@@ -1,7 +1,28 @@
 "use client";
 
+import "./documents1920.css";
 import { builderRouteOf } from "@/components/portal/docCatalog/builderLink";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  CircleCheck,
+  CircleMinus,
+  CircleX,
+  Clock,
+  Download,
+  FileText,
+  Hourglass,
+  Info,
+  Loader,
+  MessageSquareText,
+  PenLine,
+  Scale,
+  Search,
+  Sparkles,
+  Tag,
+  UserRound,
+  Video,
+  type LucideIcon,
+} from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import {
@@ -33,37 +54,35 @@ import { shortDateTime } from "@/lib/date";
 import { docNextActionKey, statusLabel } from "@/lib/labels";
 import { matchesSearch } from "@/lib/searchText";
 import { Link, useRouter } from "@/i18n/navigation";
-import { IconFileText, IconDownload, IconUser, IconClock, IconVideo, IconChat, IconSparkle, IconScale, IconEdit, IconTag, IconSearch, IconCircleCheck } from "@/components/icons";
+import { IconEdit, IconCircleCheck } from "@/components/icons";
 import { useAiReveal } from "@/lib/guide/targets";
-import {
-  KIND_ICON,
-  docKindOf,
-  ModeSelf,
-  ModeAi,
-  ModeLawyer,
-  StepFill,
-  StepPay,
-  StepReview,
-  StepReady,
-  IcoCheck,
-  IcoCross,
-  IcoMinus,
-  IcoInfo,
-  IcoStack,
-  PriceWait,
-  PricePaid,
-  PriceCancelled,
-  PriceTag,
-  PriceIncluded,
-} from "./docs/DocIcons";
+import { KIND_ART, docKindOf } from "./docs/DocIcons";
 import { aiId, aiSeg } from "@/lib/ai/ids";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
 
 // Which way this document is being produced — the client filled it in, the
 // AI drafted it, or an advocate is writing it. It changes what the card
-// means, so it leads the card rather than hiding in a filter chip.
-const MODE_ICON = { manual: IconEdit, ai: IconSparkle, lawyer: IconScale } as const;
-const MODE_BADGE = { manual: ModeSelf, ai: ModeAi, lawyer: ModeLawyer } as const;
+// means, so it leads the card's meta line as a chip.
+const MODE_ICON: Record<string, LucideIcon> = { manual: PenLine, ai: Sparkles, lawyer: Scale };
+
+// The client dashboard's pictures: the black line drawings of
+// public/img/xizmatlar sit in white circles (--art), the kind's duotone
+// drawing on a light plate (--img) — see documents1920.css.
+const art = (name: string) => ({ "--art": `url(/img/xizmatlar/${name}.webp)` }) as CSSProperties;
+const plate = (src: string) => ({ "--img": `url(${src})` }) as CSSProperties;
+
+// The status pill in the dashboard's .cx-pill tones: blue while someone is
+// working on it, amber while it waits on the client, green when it is done.
+// No violet anywhere — that was the old palette.
+const PILL: Record<string, { cls: string; Icon: LucideIcon }> = {
+  done: { cls: "cx-pill--ok", Icon: CircleCheck },
+  waiting: { cls: "cx-pill--blue", Icon: Hourglass },
+  working: { cls: "cx-pill--blue", Icon: Sparkles },
+  you: { cls: "cx-pill--warn", Icon: PenLine },
+  pay: { cls: "cx-pill--warn", Icon: Loader },
+  off: { cls: "lxd-pill--err", Icon: CircleX },
+  closed: { cls: "lxd-pill--mute", Icon: CircleMinus },
+};
 
 type RowPhase = DocPayPhase | "pooled";
 const POOL_STATUSES = new Set(["open_pool", "lawyer_review_requested"]);
@@ -111,7 +130,6 @@ const STEP_OF: Record<string, Step> = {
 };
 
 const FLOW: Step[] = ["fill", "pay", "review", "ready"];
-const STEP_ICON = { fill: StepFill, pay: StepPay, review: StepReview, ready: StepReady } as const;
 const STEP_KEY = { fill: "flowStepFill", pay: "flowStepPay", review: "flowStepReview", ready: "flowStepReady" } as const;
 type StepState = "done" | "now" | "todo" | "skip" | "fail";
 
@@ -135,10 +153,10 @@ function flowOf(item: ClientDocFlowItem, status: string, phase: RowPhase, tone: 
 }
 
 const VIEWS = [
-  { key: "all", status: "", Icon: IcoStack, tone: "neutral" },
-  { key: "filling", status: "questionnaire", Icon: StepFill, tone: "warn" },
-  { key: "lawyer", status: "lawyer_review", Icon: StepReview, tone: "active" },
-  { key: "ready", status: "file_ready", Icon: StepReady, tone: "ok" },
+  { key: "all", status: "", tone: "neutral" },
+  { key: "filling", status: "questionnaire", tone: "warn" },
+  { key: "lawyer", status: "lawyer_review", tone: "active" },
+  { key: "ready", status: "file_ready", tone: "ok" },
 ] as const;
 const VIEW_LABEL = { all: "statTotal", filling: "statFilling", lawyer: "statLawyer", ready: "statReady" } as const;
 
@@ -153,6 +171,7 @@ const asTab = (v: string): TabKey => TABS.find((tb) => tb === v) ?? "all";
 
 export default function ClientDocumentRequests() {
   const t = useTranslations("portal.client.documentRequests");
+  const tx = useTranslations("lxDocs");
   const tcommon = useTranslations("portal.client.documents");
   const tcm = useTranslations("portal.common");
   const tn = useTranslations("common.notify");
@@ -512,10 +531,8 @@ export default function ClientDocumentRequests() {
   }
 
   function card({ item, room, ready, phase, shownStatus, tone }: ReturnType<typeof describe>) {
-    const ModeIcon = MODE_ICON[item.mode as keyof typeof MODE_ICON] ?? IconFileText;
-    const Badge = MODE_BADGE[item.mode as keyof typeof MODE_BADGE] ?? ModeSelf;
+    const ModeIcon = MODE_ICON[item.mode] ?? FileText;
     const kind = docKindOf(item.requestedDocumentType, item.title, item.service?.name ?? "");
-    const KindIcon = KIND_ICON[kind];
     const payCur = item.payment.currency && !/^uzs$/i.test(item.payment.currency) ? item.payment.currency : tcommon("som");
     const canContinue = !!item.constructorAction?.available && !!(item.constructorUrls.continueUrl || item.constructorAction?.continueUrl);
     const blocked = !item.canSendLawyerRequest;
@@ -531,22 +548,33 @@ export default function ClientDocumentRequests() {
     const amount = item.payment.amount > 0 ? item.payment.amount : servicePrice > 0 ? servicePrice : 0;
     const price =
       phase === "wait"
-        ? { kind: "wait", Icon: PriceWait, label: t("priceWait") }
+        ? { kind: "wait", label: t("priceWait") }
         : phase === "cancelled"
-          ? { kind: "off", Icon: PriceCancelled, label: t("priceCancelled") }
+          ? { kind: "off", label: t("priceCancelled") }
           : flow?.payDone && amount
-            ? { kind: "paid", Icon: PricePaid, label: t("pricePaid") }
+            ? { kind: "paid", label: t("pricePaid") }
             : amount
-              ? { kind: "info", Icon: PriceTag, label: t("priceInfo") }
+              ? { kind: "info", label: t("priceInfo") }
               : !item.payment.required && item.mode !== "lawyer" && tone !== "closed"
-                ? { kind: "none", Icon: PriceIncluded, label: "" }
+                ? { kind: "none", label: "" }
                 : null;
     const nowTitle = phase ? t(`pay.${phase}.title`) : item.nextAction ? nextActionText(item.nextAction) : "";
     const nowText = phase ? t(`pay.${phase}.text`) : "";
+    // The dashboard's 4-segment bar: one segment per step this document
+    // actually goes through (a step it skips is not drawn), filled up to the
+    // one it is on, and "n/total · what happens now" under it.
+    const steps = flow ? FLOW.filter((st) => flow.state[st] !== "skip") : [];
+    const at = flow ? steps.findIndex((st) => flow.state[st] === "now" || flow.state[st] === "fail") : -1;
+    const stepN = at >= 0 ? at + 1 : steps.filter((st) => flow?.state[st] === "done").length;
+    const stepCur = at >= 0 ? steps[at] : steps[steps.length - 1];
+    const stepTone = tone === "pay" || tone === "you" ? "warn" : tone === "done" ? "ok" : "blue";
+    const pill = PILL[tone] ?? PILL.working;
+    // An advocate who has taken the work is working on it, not awaited.
+    const PillIcon = tone === "waiting" && (shownStatus === "claimed" || shownStatus === "lawyer_review") ? Sparkles : pill.Icon;
     type ActKey = "download" | "continue" | "chat" | "send" | "copilot";
     const reviewing = flow?.state.review === "now";
     const primary: ActKey | "" = reviewing && room ? "chat" : ready ? "download" : canContinue && (tone === "you" || !room) ? "continue" : room ? "chat" : canSend ? "send" : "";
-    const btn = (key: ActKey) => `btn ${primary === key ? "btn--grad" : "btn--line"} btn--sm mdc__btn`;
+    const btn = (key: ActKey) => `btn ${primary === key ? "btn--pri" : "btn--line"} btn--sm mdc__btn lxd-btn`;
     const acts: { key: ActKey; node: ReactNode }[] = [];
     const docTitle = item.title || t("title");
     if (room ? copilotChat : copilotFree)
@@ -562,6 +590,7 @@ export default function ClientDocumentRequests() {
             label={tcp("place.aboutItem", { title: docTitle })}
             context={room ? undefined : { label: [workId, docTitle].filter(Boolean).join(" · "), work_id: workId || undefined }}
             aiId={aiId(itemAi, "copilot")}
+            className="lxd-ai"
           />
         ),
       });
@@ -570,7 +599,7 @@ export default function ClientDocumentRequests() {
         key: "download",
         node: (
           <button key="download" type="button" className={btn("download")} disabled={dlBusy === item.id} onClick={() => download(item)} data-ai-id={aiId(itemAi, "download")} data-ai-label={t("download")}>
-            <IconDownload />
+            <Download aria-hidden />
             {dlBusy === item.id ? tcommon("processingShort") : t("download")}
           </button>
         ),
@@ -589,17 +618,19 @@ export default function ClientDocumentRequests() {
             data-ai-label={t("constructorContinue")}
             title={t("constructorContinue")}
           >
-            <IconEdit />
+            <PenLine aria-hidden />
             {openBusy === item.id ? tcommon("processingShort") : t("actContinue")}
           </button>
         ),
       });
+    // The chat opens in the cabinet's own messenger, so the client stays in
+    // the dashboard shell (the standalone /portal/chat/{room} has no sidebar).
     if (room)
       acts.push({
         key: "chat",
         node: (
-          <Link key="chat" href={`/portal/chat/${room}`} className={btn("chat")} data-ai-id={aiId(itemAi, "chat")} data-ai-label={t("openChat")}>
-            <IconChat />
+          <Link key="chat" href={`/portal/client/messages?room=${encodeURIComponent(room)}`} className={btn("chat")} data-ai-id={aiId(itemAi, "chat")} data-ai-label={t("openChat")}>
+            <MessageSquareText aria-hidden />
             {t("actChat")}
           </Link>
         ),
@@ -621,7 +652,7 @@ export default function ClientDocumentRequests() {
             data-ai-label={tcommon("reviewOpen")}
             title={tcommon("reviewOpen")}
           >
-            <StepReview />
+            <Scale aria-hidden />
             {t("actSend")}
           </button>
         ),
@@ -629,6 +660,7 @@ export default function ClientDocumentRequests() {
     acts.sort((x, y) => (x.key === primary ? 1 : 0) - (y.key === primary ? 1 : 0));
     const cls = [
       "mdc",
+      "lxd-doc",
       `mdc--${tone}`,
       ready ? "mdc--ready" : "",
       tone === "closed" || tone === "off" ? "mdc--closed" : "",
@@ -649,141 +681,117 @@ export default function ClientDocumentRequests() {
         data-ai-entity-id={item.id}
         data-ai-private
       >
-        <header className="mdc__h">
-          <span className={`mdc__ic mdc__ic--${kind}`} aria-hidden>
-            <KindIcon />
-            <span className={`mdc__badge mdc__badge--${item.mode}`}>
-              <Badge />
-            </span>
-          </span>
-          <div className="mdc__ht">
-            <div className="mdc__tl">
-              <b className="mdc__t">{item.title || t("title")}</b>
-              <em className={`mdc__st mdc__st--${tone}`}>{statusText}</em>
-            </div>
-            <div className="mdc__meta">
-              <span className={`mdc__mode mdc__mode--${item.mode}`}>
-                <ModeIcon />
+        <header className="lxd-doc__h">
+          {/* The kind's duotone drawing on a light plate, like the
+              dashboard's area cards — in place of the gradient glyph tile. */}
+          <span className={`lxd-doc__art lxd-doc__art--${kind}`} style={plate(KIND_ART[kind])} aria-hidden />
+          <div className="lxd-doc__main">
+            <b className="mdc__t lxd-doc__t">{item.title || t("title")}</b>
+            <div className="lxd-doc__meta">
+              <span className={`lxd-tag lxd-tag--${item.mode}`}>
+                <ModeIcon aria-hidden />
                 {modeText}
               </span>
               {workId ? (
-                <span className="mdc__wid" title={t("workId")}>
+                <span className="lxd-tag lxd-tag--id" title={t("workId")}>
                   {workId}
                 </span>
               ) : null}
               {item.requestedDocumentType ? (
                 <span>
-                  <IconTag />
+                  <Tag aria-hidden />
                   {item.requestedDocumentType}
                 </span>
               ) : null}
               {item.assignedLawyer?.name ? (
                 <span>
-                  <IconUser />
+                  <UserRound aria-hidden />
                   {item.assignedLawyer.name}
                 </span>
               ) : null}
               {item.meeting ? (
-                <span className={item.meeting.active ? "mdc__live" : undefined}>
-                  <IconVideo />
+                <span className={item.meeting.active ? "lxd-doc__live" : undefined}>
+                  <Video aria-hidden />
                   {item.meeting.active ? t("meetingActive") : item.meeting.status || t("meetingLabel")}
                 </span>
               ) : null}
               {item.createdAt ? (
                 <span>
-                  <IconClock />
+                  <Clock aria-hidden />
                   {shortDateTime(item.createdAt, locale)}
                 </span>
               ) : null}
             </div>
           </div>
-          {info?.rating.submitted && info.rating.value ? (
-            <span className="mdc__stars">
-              <DocRatedStars value={info.rating.value} />
-            </span>
-          ) : null}
+          <div className="lxd-doc__side">
+            <em className={`cx-pill ${pill.cls} lxd-doc__st`}>
+              <PillIcon aria-hidden />
+              {statusText}
+            </em>
+            {info?.rating.submitted && info.rating.value ? (
+              <span className="mdc__stars">
+                <DocRatedStars value={info.rating.value} />
+              </span>
+            ) : null}
+          </div>
         </header>
 
-        {flow ? (
-          <ol className="mdc__flow" aria-label={t("flowLabel")}>
-            {FLOW.map((st) => {
-              const state = flow.state[st];
-              const Ico = STEP_ICON[st];
-              const sub =
-                state === "done"
-                  ? st === "pay"
-                    ? t("flowPaid")
-                    : t("flowDone")
-                  : state === "now"
-                    ? t("flowNow")
-                    : state === "skip"
-                      ? t("flowSkip")
-                      : state === "fail"
-                        ? t("flowFail")
-                        : t("flowTodo");
-              return (
-                <li key={st} className={`mdc__step mdc__step--${state}`} aria-current={state === "now" ? "step" : undefined}>
-                  <span className="mdc__dot" aria-hidden>
-                    {state === "done" ? <IcoCheck /> : state === "fail" ? <IcoCross /> : state === "skip" ? <IcoMinus /> : <Ico />}
-                  </span>
-                  <span className="mdc__sl">
-                    <b>{t(STEP_KEY[st])}</b>
-                    <small>{sub}</small>
-                  </span>
-                </li>
-              );
-            })}
-          </ol>
-        ) : null}
-
-        {nowTitle ? (
+        {steps.length || nowTitle ? (
           <div
-            className={`mdc__now mdc__now--${phase || tone}`}
-            role={phase ? "status" : undefined}
+            className={`lxd-doc__flow lxd-doc__flow--${stepTone}`}
+            role={phase ? "status" : "group"}
+            aria-label={t("flowLabel")}
             data-ai-id={phase === "wait" ? aiId(itemAi, "payment") : undefined}
             data-ai-type={phase === "wait" ? "payment_gate" : undefined}
             data-ai-label={phase === "wait" ? t("pay.wait.title") : undefined}
           >
-            <span className="mdc__nowk">{t("nowLabel")}</span>
-            <span className="mdc__nowt">
-              <b>{nowTitle}</b>
-              {nowText ? <small>{nowText}</small> : null}
+            {steps.length ? (
+              <span className={`cx-steps cx-steps--${stepTone} lxd-steps`} style={{ "--n": steps.length } as CSSProperties} aria-hidden>
+                {steps.map((st) => {
+                  const state = flow?.state[st];
+                  return <i key={st} className={state === "done" ? "on" : state === "now" ? "on now" : state === "fail" ? "fail" : ""} />;
+                })}
+              </span>
+            ) : null}
+            {/* As the dashboard writes it: "2/4 · what happens now". The
+                step's own name stands in when the backend sends no next
+                action. One run of text, so a long line wraps between words. */}
+            <span className="cx-work__stage lxd-doc__stage">
+              {steps.length && stepCur ? <b>{`${stepN}/${steps.length}`}</b> : null}
+              {steps.length && stepCur ? " · " : null}
+              {nowTitle || (stepCur ? t(STEP_KEY[stepCur]) : "")}
             </span>
+            {nowText ? <small className="lxd-doc__note">{nowText}</small> : null}
           </div>
         ) : null}
 
         {info ? <DocRatingBox id={item.id} rating={info.rating} onRated={refresh} /> : null}
 
         {price || acts.length || why ? (
-          <footer className="mdc__f">
+          <footer className="mdc__f lxd-doc__foot">
             {price ? (
-              <div className={`mdc__price mdc__price--${price.kind}`}>
-                <span className="mdc__pi" aria-hidden>
-                  <price.Icon />
-                </span>
+              <div className={`lxd-price lxd-price--${price.kind}`}>
                 {price.kind === "none" ? (
-                  <span className="mdc__pt">
-                    <b className="mdc__pnone">{t("priceNone")}</b>
-                  </span>
+                  <small>{t("priceNone")}</small>
                 ) : (
-                  <span className="mdc__pt">
+                  <>
                     {amount ? (
                       <b>
                         {fmtUzs(amount)} <i>{payCur}</i>
                       </b>
                     ) : null}
                     <small>{price.label}</small>
-                  </span>
+                  </>
                 )}
               </div>
             ) : (
               <span />
             )}
-            <div className="mdc__acts">
+            <div className="mdc__acts lxd-doc__acts">
               {why ? (
-                <details className="mdc__why">
-                  <summary aria-label={t("whyBlocked")} title={t("whyBlocked")}>
-                    <IcoInfo />
+                <details className="mdc__why lxd-why">
+                  <summary className="lxd-why__btn" aria-label={t("whyBlocked")} title={t("whyBlocked")}>
+                    <Info aria-hidden />
                   </summary>
                   <p role="note">{why}</p>
                 </details>
@@ -803,121 +811,131 @@ export default function ClientDocumentRequests() {
   ) : null;
 
   return (
-    <div className="ppanel" data-ai-target="documents:my-documents" data-ai-id="documents.my.page" data-ai-type="section" data-ai-label={t("title")}>
-      <div className="ppanel__h">
-        <div className="mydocs__ttl">
-          <b>{t("title")}</b>
-          <span>{t("lead")}</span>
+    <div className="lxd" data-ai-target="documents:my-documents" data-ai-id="documents.my.page" data-ai-type="section" data-ai-label={t("title")}>
+      {/* The page's own title is the shell header's "Mening hujjatlarim";
+          this is the dashboard's navy feature card under it: the "Huquqiy
+          hujjatlar" drawing in a white circle, what the page is for, the AI
+          helper, and the four counts — each a quick filter by status. */}
+      <header className="lxd-hero">
+        <span className="lxd-hero__art" style={art("Huquqiy_hujjatlar")} aria-hidden />
+        <div className="lxd-hero__main">
+          <h2 className="lxd-hero__t">{t("lead")}</h2>
+          <p className="lxd-hero__s">{tx("heroSub")}</p>
         </div>
-        <CopilotLauncher surface="client_document_detail" title={t("title")} />
-      </div>
-
-      <div className="mydocs__views" role="group" aria-label={t("views")} data-ai-target="documents:my-stats" data-ai-id="documents.my.stats" data-ai-type="section">
-        {VIEWS.map((v) => {
-          const n = stats ? stats[v.key === "all" ? "total" : v.key] : null;
-          const on = pick === v.status;
-          return (
-            <button
-              key={v.key}
-              type="button"
-              className={`mydocs__view mydocs__view--${v.tone}${on ? " is-on" : ""}`}
-              aria-pressed={on}
-              onClick={() => setPick(v.status)}
-              data-ai-id={`documents.my.view.${v.key}`}
-              data-ai-label={t(VIEW_LABEL[v.key])}
-            >
-              <span className="mydocs__viewi" aria-hidden><v.Icon /></span>
-              <span className="mydocs__viewt">
-                <b>{n ?? "—"}</b>
-                <small>{t(VIEW_LABEL[v.key])}</small>
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      <FilterBar
-        className="cwk-filters"
-        fields={fields}
-        search={{ value: q, onChange: setQ, placeholder: t("searchPh"), aiId: "documents.my.search.input" }}
-        count={status === "ready" && (!more || needle) ? shown.length : undefined}
-        aiId="documents.my.filters"
-        aiTarget="documents:my-filters"
-      />
-
-      {status === "loading" ? (
-        <div className="mydocs" aria-busy="true" aria-label={tcm("loadingMore")}>
-          {[0, 1, 2].map((i) => (
-            <div className="mydoc mydoc--skel" key={i} aria-hidden>
-              <span className="mydoc__i" />
-              <div className="mydoc__m">
-                <i className="mydoc__sk mydoc__sk--t" />
-                <i className="mydoc__sk mydoc__sk--m" />
-                <i className="mydoc__sk mydoc__sk--r" />
-              </div>
-              <div className="mydoc__side"><i className="mydoc__sk mydoc__sk--b" /></div>
-            </div>
-          ))}
+        <div className="lxd-hero__tools">
+          <CopilotLauncher surface="client_document_detail" title={t("title")} className="lxd-hero__ai" />
         </div>
-      ) : status === "error" ? (
-        <div data-ai-id="documents.my.retry" data-ai-label={t("retry")}>
-          <ErrorState title={t("loadError")} error={loadErr} onRetry={retry} />
-        </div>
-      ) : !shown.length ? (
-        rows.length ? (
-          <>
-            <EmptyState icon={<IconSearch />} title={t("searchEmpty")} text={more ? t("searchEmptyMore") : t("searchEmptyText")} />
-            <div className="mydocs__emptyacts">
-              <button type="button" className="btn btn--line btn--sm" onClick={resetFilters} data-ai-id="documents.my.reset">
-                {t("resetFilters")}
+        <div className="mydocs__views lxd-views" role="group" aria-label={t("views")} data-ai-target="documents:my-stats" data-ai-id="documents.my.stats" data-ai-type="section">
+          {VIEWS.map((v) => {
+            const n = stats ? stats[v.key === "all" ? "total" : v.key] : null;
+            const on = pick === v.status;
+            return (
+              <button
+                key={v.key}
+                type="button"
+                className={`mydocs__view mydocs__view--${v.tone} lxd-view${on ? " is-on" : ""}`}
+                aria-pressed={on}
+                onClick={() => setPick(v.status)}
+                data-ai-id={`documents.my.view.${v.key}`}
+                data-ai-label={t(VIEW_LABEL[v.key])}
+              >
+                <small className="lxd-view__k">{t(VIEW_LABEL[v.key])}</small>
+                <b className="lxd-view__n">{n ?? "—"}</b>
               </button>
-            </div>
-            {loadMoreBtn}
-          </>
-        ) : filtered ? (
-          <>
-            <EmptyState icon={<IconSearch />} title={t("searchEmpty")} text={t("filterEmptyText")} />
-            <div className="mydocs__emptyacts">
-              <button type="button" className="btn btn--line btn--sm" onClick={resetFilters} data-ai-id="documents.my.reset">
-                {t("resetFilters")}
-              </button>
-            </div>
-          </>
+            );
+          })}
+        </div>
+      </header>
+
+      <section className="lx-card lxd-box" aria-label={t("title")}>
+        <FilterBar
+          className="cwk-filters lxd-find"
+          fields={fields}
+          search={{ value: q, onChange: setQ, placeholder: t("searchPh"), aiId: "documents.my.search.input" }}
+          count={status === "ready" && (!more || needle) ? shown.length : undefined}
+          aiId="documents.my.filters"
+          aiTarget="documents:my-filters"
+        />
+
+        {status === "loading" ? (
+          <div className="mydocs lxd-skels" aria-busy="true" aria-label={tcm("loadingMore")}>
+            {[0, 1, 2].map((i) => (
+              <div className="cx-skel lxd-skel" key={i} aria-hidden />
+            ))}
+          </div>
+        ) : status === "error" ? (
+          <div data-ai-id="documents.my.retry" data-ai-label={t("retry")}>
+            <ErrorState title={t("loadError")} error={loadErr} onRetry={retry} />
+          </div>
+        ) : !shown.length ? (
+          rows.length ? (
+            <>
+              <EmptyState
+                icon={<Search aria-hidden />}
+                title={t("searchEmpty")}
+                text={more ? t("searchEmptyMore") : t("searchEmptyText")}
+                action={
+                  <button type="button" className="btn btn--line btn--sm" onClick={resetFilters} data-ai-id="documents.my.reset">
+                    {t("resetFilters")}
+                  </button>
+                }
+              />
+              {loadMoreBtn}
+            </>
+          ) : filtered ? (
+            <EmptyState
+              icon={<Search aria-hidden />}
+              title={t("searchEmpty")}
+              text={t("filterEmptyText")}
+              action={
+                <button type="button" className="btn btn--line btn--sm" onClick={resetFilters} data-ai-id="documents.my.reset">
+                  {t("resetFilters")}
+                </button>
+              }
+            />
+          ) : (
+            <EmptyState
+              className="lxd-empty"
+              icon={<span className="lxd-empty__art" style={art("Huquqiy_hujjatlar")} aria-hidden />}
+              title={t("empty")}
+              text={t("emptyText")}
+              action={
+                <Link href="/portal/client/services" className="btn btn--pri btn--sm" data-ai-id="documents.my.browse">
+                  <FileText aria-hidden />
+                  {t("browse")}
+                </Link>
+              }
+            />
+          )
         ) : (
-          <>
-            <EmptyState icon={<IconFileText />} title={t("empty")} text={t("emptyText")} />
-            <div className="mydocs__emptyacts">
-              <Link href="/portal/client/services" className="btn btn--grad btn--sm" data-ai-id="documents.my.browse">
-                <IconFileText />
-                {t("browse")}
-              </Link>
-            </div>
-          </>
-        )
-      ) : (
-        <div className="mydocs" data-ai-id="documents.my.list" data-ai-type="list">
-          {urgent.length ? (
-            <section className="mydocs__sec mydocs__sec--you" aria-labelledby="mydocs-sec-you">
-              <header className="mydocs__sech">
-                <h3 id="mydocs-sec-you">{t("secYou")}<em>{urgent.length}</em></h3>
-                <p>{t("secYouHint")}</p>
-              </header>
-              {urgent.map(card)}
-            </section>
-          ) : null}
-          {others.length ? (
-            <section className="mydocs__sec" aria-labelledby={urgent.length ? "mydocs-sec-rest" : undefined}>
-              {urgent.length ? (
-                <header className="mydocs__sech">
-                  <h3 id="mydocs-sec-rest">{t("secRest")}<em>{others.length}</em></h3>
+          <div className="mydocs lxd-list" data-ai-id="documents.my.list" data-ai-type="list">
+            {urgent.length ? (
+              <section className="mydocs__sec mydocs__sec--you lxd-sec lxd-sec--you" aria-labelledby="mydocs-sec-you">
+                <header className="mydocs__sech lxd-sec__h">
+                  <h3 id="mydocs-sec-you" className="cx-h3">
+                    {t("secYou")}
+                    <span className="cx-count lxd-count--warn">{urgent.length}</span>
+                  </h3>
+                  <p className="lx-sub">{t("secYouHint")}</p>
                 </header>
-              ) : null}
-              {others.map(card)}
-            </section>
-          ) : null}
-          {loadMoreBtn}
-        </div>
-      )}
+                <div className="lxd-grid">{urgent.map(card)}</div>
+              </section>
+            ) : null}
+            {others.length ? (
+              <section className="mydocs__sec lxd-sec" aria-labelledby="mydocs-sec-rest">
+                <header className="mydocs__sech lxd-sec__h">
+                  <h3 id="mydocs-sec-rest" className="cx-h3">
+                    {urgent.length ? t("secRest") : tx("listTitle")}
+                    <span className="cx-count">{others.length}</span>
+                  </h3>
+                </header>
+                <div className="lxd-grid">{others.map(card)}</div>
+              </section>
+            ) : null}
+            {loadMoreBtn}
+          </div>
+        )}
+      </section>
 
       {/* §3 L74 + §5 L116: the two-button prompt, in the backend's own title
           and message. Measured on 2026-09-29: its title is byte-identical to
@@ -931,7 +949,7 @@ export default function ClientDocumentRequests() {
           them. */}
       <Modal open={!!promptRow} onClose={() => setPromptId("")} title={promptRow?.constructorAction?.title || tcommon("lawyerGateTitle")}>
         <div
-          className="cform"
+          className="cform lxd-dlg"
           style={{ maxWidth: "none" }}
           data-ai-id="documents.my.continue-prompt"
           data-ai-type="modal"
@@ -939,16 +957,24 @@ export default function ClientDocumentRequests() {
           data-ai-entity-type="document_request"
           data-ai-entity-id={promptRow?.id || undefined}
         >
-          <p className="dexit__lead">
-            <span className="dexit__i"><IconScale /></span>
-            {promptRow?.constructorAction?.message || tcommon("lawyerGateLead")}
-          </p>
-          {promptRow?.lawyerRequestBlockReason ? <p className="dgate__note">{promptRow.lawyerRequestBlockReason}</p> : null}
-          <div className="dexit__btns">
+          {/* The on-duty advocate's own drawing (the dashboard's "Tezkor
+              Navbatchi Advokat"), since this is about the work being with them. */}
+          <div className="lxd-dlg__intro">
+            <span className="lxd-dlg__art" style={art("Tezkor_Advokat")} aria-hidden />
+            <p className="dexit__lead lxd-dlg__lead">{promptRow?.constructorAction?.message || tcommon("lawyerGateLead")}</p>
+          </div>
+          {promptRow?.lawyerRequestBlockReason ? (
+            <p className="dgate__note lxd-dlg__note">
+              <Info aria-hidden />
+              {promptRow.lawyerRequestBlockReason}
+            </p>
+          ) : null}
+          <div className="dexit__btns lxd-dlg__btns">
             <button type="button" className="btn btn--line btn--full" onClick={() => setPromptId("")}>
               {tcommon("lawyerGateWait")}
             </button>
-            <button type="button" className="btn btn--grad btn--full" disabled={!!openBusy} onClick={() => promptRow && void openConstructor(promptRow)}>
+            <button type="button" className="btn btn--pri btn--full" disabled={!!openBusy} onClick={() => promptRow && void openConstructor(promptRow)}>
+              <PenLine aria-hidden />
               {openBusy ? tcommon("processingShort") : tcommon("lawyerGateOpen")}
             </button>
           </div>
@@ -960,7 +986,7 @@ export default function ClientDocumentRequests() {
           both is not told two different things. */}
       <Modal open={!!sendRow} onClose={() => setSendId("")} title={tcommon("reviewOpen")}>
         <div
-          className="cform"
+          className="cform lxd-dlg"
           style={{ maxWidth: "none" }}
           data-ai-id="documents.my.review"
           data-ai-type="modal"
@@ -968,7 +994,11 @@ export default function ClientDocumentRequests() {
           data-ai-entity-type="document_request"
           data-ai-entity-id={sendRow?.id || undefined}
         >
-          <div className="docreview" data-ai-private>
+          <div className="lxd-dlg__intro">
+            <span className="lxd-dlg__art" style={art("Advokat_tekshiruvi")} aria-hidden />
+            <p className="lxd-dlg__lead">{tx("sendLead")}</p>
+          </div>
+          <div className="docreview lxd-dlg__field" data-ai-private>
             <label htmlFor="mydoc-review-need">{tcommon("reviewNeedLabel")}</label>
             <textarea
               id="mydoc-review-need"
@@ -981,11 +1011,12 @@ export default function ClientDocumentRequests() {
               data-ai-private
             />
           </div>
-          <div className="dexit__btns">
+          <div className="dexit__btns lxd-dlg__btns">
             <button type="button" className="btn btn--line btn--full" onClick={() => setSendId("")} disabled={sendBusy}>
               {tcommon("reviewCancel")}
             </button>
-            <button type="button" className="btn btn--grad btn--full" disabled={sendBusy} onClick={() => sendRow && void sendToLawyer(sendRow)} data-ai-id="documents.my.review.submit">
+            <button type="button" className="btn btn--pri btn--full" disabled={sendBusy} onClick={() => sendRow && void sendToLawyer(sendRow)} data-ai-id="documents.my.review.submit">
+              <Scale aria-hidden />
               {sendBusy ? tcommon("processingShort") : tcommon("reviewSubmit")}
             </button>
           </div>

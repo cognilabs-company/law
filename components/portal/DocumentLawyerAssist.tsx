@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import "./builder1920.css";
+import { useState, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   requestServiceDocumentLawyerGated,
@@ -16,7 +17,7 @@ import FieldError from "@/components/ui/FieldError";
 import InlineAlert from "@/components/ui/InlineAlert";
 import DocumentRequestPanel from "./DocumentRequestPanel";
 import DocTemplateViewer from "./DocTemplateViewer";
-import ManualDocPlanGate from "./ManualDocPlanGate";
+import { ManualDocPlanNotice } from "./ManualDocPlanGate";
 import AttachmentPicker, { type VoiceNoteItem } from "./AttachmentPicker";
 import DocTypePicker from "./DocTypePicker";
 // Imported, not re-declared: this form and the from-scratch order write the
@@ -27,9 +28,13 @@ import DocTypePicker from "./DocTypePicker";
 import { defaultDocLang, docLangOptions, WaitClock } from "./NewDocumentOrder";
 import Select from "@/components/Select";
 import CheckBox from "@/components/CheckBox";
-import { IconChevronLeft, IconEye, IconHeadset, IconLock, IconShieldCheck } from "@/components/icons";
+import { IconChevronLeft, IconEye, IconShieldCheck } from "@/components/icons";
 import { useAiField } from "@/lib/ai/registry";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
+
+// The advocate's picture from the dashboard (the "Tezkor Advokat" arch), in a
+// white circle at the head of the form instead of a headset on a pastel tile.
+const LAWYER_ART = { "--art": "url(/img/xizmatlar/Tezkor_Advokat.webp)" } as CSSProperties;
 
 type LawyerRequestBody = {
   need: string;
@@ -107,7 +112,6 @@ export default function DocumentLawyerAssist({
   // ("Agar plan/entitlement bo'lmasa, tarif sotib olish flow chiqadi") —
   // reacted to on the backend's own 402 rather than pre-checked.
   const [planRequired, setPlanRequired] = useState("");
-  const [planGateOpen, setPlanGateOpen] = useState(false);
   // editor_mode "ai_draft" (backend 2026-09-28): the advocate opens a draft
   // the AI has already written instead of a clean template. Off by default,
   // which is the unchanged behaviour.
@@ -218,34 +222,26 @@ export default function DocumentLawyerAssist({
   // "Agar plan/entitlement bo'lmasa, tarif sotib olish flow chiqadi."
   if (planRequired)
     return (
-      <div className="cform docassist" style={{ maxWidth: "none" }}>
+      <div className="cform docassist bld" style={{ maxWidth: "none" }}>
         <button type="button" className="rf__link" onClick={onBack}>
           <IconChevronLeft />
           {t("backToChoices")}
         </button>
-        <div className="docassist__head">
-          <span className="docassist__i docassist__i--lawyer"><IconLock /></span>
-          <div>
-            <b>{t("planGateTitle")}</b>
-            <p className="advmuted">{planRequired}</p>
-          </div>
-        </div>
-        <button className="btn btn--grad btn--full btn--lg" type="button" onClick={() => setPlanGateOpen(true)}>
-          {t("choosePlan")}
-        </button>
-        <ManualDocPlanGate open={planGateOpen} onClose={() => setPlanGateOpen(false)} message={planRequired} />
+        <ManualDocPlanNotice message={planRequired} />
       </div>
     );
 
   return (
-    <div className="cform docassist" style={{ maxWidth: "none" }} data-ai-id="documents.lawyer.form" data-ai-type="section" data-ai-label={t("chooseLawyer")}>
-      <button type="button" className="rf__link" onClick={onBack}>
-        <IconChevronLeft />
-        {t("backToChoices")}
-      </button>
-
+    <div className="cform bld" style={{ maxWidth: "none" }}>
+    <button type="button" className="rf__link" onClick={onBack}>
+      <IconChevronLeft />
+      {t("backToChoices")}
+    </button>
+    {/* The form is one dashboard card; its parts are the chip-coloured
+        inner blocks (.docassist__sec) the dashboard uses inside a card. */}
+    <div className="cform docassist bld-card bld-assist" style={{ maxWidth: "none" }} data-ai-id="documents.lawyer.form" data-ai-type="section" data-ai-label={t("chooseLawyer")}>
       <div className="docassist__head">
-        <span className="docassist__i docassist__i--lawyer"><IconHeadset /></span>
+        <span className="docassist__art" style={LAWYER_ART} aria-hidden />
         <div>
           <b>{t("chooseLawyer")}</b>
           <p className="advmuted">{t("lawyerLead")}</p>
@@ -374,6 +370,7 @@ export default function DocumentLawyerAssist({
         fetchBlob={cleanUrl ? () => getServiceTemplateSourceFile(cleanUrl) : null}
         fileName={sourceFile?.sourceFileName || t("fileGeneric")}
       />
+    </div>
     </div>
   );
 }
