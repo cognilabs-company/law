@@ -2,7 +2,7 @@
 
 import { useState, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { IconLogo, IconLogout, IconMenu } from "@/components/icons";
+import { IconLogo, IconLogoText, IconLogout, IconMenu } from "@/components/icons";
 import { ADVOCATE_NAV, CLIENT_NAV, LAWYER_NAV } from "@/components/portal/portalNav";
 import SellerProfile from "@/components/marketplace/SellerProfile";
 import { OrderDetailView } from "@/components/marketplace/order/OrderDetailPage";
@@ -56,7 +56,7 @@ export function PortalFrame({ role, active, name, children }: { role: PortalRole
             <span className="logo__m">
               <IconLogo />
             </span>
-            <span className="psb__label">LexGo</span>
+            <span className="psb__label"><IconLogoText stacked /></span>
           </div>
           <span className="psb__role">{t(`common.role${roleKey}`)}</span>
         </div>

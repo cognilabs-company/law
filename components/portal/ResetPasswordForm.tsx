@@ -8,7 +8,7 @@ import { OTP_RESEND_SEC, fmtClock, useOtpTimer } from "@/lib/useOtpTimer";
 import { Link, useRouter } from "@/i18n/navigation";
 import { formatUzSubscriber, uzSubscriber, normUzPhone } from "@/lib/phone";
 import { OtpCountdown, OtpResendButton } from "@/components/auth/OtpStatus";
-import { IconLogo, IconCheck } from "../icons";
+import { IconLogo, IconLogoText, IconCheck } from "../icons";
 import PasswordInput from "../PasswordInput";
 
 type Stage = "phone" | "code" | "done";
@@ -118,7 +118,7 @@ export default function ResetPasswordForm() {
   const logo = (
     <span className="logo auth-formlogo" style={{ color: "var(--ink)", display: "inline-flex", gap: 9, alignItems: "center" }}>
       <span className="logo__m"><IconLogo /></span>
-      LexGo
+      <IconLogoText />
     </span>
   );
 

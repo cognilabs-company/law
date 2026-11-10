@@ -350,7 +350,7 @@ export default function MeetingsApp({ tell, pip }: NativeProps) {
 
 type Pick = { id: string; label: string; sub?: string; tag?: string };
 
-// The invitation: a title and the people, found by name, phone or LexGo ID
+// The invitation: a title and the people, found by name, phone or Tezkor Himoya ID
 // as one types; the meeting starts at once and they are called.
 function NewMeeting({ onClose, onStarted, onError }: { onClose: () => void; onStarted: (a: Active) => void; onError: (m: string) => void }) {
   const t = useTranslations("admin.meetings");

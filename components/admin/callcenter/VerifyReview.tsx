@@ -172,7 +172,7 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
     }
   }
 
-  // An audio or video call inside LexGo, in the review room, with the
+  // An audio or video call inside Tezkor Himoya, in the review room, with the
   // advocate (TSK-365169): the call opens in the room's chat.
   async function call(kind: ReviewCallKind) {
     if (!room || room.readOnly || calling) return;
@@ -180,7 +180,7 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
     setErr("");
     try {
       const sellerId = detail?.seller?.id ?? "";
-      const c = await startCall(room.roomId, kind, source.title || "LexGo", sellerId ? { participantUserIds: [sellerId] } : undefined);
+      const c = await startCall(room.roomId, kind, source.title || "Tezkor Himoya", sellerId ? { participantUserIds: [sellerId] } : undefined);
       const href = staffChatHref(room.roomId, "", source.title);
       router.push(`${href}${href.includes("?") ? "&" : "?"}join=${encodeURIComponent(c.id)}`);
     } catch (e) {
@@ -464,7 +464,7 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
   );
 }
 
-// The advocate under review: name, LexGo ID, role, account state and a
+// The advocate under review: name, Tezkor Himoya ID, role, account state and a
 // phone the operator can call right away.
 function SellerCard({ seller }: { seller: ReviewSeller }): ReactElement {
   const t = useTranslations("callCenter.verify.seller");

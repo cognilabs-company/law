@@ -279,7 +279,7 @@ export const GESTURE_CLIPS: Record<GestureName, string> = {
   swagger: "swagger.001",
   complain: "complain_02.001",
   dive: "dive.001",
-  mysteryA: "I need you to rebuild the LexGo robot interaction so it matches",
+  mysteryA: "I need you to rebuild the Tezkor Himoya robot interaction so it matches",
   mysteryB: "Создай дружелюбную короткую анима",
 };
 

@@ -190,7 +190,7 @@ test("an empty CEO report says there is no data yet, with no demo figures or dem
   const none = sheet.locator(".ceo-none");
   await expect(none).toBeVisible({ timeout: 20000 });
   await expect(none).toContainText("Данных пока нет");
-  await expect(none).toContainText("как только LexGo запишет первую заявку или оплату");
+  await expect(none).toContainText("как только Tezkor Himoya запишет первую заявку или оплату");
   // No invented figures and no report sections, no demo marks anywhere.
   await expect(sheet.locator(".ceo-kpis, .ceo-sec, .ceo-jump")).toHaveCount(0);
   await expect(page.getByText(/демо/i)).toHaveCount(0);

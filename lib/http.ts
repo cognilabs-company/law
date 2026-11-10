@@ -1,7 +1,7 @@
 import { localizeApiDetail } from "./apiMessage";
 import { contactBlockOf } from "./contactWire";
 import { roleDeniedOf, type RoleDenied } from "./roleNav";
-// Shared HTTP core for the LexGo backend (see FRONTEND_API.md / MOBILE_API.md).
+// Shared HTTP core for the Tezkor Himoya backend (see FRONTEND_API.md / MOBILE_API.md).
 // Same-origin proxy path (app/api/backend) avoids browser CORS; the deployment
 // sets BACKEND_ORIGIN. Every request carries the bearer token when present.
 import { getToken } from "./client";

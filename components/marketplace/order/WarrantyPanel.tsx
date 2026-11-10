@@ -19,7 +19,7 @@ import { markRefused, useRefused } from "./refused";
 import { LifeBuoyIcon, artStyle } from "./icons";
 import { SECTION_ID, type OrderSectionProps } from "./types";
 
-// The LexGo guarantee on an order (enterprise contract §10): when the
+// The Tezkor Himoya guarantee on an order (enterprise contract §10): when the
 // seller did not answer in time, broke the deadline, dropped the work, did
 // not deliver, or was restricted, the client asks for a replacement seller
 // or a full refund. The call center reviews every request; nothing is shown

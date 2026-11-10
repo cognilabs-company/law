@@ -130,9 +130,9 @@ test("subscription: the terms come before any payment, renewal is the user's cho
   await expect(dlg).toBeVisible();
   // Nothing is charged before the terms are accepted.
   expect(payments).toHaveLength(0);
-  await expect(dlg).toContainText("LexGo.AI Pro");
+  await expect(dlg).toContainText("Tezkor Himoya AI Pro");
   await expect(dlg.locator(".pterms__now")).toContainText(/99[\s  ]000 сум/);
-  await expect(dlg).toContainText("LexGo не добавляет к ней никаких сборов");
+  await expect(dlg).toContainText("Tezkor Himoya не добавляет к ней никаких сборов");
   const renew = dlg.getByRole("checkbox", { name: "Продлевать автоматически" });
   await expect(renew).not.toBeChecked();
   await expect(dlg).toContainText("Без автопродления");

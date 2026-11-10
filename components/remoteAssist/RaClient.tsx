@@ -270,7 +270,7 @@ export default function RaClient({ selfId }: { selfId: string }) {
   };
 
   // ---- the screen share (v2) ----
-  // The client's LexGo tab as a ScreenShare track in the open support call.
+  // The client's Tezkor Himoya tab as a ScreenShare track in the open support call.
   // Muted on sensitive pages and while a secret field shows; never sent to
   // the remote-assistance API.
 

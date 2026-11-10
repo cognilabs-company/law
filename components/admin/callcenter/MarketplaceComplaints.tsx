@@ -189,7 +189,7 @@ function ResolveDialog({ c, onClose, onDone, onStale, onForbidden }: { c: MpComp
 }
 
 
-// A party by name with its LexGo id and phone; a bare id is looked up.
+// A party by name with its Tezkor Himoya id and phone; a bare id is looked up.
 function Party({ p }: { p: MpParty | null }): ReactElement {
   if (!p) return <PersonName />;
   if (!p.name) return <PersonName id={p.id} withPhone />;

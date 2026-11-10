@@ -7,7 +7,7 @@ import { useResource, useResourceOne } from "@/lib/useResource";
 
 const AI_SLUG = /^lexgo-ai-(free|lite|pro)$/;
 
-// Whether the client is on the free LexGo.AI tier (Lite/Pro get raw-template
+// Whether the client is on the free Tezkor Himoya AI tier (Lite/Pro get raw-template
 // downloads for free; Free is shown the document but must upgrade) — GM's
 // rule. No dedicated "my AI plan" endpoint exists, so this matches the
 // client's subscription against the three lexgo-ai-* plans by id/name, the

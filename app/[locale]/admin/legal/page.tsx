@@ -37,7 +37,7 @@ import { isForbidden } from "@/lib/http";
 // Uzbek (required), Russian and English (LEXGO_LEGAL_DOCUMENT_LANGUAGES_
 // FRONTEND_FINAL_2026_11_01); each version keeps exactly the translations it
 // was published with, and archived versions are read-only.
-// The canonical documents LexGo publishes (backend eecebb9); the footer's
+// The canonical documents Tezkor Himoya publishes (backend eecebb9); the footer's
 // "terms" / "disclaimer" are aliases of user_offer / platform_rules.
 const REQUIRED_SLUGS = [
   "user_offer",

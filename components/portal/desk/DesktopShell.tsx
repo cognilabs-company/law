@@ -1579,7 +1579,7 @@ function Explorer({
       <div className="wd-ex__main">
         <p className="wd-ex__path">
           <IconFolder aria-hidden />
-          <span>LexGo</span>
+          <span>Tezkor Himoya</span>
           <span>{t("desktop")}</span>
           <b>{name}</b>
         </p>

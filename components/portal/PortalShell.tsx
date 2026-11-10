@@ -322,12 +322,12 @@ export default function PortalShell({
         aria-label={tx("breadcrumb")}
       >
         <div className="psb__brand lx-sb__brand">
-          <Link href={dashHref} className="lx-sb__logo" aria-label="LexGo">
+          <Link href={dashHref} className="lx-sb__logo" aria-label="Tezkor Himoya">
             <span className="lx-sb__mark">
               <IconLogo />
             </span>
             <span className="psb__label lx-sb__word">
-              <IconLogoText />
+              <IconLogoText stacked />
             </span>
           </Link>
           <button

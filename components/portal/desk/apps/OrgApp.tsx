@@ -13,7 +13,7 @@ import "./org.css";
 
 // The advocate's organization as a desktop program: the organizations on
 // the side, the chosen one's card and its members, adding a member found
-// among LexGo's lawyers, creating a new organization. The owner's dashboard,
+// among Tezkor Himoya's lawyers, creating a new organization. The owner's dashboard,
 // the workload and a member's services open in this window (org/OrgOwner).
 
 export default function OrgApp(props: NativeProps) {

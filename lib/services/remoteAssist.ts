@@ -1,7 +1,7 @@
 import { http, asDict, asStr, asNum, asArr, ApiError, type Dict } from "@/lib/http";
 
 // Remote assistance (contract 1.0, 2026-10-26): during an active support call
-// the operator helps the client inside LexGo only — never the OS, never pixels.
+// the operator helps the client inside Tezkor Himoya only — never the OS, never pixels.
 // The client's tab publishes the registered components on its screen
 // (page_id, component_id, label, allowed actions, sensitivity, coarse state —
 // never a value), the operator sends semantic commands against them, and the

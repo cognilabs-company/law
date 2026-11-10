@@ -12,7 +12,7 @@
 // - functional: Yandex Maps JS API 2.1 (api-maps.yandex.ru), which sets
 //   Yandex's own cookies. The marketplace and office maps only load it with
 //   this category on (components/marketplace/map/ymaps.ts).
-// - analytics: LexGo runs no analytics or error-tracking script today. The
+// - analytics: Tezkor Himoya runs no analytics or error-tracking script today. The
 //   switch is offered so a later one has to wait for it.
 // - marketing: first-touch UTM tags and the referral code kept for 90 days
 //   (lib/attribution.ts, lib/referral.ts) and the promotion click memory

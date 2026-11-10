@@ -11,7 +11,7 @@ import { hasInternalAccess, canInternal, getMyMessages, getMyToday, internalRole
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import FeedbackButton from "@/components/internal/feedback/FeedbackButton";
 import CommandPalette from "@/components/internal/CommandPalette";
-import { IconChevronDown, IconChevronLeft, IconClose, IconLogo, IconMenu, IconMoreHorizontal } from "@/components/icons";
+import { IconChevronDown, IconChevronLeft, IconClose, IconLogo, IconLogoText, IconMenu, IconMoreHorizontal } from "@/components/icons";
 import { NAV_GROUPS, activeNav, navHref, navId, navMatches, type NavBadge, type NavItem } from "./nav";
 import { AppSwitcher, NavProgress, NotificationsBell, OfflineBanner, ShortcutsDialog, SkipLink, UserMenu, isTypingTarget, useUnreadNotifications } from "./ShellParts";
 
@@ -167,7 +167,7 @@ function Shell({ children }: { children: ReactNode }) {
       <div className={`psb__scrim${drawer ? " on" : ""}`} onClick={() => setDrawerPath(null)} />
       <aside className={`psb hn${drawer ? " on" : ""}`}>
         <div className="hn__brand">
-          <div className="psb__logo"><span className="logo__m"><IconLogo /></span><span className="hn__word">LexGo</span></div>
+          <div className="psb__logo"><span className="logo__m"><IconLogo /></span><span className="hn__word"><IconLogoText stacked /></span></div>
           <span className="psb__role hn__role">{t(`roles.${role}`)}</span>
         </div>
         <nav className="hn__nav" aria-label={t("menu")}>

@@ -23,8 +23,8 @@ type Copy = {
 
 const COPY: Record<string, Copy> = {
   uz: {
-    title: "LexGo: hisobni va ma'lumotlarni o'chirish",
-    lead: "Bu sahifada LexGo ilovasidagi hisobingizni o'chirishni qanday so'rashingiz va qaysi ma'lumotlar o'chirilishi yoki saqlanishi tushuntirilgan.",
+    title: "Tezkor Himoya: hisobni va ma'lumotlarni o'chirish",
+    lead: "Bu sahifada Tezkor Himoya ilovasidagi hisobingizni o'chirishni qanday so'rashingiz va qaysi ma'lumotlar o'chirilishi yoki saqlanishi tushuntirilgan.",
     how: "Hisobni o'chirishni so'rash",
     steps: [
       `${EMAIL} manziliga «Hisobni o'chirish» mavzusida xat yuboring va hisobingiz ro'yxatdan o'tgan telefon raqamini ko'rsating.`,
@@ -47,8 +47,8 @@ const COPY: Record<string, Copy> = {
     cta: "Hisobni o'chirish uchun xat yuborish",
   },
   ru: {
-    title: "LexGo: удаление аккаунта и данных",
-    lead: "На этой странице объясняется, как запросить удаление аккаунта в приложении LexGo и какие данные удаляются или сохраняются.",
+    title: "Tezkor Himoya: удаление аккаунта и данных",
+    lead: "На этой странице объясняется, как запросить удаление аккаунта в приложении Tezkor Himoya и какие данные удаляются или сохраняются.",
     how: "Как запросить удаление",
     steps: [
       `Отправьте письмо на ${EMAIL} с темой «Удаление аккаунта» и укажите номер телефона, на который зарегистрирован аккаунт.`,
@@ -71,8 +71,8 @@ const COPY: Record<string, Copy> = {
     cta: "Отправить письмо об удалении аккаунта",
   },
   en: {
-    title: "LexGo: delete your account and data",
-    lead: "This page explains how to request deletion of your LexGo account and which data is deleted or kept.",
+    title: "Tezkor Himoya: delete your account and data",
+    lead: "This page explains how to request deletion of your Tezkor Himoya account and which data is deleted or kept.",
     how: "How to request deletion",
     steps: [
       `Email ${EMAIL} with the subject “Account deletion” and state the phone number your account is registered with.`,

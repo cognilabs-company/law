@@ -21,7 +21,7 @@ test("coefficient form: ready criteria, the condition decides the fields, nothin
   await page.goto("/uz/admin/studio/o/new?new=K36");
   const crit = page.getByRole("radiogroup", { name: /Nimaga qarab/ });
   await expect(crit).toBeVisible({ timeout: 20000 });
-  for (const c of ["Hudud", "Umumiy tajriba", "LexGo tasdiqlagan", "Mijozlar bahosi", "Yakunlash ulushi", "Superadvokat"]) await expect(crit.getByRole("radio", { name: new RegExp(`^${c}`) })).toBeVisible();
+  for (const c of ["Hudud", "Umumiy tajriba", "Tezkor Himoya tasdiqlagan", "Mijozlar bahosi", "Yakunlash ulushi", "Superadvokat"]) await expect(crit.getByRole("radio", { name: new RegExp(`^${c}`) })).toBeVisible();
   const body = await page.locator("main").innerText();
   expect(body).not.toMatch(/lawyer_experience|Lawyer experience|Lexgo verified|Completion rate|\bgte\b/);
   // The category only matters for experience in a category or sector.

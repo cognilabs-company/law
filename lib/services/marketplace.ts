@@ -295,7 +295,7 @@ export async function listMarketplace(opts: { sort?: string; offset?: number; in
   if (opts.sort) qs.set("sort", opts.sort);
   if (opts.includeMeta) qs.set("include_meta", "true");
   const d = asDict(await http(`/marketplace/lawyers?${qs}`));
-  // Public marketplace results must contain only LexGo-approved professionals.
+  // Public marketplace results must contain only Tezkor Himoya-approved professionals.
   // Admin monitoring uses its own endpoint and is intentionally unaffected.
   const items = asArr(d.items).map(normMarketSeller).filter((s) => s.userId && s.verified);
   const sponsored = asArr(d.sponsored).map(normPromotionSurface).filter((item) => item.id || item.sellerUserId || item.serviceId);
@@ -853,7 +853,7 @@ export async function fileOrderComplaint(order: Pick<MarketOrder, "id" | "compla
   await http(path, { method: "POST", body: JSON.stringify({ reason: reason.trim() }) });
 }
 
-// The order's LexGo guarantee (enterprise contract §10): the client asks for
+// The order's Tezkor Himoya guarantee (enterprise contract §10): the client asks for
 // a replacement seller or a full refund; the call center decides. Offered
 // while the backend gives `warranty_url`. The cases are the five of
 // MarketplaceWarrantyCreate.kind; the order names no eligible subset

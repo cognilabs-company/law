@@ -106,7 +106,7 @@ test("picking another tariff shows its versions; a new draft starts from the cur
       return liteItems[1];
     },
   });
-  await page.locator(".trf-plans").getByRole("button", { name: /LexGo.AI Lite/ }).click();
+  await page.locator(".trf-plans").getByRole("button", { name: /Tezkor Himoya AI Lite/ }).click();
   const panel = page.getByRole("region", { name: /Версии «LexGo.AI Lite»/ });
   await panel.getByRole("button", { name: /Новый черновик/ }).click();
   await expect.poll(() => drafts.length).toBe(1);
@@ -243,7 +243,7 @@ test("on a phone the tariff is picked with the handmade select and nothing scrol
   });
   await expect(page.locator(".trf-plans")).toBeHidden();
   await page.getByRole("button", { name: /^Тариф/ }).click();
-  await page.getByRole("listbox").getByRole("option", { name: /LexGo.AI Lite/ }).click();
+  await page.getByRole("listbox").getByRole("option", { name: /Tezkor Himoya AI Lite/ }).click();
   await expect(page.getByRole("region", { name: /Версии «LexGo.AI Lite»/ })).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);

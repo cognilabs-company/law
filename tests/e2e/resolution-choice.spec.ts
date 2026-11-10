@@ -66,7 +66,7 @@ test("a refund is asked once — double click, lost answer and retry — then fo
   const card = page.locator(".mrs");
   await expect(card.getByRole("heading", { name: "Buyurtmangizni davom ettiramiz" })).toBeVisible();
   await expect(card.getByText("To'lovingiz saqlanadi.", { exact: false })).toBeVisible();
-  await expect(card.getByText("LexGo operatoridan")).toBeVisible();
+  await expect(card.getByText("Tezkor Himoya operatoridan")).toBeVisible();
   await expect(card.getByText(/Tanlash uchun qolgan vaqt: 2\d:\d\d/)).toBeVisible();
   const refundBtn = card.getByRole("button", { name: /To'liq qaytarish/ });
   await expect(refundBtn).toContainText("110 000 so'm");

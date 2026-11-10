@@ -1,4 +1,4 @@
-// LexGo CRM and the Operator AI Copilot (contract 2026-10-26, /crm/*).
+// Tezkor Himoya CRM and the Operator AI Copilot (contract 2026-10-26, /crm/*).
 // Customers and leads are separate: one customer, many leads. The UI is
 // built from GET /crm/meta (permissions, scope, revenue, telephony, the
 // status transition map) and each lead's `allowed_actions` — never from
@@ -156,7 +156,7 @@ export async function listCrmOperators(q = "", signal?: AbortSignal): Promise<Cr
 
 // ── Customers ──────────────────────────────────────────────────────────
 
-// Contract 2026-10-27 (CRM customer/lead): the backend links the LexGo
+// Contract 2026-10-27 (CRM customer/lead): the backend links the Tezkor Himoya
 // account by the verified phone and says so with is_lexgo_user and its own
 // label; `userId` is kept only for internal links, never shown or sent.
 export type CrmCustomerBrief = { id: string; publicId: string; userId: string; isLexgoUser: boolean; lexgoLabel: string; name: string; language: string; region: string; phone: string; telegram: string; email: string };
@@ -211,7 +211,7 @@ export function crmCustomerDetailOf(v: unknown): CrmCustomerDetail {
     activityCount: int(d.activity_count),
     sections: detailSectionsOf(d.detail_sections),
     // POST /crm/customers (gaps closed §19): whether an existing customer
-    // came back, and what the operator must do to link the LexGo account.
+    // came back, and what the operator must do to link the Tezkor Himoya account.
     reused: d.reused === true,
     linking: linkingOf(d),
   };
@@ -270,7 +270,7 @@ export function detailSectionsOf(v: unknown): DetailSection[] {
 
 // ── The lead form's one customer source (contract §5) ──
 // GET /crm/customers/select: paged, searched by name, phone, CRM ID or
-// LexGo ID; display_label is the option's title.
+// Tezkor Himoya ID; display_label is the option's title.
 export type CustomerOption = { id: string; publicId: string; name: string; region: string; phone: string; isLexgoUser: boolean; lexgoLabel: string; leadCount: number; label: string };
 export function customerOptionOf(v: unknown): CustomerOption {
   const d = asDict(v);
@@ -322,7 +322,7 @@ export async function getCrmCustomerPage(id: string, signal?: AbortSignal): Prom
 
 export type ContactInput = { type: string; value: string; label?: string; primary?: boolean; verified?: boolean };
 const contactBody = (c: ContactInput): Dict => ({ contact_type: c.type, value: c.value.trim(), label: (c.label ?? "").trim(), is_primary: !!c.primary, is_verified: !!c.verified, source: "operator" });
-// No user_id: the backend links the LexGo account itself (contract §4).
+// No user_id: the backend links the Tezkor Himoya account itself (contract §4).
 export type CustomerInput = { name: string; language?: string; region?: string; source?: string; notes?: string; contacts?: ContactInput[] };
 export const customerBody = (c: CustomerInput): Dict => ({
   name: c.name.trim(),
@@ -404,7 +404,7 @@ export type CrmLead = {
   // GET …/history with their final status.
   cycleNumber: number;
   cycle: CrmCycle | null;
-  // The prepared LexGo order and its payment state (§9, §12).
+  // The prepared Tezkor Himoya order and its payment state (§9, §12).
   order: CrmLeadOrder | null;
   // The board's own order inside a status (ROP contract §9): the backend's
   // `kanban.rank`, never one worked out here. null when not sent.

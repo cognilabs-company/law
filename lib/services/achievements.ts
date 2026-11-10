@@ -3,7 +3,7 @@
 // positive result reached at one stage of a case — before investigation,
 // inquiry, preliminary investigation or court — fully or partly. The form,
 // its labels and its file rules come from the backend's config; each record
-// is analysed by software first (advice only) and decided by a LexGo
+// is analysed by software first (advice only) and decided by a Tezkor Himoya
 // operator. Approved achievements count for the rating, never the price, and
 // only their operator-approved public text reaches the profile. Every field
 // read here is the contract's canonical name — no aliases.

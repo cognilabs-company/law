@@ -141,7 +141,7 @@ function CustomerGrid({ meta }: { meta: CrmMeta }): ReactElement {
                 {c.isLexgoUser ? (
                   <span className="crm-badge" style={{ marginLeft: "auto" }} title={c.lexgoLabel || t("linked")}>
                     <IconCheck aria-hidden="true" />
-                    LexGo
+                    Tezkor Himoya
                   </span>
                 ) : null}
               </span>

@@ -12,12 +12,25 @@ const base: P = {
   strokeLinejoin: "round",
 };
 
-export const IconLogo = () => <Image src="/logo.png" alt="" width={36} height={32} priority />;
+// The Tezkor Himoya logo exactly as supplied, in its two background-less
+// drawings: logo-light.png (black outline) for a light backdrop and
+// logo-dark.png (white outline) for a dark one, e.g. the sidebars. Both are
+// in the page and the surface shows one through --logo-light / --logo-dark
+// (app/globals.css). The files are 1254px but never show above ~40px, so the
+// optimiser serves 64px (128px on 2x screens).
+export const IconLogo = () => (
+  <>
+    <Image src="/logo-light.png" alt="" width={64} height={64} quality={90} className="logo__img logo__img--light" priority />
+    <Image src="/logo-dark.png" alt="" width={64} height={64} quality={90} className="logo__img logo__img--dark" priority />
+  </>
+);
 
-export const IconLogoText = () => (
-  <span className="logo__w">
-    <Image src="/logo-text.png" alt="" width={124} height={32} className="logo__wimg" priority />
-    <span className="logo__wtxt">LexGo</span>
+// The wordmark as type, as in the supplied logo artwork: "Tezkor" in the
+// surface's own ink, "Himoya" in the brand blue. `stacked` puts "Himoya"
+// under "Tezkor", stepped in, for a narrow sidebar.
+export const IconLogoText = ({ stacked = false }: { stacked?: boolean }) => (
+  <span className={`logo__w${stacked ? " logo__w--stack" : ""}`}>
+    <span className="logo__w1">Tezkor</span> <span className="logo__w2">Himoya</span>
   </span>
 );
 

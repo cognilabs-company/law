@@ -58,7 +58,7 @@ const ROLE_TONE: Record<string, string> = {
 export const roleTone = (role: string) => ROLE_TONE[role] ?? "slate";
 
 // One person in a result list: avatar, bold name, readable phone (and the
-// human LexGo ID), the role as a coloured chip; picked = accent border + check.
+// human Tezkor Himoya ID), the role as a coloured chip; picked = accent border + check.
 export function PersonRow({ p, on, onToggle, roleLabel, title }: { p: PickedPerson; on: boolean; onToggle: () => void; roleLabel: (role: string) => string; title: string }) {
   return (
     <button type="button" className={`nrcp__row${on ? " on" : ""}`} aria-pressed={on} onClick={onToggle}>
@@ -67,7 +67,7 @@ export function PersonRow({ p, on, onToggle, roleLabel, title }: { p: PickedPers
         <b>{title}</b>
         <small>
           {p.phone ? <span className="nrcp__ph">{p.phone}</span> : null}
-          {p.lexgoId ? <span>LexGo ID {p.lexgoId}</span> : null}
+          {p.lexgoId ? <span>Tezkor Himoya ID {p.lexgoId}</span> : null}
         </small>
       </span>
       {p.role ? <i className={`nrole nrole--${roleTone(p.role)}`}>{roleLabel(p.role)}</i> : null}

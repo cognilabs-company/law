@@ -50,10 +50,10 @@ export default function ReferralsApp(_props: NativeProps) {
       if (made) URL.revokeObjectURL(made);
     };
   }, [r?.qrUrl]);
-  const code = r?.code || "LEXGO";
+  const code = r?.code || "TEZKOR";
   const link = r?.link || (origin ? `${origin}/register?ref=${code}` : "");
   const copy = (text: string) => navigator.clipboard?.writeText(text).then(() => say(t("copied"))).catch(() => undefined);
-  const share = () => (navigator.share ? navigator.share({ title: "LexGo", text: t("shareText"), url: link }).catch(() => undefined) : copy(link));
+  const share = () => (navigator.share ? navigator.share({ title: "Tezkor Himoya", text: t("shareText"), url: link }).catch(() => undefined) : copy(link));
   const need = r ? r.eligibleAfter || 5 : 5;
   const done = r ? Math.max(0, need - (r.remainingToUnlock || 0)) : 0;
   return (

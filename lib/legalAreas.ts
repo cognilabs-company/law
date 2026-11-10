@@ -1,7 +1,7 @@
 import type { ComponentType } from "react";
 import { BriefcaseBusiness, Car, Gavel, HeartHandshake, House, Landmark, ScrollText, ShoppingBag } from "lucide-react";
 
-// The eight legal areas of the LexGo 1920 design (client dashboard and the
+// The eight legal areas of the Tezkor Himoya 1920 design (client dashboard and the
 // "Advokat va yuristlar" filter). The backend has no fixed area taxonomy —
 // sellers carry free specialization slugs and services free category titles —
 // so an area is matched by the words its specializations, services and

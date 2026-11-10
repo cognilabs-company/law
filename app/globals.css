@@ -139,13 +139,41 @@ h1,h2,h3,h4{font-family:var(--fd);margin:0;letter-spacing:-.03em;line-height:1.0
 .bar.on{background:var(--dk-glass, rgba(255,255,255,.86));backdrop-filter:blur(18px) saturate(1.6);box-shadow:0 1px 0 rgba(11,31,69,.08)}
 .bar__in{display:flex;align-items:center;gap:18px;height:70px}
 .logo{display:flex;align-items:center;gap:9px;font-family:var(--fd);font-weight:800;font-size:1.3rem;letter-spacing:-.04em;color:#fff;flex:none}
-.logo__m{width:32px;height:32px;display:flex;align-items:center;justify-content:center;flex:none;padding:4px;border-radius:9px;background:var(--grad);box-shadow:var(--sblue)}
+/* Tezkor Himoya: the supplied logo image as it is, and the wordmark as
+   type — "Tezkor" in the surface's ink, "Himoya" in the brand blue (a
+   lighter blue on dark). */
+.logo__m{width:32px;height:32px;display:flex;align-items:center;justify-content:center;flex:none;padding:0;border-radius:0;overflow:visible;background:none;box-shadow:none}
 .logo__m img{width:100%;height:100%;object-fit:contain}
-.logo__w{position:relative;display:inline-flex;align-items:center}
-.logo__wimg{display:block;width:auto;height:1.05em}
-.logo__wtxt{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-html:not([data-theme="dark"]) .bar.on .logo__wimg{display:none}
-html:not([data-theme="dark"]) .bar.on .logo__wtxt{position:static;width:auto;height:auto;overflow:visible;clip-path:none}
+/* The two logo drawings keep their square canvas (the shield fills 67% x 75%
+   of logo-light.png, 72% x 82% of logo-dark.png, centred): scale the
+   picture, not the file, so the shield fills its box. A light backdrop
+   shows logo-light, a dark one logo-dark (see the surfaces below). */
+.logo__img--light{display:var(--logo-light,block);transform:scale(1.3)}
+.logo__img--dark{display:var(--logo-dark,none);transform:scale(1.18)}
+.logo__w{display:inline-flex;align-items:baseline;gap:.26em;white-space:nowrap;font-family:var(--fd);font-weight:700;letter-spacing:-.02em}
+.logo__w1{color:inherit}
+.logo__w2{color:var(--logo-blue,#1668F0)}
+/* two lines in a narrow sidebar: "Himoya" under "Tezkor", stepped in */
+.logo__w--stack{flex-direction:column;align-items:flex-start;gap:.06em;line-height:1}
+.logo__w--stack .logo__w2{margin-left:1.15em}
+/* "Tezkor Himoya" does not fit on one line in the header on a phone (next
+   to the CTA and the menu button) nor just above the burger breakpoint (next
+   to the full menu): stack it there as the sidebar does, and below 370px
+   leave the language switch to the menu sheet (it is there too). */
+@media (max-width:490px),(min-width:981px) and (max-width:1060px){
+  .bar .logo__w{flex-direction:column;align-items:flex-start;gap:.06em;line-height:1;font-size:1.05rem}
+  .bar .logo__w .logo__w2{margin-left:1.15em}
+}
+@media (max-width:370px){.bar__act .lang{display:none}}
+/* the dark surfaces the logo sits on (.psb itself is white in the light
+   theme — admin, internal, studio; the cabinets' .lx-sb is navy) */
+.bar:not(.on),.ftr,.auth__brand,.lx-sb,html[data-theme="dark"]{--logo-blue:#4D8DFF;--logo-light:none;--logo-dark:block}
+html:not([data-theme="dark"]) .bar.on{--logo-blue:#1668F0;--logo-light:block;--logo-dark:none}
+/* The desk view's start button and menu-bar logo draw the logo on a blue
+   chip (the img's own background): the white-outline drawing, unscaled —
+   the canvas's own margin is the chip's padding. */
+.wd-bar__start,.wd-mbar__logo{--logo-light:none;--logo-dark:block}
+.wd-bar__start .logo__img,.wd-mbar__logo .logo__img{transform:none;padding:0}
 /* The LexGo.AI chat's own brand badge (a star mark, not the logo) — keeps
    the gradient chip look .logo__m used to have everywhere before it was
    stripped down to a bare mark. */
@@ -519,6 +547,21 @@ section[id]{scroll-margin-top:86px}
 
 /* ═══════════ RESPONSIVE ═══════════ */
 @media (max-width:1120px){ .nav a{padding:10px 10px;font-size:.86rem} }
+/* The header is the same on every public page, and "Tezkor Himoya" is wider
+   than the old name: the squeeze landing.css gave the home page alone now
+   applies everywhere, so the burger and the CTA stay on screen. */
+@media (max-width:430px){
+  .bar__in{gap:6px}
+  .bar__act{gap:5px}
+  .bar__act .btn--pri{padding-inline:11px;font-size:.8rem;white-space:nowrap}
+}
+@media (max-width:380px){ .bar__act .lang .btn--glass{gap:0;padding-inline:9px;font-size:0} }
+@media (min-width:981px) and (max-width:1180px){
+  .bar__in{gap:10px}
+  .nav{gap:0}
+  .nav a{padding-inline:7px;font-size:.8rem}
+  .bar__act{gap:5px}
+}
 @media (max-width:980px){
   .nav,.bar__act .btn--glass{display:none}
   .burg{display:grid}

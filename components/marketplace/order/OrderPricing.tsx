@@ -13,7 +13,7 @@ import type { OrderView } from "./types";
 // How the order's price was set, as the backend fixed it when the order was
 // placed: the factors that set the seller's allowed ceiling, the range, the
 // price the seller chose, the final amount and the payments made. The
-// seller also sees LexGo's commission and their own net; the client never
+// seller also sees Tezkor Himoya's commission and their own net; the client never
 // does. Every number is printed as sent — nothing is added up or derived.
 
 const PAID = new Set(["paid", "succeeded", "success", "completed", "captured", "confirmed"]);

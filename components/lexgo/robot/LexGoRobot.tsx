@@ -16,7 +16,7 @@ type RobotDebugWindow = typeof window & { __lexgoRobotController?: RobotControll
 // Dev-only manual test harness (section 38): clicking cycles one behavior at
 // a time instead of navigating away immediately, so each can be inspected
 // (and screenshotted) at rest rather than racing a timer. Never runs in
-// production — the click there always just opens LexGo AI. Order matches
+// production — the click there always just opens Tezkor Himoya AI. Order matches
 // the requested check-off list: idle, peek, wave, look, point, think, hide,
 // back to idle. "look" is a discrete lookAt() snap to a fixed direction
 // (not the ambient lookAtCursor(), which is already always running in the

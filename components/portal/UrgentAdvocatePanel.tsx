@@ -97,7 +97,7 @@ function operatorMadeIds(e: UserEvent): string[] {
 
 // LEXGO_URGENT_ADVOCATE_FRONTEND_UPDATE.md — "Tezkor Advokat xizmati online".
 // One module, four services. The two "second opinion" ones are only sold to a
-// client who has bought from LexGo before (backend 402
+// client who has bought from Tezkor Himoya before (backend 402
 // previous_lexgo_purchase_required), which this screen states up front rather
 // than letting the client fill a whole form and then be refused.
 
@@ -258,7 +258,7 @@ export default function UrgentAdvocatePanel() {
   // query in the initialiser, beside `pick`, rather than corrected by an
   // effect afterwards.
   const [step, setStep] = useState<"" | "kind" | "form">(() => (params.get("service") ? "form" : ""));
-  // LexGo Express Videokonsultatsiya, 2026-09-28: the express and YTX kinds
+  // Tezkor Himoya Express Videokonsultatsiya, 2026-09-28: the express and YTX kinds
   // do not queue. The POST comes back with an on-duty advocate already
   // assigned and an audio call ringing, so the client goes straight into the
   // call rather than to a list of requests. Verified live: status
@@ -1035,7 +1035,7 @@ export default function UrgentAdvocatePanel() {
                         >
                           <MIcon />
                           {t.has(`kinds.${k}`) ? t(`kinds.${k}`) : m.title}
-                          {/* Only one of the two needs a previous LexGo service;
+                          {/* Only one of the two needs a previous Tezkor Himoya service;
                               saying which, here, beats a 402 after the form. */}
                           {m.requiresPriorPurchase ? <IconLock className="seg__lock" /> : null}
                         </button>

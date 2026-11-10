@@ -52,7 +52,7 @@ export type PlanVersion = {
   payload: Dict;
   validation: { ok: boolean | null; errors: ValidationIssue[] };
   // TSK-692647: publishing a version with a developer note creates a real
-  // LexGo task; the version waits for the superadmin's approval once the
+  // Tezkor Himoya task; the version waits for the superadmin's approval once the
   // work is done, and is not on sale before. Shown when the backend sends it.
   devTask: PlanDevTask | null;
   approval: PlanApproval | null;

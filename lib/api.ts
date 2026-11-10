@@ -1,4 +1,4 @@
-// AI-chat client for the LexGo backend (see FRONTEND_API.md).
+// AI-chat client for the Tezkor Himoya backend (see FRONTEND_API.md).
 import {
   absUrl,
   asDict,

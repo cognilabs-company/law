@@ -78,7 +78,7 @@ export default function ClientReferrals() {
     }).catch(() => {});
   }
   function share() {
-    if (navigator.share) navigator.share({ title: "LexGo", text: t("shareText"), url: link }).catch(() => {});
+    if (navigator.share) navigator.share({ title: "Tezkor Himoya", text: t("shareText"), url: link }).catch(() => {});
     else copy("link", link);
   }
 

@@ -70,8 +70,8 @@ const DARK = new Set(["offline"]);
 const ASLEEP = new Set(["inactive", "break"]);
 
 // What a person is doing, shown on their desk monitor brought close: the
-// LexGo page they have open, the section, the task and its progress, and
-// the other LexGo work open beside it. Busy, away and offline turn the
+// Tezkor Himoya page they have open, the section, the task and its progress, and
+// the other Tezkor Himoya work open beside it. Busy, away and offline turn the
 // screen into what it would show then. The way back is the floor.
 export default function LiveScreen({
   person,

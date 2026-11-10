@@ -45,7 +45,7 @@ const GROUP_ICON: Record<string, typeof IconLock> = {
   profile: IconUser,
   other: IconClock,
 };
-/** The device a session runs on, by its label ("LexGo iOS · iPhone 15"). */
+/** The device a session runs on, by its label ("Tezkor Himoya iOS · iPhone 15"). */
 export function DeviceIcon({ label }: { label: string }) {
   if (/ipad|tablet/i.test(label)) return <IconTablet />;
   if (/iphone|android|ios|mobile|phone/i.test(label)) return <IconSmartphone />;

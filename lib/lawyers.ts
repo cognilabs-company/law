@@ -11,7 +11,7 @@ export type Lawyer = {
   full: number;
   part: number;
   price: string; // formatted number, currency word comes from translations
-  verified: boolean; // identity/licence verified by LexGo (not the "super lawyer" status)
+  verified: boolean; // identity/licence verified by Tezkor Himoya (not the "super lawyer" status)
   kind?: "advocate" | "lawyer"; // advokat vs yurist, for client-facing labels
   languages?: string[];
   isNew?: boolean; // T1-09: recently verified with few reviews → "Yangi" badge + first-page quota

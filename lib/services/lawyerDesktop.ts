@@ -1,4 +1,4 @@
-// LexGo lawyer virtual desktop (FRONTEND_LAWYER_VIRTUAL_DESKTOP_2026_10_17.md):
+// Tezkor Himoya lawyer virtual desktop (FRONTEND_LAWYER_VIRTUAL_DESKTOP_2026_10_17.md):
 // the backend's shell feed for the desktop view — bootstrap, preferences,
 // window state, widgets, the activity center, search, the command palette,
 // pinned and recent items, snippets and presence. Business data stays with

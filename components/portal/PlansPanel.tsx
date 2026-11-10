@@ -54,7 +54,7 @@ import {
   IconTag,
 } from "@/components/icons";
 import { dateOnly } from "@/lib/date";
-// The LexGo.AI grid below and the upgrade dialog on the services catalog
+// The Tezkor Himoya AI grid below and the upgrade dialog on the services catalog
 // (AiPlanUpgradeGate) show the same card, so it lives in one file now:
 // tierIcon and the featured CTA's class moved there with it, the pricing
 // helpers stayed here because they are this PAGE's rules, not the card's.
@@ -67,7 +67,7 @@ import { goToPaymentPage } from "@/lib/services/paymentProviders";
 type Term = 1 | 6 | 12;
 type Variant = "personal" | "all";
 
-// GM T1-03: the client's LexGo.AI plans are exactly Free / Lite / Pro; the
+// GM T1-03: the client's Tezkor Himoya AI plans are exactly Free / Lite / Pro; the
 // "Shaxsiy advokatim" plans are Standart / Premium (audience personal).
 // Business subscriptions belong to the B2B module. Sellers additionally see
 // every active tariff whose audience covers their role (planForRole), so an
@@ -142,7 +142,7 @@ const EMPTY_QUOTES: ReadonlyMap<string, PlanQuote> = new Map();
 function asBillingPeriod(v: string): ManualDocBillingPeriod {
   return BILLING_PERIODS.includes(v as ManualDocBillingPeriod) ? (v as ManualDocBillingPeriod) : "monthly";
 }
-// LexGo.AI pricing: the backend's quote for the period (a running promotion
+// Tezkor Himoya AI pricing: the backend's quote for the period (a running promotion
 // already in it), else the plan's own price for that period. The saving is
 // read off those two backend amounts, never a discount table of ours.
 function aiPricing(plan: BackendPlan, term: Term, upfront: boolean, quote: PlanQuote | undefined) {
@@ -408,7 +408,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
       {/* ── ATMOS monthly auto-pay (clients and sellers alike) ─────────── */}
       {session ? <AutopayCard uid={session.id} state={autopay} onStateChange={setAutopay} planSlug={currentSlug} /> : null}
 
-      {/* ── LexGo.AI: Free / Lite / Pro ─────────────────────────────── */}
+      {/* ── Tezkor Himoya AI: Free / Lite / Pro ─────────────────────────────── */}
       {/* Headed like the dashboard's "Xizmatlar": the title and its line on
           the left, the term as a segmented control on the right (only while
           there are plans to price). */}
@@ -580,7 +580,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
         </div>
       ) : null}
 
-      {/* ── Every tariff that is not LexGo.AI, for every role ───────── */}
+      {/* ── Every tariff that is not Tezkor Himoya AI, for every role ───────── */}
       {otherShown ? (
         <>
           <div className="plans__head cx-head plx-head">

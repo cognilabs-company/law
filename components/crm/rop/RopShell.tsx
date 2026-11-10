@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNod
 import { useLocale, useTranslations } from "next-intl";
 import { Building2, PanelLeftClose, Search } from "lucide-react";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
-import { IconClose, IconLogo, IconMenu } from "@/components/icons";
+import { IconClose, IconLogo, IconLogoText, IconMenu } from "@/components/icons";
 import { initials } from "@/lib/lawyers";
 import { weekdayDate } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
@@ -91,11 +91,11 @@ export default function RopShell({
         <div className={`psb__scrim${open ? " on" : ""}`} onClick={() => setOpenPath(null)} />
         <aside className={`psb lx-sb${open ? " on" : ""}${collapsed ? " collapsed" : ""}`} aria-label={t("menu")}>
           <div className="psb__brand lx-sb__brand">
-            <Link href="/admin/crm" className="lx-sb__logo" aria-label="LexGo">
+            <Link href="/admin/crm" className="lx-sb__logo" aria-label="Tezkor Himoya">
               <span className="lx-sb__mark">
                 <IconLogo />
               </span>
-              <span className="psb__label">LexGo</span>
+              <span className="psb__label lx-sb__word"><IconLogoText stacked /></span>
             </Link>
             <span className="lx-sb__role">{roleBadge}</span>
             <button className="lx-sb__x" type="button" aria-label={tx("closeMenu")} onClick={() => setOpenPath(null)}>

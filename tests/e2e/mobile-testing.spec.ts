@@ -452,7 +452,7 @@ test("10, 11: report history paginates; a send asks first and a force resend nee
   await expect(page.getByTestId("mtm-force1")).toContainText("SECOND message");
   await page.getByTestId("mtm-force-next").click();
   const second = page.getByTestId("mtm-force2");
-  await expect(second).toContainText("real LexGo Telegram group");
+  await expect(second).toContainText("real Tezkor Himoya Telegram group");
   await expect(page.getByTestId("mtm-force-confirm")).toBeDisabled();
   expect(st.sends.filter((s) => s.includes("force=true"))).toEqual([]);
   await second.getByText("Yes, post another copy").click();

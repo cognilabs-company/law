@@ -7,7 +7,7 @@ import { IconArrowRight, IconCheck, IconShieldCheck } from "@/components/icons";
 import { Btn, Group, SettingRow, Spinner, Tag } from "../../kit/kit";
 import type { NativeProps } from "../../native";
 
-// The LexGo guarantee as a settings group: what it promises, the orders a
+// The Tezkor Himoya guarantee as a settings group: what it promises, the orders a
 // claim can still be filed for, and the claims already filed. A claim is
 // filed on the order itself (POST /marketplace/me/orders/{id}/warranty).
 

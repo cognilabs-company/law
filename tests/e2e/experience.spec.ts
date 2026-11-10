@@ -500,7 +500,7 @@ test("evidence downloads signed in; a review reaches the lawyer live", async ({ 
   await panel.getByRole("button", { name: "Добавить опыт" }).first().click();
   const form = page.getByRole("dialog", { name: "Новый опыт" });
   await expect(form).toContainText("Подтверждённый опыт повышает доверие к профилю, подбор клиентов, ваш ценовой потолок и рейтинг.");
-  await expect(form).toContainText("Ваш опыт будет проверен LexGo.");
+  await expect(form).toContainText("Ваш опыт будет проверен Tezkor Himoya.");
   await expect(form.getByLabel("Описание опыта")).toHaveAttribute("placeholder", /^Например: /);
   await form.getByRole("button", { name: /Закрыть|Отмена/ }).first().click();
 
@@ -799,6 +799,6 @@ test("the public profile shows the operator-approved text only, never the privat
   await expect(panel).toContainText("To'liq ijobiy natija");
   await expect(panel).toContainText("Sud bosqichida to'liq ijobiy natija");
   await expect(panel).not.toContainText("Maxfiy");
-  await expect(panel).toContainText("LexGo tasdiqlagan");
+  await expect(panel).toContainText("Tezkor Himoya tasdiqlagan");
   await expect(panel.locator("a, button")).toHaveCount(0);
 });

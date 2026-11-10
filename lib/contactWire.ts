@@ -7,7 +7,7 @@
 // platform_contact_blocked error the backend gives, so every form shows it
 // the way the chat already does. The inputs strip them as they are typed;
 // this is the last line for any input that does not. Meeting links the
-// chat itself allows (Zoom, LexGo call joins) pass here too.
+// chat itself allows (Zoom, Tezkor Himoya call joins) pass here too.
 
 import { type ContactKind } from "./contactGuard";
 import { chatContacts } from "./chatFilter";
@@ -40,9 +40,9 @@ function texts(v: unknown, key = "", out: string[] = []): string[] {
 }
 
 const MESSAGE: Record<string, string> = {
-  uz: "Aloqa ma'lumotlarini (telefon, e-pochta, havola, Telegram) yuborib bo'lmaydi — aloqa faqat LexGo ichida bo'ladi.",
-  ru: "Контактные данные (телефон, почта, ссылки, Telegram) отправлять нельзя — общение только внутри LexGo.",
-  en: "Contact details (phone, email, links, Telegram) can't be sent — all contact stays inside LexGo.",
+  uz: "Aloqa ma'lumotlarini (telefon, e-pochta, havola, Telegram) yuborib bo'lmaydi — aloqa faqat Tezkor Himoya ichida bo'ladi.",
+  ru: "Контактные данные (телефон, почта, ссылки, Telegram) отправлять нельзя — общение только внутри Tezkor Himoya.",
+  en: "Contact details (phone, email, links, Telegram) can't be sent — all contact stays inside Tezkor Himoya.",
 };
 
 export type ContactBlock = { message: string; kinds: ContactKind[] };

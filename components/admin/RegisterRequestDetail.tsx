@@ -151,7 +151,7 @@ export default function RegisterRequestDetail({ id, onClose }: { id: string | nu
           {d.user ? (
             <div className="dkv__sect">
               <b>{t("detail.user")}</b>
-              {row("LexGo ID", d.user.lexgoId)}
+              {row("Tezkor Himoya ID", d.user.lexgoId)}
               {row(t("detail.fio"), d.user.name)}
               {row(t("detail.role"), roleLabel(d.user.role))}
               {row(t("detail.account"), d.user.accountStatus)}

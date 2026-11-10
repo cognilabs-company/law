@@ -159,8 +159,8 @@ export default function AdminNotifications() {
     setBad((b) => (b.recipients ? { ...b, recipients: false } : b));
   }
   const roleLabel = (r: string) => (tn.has(`roles.${r}`) ? tn(`roles.${r}`) : t.has(`roleBadges.${r}`) ? t(`roleBadges.${r}`) : humanizeSlug(r));
-  // A person by name, phone or LexGo ID — never the bare user id.
-  const userTitle = (u: PickedPerson) => u.name || u.phone || (u.lexgoId ? `LexGo ID ${u.lexgoId}` : "") || tcp("unknown");
+  // A person by name, phone or Tezkor Himoya ID — never the bare user id.
+  const userTitle = (u: PickedPerson) => u.name || u.phone || (u.lexgoId ? `Tezkor Himoya ID ${u.lexgoId}` : "") || tcp("unknown");
 
   function startOver() {
     setSummary(null);

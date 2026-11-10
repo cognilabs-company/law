@@ -219,7 +219,7 @@ function urgentFinished(r: UrgentRequest | null): boolean {
 //
 // A Set of user ids, not a sum, because the live records overlap: on
 // 77ada6f5 (second_opinion_group, completed) `operator` and `claimed_by` are
-// both "LexGo Superadmin", so adding the two would have said 5 people where
+// both "Tezkor Himoya Superadmin", so adding the two would have said 5 people where
 // there are 4 — client + operator + 2 group advocates. `assigned_lawyer` is
 // in the seed because a single-advocate chat consultation (eba06e95) carries
 // the advocate there with `operator` null, and that room has two people in it

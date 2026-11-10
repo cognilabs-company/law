@@ -15,7 +15,7 @@ import FieldError from "@/components/ui/FieldError";
 import InlineAlert from "@/components/ui/InlineAlert";
 import { OtpCountdown, OtpResendButton } from "@/components/auth/OtpStatus";
 import CodeSlots, { type CodeSlotsStatus } from "../CodeSlots";
-import { IconCheck, IconLogo } from "../icons";
+import { IconCheck, IconLogo, IconLogoText } from "../icons";
 import PasswordInput from "../PasswordInput";
 import { restrictedLanding, useRoleNavState } from "../RoleNavHost";
 
@@ -399,7 +399,7 @@ export default function LoginForm() {
         <form key="2fa" className={`plogin__c plogin__c--anim plogin__c--swap${leaving}`} onSubmit={submit2fa}>
           <span className="logo auth-formlogo" style={{ color: "var(--ink)", display: "inline-flex", gap: 9, alignItems: "center" }}>
             <span className="logo__m"><IconLogo /></span>
-            LexGo
+            <IconLogoText />
           </span>
           <h1 style={{ marginTop: 18 }}>{t("twoFaTitle")}</h1>
           <p className="sub">{subtitle}</p>
@@ -478,7 +478,7 @@ export default function LoginForm() {
           <span className="logo__m">
             <IconLogo />
           </span>
-          LexGo
+          <IconLogoText />
         </span>
         <h1 style={{ marginTop: 18 }}>{t("title")}</h1>
         <p className="sub">{t("subtitle")}</p>

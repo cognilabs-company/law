@@ -485,7 +485,7 @@ function ClientOrderCard({
     setCalling(kind);
     setCallErr("");
     try {
-      const c = await startCall(o.roomId, kind, o.serviceTitle || o.workId || "LexGo", o.lawyerUserId ? { participantUserIds: [o.lawyerUserId] } : undefined);
+      const c = await startCall(o.roomId, kind, o.serviceTitle || o.workId || "Tezkor Himoya", o.lawyerUserId ? { participantUserIds: [o.lawyerUserId] } : undefined);
       router.push(`/portal/chat/${encodeURIComponent(o.roomId)}?join=${encodeURIComponent(c.id)}`);
     } catch (e) {
       setCallErr(errDetail(e) || t("callError"));
@@ -618,7 +618,7 @@ function ClientOrderCard({
             </span>
           ) : null}
           {contact ? (
-            <ContactAdvocate tone="site" size="sm" chatHref={chatHref} roomId={o.roomId} callTitle={o.serviceTitle || o.workId || "LexGo"} counterpartId={o.lawyerUserId} calls={stage === "cancelled" || stage === "completed" ? "closed" : refusedFor(o.id, "call") ? "unavailable" : callStateOf(o)} callTypes={o.callTypes} aiId={sub("contact") ?? "marketplace.orders.item.contact"} chatAiId={sub("chat")} />
+            <ContactAdvocate tone="site" size="sm" chatHref={chatHref} roomId={o.roomId} callTitle={o.serviceTitle || o.workId || "Tezkor Himoya"} counterpartId={o.lawyerUserId} calls={stage === "cancelled" || stage === "completed" ? "closed" : refusedFor(o.id, "call") ? "unavailable" : callStateOf(o)} callTypes={o.callTypes} aiId={sub("contact") ?? "marketplace.orders.item.contact"} chatAiId={sub("chat")} />
           ) : null}
           {o.id ? (
             <Link href={orderDetailHref(listHref, o.id)} className="mko-more cx-iconbtn" aria-label={detail} title={tod("detail")} data-ai-id={sub("detail")} data-ai-label={tod("detail")}>
@@ -684,7 +684,7 @@ function OrderCard({
     setCalling(kind);
     setCallErr("");
     try {
-      const c = await startCall(o.roomId, kind, o.serviceTitle || o.workId || "LexGo", counterpartId ? { participantUserIds: [counterpartId] } : undefined);
+      const c = await startCall(o.roomId, kind, o.serviceTitle || o.workId || "Tezkor Himoya", counterpartId ? { participantUserIds: [counterpartId] } : undefined);
       router.push(`/portal/chat/${encodeURIComponent(o.roomId)}?join=${encodeURIComponent(c.id)}`);
     } catch (e) {
       setCallErr(errDetail(e) || t("callError"));
@@ -800,7 +800,7 @@ function OrderCard({
 
       <div className="mko-card__acts">
         {contact ? (
-          <ContactAdvocate tone="site" size="sm" chatHref={chatHref} roomId={o.roomId} callTitle={o.serviceTitle || o.workId || "LexGo"} counterpartId={counterpartId} calls={stage === "cancelled" || stage === "completed" ? "closed" : refusedFor(o.id, "call") ? "unavailable" : callStateOf(o)} callTypes={o.callTypes} aiId={sub("contact") ?? "marketplace.orders.item.contact"} chatAiId={sub("chat")} />
+          <ContactAdvocate tone="site" size="sm" chatHref={chatHref} roomId={o.roomId} callTitle={o.serviceTitle || o.workId || "Tezkor Himoya"} counterpartId={counterpartId} calls={stage === "cancelled" || stage === "completed" ? "closed" : refusedFor(o.id, "call") ? "unavailable" : callStateOf(o)} callTypes={o.callTypes} aiId={sub("contact") ?? "marketplace.orders.item.contact"} chatAiId={sub("chat")} />
         ) : o.canStartChat ? (
           <Link href={chatHref} className="btn btn--pri btn--sm" data-ai-id={sub("chat")} data-ai-label={t("openChat")}>
             <IconChat />

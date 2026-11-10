@@ -1,4 +1,4 @@
-// Shared domain types for LexGo. Mock services return these shapes so the UI
+// Shared domain types for Tezkor Himoya. Mock services return these shapes so the UI
 // can later swap to a real backend without changing components.
 
 import { DEFAULT_OTP_DELIVERY, type OtpDeliveryMethod } from "@/lib/otpDelivery";

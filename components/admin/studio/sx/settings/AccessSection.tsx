@@ -121,7 +121,7 @@ export function AccessSection({ list }: { list: AccessList }): ReactElement {
       cell: (g) => {
         const name = grantName(g) || t("monitoring.unknownUser");
         const lexgo = grantLexgo(g);
-        const sub = [g.phone && g.phone !== name ? g.phone : "", lexgo ? `LexGo ID ${lexgo}` : ""].filter(Boolean);
+        const sub = [g.phone && g.phone !== name ? g.phone : "", lexgo ? `Tezkor Himoya ID ${lexgo}` : ""].filter(Boolean);
         return (
           <span className="sx-st-person">
             <Avatar name={name} />

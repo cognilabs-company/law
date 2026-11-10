@@ -18,7 +18,7 @@ import { useSameTickGuard } from "@/lib/useSameTickGuard";
 import PlanPurchaseTerms from "../../PlanPurchaseTerms";
 
 // Subscription as a desktop program: the current tariff and auto-pay up
-// top; the LexGo.AI plans with their terms; the other tariffs; the gift;
+// top; the Tezkor Himoya AI plans with their terms; the other tariffs; the gift;
 // the bills. Choosing a plan follows the cabinet's payment route (ATMOS,
 // a checkout, or a request to the administrators in Telegram when no
 // payment provider is on), shown in this window's own sheets. Every price
@@ -96,7 +96,7 @@ export default function SubscriptionApp(_props: NativeProps) {
   const current = autopay?.subscription?.planName || "";
   const card = cards.find((c) => c.isDefault) ?? cards[0];
   const subBills = (bills ?? []).filter((p) => !p.kind || p.kind === "subscription" || p.kind === "subscription_plan");
-  // The backend's quote for each paid LexGo.AI plan in the chosen period.
+  // The backend's quote for each paid Tezkor Himoya AI plan in the chosen period.
   const aiPeriod = asPeriod(periodOf(term, upfront));
   const quoteIds = ai.filter((p) => p.monthlyPrice > 0).map((p) => p.id).join(",");
   useEffect(() => {

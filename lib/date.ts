@@ -255,7 +255,7 @@ export function fmtRating(n: number, locale: string, digits = 1): string {
 }
 
 // "Juma, 30-oktabr 2026" / "Пятница, 30 октября 2026" / "Friday, 30 October
-// 2026" — the cabinet header's date line (LexGo 1920 design).
+// 2026" — the cabinet header's date line (Tezkor Himoya 1920 design).
 const WEEKDAYS_LONG: Record<string, string[]> = {
   uz: ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"],
   ru: ["Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"],

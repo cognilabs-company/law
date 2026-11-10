@@ -34,7 +34,7 @@ export function CustomerPicker({ value, onChange, onNew, invalid, labelId }: { v
   );
 }
 
-// Creating a customer: no LexGo account field — the backend links it by the
+// Creating a customer: no Tezkor Himoya account field — the backend links it by the
 // verified phone and may answer with an existing customer for that contact.
 export function NewCustomerModal({ meta, onClose, onCreated, nested }: { meta: CrmMeta; onClose: () => void; onCreated: (c: CrmCustomerDetail) => void; nested?: boolean }): ReactElement {
   const t = useTranslations("crm.newCustomer");

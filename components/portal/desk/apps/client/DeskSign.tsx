@@ -10,7 +10,7 @@ import { dateTimeFull } from "@/lib/date";
 import { IconChat, IconCheck, IconClock, IconExternal, IconLock, IconPhone, IconShieldCheck } from "@/components/icons";
 import { Banner, Btn, Field, Group, Input, SettingRow } from "../../kit/kit";
 
-// Signing the finished contract inside LexGo, as a settings group: the code
+// Signing the finished contract inside Tezkor Himoya, as a settings group: the code
 // to Telegram, the six digits, and the signature with its public check
 // link. The rules are ContractSign's.
 export function DeskSign({ contractId }: { contractId: string }) {

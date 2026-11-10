@@ -7,7 +7,7 @@ import { IconExternal } from "../icons";
 import CheckBox from "../CheckBox";
 import { humanize } from "@/lib/labels";
 
-// The backend's age-confirmation document (LexGo is for adults only).
+// The backend's age-confirmation document (Tezkor Himoya is for adults only).
 export const AGE_SLUG = "age_18";
 
 export type ConsentItem = { slug: string; title: string; version: string; body: string; language?: string; fallback?: boolean; requestedLanguage?: string };

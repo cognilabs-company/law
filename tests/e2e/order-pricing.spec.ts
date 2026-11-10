@@ -33,7 +33,7 @@ test.describe("order price breakdown", () => {
     // The price did not move from its base: no explanation at all.
     await expect(p.locator(".mod-price__why")).toHaveCount(0);
     // The platform's share and the seller's net stay hidden from the client.
-    await expect(page.getByText("Комиссия LexGo")).toHaveCount(0);
+    await expect(page.getByText("Комиссия Tezkor Himoya")).toHaveCount(0);
     await expect(page.getByText("90 200")).toHaveCount(0);
     await expect(page.getByText("19 800")).toHaveCount(0);
     // Paid and unlocked: the protected chat is offered.

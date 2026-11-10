@@ -74,7 +74,7 @@ import { useAchievementLabels } from "./achievementLabels";
 // positive result, then the explanation, then the "asos" — the signed state
 // or court document the result is reflected in. Three steps, each said once.
 // Everything the form offers comes from the backend's config. Software
-// checks the files first (advice only), then a LexGo operator decides; an
+// checks the files first (advice only), then a Tezkor Himoya operator decides; an
 // approved achievement counts for the rating (not the price: the contract
 // says rating only). Evidence never goes public.
 

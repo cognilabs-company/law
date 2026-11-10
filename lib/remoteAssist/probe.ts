@@ -2,7 +2,7 @@ import { raCollect, raSafeRoute } from "./registry";
 
 // What sits at a point of the client's page, for the operator's "click" on
 // the live picture (remote assistance v2). Only two answers ever leave the
-// page: a LexGo route the registry allows (a link), or the id of a
+// page: a Tezkor Himoya route the registry allows (a link), or the id of a
 // registered, non-secret component. Nothing is clicked here — the operator's
 // console turns the answer into a normal, audited command.
 

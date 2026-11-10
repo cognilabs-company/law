@@ -19,7 +19,7 @@ import FieldError from "@/components/ui/FieldError";
 import DocumentRequestPanel from "./DocumentRequestPanel";
 import { IconChevronLeft, IconEye } from "@/components/icons";
 
-// The dashboard's LexGo AI drawing (robot at a laptop), in a white circle.
+// The dashboard's Tezkor Himoya AI drawing (robot at a laptop), in a white circle.
 const AI_ART = { "--art": "url(/img/xizmatlar/suniy-intelekt.webp)" } as CSSProperties;
 
 type Step = "need" | "questions" | "result";

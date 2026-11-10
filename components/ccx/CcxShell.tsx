@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExter
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
-import { IconLogo } from "@/components/icons";
+import { IconLogo, IconLogoText } from "@/components/icons";
 import FeedbackButton from "@/components/internal/feedback/FeedbackButton";
 import { initials } from "@/lib/lawyers";
 import { applyTheme, readThemePref } from "@/lib/theme";
@@ -206,7 +206,7 @@ export default function CcxShell({ nav: navIn, activeHref, title, openCount, use
           <span className="opx-top__logo">
             <IconLogo />
           </span>
-          <b>LexGo</b>
+          <b><IconLogoText /></b>
         </Link>
 
         <nav className="opx-tabs" aria-label={t("menu")} ref={tabsBox}>

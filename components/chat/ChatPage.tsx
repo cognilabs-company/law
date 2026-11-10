@@ -516,7 +516,7 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
             </div>
           ) : empty ? (
             <div className="lxai__empty">
-              {/* The dashboard's own LexGo AI drawing, in a white circle. */}
+              {/* The dashboard's own Tezkor Himoya AI drawing, in a white circle. */}
               <span className="lxai__art" style={artStyle("suniy-intelekt")} aria-hidden />
               {session ? <p className="lxai__hi">{t("hi", { name: session.name })}</p> : null}
               <h2>{t("emptyTitle")}</h2>

@@ -355,7 +355,7 @@ function TaskCreate({ open, onClose, onCreated }: { open: boolean; onClose: () =
         <div className="hrm-form__grid">
           <InternalField label={t("responsible")}><EntitySelect value={form.responsible} onChange={pickResponsible} options={dir.employeeOptions} placeholder={tu("choose.employee")} ariaLabel={t("responsible")} /></InternalField>
           <InternalField label={t("unitId")}><EntitySelect value={form.unit} onChange={set("unit")} options={dir.unitOptions} placeholder={tu("choose.unit")} ariaLabel={t("unitId")} /></InternalField>
-          <InternalField label={t("project")}><input value={form.project} onChange={(e) => set("project")(e.target.value)} maxLength={80} placeholder="LexGo HRM" /></InternalField>
+          <InternalField label={t("project")}><input value={form.project} onChange={(e) => set("project")(e.target.value)} maxLength={80} placeholder="Tezkor Himoya HRM" /></InternalField>
           <InternalField label={t("priority")}><Select value={form.priority} onChange={set("priority")} options={PRIORITIES.map((p) => ({ value: p, label: tu(`priority.${p}`) }))} ariaLabel={t("priority")} /></InternalField>
           <InternalField label={t("due")}><DatePicker value={form.due} onChange={set("due")} placeholder={t("due")} ariaLabel={t("due")} clearLabel={tu("clear")} /></InternalField>
         </div>

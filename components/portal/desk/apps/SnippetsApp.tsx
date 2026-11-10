@@ -13,7 +13,7 @@ import "./snippets.css";
 // like page list on Windows: folders on the side (all, favourites, each
 // category), the snippets in the middle, the chosen one on the right to
 // copy, edit or delete. Copying one tells the backend it was used, so the
-// most used rise. LexGo's own snippets are read-only; passwords, codes,
+// most used rise. Tezkor Himoya's own snippets are read-only; passwords, codes,
 // tokens and phone-like values are refused by the backend, and said so.
 
 type Draft = { id: string; category: string; title: string; content: string; favorite: boolean };

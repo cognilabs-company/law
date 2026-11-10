@@ -21,7 +21,7 @@ test("every paid tariff can be given as a gift; a free one is not offered", asyn
   const dialog = page.getByRole("dialog", { name: "Подарить подписку" });
   await dialog.getByRole("button", { name: /^Тариф/ }).last().click();
   const list = page.getByRole("listbox");
-  await expect(list.getByRole("option", { name: "LexGo.AI Pro" })).toBeVisible();
+  await expect(list.getByRole("option", { name: "Tezkor Himoya AI Pro" })).toBeVisible();
   await expect(list.getByRole("option", { name: "Shaxsiy advokat" })).toBeVisible();
   await expect(list.getByRole("option", { name: "Bepul tarif" })).toHaveCount(0);
 });

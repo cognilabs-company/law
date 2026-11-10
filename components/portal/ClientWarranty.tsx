@@ -11,7 +11,7 @@ import { IconCheck, IconInbox, IconShieldCheck } from "@/components/icons";
 
 const PENDING = new Set(["pending", "open", "submitted", "in_review", "under_review", "created", "new"]);
 const orderHref = (o: MarketOrder) => `/portal/client/marketplace-orders/${encodeURIComponent(o.id)}#mod-warranty`;
-// The dashboard's "LexGo kafolati" drawing, in a white circle on the navy banner.
+// The dashboard's "Tezkor Himoya kafolati" drawing, in a white circle on the navy banner.
 const WAR_ART = { "--art": "url(/img/xizmatlar/Kafolat.webp)" } as CSSProperties;
 
 export default function ClientWarranty() {

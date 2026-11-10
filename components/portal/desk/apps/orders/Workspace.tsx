@@ -81,7 +81,7 @@ export default function Workspace({ orderId, openApp, base, onChanged }: NativeP
     if (calling || !o?.roomId) return;
     setCalling(kind);
     try {
-      const c = await startCall(o.roomId, kind, o.serviceTitle || o.workId || "LexGo", o.clientUserId ? { participantUserIds: [o.clientUserId] } : undefined);
+      const c = await startCall(o.roomId, kind, o.serviceTitle || o.workId || "Tezkor Himoya", o.clientUserId ? { participantUserIds: [o.clientUserId] } : undefined);
       openApp("messages", `/portal/chat/${encodeURIComponent(o.roomId)}?join=${encodeURIComponent(c.id)}`);
     } catch (e) {
       if (isForbidden(e)) setCallsDenied(true);

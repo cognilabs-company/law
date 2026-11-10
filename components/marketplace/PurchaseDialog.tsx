@@ -332,7 +332,7 @@ export default function PurchaseDialog({
             tone="site"
             chatHref={chatHref}
             roomId={track?.roomId ?? ""}
-            callTitle={service.title || tracked?.workId || "LexGo"}
+            callTitle={service.title || tracked?.workId || "Tezkor Himoya"}
             counterpartId={sellerUserId}
             orderId={tracked?.orderId ?? ""}
             calls={tracked?.orderId ? undefined : "unavailable"}

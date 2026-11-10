@@ -272,7 +272,7 @@ function Furniture({ r }: { r: OfficeRoom }) {
         <g>
           <rect x={u(X(2.0))} y={u(F(0.3))} width={u(2.6)} height={u(0.9)} rx="6" fill="#1668F0" />
           <text x={u(X(3.3))} y={u(F(0.95))} textAnchor="middle" className="lo-logo-wall">
-            LexGo
+            Tezkor Himoya
           </text>
           <Clock x={X(5.15)} y={F(0.72)} />
           <Rug x={X(5.4)} y={Y(2.6)} w={4.4} h={3.9} a="#F4C9A0" b="#E8A46A" />
@@ -280,7 +280,7 @@ function Furniture({ r }: { r: OfficeRoom }) {
           <Plant x={X(0.08)} y={Y(6.45)} />
           <Blk x={X(0.7)} y={Y(1.25)} w={3.6} d={0.8} h={1.0} top="#FFFFFF" front="#1668F0" />
           <text x={u(X(2.5))} y={u(Y(2.05)) - 8} textAnchor="middle" className="lo-logo-desk">
-            LexGo
+            Tezkor Himoya
           </text>
           <Blk x={X(0.7)} y={Y(1.25)} w={0.8} d={1.9} h={1.0} top="#FFFFFF" front="#1550C8" />
           <rect x={u(X(1.95))} y={u(Y(1.25 - 1.0)) - 13} width="30" height="19" rx="2.5" fill="#1E293B" />
@@ -684,7 +684,7 @@ function PlanBody() {
             <circle cx={cx} cy={cy} r={u(1.15)} fill="#1668F0" opacity=".9" />
             <circle cx={cx} cy={cy} r={u(1.15) - 4} fill="none" stroke="#fff" strokeWidth="2" opacity=".7" />
             <text x={cx} y={cy + 6} textAnchor="middle" className="lo-floorlogo__t">
-              LexGo
+              Tezkor Himoya
             </text>
           </g>
         );

@@ -220,7 +220,7 @@ export default function OrderHeader({
   // 2026-10-26 §8–9): no advance is coming, and the client reads the
   // backend's own neutral line.
   const replacing = accepting && (o.waitingReplacement || o.paymentStatus === "paid");
-  // Paid and not yet settled: the money waits in LexGo until the work is done.
+  // Paid and not yet settled: the money waits in Tezkor Himoya until the work is done.
   const held = phase === "paid" || phase === "in_progress" || phase === "review";
   const client = view === "client";
   const at = STEP_AT[phase];

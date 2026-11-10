@@ -60,7 +60,7 @@ test("duty lawyer picks notification recipients by name, never by id, and cannot
   await expect(page.getByText("Bildirishnoma yuborish").first()).toBeVisible();
   await expect(page.getByPlaceholder(/UUID/)).toHaveCount(0);
   await expect(page.getByRole("tab", { name: "Butun rolga" })).toHaveCount(0);
-  await page.getByPlaceholder("Ism, telefon yoki LexGo ID bo'yicha qidiring").fill("Sardor");
+  await page.getByPlaceholder("Ism, telefon yoki Tezkor Himoya ID bo'yicha qidiring").fill("Sardor");
   await page.getByRole("button", { name: /Sardor Misolov/ }).click();
   await expect(page.locator("button.nrcp__row", { hasText: "Sardor Misolov" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "Sardor Misolovni ro'yxatdan olib tashlash" })).toBeVisible();

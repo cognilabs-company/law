@@ -1,4 +1,4 @@
-// Typed client for the LexGo backend contract (FRONTEND_API.md / MOBILE_API.md).
+// Typed client for the Tezkor Himoya backend contract (FRONTEND_API.md / MOBILE_API.md).
 import { personName } from "@/lib/labels";
 import { verifiedAdvocateYears } from "./tenure";
 // Every function talks to the same-origin proxy with the bearer token attached.
@@ -419,7 +419,7 @@ export function otpLanguageOf(locale: string): "uz_latn" | "ru" | "en" {
   return locale === "ru" ? "ru" : locale === "en" ? "en" : "uz_latn";
 }
 // Step 1: a code is sent through the NEW channel, proving the user gets it
-// there. A user who has not started the LexGo bot yet may get its link back
+// there. A user who has not started the Tezkor Himoya bot yet may get its link back
 // (as at sign-up), so the dialog can open it.
 export async function startOtpDeliveryChange(method: OtpDeliveryMethod, language: string): Promise<OtpChallenge & { telegramBotLink: string }> {
   const d = await http("/auth/otp-delivery/change/start", { method: "POST", body: JSON.stringify({ method, language }) });
@@ -718,7 +718,7 @@ export type BackendService = {
   price?: number;
   description?: string;
   isActive: boolean;
-  // LexGo catalog metadata
+  // Tezkor Himoya catalog metadata
   catalogCode?: string;
   executorType?: string;
   // Who may do the service. The runtime sends executor_types (a list) where
@@ -4193,7 +4193,7 @@ export function queuePerson(row: unknown): { userId: string; name: string; phone
   const d = asDict(row);
   // details/payload hold a lead's own contact (name, phone); a nested lead or
   // order dict names a job, so only its client_* keys are read.
-  // Only a client/user dict's own `id` is a LexGo user id (a CRM customer's
+  // Only a client/user dict's own `id` is a Tezkor Himoya user id (a CRM customer's
   // id is not).
   const layers: { dict: Dict; person: boolean; contact: boolean; ownId: boolean }[] = [];
   const add = (k: string, v: unknown) => {
@@ -4561,7 +4561,7 @@ export type LawyerClient = {
   phoneVisible?: boolean | null;
   phoneHiddenReason?: string;
 };
-// T1B-05: a client outside LexGo, kept in the seller's own base (used by the
+// T1B-05: a client outside Tezkor Himoya, kept in the seller's own base (used by the
 // conflict check together with real orders/cases).
 export type LawyerClientInput = { name: string; phone?: string; pinfl?: string; company?: string; opponents?: string[]; representatives?: string[]; notes?: string };
 export async function createLawyerClient(input: LawyerClientInput): Promise<void> {
@@ -6640,7 +6640,7 @@ export type CallSession = {
   // Present on every call the backend returns, including join-token.
   hints: CallConnectionHints | null;
   quality: CallQualityPolicy | null;
-  // Multi-participant meeting fields (LexGo Meet).
+  // Multi-participant meeting fields (Tezkor Himoya Meet).
   participants: CallParticipant[];
   maxDurationMinutes: number;
   autoEndAt: string;
@@ -8173,7 +8173,7 @@ function attachmentBody(a: UrgentAttachmentInput, voice: boolean): Record<string
   if (voice && a.durationSeconds !== undefined) o.duration_seconds = a.durationSeconds;
   return o;
 }
-// payload.second_opinion_eligible_sources — the earlier LexGo services that
+// payload.second_opinion_eligible_sources — the earlier Tezkor Himoya services that
 // unlocked a second opinion for this client (LEXGO_FRONTEND_SECOND_OPINION_
 // PLAN_UPDATE.md). Staff-facing: "Frontend clientga bu listni ko'rsatishi
 // shart emas. Admin/callcenter detailda ko'rsatish mumkin."
@@ -9180,7 +9180,7 @@ export const isDocxFile = (f: File) => /\.docx$/i.test(f.name);
 
 // ════════════════════════════════════════════════════════════════════
 // LEXGO_AI_SYSTEM_ASSISTANT_FRONTEND_BACKEND_2026-09-29.md
-// The system assistant: a navigator over LexGo itself, not the case-analysis
+// The system assistant: a navigator over Tezkor Himoya itself, not the case-analysis
 // tool suite that lives at askAiAssistant() above (that one is POST
 // /ai/assistant; this one is POST /api/ai/assistant — different module, and
 // the `/api` prefix is real, verified: /ai/health is 404 and /api/ai/health

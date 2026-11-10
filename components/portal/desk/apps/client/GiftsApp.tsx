@@ -12,7 +12,7 @@ import "./client.css";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 // Gifts as a desktop program — what the client gave and what they got, in
-// a list (Finder's list / Explorer's details), and "Give a gift": a LexGo
+// a list (Finder's list / Explorer's details), and "Give a gift": a Tezkor Himoya
 // plan for some months or one service, with an estimate; made, it gives
 // the link and the QR to send on, and the payment opens in a new tab. The
 // rules are the web page's.

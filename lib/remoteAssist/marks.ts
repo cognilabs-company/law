@@ -34,7 +34,7 @@ export type RaMark = {
 // render a capture of their own tab.
 export type RaShareState = { surface: string; hidden: boolean; on: boolean; tab?: string };
 // "probe": the operator clicked the live picture at (x, y); the client says
-// what is there ("probe-hit": a safe LexGo route, or a registered component),
+// what is there ("probe-hit": a safe Tezkor Himoya route, or a registered component),
 // and the operator's console turns that into a normal, audited command.
 export type RaProbeHit = { t: "probe-hit"; id: string; route?: string; componentId?: string; label?: string };
 export type RaWire =

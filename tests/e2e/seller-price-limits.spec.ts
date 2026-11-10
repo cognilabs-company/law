@@ -77,7 +77,7 @@ test("the service note blocks contacts, says LexGo checks it, and saves none", a
   const note = page.getByRole("textbox", { name: "Описание опыта" });
   await expect(note).toHaveAttribute("placeholder", /^Например: /);
   // The note under the field says LexGo checks it (ContactGuardNote).
-  await expect(page.getByText("Ваш опыт будет проверен LexGo.").first()).toBeVisible();
+  await expect(page.getByText("Ваш опыт будет проверен Tezkor Himoya.").first()).toBeVisible();
   await note.click();
   await page.keyboard.type("Oilaviy ishlar 7 yil. Tel 909338678 @akhmad_law", { delay: 10 });
   await expect(note).not.toHaveValue(/909338678|@akhmad_law/);

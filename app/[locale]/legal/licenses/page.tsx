@@ -80,7 +80,7 @@ export default async function Page({ params }: Props) {
     <section className="sec legal lic">
       <div className="wrap legal__in">
         <div className="head">
-          <span className="kick">LexGo</span>
+          <span className="kick">Tezkor Himoya</span>
           <h1 className="h2">{t("title")}</h1>
           <p className="lead">{t("lead")}</p>
         </div>

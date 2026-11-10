@@ -11,7 +11,7 @@ import { fieldPath } from "../labels";
 //   performer  advocates and lawyers who do the work
 //   both       customers and performers alike
 //   public     anyone on the open site, signed in or not
-//   staff      LexGo staff only (Studio, admin, CRM)
+//   staff      Tezkor Himoya staff only (Studio, admin, CRM)
 //   system     a key or setting the system reads; shown to nobody
 //
 // Rules and guarantees carry their own audience, so "dyn:*" entries follow

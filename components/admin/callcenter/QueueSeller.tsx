@@ -7,7 +7,7 @@ import { initials } from "@/lib/lawyers";
 
 // The advocate on a queue row (backend check 2026-10-29: rows carry
 // seller { id, lexgo_id, name, phone, role, account_status }): the name, the
-// LexGo ID and phone under it, role and account state as words — never an id.
+// Tezkor Himoya ID and phone under it, role and account state as words — never an id.
 export default function QueueSeller({ seller, fallback }: { seller: ReviewSeller | null; fallback: string }): ReactElement {
   const t = useTranslations("callCenter.verify.seller");
   if (!seller)

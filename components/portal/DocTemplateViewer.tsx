@@ -66,7 +66,7 @@ export function useViewerStamp(): string {
     const digits = phone.replace(/\D/g, "");
     // 24 characters of name keeps the whole stamp inside the 460px SVG tile
     // below; a longer one would be clipped at the tile edge mid-word.
-    return ["LexGo", name.trim().slice(0, 24), digits ? `••${digits.slice(-4)}` : "", day]
+    return ["Tezkor Himoya", name.trim().slice(0, 24), digits ? `••${digits.slice(-4)}` : "", day]
       .filter(Boolean)
       .join(" · ");
   }, [name, phone]);

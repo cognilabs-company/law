@@ -3,7 +3,7 @@
 // The backend owns the arithmetic: seller acceptance 30% of the gross, the
 // first checklist stage 30% (every first_checklist item done or skipped
 // with a reason), completion 40% once the 15-minute rating/complaint window
-// closes with no hold, LexGo's commission deducted there. Nothing here
+// closes with no hold, Tezkor Himoya's commission deducted there. Nothing here
 // works an amount out.
 import { http, asArr, asDict, asNum, asStr, type Dict } from "@/lib/http";
 import { uzs } from "@/lib/money";

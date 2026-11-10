@@ -110,7 +110,7 @@ test("seller: an already-done 30% stage whose transfer failed says so, without a
   await openOrder(page, ADVOCATE, { items, payouts: [ACCEPT, FIRST("provider_failed")] });
   const first = page.locator('.cps[data-stage="first_checklist"]');
   await expect(first.locator(".cps__badge")).toHaveText("Kechikmoqda", { timeout: 20_000 });
-  await expect(first.locator(".cps__cheer")).toContainText("LexGo operatori uni hal qilmoqda");
+  await expect(first.locator(".cps__cheer")).toContainText("Tezkor Himoya operatori uni hal qilmoqda");
   await expect(first.locator(".cps__cheer")).not.toHaveAttribute("data-celebrate", "");
   await expect(first).not.toContainText("o'tkazildi");
 });

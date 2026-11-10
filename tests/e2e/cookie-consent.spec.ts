@@ -81,7 +81,7 @@ test("settings: nothing pre-ticked, one category saved, keyboard stays in the di
   for (const name of ["Функциональные", "Аналитика", "Маркетинг"]) await expect(d.getByRole("checkbox", { name })).not.toBeChecked();
   await expect(d.getByText("Яндекс Карты", { exact: true })).toBeVisible();
   await expect(d.getByRole("link", { name: "Политика конфиденциальности: Яндекс Карты" })).toHaveAttribute("target", "_blank");
-  await expect(d.getByText("Сейчас на LexGo не используется.", { exact: false })).toBeVisible();
+  await expect(d.getByText("Сейчас на Tezkor Himoya не используется.", { exact: false })).toBeVisible();
 
   // Tab never leaves the dialog.
   for (let i = 0; i < 30; i++) {

@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { IconBell, IconBolt, IconDocSearch, IconFileText, IconGem, IconPackage, IconUserPlus } from "../icons";
 
-// The cabinet's sidebar (LexGo 1920 design): one grouped list per role.
+// The cabinet's sidebar (Tezkor Himoya 1920 design): one grouped list per role.
 // PortalShell draws it; the Studio preview draws the same list around a
 // draft so it sits where it will live. Labels live in `lxShell.nav.<role>`.
 

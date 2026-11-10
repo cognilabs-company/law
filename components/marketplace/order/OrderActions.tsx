@@ -79,7 +79,7 @@ export default function OrderActions({
     setCalling(kind);
     setCallErr("");
     try {
-      const c = await startCall(o.roomId, kind, o.serviceTitle || o.workId || "LexGo", counterpartId ? { participantUserIds: [counterpartId] } : undefined);
+      const c = await startCall(o.roomId, kind, o.serviceTitle || o.workId || "Tezkor Himoya", counterpartId ? { participantUserIds: [counterpartId] } : undefined);
       router.push(`/portal/chat/${encodeURIComponent(o.roomId)}?join=${encodeURIComponent(c.id)}`);
     } catch (e) {
       setCallErr(errDetail(e) || to("callError"));
@@ -186,7 +186,7 @@ export default function OrderActions({
     <SxPanel title={t("actions.title")} className="mod-actions" as="section">
       <div className="mod-actions__list">
         {contact ? (
-          <ContactAdvocate tone="sx" chatHref={marketChatHref(o)} roomId={o.roomId} callTitle={o.serviceTitle || o.workId || "LexGo"} counterpartId={counterpartId} calls={CLOSED_PHASES.has(phase) ? "closed" : refusedFor(o.id, "call") ? "unavailable" : callStateOf(o)} callTypes={o.callTypes} aiId={`${aiBase}.contact`} chatAiId={`${aiBase}.chat`} />
+          <ContactAdvocate tone="sx" chatHref={marketChatHref(o)} roomId={o.roomId} callTitle={o.serviceTitle || o.workId || "Tezkor Himoya"} counterpartId={counterpartId} calls={CLOSED_PHASES.has(phase) ? "closed" : refusedFor(o.id, "call") ? "unavailable" : callStateOf(o)} callTypes={o.callTypes} aiId={`${aiBase}.contact`} chatAiId={`${aiBase}.chat`} />
         ) : chat ? (
           <SxLinkButton variant={chat === "open" ? "primary" : "secondary"} icon={MessageSquareTextIcon} href={marketChatHref(o)} aiId={`${aiBase}.chat`}>
             {chat === "open" ? to("openChat") : t("actions.viewChat")}

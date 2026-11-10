@@ -60,7 +60,7 @@ export default function VerifyRoom({ room, title, sellerId, pending, scope, open
     setCalling(kind);
     setErr("");
     try {
-      const c = await startCall(room.roomId, kind, title || "LexGo", sellerId ? { participantUserIds: [sellerId] } : undefined);
+      const c = await startCall(room.roomId, kind, title || "Tezkor Himoya", sellerId ? { participantUserIds: [sellerId] } : undefined);
       const to = staffChatHref(room.roomId, "", title);
       router.push(`${to}${to.includes("?") ? "&" : "?"}join=${encodeURIComponent(c.id)}`);
     } catch (e) {

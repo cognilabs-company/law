@@ -27,7 +27,7 @@ function closedAccount(status?: string): boolean {
 // is staff-only (401/403 for sellers and clients): the first refusal switches
 // this searcher to a cached directory of the people the account can actually
 // reach — lawyers/advocates (incl. unverified) and, for sellers, their own
-// clients — filtered client-side by name, phone or LexGo ID.
+// clients — filtered client-side by name, phone or Tezkor Himoya ID.
 export function makeInviteSearch(opts: { clientLabel: string; regionLabel?: (v: string) => string; exclude?: () => Iterable<string>; roleLabel?: (role: InviteRole) => string }): InviteSearch {
   let dir: Promise<InviteUser[]> | null = null;
   let staffSearch = true;

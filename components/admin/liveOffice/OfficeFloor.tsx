@@ -353,7 +353,7 @@ export default function OfficeFloor({
           <>
             <Partition x={WING} y={11} len={8.6} along="y" glass />
             <Block x={35} y={12} w={5.4} d={0.2} h={1.75} cls="lf-m-wall" />
-            <WallSign x={35.55} y={12.2} z={0.72} text="LexGo" cls="lf-sign lf-sign--brand" />
+            <WallSign x={35.55} y={12.2} z={0.72} text="Tezkor Himoya" cls="lf-sign lf-sign--brand" />
             <Plant x={44.7} y={12.3} big />
             <Counter x={35.4} y={13.5} w={4.6} />
             <Shelf x={42.2} y={15.2} />

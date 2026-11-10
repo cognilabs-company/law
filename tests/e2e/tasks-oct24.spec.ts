@@ -118,7 +118,7 @@ test("document settings: plan, review and download rules go into the draft", asy
   await page.getByRole("button", { name: "Qoralama sifatida saqlash" }).click();
   await expect(page.getByText("Kamida bitta tarif tanlang")).toBeVisible();
   expect(sent).toBeNull();
-  await page.getByRole("button", { name: "LexGo.AI Pro" }).click();
+  await page.getByRole("button", { name: "Tezkor Himoya AI Pro" }).click();
   await page.getByRole("switch", { name: /mutaxassis tekshiradi/ }).click();
   await page.getByRole("button", { name: "Advokat", exact: true }).click();
   await page.getByRole("switch", { name: "Faylga suv belgisi qo'yiladi" }).click();

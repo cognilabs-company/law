@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { IconLock, IconShieldCheck } from "@/components/icons";
 import { findContacts, stripContacts, type ContactHit } from "@/lib/contactGuard";
 
-// Under a lawyer's experience text: the standing "LexGo checks this" line,
+// Under a lawyer's experience text: the standing "Tezkor Himoya checks this" line,
 // and — when the text carries a phone number, a username, an e-mail, a
 // messenger or a link — what was found and why it cannot be saved. A
 // refusal from the backend (platform_contact_blocked) shows here too, and
@@ -14,9 +14,9 @@ import { findContacts, stripContacts, type ContactHit } from "@/lib/contactGuard
 
 export type ContactRefusal = { message: string; preview?: string };
 
-// `verifiedLine`: the "verified by LexGo" reassurance, which only fits a
+// `verifiedLine`: the "verified by Tezkor Himoya" reassurance, which only fits a
 // profile field; a request form leaves it out.
-// `peer`: who the writer must not reach outside LexGo — the client (a
+// `peer`: who the writer must not reach outside Tezkor Himoya — the client (a
 // seller's profile, a lawyer's message) or the specialist (a client's).
 export default function ContactGuardNote({
   id,

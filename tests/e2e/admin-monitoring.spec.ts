@@ -292,6 +292,6 @@ test("an integration's detail shows its own history and dependencies", async ({ 
   // The backend's own code is not shown raw; the error text beside it is.
   await expect(detail).not.toContainText("DB_TIMEOUT");
   await expect(detail).toContainText("timeout");
-  await expect(detail).toContainText("LexGo API");
+  await expect(detail).toContainText("Tezkor Himoya API");
   await expect(detail.locator(".mon-detail__hist li")).toHaveCount(4);
 });

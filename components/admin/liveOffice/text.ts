@@ -25,7 +25,7 @@ import {
 
 type Icon = ComponentType<{ className?: string }>;
 
-// The site's own 3D icons, one per room, so the office reads as LexGo.
+// The site's own 3D icons, one per room, so the office reads as Tezkor Himoya.
 export const ROOM_ART: Record<OfficeRoom, string> = {
   lobby: "/img/royhatga-olish.png",
   talk: "/img/card-yordam-markazi.png",
@@ -106,7 +106,7 @@ export function useOfficeText() {
 export const firstName = (name: string) => {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "—";
-  // "LexGo Admin" style service accounts read better by their second word.
+  // "Tezkor Himoya Admin" style service accounts read better by their second word.
   const pick = parts[0].toLowerCase() === "lexgo" && parts[1] ? parts[1] : parts[0];
   return pick.length > 12 ? `${pick.slice(0, 11)}…` : pick;
 };

@@ -8,7 +8,7 @@ export const landingSans = Inter_Tight({
   display: "swap",
 });
 
-// The italic accent echoes the serif "Go" of the LexGo wordmark. It only ever
+// The italic accent echoes the serif "Go" of the Tezkor Himoya wordmark. It only ever
 // sets a few accent words, so it is not preloaded.
 export const landingSerif = Playfair_Display({
   subsets: ["latin", "cyrillic"],

@@ -39,7 +39,7 @@ export default function DeskApp({ os, nav, current, label, locked, name, childre
     head = (
       <p className="dapp__path">
         <IconFolder aria-hidden />
-        <span>LexGo</span>
+        <span>Tezkor Himoya</span>
         <span>{t(`kind.${kind}`)}</span>
         <b>{here.label}</b>
       </p>

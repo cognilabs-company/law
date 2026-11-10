@@ -384,7 +384,7 @@ test("one click to ask, one to allow: the operator sees the tab, draws, opens pa
   const sheet = cl.page.getByRole("dialog", { name: "Ekraningizda yordam bersinmi?" });
   await expect(sheet).toBeVisible();
   await expect(sheet).toContainText("Dilnoza Operator");
-  await expect(sheet).toContainText("LexGo yordam xizmati");
+  await expect(sheet).toContainText("Tezkor Himoya yordam xizmati");
   await expect(sheet).toContainText("Parol, SMS kod, karta");
   await expect(sheet.getByRole("switch")).toHaveCount(0);
   await expect(sheet.getByRole("button", { name: "Ruxsat berish" })).toBeFocused();

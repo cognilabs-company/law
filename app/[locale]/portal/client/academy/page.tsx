@@ -54,7 +54,7 @@ export default function ClientAcademy() {
   return (
     <div className="acad plx-acad">
       {/* The dashboard's navy banner with the academy picture in a white
-          circle; the page's title is the shell header's ("LexGo Akademiya"). */}
+          circle; the page's title is the shell header's ("Tezkor Himoya Akademiya"). */}
       <section className="cx-gift plx-banner plx-banner--acad" aria-labelledby="plx-acad-h">
         <span className="plx-banner__art" style={{ "--art": "url(/img/xizmatlar/Akademiya.webp)" } as CSSProperties} aria-hidden />
         <div className="plx-banner__main">

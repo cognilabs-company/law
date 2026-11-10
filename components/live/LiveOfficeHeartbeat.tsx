@@ -37,7 +37,7 @@ export default function LiveOfficeHeartbeat() {
       // The page's own name from the workspace header (the document title is
       // often just the site's), else the title without the brand.
       const heading = typeof document !== "undefined" ? document.querySelector(".ptop h1, h1.opx-sr")?.textContent?.trim() ?? "" : "";
-      const docTitle = typeof document !== "undefined" ? document.title.replace(/\s*[|·—–-]\s*LexGo.*$/i, "").trim() : "";
+      const docTitle = typeof document !== "undefined" ? document.title.replace(/\s*[|·—–-]\s*(?:Tezkor Himoya|Tezkor Himoya).*$/i, "").trim() : "";
       const title = heading || (/^lexgo\b/i.test(docTitle) ? "" : docTitle);
       const areaName = t.has(area) ? t(area) : area;
       const label = title && title.toLowerCase() !== areaName.toLowerCase() ? `${areaName}: ${title}` : areaName;

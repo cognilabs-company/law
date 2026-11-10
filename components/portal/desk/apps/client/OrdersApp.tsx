@@ -178,7 +178,7 @@ function Sheet({ o, money, openLink, onChanged, onError }: { o: MarketOrder; mon
     if (calling) return;
     setCalling(kind);
     try {
-      const c = await startCall(o.roomId, kind, o.serviceTitle || o.workId || "LexGo", { participantUserIds: o.lawyerUserId ? [o.lawyerUserId] : undefined });
+      const c = await startCall(o.roomId, kind, o.serviceTitle || o.workId || "Tezkor Himoya", { participantUserIds: o.lawyerUserId ? [o.lawyerUserId] : undefined });
       openLink({ appId: "", route: `/portal/chat/${encodeURIComponent(o.roomId)}?join=${encodeURIComponent(c.id)}` });
     } catch (e) {
       onError(errDetail(e) || t("callError"));

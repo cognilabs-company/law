@@ -26,7 +26,7 @@ import {
 import { REGION_KEYS } from "@/lib/mock/catalog";
 import Select, { type Option } from "@/components/Select";
 import TimePicker from "@/components/TimePicker";
-import { IconLogo, IconChevronLeft, IconArrowRight, IconCheck, IconShieldCheck, IconBriefcase } from "../icons";
+import { IconLogo, IconLogoText, IconChevronLeft, IconArrowRight, IconCheck, IconShieldCheck, IconBriefcase } from "../icons";
 import PhoneStep from "./PhoneStep";
 import AccountTypeCards from "./AccountTypeCards";
 import PhotoUpload from "./PhotoUpload";
@@ -544,7 +544,7 @@ export default function RegisterFlow() {
             <span className="logo__m">
               <IconLogo />
             </span>
-            LexGo
+            <IconLogoText />
           </span>
           {draft.accountType ? (
             <span className="rf__step-n">{t("progress", { n: idx + 1, total })}</span>

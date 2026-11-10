@@ -11,7 +11,7 @@ import { matchesSearch } from "@/lib/searchText";
 import Menu, { menuSeparator, type MenuEntry } from "@/components/ui/Menu";
 import type { NavItem } from "../portalNav";
 
-// The cabinet header's right-hand tools (LexGo 1920 design): search pill,
+// The cabinet header's right-hand tools (Tezkor Himoya 1920 design): search pill,
 // language select and the avatar menu. The help menu and bell are the
 // existing SupportMenu and NotificationBell, dressed by shell1920.css.
 

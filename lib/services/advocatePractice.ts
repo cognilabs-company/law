@@ -1,6 +1,6 @@
 // An advocate's verified practice (final contract 2026-10-29 §9–12): the
 // advocate uploads the advocate-status certificate, software reads it and
-// suggests the values, the advocate checks and submits them, and a LexGo
+// suggests the values, the advocate checks and submits them, and a Tezkor Himoya
 // operator verifies. Tenure — active days and years, minus suspension
 // periods — is worked out by the backend only; nothing here counts it, and
 // the general profile can no longer change it. Canonical fields only.

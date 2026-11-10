@@ -195,7 +195,7 @@ const SETTINGS_SEED: Readonly<Record<string, unknown>> = {
   enabled: true,
   timeout: 10,
   provider: "Eskiz",
-  sender_name: "LexGo",
+  sender_name: "Tezkor Himoya",
   retry_policy: { attempts: 3, backoff: "exponential" },
 };
 const KNOWN_SETTINGS: ReadonlySet<string> = new Set(["enabled", "timeout", "provider"]);

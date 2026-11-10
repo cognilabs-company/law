@@ -26,7 +26,7 @@ import { IconCheck, IconCrown, IconGem, IconLeaf } from "@/components/icons";
 // render, rather than being passed a zero that would read as a real "−0%".
 
 // Tier icon shown above the plan name (purely presentational — matches
-// whichever of the three fixed LexGo.AI slugs the plan is). Moved here from
+// whichever of the three fixed Tezkor Himoya AI slugs the plan is). Moved here from
 // PlansPanel because it is the CARD's furniture: nothing outside a card ever
 // asks what a slug looks like. The pricing helpers stayed behind for the
 // opposite reason — they are the page's rules, not the card's.

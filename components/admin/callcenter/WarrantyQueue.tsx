@@ -24,7 +24,7 @@ import { IconShield } from "@/components/icons";
 import QueueHead from "./QueueHead";
 import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState";
 
-// The LexGo guarantee queue (enterprise contract §10): a client's claim
+// The Tezkor Himoya guarantee queue (enterprise contract §10): a client's claim
 // that the seller did not answer, broke the deadline, dropped or did not
 // deliver the work. The operator takes one of the decisions the claim's
 // available_resolutions lists (replacement with a new seller — never the
@@ -144,7 +144,7 @@ function ResolveDialog({ claim, onClose, onDone, onForbidden }: { claim: Warrant
 }
 
 
-// A party by name with its LexGo id and phone; a bare id is looked up.
+// A party by name with its Tezkor Himoya id and phone; a bare id is looked up.
 function Party({ p }: { p: MpParty | null }): ReactElement {
   if (!p) return <PersonName />;
   if (!p.name) return <PersonName id={p.id} withPhone />;

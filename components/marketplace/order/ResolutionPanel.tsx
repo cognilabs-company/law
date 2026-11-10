@@ -57,7 +57,7 @@ const STEP_ICON: Partial<Record<RefundStep, typeof IconSend>> = { requested: Ico
 
 const money = (amount: number, currency: string, som: string) => `${fmtUzs(amount)} ${currency === "UZS" ? som : currency}`;
 
-// The panel's picture follows the path: the LexGo guarantee while the choice
+// The panel's picture follows the path: the Tezkor Himoya guarantee while the choice
 // is open, the hand-over once another specialist is chosen, the refund after.
 const HEAD_ART: Readonly<Record<string, OrderArt>> = { reassign: "Boshqa_mutaxassis", refund: "Pul_qaytarish", done: "Pul_qaytarish", bad: "Pul_qaytarish" };
 

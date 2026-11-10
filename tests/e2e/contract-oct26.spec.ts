@@ -102,9 +102,9 @@ test("document settings: a per-mode plan rule and download plans go into the dra
   await page.goto("/uz/admin/document-settings");
   await page.getByRole("button", { name: "Yangi versiya tayyorlash" }).click();
   await page.getByRole("switch", { name: /Hujjat tahlili/ }).click();
-  await page.locator(".dss-mode[data-on]").getByRole("button", { name: "LexGo.AI Pro" }).click();
+  await page.locator(".dss-mode[data-on]").getByRole("button", { name: "Tezkor Himoya AI Pro" }).click();
   await page.getByRole("switch", { name: "Yuklab olish uchun tarif kerak" }).click();
-  await page.getByRole("group", { name: "Yuklab olishga ruxsat beruvchi tariflar" }).getByRole("button", { name: "LexGo.AI Pro" }).click();
+  await page.getByRole("group", { name: "Yuklab olishga ruxsat beruvchi tariflar" }).getByRole("button", { name: "Tezkor Himoya AI Pro" }).click();
   await page.getByRole("button", { name: "Qoralama sifatida saqlash" }).click();
   await expect.poll(() => sent).not.toBeNull();
   expect(sent).toMatchObject({

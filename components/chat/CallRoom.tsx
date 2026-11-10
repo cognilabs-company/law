@@ -148,7 +148,7 @@ const roleOf = (p: Participant): string => {
 };
 
 // ── Adaptive call quality ────────────────────────────────────────
-// The backend ships a per-call quality policy (LexGo Call Adaptive Quality):
+// The backend ships a per-call quality policy (Tezkor Himoya Call Adaptive Quality):
 // the Room options it wants, a video profile ladder, and what this client
 // should do at each LiveKit connection-quality rating. Measured over 148 live
 // calls, every call carries one — but a null policy has to keep behaving
@@ -360,7 +360,7 @@ export type CallView = {
 };
 
 // In-app audio/video meeting over LiveKit (managed SFU + coturn on the
-// backend). Everything stays inside LexGo: a tile per participant with name,
+// backend). Everything stays inside Tezkor Himoya: a tile per participant with name,
 // mic state and speaking ring, screen share on a stage, in-call chat over the
 // LiveKit data channel, and host controls from the backend roster.
 export default function CallRoom({ roomId, callId, callType, isCaller, title, lk, float, keepAlone: keepAloneProp, aiScope, skin, onEnd }: Props) {

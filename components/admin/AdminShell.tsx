@@ -49,7 +49,7 @@ import {
   NavAiReglaments,
   NavChevron,
 } from "./navIcons";
-import { IconLogo, IconGrid, IconLogout, IconMenu, IconClose, IconSearch } from "../icons";
+import { IconLogo, IconLogoText, IconGrid, IconLogout, IconMenu, IconClose, IconSearch } from "../icons";
 import { startCcShift } from "@/lib/callcenter/ccOperator";
 import { useCcOpen } from "@/lib/callcenter/useCcOpen";
 import { CCX_HOME, CCX_NAV_HREF, CCX_PROFILE_HREF, ccxRouteFor } from "@/lib/ccx/routes";
@@ -461,7 +461,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
             <span className="logo__m">
               <IconLogo />
             </span>
-            LexGo
+            <IconLogoText stacked />
           </div>
           <span className="psb__role">{roleBadge}</span>
         </div>

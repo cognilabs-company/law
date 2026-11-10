@@ -104,7 +104,7 @@ export default function ContactAdvocate({ tone, size = "md", chatHref, roomId, c
     setCalling(kind);
     setErr("");
     try {
-      const c = await startCall(roomId, kind, callTitle || "LexGo", counterpartId ? { participantUserIds: [counterpartId] } : undefined);
+      const c = await startCall(roomId, kind, callTitle || "Tezkor Himoya", counterpartId ? { participantUserIds: [counterpartId] } : undefined);
       router.push(`/portal/chat/${encodeURIComponent(roomId)}?join=${encodeURIComponent(c.id)}`);
     } catch (e) {
       setErr(errDetail(e) || t("callError"));

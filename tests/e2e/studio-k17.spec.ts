@@ -36,7 +36,7 @@ test("tariff form v3: audiences, prices unless free, numbered benefits, nothing 
   await page.getByRole("button", { name: "Добавить пункт" }).click();
   await expect(page.locator("label", { hasText: "Комментарий для разработчиков" })).toBeVisible();
   // TSK-639097: it says only LexGo staff read it.
-  await expect(page.locator("[data-path=\"developer_note\"] .sx-aud").first()).toContainText("Только сотрудники LexGo");
+  await expect(page.locator("[data-path=\"developer_note\"] .sx-aud").first()).toContainText("Только сотрудники Tezkor Himoya");
   await expect(page.getByText("Клиент не видит. При публикации", { exact: false })).toBeVisible();
   expect(mock.refused).toEqual([]);
 });

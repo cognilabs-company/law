@@ -1019,7 +1019,7 @@ export async function loadAssistSellers(): Promise<{ items: MarketSeller[]; tota
 export async function searchAssistSellers(q: string, signal?: AbortSignal): Promise<MarketSeller[]> {
   const qs = new URLSearchParams({ q: q.trim().slice(0, 120), limit: "50" });
   const d = asDict(await http(`/marketplace/lawyers?${qs.toString()}`, { signal }));
-  // Operator assist must use the same LexGo-approved seller boundary as the
+  // Operator assist must use the same Tezkor Himoya-approved seller boundary as the
   // public marketplace list; search results must not bypass verification.
   return asArr(d.items).map(normMarketSeller).filter((s) => s.userId && s.verified);
 }

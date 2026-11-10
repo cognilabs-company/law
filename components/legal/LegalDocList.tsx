@@ -13,7 +13,7 @@ export default function LegalDocList({ docs }: { docs: ConsentDoc[] }) {
     <section className="sec legal">
       <div className="wrap legal__in">
         <div className="head">
-          <span className="kick">LexGo</span>
+          <span className="kick">Tezkor Himoya</span>
           <h1 className="h2">{t("indexTitle")}</h1>
           <p className="lead">{t("indexSubtitle")}</p>
         </div>
@@ -45,7 +45,7 @@ export default function LegalDocList({ docs }: { docs: ConsentDoc[] }) {
         ) : (
           <p className="legal__note">{t("empty")}</p>
         )}
-        {/* LexGo's own page, not a backend document: always listed. */}
+        {/* Tezkor Himoyas own page, not a backend document: always listed. */}
         <Link href="/legal/licenses" className="legal__lic">
           {tl("indexLink")}
           <IconArrowRight />

@@ -27,7 +27,7 @@ function Step({ icon, title, lines }: { icon: ReactNode; title: string; lines: s
 
 // What shapes a price, for the client on a public profile (TSK-787056):
 // the catalogue and the specialist's price, the client's own options, and
-// the reasons in plain words. Never LexGo's internal formula — no region
+// the reasons in plain words. Never Tezkor Himoya's internal formula — no region
 // coefficients, experience or rating percentages, no allowed range.
 export default function PricingExplainer({ service, aiId, factors }: { service: ExplainedService | null; aiId?: string; factors?: readonly RuntimeFactor[] }) {
   const t = useTranslations("marketPricing");

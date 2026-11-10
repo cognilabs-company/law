@@ -48,7 +48,7 @@ export function PartyCard({ role, name, phone, lexgoId, extra, quietCall }: { ro
         ) : null}
         {lexgoId ? (
           <span className="opx-num">
-            <small>LexGo ID</small> {lexgoId}
+            <small>Tezkor Himoya ID</small> {lexgoId}
           </span>
         ) : null}
         {extra}

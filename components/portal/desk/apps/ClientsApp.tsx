@@ -15,7 +15,7 @@ import "./clients.css";
 // letter, the card), People on Windows (the list and a page of tabs). Each
 // client's card holds what this seller shares with them — history, cases,
 // orders, payments, documents — and opens the private chat. New clients
-// from outside LexGo and the conflict-of-interest check are dialogs.
+// from outside Tezkor Himoya and the conflict-of-interest check are dialogs.
 
 type Group = "all" | "active" | "recent" | "conflict";
 const fmtNum = (n: number, locale: string) => new Intl.NumberFormat(locale === "en" ? "en-US" : locale === "ru" ? "ru-RU" : "uz-UZ").format(n);

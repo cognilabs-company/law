@@ -1,4 +1,4 @@
-// Which browser tab a screen share captured. Each LexGo tab names itself
+// Which browser tab a screen share captured. Each Tezkor Himoya tab names itself
 // through the Capture Handle API (Chromium), so after the client shares, the
 // captured track says which tab it is: remote assistance only accepts the
 // client's own tab, and the operator never renders a capture of their own

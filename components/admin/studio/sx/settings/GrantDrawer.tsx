@@ -33,9 +33,9 @@ export type GrantMode = { kind: "new" } | { kind: "edit"; grant: StudioAccessGra
 export type GrantSaved = { input: StudioAccessInput; grant: StudioAccessGrant; userName: string };
 
 type Picked = { id: string; name: string; phone: string; lexgoId: string };
-// A person by name, phone or LexGo ID — the bare user id only when it is all
+// A person by name, phone or Tezkor Himoya ID — the bare user id only when it is all
 // there is (an id the admin typed in by hand).
-const whoOf = (p: { id: string; name: string; phone: string; lexgoId: string }) => p.name || p.phone || (p.lexgoId ? `LexGo ID ${p.lexgoId}` : "") || p.id;
+const whoOf = (p: { id: string; name: string; phone: string; lexgoId: string }) => p.name || p.phone || (p.lexgoId ? `Tezkor Himoya ID ${p.lexgoId}` : "") || p.id;
 type Found = { q: string; items: UserSearchResult[]; error: unknown };
 type Scope = "all" | "some";
 
@@ -218,7 +218,7 @@ function GrantForm({ mode, grants, onClose, onSaved, onMissing, onDenied }: Gran
               <Avatar name={whoOf(picked)} size="lg" />
               <span className="sx-st-picked__m">
                 <b>{whoOf(picked)}</b>
-                <small>{[picked.phone, picked.lexgoId ? `LexGo ID ${picked.lexgoId}` : ""].filter(Boolean).join(" · ")}</small>
+                <small>{[picked.phone, picked.lexgoId ? `Tezkor Himoya ID ${picked.lexgoId}` : ""].filter(Boolean).join(" · ")}</small>
               </span>
               {mode.kind === "new" ? (
                 <SxButton
@@ -273,7 +273,7 @@ function GrantForm({ mode, grants, onClose, onSaved, onMissing, onDenied }: Gran
                     <Avatar name={u.name || u.phone} size="sm" />
                     <span className="sx-st-result__m">
                       <b>{whoOf(u)}</b>
-                      <small>{[u.phone, u.lexgoId ? `LexGo ID ${u.lexgoId}` : "", u.role ? roleName(u.role) : ""].filter(Boolean).join(" · ")}</small>
+                      <small>{[u.phone, u.lexgoId ? `Tezkor Himoya ID ${u.lexgoId}` : "", u.role ? roleName(u.role) : ""].filter(Boolean).join(" · ")}</small>
                     </span>
                     {grants.some((g) => g.userId === u.id) ? <span className="sx-st-tag">{t("settings.access.hasGrant")}</span> : null}
                   </button>

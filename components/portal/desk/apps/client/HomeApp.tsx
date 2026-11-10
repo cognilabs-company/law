@@ -15,7 +15,7 @@ import "./client.css";
 
 // The client's home as a desktop program — the Mac's widgets page, a
 // Windows "Home": a greeting and one field to say what happened (the AI
-// answers in its own program), the shortcuts to the help LexGo gives, the
+// answers in its own program), the shortcuts to the help Tezkor Himoya gives, the
 // numbers of what is going on, the open requests, and the invite progress.
 
 type Count = { works: number; orders: number; ready: number };

@@ -627,7 +627,7 @@ test("new lead: one customer select, a new customer above the form, region from 
   await lead.getByRole("button", { name: /Mijoz/ }).first().click();
   const list = page.getByRole("listbox", { name: "Mijozni qidirish" });
   await expect(list.getByRole("option")).toHaveCount(30);
-  await expect(list.getByRole("option").first().locator(".crm-lxbadge")).toHaveText("LexGo foydalanuvchisi");
+  await expect(list.getByRole("option").first().locator(".crm-lxbadge")).toHaveText("Tezkor Himoya foydalanuvchisi");
   await expect(list.getByRole("option").nth(1).locator(".crm-lxbadge")).toHaveCount(0);
   await list.evaluate((el) => (el.scrollTop = el.scrollHeight));
   await expect(list.getByRole("option")).toHaveCount(45);
@@ -642,7 +642,7 @@ test("new lead: one customer select, a new customer above the form, region from 
   const cust = page.getByRole("dialog", { name: "Yangi mijoz" });
   await expect(cust).toBeVisible();
   await expect(lead).toBeVisible();
-  await expect(cust.getByText(/LexGo akkaunt ID/)).toHaveCount(0);
+  await expect(cust.getByText(/Tezkor Himoya akkaunt ID/)).toHaveCount(0);
   await cust.getByLabel("Ism", { exact: true }).fill("Aziza Karimova");
   await cust.getByLabel("Telefon").fill("+998901112233");
   await shot(page, "lead-new-customer");

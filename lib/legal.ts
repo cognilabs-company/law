@@ -15,7 +15,7 @@ export function legalLang(locale: string | null | undefined): LegalLang {
 // local mapping is wrong, so ask once more for Uzbek instead of showing it.
 export const LEGAL_LANG_REFUSED = "legal_language_not_supported";
 
-// Public URL segments of the documents LexGo always publishes.
+// Public URL segments of the documents Tezkor Himoya always publishes.
 export const LEGAL_PATHS = ["terms", "privacy", "disclaimer"] as const;
 
 // A Map, not an object literal: URL segments such as "constructor" or
@@ -54,6 +54,6 @@ export const LEGAL_FALLBACK_ITEMS = [
   { slug: "terms", title: "", version: "", body: "" },
   { slug: "privacy", title: "", version: "", body: "" },
   { slug: "legal_disclaimer", title: "", version: "", body: "" },
-  // LexGo is for adults only: the age confirmation is never left out.
+  // Tezkor Himoya is for adults only: the age confirmation is never left out.
   { slug: "age_18", title: "", version: "", body: "" },
 ];

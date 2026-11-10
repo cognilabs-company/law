@@ -112,7 +112,7 @@ function AdminCallCenterConsole() {
         {cc ? <QualityComplaints onCount={con.count.complaints} /> : null}
       </CcTabPanel>
       {/* Marketplace complaints hold the seller's payout until ruled on;
-          warranty claims are the LexGo guarantee. */}
+          warranty claims are the Tezkor Himoya guarantee. */}
       <CcTabPanel con={con} tab="mpComplaints">
         {cc ? <MarketplaceComplaints onCount={con.count.mpComplaints} /> : null}
       </CcTabPanel>
