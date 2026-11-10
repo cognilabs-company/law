@@ -8,7 +8,7 @@ import CcCallForm from "@/components/admin/CcCallForm";
 import PersonName from "@/components/ui/PersonName";
 import { directionLabel, useUrgentStatuses } from "@/components/admin/UrgentAdvocateQueue";
 import { notify } from "@/lib/toast";
-import { fmtAgeMin, shortDateTime } from "@/lib/date";
+import { fmtAgeMin } from "@/lib/date";
 import { fmtUzs } from "@/lib/money";
 import { humanize, labelOf, regionLabel } from "@/lib/labels";
 import { assignNextSeller, claimUrgentRequest } from "@/lib/services/backend";
@@ -24,10 +24,12 @@ import { LeadJourney } from "../crm/detail/LeadJourney";
 import { useCategoryName } from "../crm/leads/util";
 import { UrgentJourney } from "../urgent/UrgentJourney";
 import type { JobDetail, Who } from "./useNow";
-import { IcArrowRight, IcCheck, IcChevron, IcClock, IcCopy, IcPhone, IcSnooze, JobIcon } from "../icons";
+import { IcArrowRight, IcAward, IcCheck, IcChevron, IcClock, IcCoins, IcCopy, IcDoc, IcFlag, IcInbox, IcLayers, IcMeeting, IcPhone, IcScale, IcSnooze, IcTimeline, IcUser, JobIcon } from "../icons";
+import { IconMapPin } from "@/components/icons";
+import { Chip, CodeRow, Disclosure, Facts, Grid, Group, People, Root, When, statusIcon, type FactItem } from "../panel/Detail";
 
 type Resolve = { href: string; label: string } | { label: string; run: () => Promise<unknown>; done: string; fail: string };
-type Step = { id: string; at: string; title: string; sub: string };
+type Step = { id: string; at: string; title: string; sub: string; icon?: ReactNode };
 
 const RING = 2 * Math.PI * 21;
 
@@ -82,6 +84,7 @@ export default function NowFocus({
   const tq = useTranslations("admin.callCenter.queue");
   const te = useTranslations("enums");
   const tu = useTranslations("admin.urgent");
+  const tx = useTranslations("admin.ccx.detail");
   const tk = useTranslations("portal.client.urgent");
   const tsrc = useTranslations("crm.source");
   const urg = useUrgentStatuses();
@@ -113,40 +116,51 @@ export default function NowFocus({
   const category = lead?.category ? categoryName(lead.category) : "";
   const rating = (r: number) => `${new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(r)} / 5`;
 
-  const facts: [string, ReactNode][] = [];
+  // «Batafsil»: every row a translated label with its own icon; the status
+  // goes to the status-and-deadline group as a chip, the seller as a person.
+  const facts: FactItem[] = [];
+  const fact = (key: string, icon: ReactNode, label: string, value: ReactNode) => facts.push({ key, icon, label, value });
+  const region = <IconMapPin width={15} height={15} style={{ width: 15, height: 15 }} aria-hidden="true" />;
+  let statusText = "";
+  let statusKey = "";
   if (lead) {
-    if (lead.source) facts.push([t("f.source"), tsrc.has(lead.source) ? tsrc(lead.source) : humanize(lead.source)]);
-    if (category) facts.push([t("f.direction"), category]);
-    if (lead.region) facts.push([t("f.region"), regionLabel(te, lead.region)]);
-    if (lead.status) facts.push([t("f.status"), labelOf(tq, "status", lead.status)]);
+    if (lead.source) fact("source", <IcLayers size={15} />, t("f.source"), tsrc.has(lead.source) ? tsrc(lead.source) : humanize(lead.source));
+    if (category) fact("direction", <IcScale size={15} />, t("f.direction"), category);
+    if (lead.region) fact("region", region, t("f.region"), regionLabel(te, lead.region));
+    if (lead.status) [statusText, statusKey] = [labelOf(tq, "status", lead.status), lead.status];
   } else if (urgent) {
-    if (serviceName) facts.push([t("f.service"), serviceName]);
-    if (urgent.channel) facts.push([t("f.channel"), urgent.channel === "chat" ? tk("chChat") : tk("chVideo")]);
-    if (urgent.directions.length) facts.push([t("f.direction"), urgent.directions.map((d) => directionLabel(te, d, tu)).join(", ")]);
-    if (urgent.status) facts.push([t("f.status"), urgentStatus(urgent.status)]);
+    if (serviceName) fact("service", <IcDoc size={15} />, t("f.service"), serviceName);
+    if (urgent.channel) fact("channel", <IcMeeting size={15} />, t("f.channel"), urgent.channel === "chat" ? tk("chChat") : tk("chVideo"));
+    if (urgent.directions.length) fact("direction", <IcScale size={15} />, t("f.direction"), urgent.directions.map((d) => directionLabel(te, d, tu)).join(", "));
+    if (urgent.status) [statusText, statusKey] = [urgentStatus(urgent.status), urgent.status];
   } else if (job.queue) {
-    if (job.queue.region) facts.push([t("f.region"), regionLabel(te, job.queue.region)]);
-    if (job.queue.status) facts.push([t("f.status"), labelOf(tq, "status", job.queue.status)]);
+    if (job.queue.region) fact("region", region, t("f.region"), regionLabel(te, job.queue.region));
+    if (job.queue.status) [statusText, statusKey] = [labelOf(tq, "status", job.queue.status), job.queue.status];
   } else if (job.cockpit) {
     const c = job.cockpit;
-    if (c.amount) facts.push([t("f.amount"), t("sum", { n: fmtUzs(c.amount) })]);
-    if (c.docTitle && c.docTitle !== c.title) facts.push([t("f.service"), c.docTitle]);
-    if (c.rating != null) facts.push([t("f.rating"), rating(c.rating)]);
-    if (c.sellerUserId && !sellerSide) facts.push([t("f.seller"), <PersonName key="s" id={c.sellerUserId} />]);
+    if (c.amount) fact("amount", <IcCoins size={15} />, t("f.amount"), <span className="opx-num">{t("sum", { n: fmtUzs(c.amount) })}</span>);
+    if (c.docTitle && c.docTitle !== c.title) fact("service", <IcDoc size={15} />, t("f.service"), c.docTitle);
+    if (c.rating != null) fact("rating", <IcAward size={15} />, t("f.rating"), <span className="opx-num">{rating(c.rating)}</span>);
   }
+  const sellerRow = job.cockpit?.sellerUserId && !sellerSide ? job.cockpit.sellerUserId : "";
   const created = lead?.createdAt || urgent?.createdAt || job.queue?.createdAt || job.cockpit?.at || "";
-  if (created) facts.push([t("f.created"), shortDateTime(created, locale)]);
+  const deadline =
+    job.leftMin == null
+      ? null
+      : job.breached
+        ? { tone: "hot" as const, text: tx("slaOver") }
+        : { tone: job.leftMin <= 15 ? ("warn" as const) : ("ok" as const), text: tx("slaLeft", { time: fmtAgeMin(job.leftMin, locale) }) };
 
   const reasonTitle = lead ? lead.title.trim() || text.title(job) : urgent ? serviceName || text.title(job) : job.cockpit ? text.reason(job) || job.cockpit.title || text.kind(job) : text.title(job);
   const reasonBody = lead?.problem || urgent?.need || job.cockpit?.note || "";
 
   const steps: Step[] = [];
   if (detail?.history?.length) {
-    for (const e of detail.history) steps.push({ id: e.id, at: e.createdAt, title: e.title || t("change"), sub: [e.body, e.actor?.name].filter(Boolean).join(" · ") });
+    for (const e of detail.history) steps.push({ id: e.id, at: e.createdAt, title: e.title || t("change"), sub: [e.body, e.actor?.name].filter(Boolean).join(" · "), icon: e.actor?.name ? <IcUser size={14} /> : <IcTimeline size={14} /> });
   } else if (urgent?.statusHistory.length) {
-    urgent.statusHistory.forEach((s, i) => steps.push({ id: `${s.at}-${i}`, at: s.at, title: urgentStatus(s.to), sub: s.from ? `${urgentStatus(s.from)} → ${urgentStatus(s.to)}` : "" }));
+    urgent.statusHistory.forEach((s, i) => steps.push({ id: `${s.at}-${i}`, at: s.at, title: urgentStatus(s.to), sub: s.from ? `${urgentStatus(s.from)} → ${urgentStatus(s.to)}` : "", icon: statusIcon(s.to) }));
   }
-  if (!steps.length && created) steps.push({ id: "created", at: created, title: t("created"), sub: text.kind(job) });
+  if (!steps.length && created) steps.push({ id: "created", at: created, title: t("created"), sub: text.kind(job), icon: <IcInbox size={14} /> });
 
   const claimedBy = urgent?.claimedByUserId || job.queue?.claimedByUserId || "";
   // The CRM lead opens only with the CRM's own lead permission (GET /crm/meta;
@@ -280,44 +294,43 @@ export default function NowFocus({
           </button>
         </div>
 
-        <button type="button" className="opx-focus__more" aria-expanded={more} onClick={() => setMore((o) => !o)}>
+        <button type="button" className="opx-focus__more" aria-expanded={more} aria-controls="opx-focus-more" onClick={() => setMore((o) => !o)}>
           {t("more")}
           <IcChevron size={15} />
         </button>
-        {more ? (
-          <div className="opx-focus__extra">
-            <dl className="opx-who__facts">
-              <div>
-                <dt>{t("f.code")}</dt>
-                <dd className="opx-num">
-                  {code}
-                  <CopyButton value={code} label={t("f.code")} />
-                </dd>
-              </div>
-              {who.lexgoId ? (
-                <div>
-                  <dt>{t("lexgoId")}</dt>
-                  <dd className="opx-num">
-                    {who.lexgoId}
-                    <CopyButton value={who.lexgoId} label={t("lexgoId")} />
-                  </dd>
+        <Disclosure id="opx-focus-more" open={more}>
+          <Root className="opx-focus__extra">
+            <Grid>
+              <Group icon={<IcClock size={16} />} title={tx("state")} tone={job.breached ? "hot" : undefined}>
+                <div className="opx-dk-chips">
+                  {deadline ? (
+                    <Chip tone={deadline.tone} icon={<IcFlag size={14} />}>
+                      {deadline.text}
+                    </Chip>
+                  ) : null}
                 </div>
-              ) : null}
-              <div>
-                <dt>{t("waiting")}</dt>
-                <dd className="opx-num">{job.leftMin == null ? age : job.breached ? t("slaOver") : t("slaLeft", { time: fmtAgeMin(job.leftMin, locale) })}</dd>
-              </div>
-              {facts.map(([k, v]) => (
-                <div key={k}>
-                  <dt>{k}</dt>
-                  <dd>{v}</dd>
+                <Facts
+                  items={[
+                    { key: "wait", icon: <IcSnooze size={15} />, label: tx("wait"), value: <span className="opx-num">{age}</span> },
+                    ...(statusText ? [{ key: "status", icon: statusIcon(statusKey, 15), label: t("f.status"), value: statusText }] : []),
+                    ...(created ? [{ key: "created", icon: <IcInbox size={15} />, label: t("f.created"), value: <When at={created} /> }] : []),
+                  ]}
+                />
+              </Group>
+              <Group icon={<IcDoc size={16} />} title={tx("details")}>
+                <div className="opx-dk-chips">
+                  <CodeRow code={code} label={t("f.code")} />
+                  {who.lexgoId ? <CodeRow code={who.lexgoId} label={t("lexgoId")} /> : null}
                 </div>
-              ))}
-            </dl>
+                {facts.length ? <Facts items={facts} /> : null}
+                {sellerRow ? <People people={[{ key: "seller", name: <PersonName id={sellerRow} />, avatarName: "", role: t("f.seller") }]} /> : null}
+                {!facts.length && !sellerRow ? <p className="opx-dk-none">{t("noDetails")}</p> : null}
+              </Group>
+            </Grid>
             <NowTabs job={job} detail={detail} steps={steps} waiting={waitingDetail} onNote={onLogged} />
             {extra}
-          </div>
-        ) : null}
+          </Root>
+        </Disclosure>
       </div>
 
       {logging ? (

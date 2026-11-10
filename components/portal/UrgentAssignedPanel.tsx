@@ -14,7 +14,7 @@ import {
 import { subscribeUserEvents, onUserSocketResync } from "@/lib/userSocket";
 import { ApiError, logApiError } from "@/lib/http";
 import { dateTimeFull } from "@/lib/date";
-import { statusLabel, statusSpecOf, regionLabel, humanize } from "@/lib/labels";
+import { statusLabel, statusSpecOf, regionLabel, humanize, type StatusTone } from "@/lib/labels";
 import { notify } from "@/lib/toast";
 import { fmtUzs } from "@/lib/money";
 import { Link } from "@/i18n/navigation";
@@ -27,8 +27,9 @@ import CallRoom from "@/components/chat/CallRoom";
 import PhoneLock from "@/components/marketplace/order/PhoneLock";
 import { Skeleton, EmptyState, ErrorState } from "./DataState";
 import IconButton from "@/components/ui/IconButton";
-import ScrollCue from "@/components/ui/ScrollCue";
 import { StatusBadge } from "@/components/ui/Badge";
+import { Chip, CodeRow, Disclosure, Facts, Failed, Grid, Group, Hero, History, NextFact, People, Root, Skeleton as DkSkeleton, When, statusIcon, useWhen, type DkTone, type HistoryStep, type Person } from "@/components/ccx/panel/Detail";
+import { IcBolt, IcCoins, IcInbox, IcMeeting, IcTimeline } from "@/components/ccx/icons";
 import { useUrgentStatuses } from "@/components/admin/UrgentAdvocateQueue";
 import {
   IconBolt,
@@ -39,7 +40,6 @@ import {
   IconClock,
   IconCheck,
   IconCalendar,
-  IconUser,
   IconPhone,
   IconMapPin,
   IconFileText,
@@ -54,7 +54,10 @@ import {
   IconOpinionPanel,
   IconClipboardCheck,
   IconBriefcase,
+  IconMic,
 } from "@/components/icons";
+
+const px = (n: number) => ({ width: n, height: n, style: { width: n, height: n } });
 
 // "Mening Tezkor ishlarim" — the advocate's and lawyer's side of Tezkor
 // Advokat, on GET /urgent-advokat/requests/assigned (backend 273953a,
@@ -504,7 +507,9 @@ export default function UrgentAssignedPanel() {
                     </button>
                   </div>
                 </div>
-                {on ? <AssignedDetail id={`uasg-${r.id}`} recordId={r.id} fallback={r} /> : null}
+                <Disclosure id={`uasg-${r.id}`} open={on} className="uasg__more">
+                  <AssignedDetail recordId={r.id} fallback={r} me={me} />
+                </Disclosure>
               </li>
             );
           })}
@@ -533,21 +538,30 @@ export default function UrgentAssignedPanel() {
 // {id} is the authoritative read for a participant and is the only place the
 // attachments and the status history arrive — so the row is shown immediately
 // as a fallback and replaced when the fetch lands.
-function AssignedDetail({ id, recordId, fallback }: { id: string; recordId: string; fallback: UrgentRequest }) {
+//
+// Laid out on the call-center detail kit (components/ccx/panel/Detail.tsx):
+// the client and the next meeting up top, then the request, the people, the
+// meeting, status and deadline, and the history as a timeline.
+const TONE: Record<StatusTone, DkTone> = { neutral: "mute", info: "info", ok: "ok", warn: "warn", err: "hot" };
+
+function AssignedDetail({ recordId, fallback, me }: { recordId: string; fallback: UrgentRequest; me: string }) {
   const t = useTranslations("portal.seller.urgent");
+  const tk = useTranslations("portal.client.urgent");
   const tcm = useTranslations("portal.common");
   const te = useTranslations("enums");
+  const x = useTranslations("admin.ccx.detail");
   const urg = useUrgentStatuses();
-  const locale = useLocale();
+  const when = useWhen();
   const [req, setReq] = useState<UrgentRequest>(fallback);
   const [err, setErr] = useState<unknown>(null);
+  const [loaded, setLoaded] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let alive = true;
     getUrgentRequest(recordId)
-      .then((r) => { if (alive) { setReq(r); setErr(null); } })
-      .catch((e) => { if (alive) { logApiError("urgent participant detail", e); setErr(e); } });
+      .then((r) => { if (alive) { setReq(r); setErr(null); setLoaded(true); } })
+      .catch((e) => { if (alive) { logApiError("urgent participant detail", e); setErr(e); setLoaded(true); } });
     return () => { alive = false; };
   }, [recordId, attempt]);
 
@@ -561,113 +575,157 @@ function AssignedDetail({ id, recordId, fallback }: { id: string; recordId: stri
     });
   }, [recordId]);
 
-  const panel = req.groupLawyers;
+  const spec = (s: string) => statusSpecOf(urg, s, statusLabel(tcm, s));
+  const st = spec(req.status);
+  const stTone: DkTone = st ? TONE[st.tone] : "mute";
+  const done = DONE_STATUSES.has(req.status);
+  const meetAt = req.scheduledAt && !done ? when(req.scheduledAt) : null;
+  const lockAi = recordId ? `${aiId("advocate.urgent.item", recordId)}.phone-locked` : undefined;
+  const clientLock = !req.clientPhone && req.clientPhoneVisible === false ? <PhoneLock reason={req.clientPhoneHiddenReason} aiId={lockAi} /> : undefined;
+  const dirs = req.directions.map((d) => directionLabel(te, d)).filter((d, i, all) => d && all.indexOf(d) === i);
+  const kind = tk.has(`kinds.${req.serviceKind}`) ? tk(`kinds.${req.serviceKind}`) : req.serviceTitle;
+
+  // The panel and the duty advocate, as people. The viewer is marked, not hidden.
+  const panel: Person[] = req.groupLawyers
+    .filter((g) => g.name)
+    .map((g) => ({ key: g.id, name: g.name, avatarName: g.name, role: x("role.panel"), phone: g.phone || undefined, me: !!me && g.id === me }));
+  const duty: Person[] = req.operator?.name
+    ? [{ key: "operator", name: req.operator.name, avatarName: req.operator.name, role: t("operator"), phone: req.operator.phone || undefined, me: !!me && req.operator.id === me, tone: "ok" }]
+    : [];
+
+  const steps: HistoryStep[] = req.statusHistory.map((h, i) => {
+    const s = spec(h.to);
+    const last = i === req.statusHistory.length - 1;
+    return {
+      id: `${h.at}-${i}`,
+      at: h.at,
+      title: s?.label ?? "",
+      sub: h.from ? `${spec(h.from)?.label ?? ""} → ${s?.label ?? ""}` : undefined,
+      icon: statusIcon(h.to),
+      tone: last ? (s ? TONE[s.tone] : "info") : "mute",
+    };
+  }).filter((s) => s.title);
+
+  const terms = [req.meetingMinutes ? t("minutesN", { n: req.meetingMinutes }) : "", req.amount ? `${fmtUzs(req.amount)} ${te("currency")}` : ""].filter(Boolean);
 
   return (
-    <div className="uamore" id={id}>
-      <div className="uamore__block">
-        <b><IconUser />{t("client")}</b>
-        <p>
-          {req.clientName || t("clientHidden")}
-          {/* Withheld from an external advocate by the backend — absent, not
-              empty, so it is simply not rendered. */}
-          {req.clientPhone ? <> · <a href={`tel:${req.clientPhone}`}><IconPhone />{req.clientPhone}</a></> : req.clientPhoneVisible === false ? <> · <PhoneLock reason={req.clientPhoneHiddenReason} aiId={recordId ? `${aiId("advocate.urgent.item", recordId)}.phone-locked` : undefined} /></> : null}
-        </p>
-        {req.region ? <span className="advmuted"><IconMapPin />{regionLabel(te, req.region)}</span> : null}
-      </div>
-
-      <div className="uamore__block">
-        <b><IconFileText />{t("need")}</b>
-        <p>{req.need || t("noNeed")}</p>
-        {req.directions.length ? (
-          <ScrollCue className="chiprow" style={{ margin: "6px 0 0" }}>
-            {req.directions.map((d) => (
-              <span key={d} className="fchip">{directionLabel(te, d)}</span>
-            ))}
-          </ScrollCue>
-        ) : null}
-      </div>
-
-      {req.files.length || req.voiceMessages.length ? (
-        <div className="uamore__block">
-          <b><IconFileText />{t("attachments")}</b>
-          <ul className="uamore__files">
-            {req.files.map((f, i) => (
-              <li key={f.id || `f${i}`}>
-                {f.url ? <a href={f.url} target="_blank" rel="noopener noreferrer">{f.name}</a> : f.name}
-              </li>
-            ))}
-            {req.voiceMessages.map((v, i) => (
-              <li key={v.id || `v${i}`}>
-                {v.url ? <audio src={v.url} controls preload="none" /> : v.name}
-                {v.durationSeconds ? <span className="advmuted"> {t("seconds", { n: v.durationSeconds })}</span> : null}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {panel.length ? (
-        <div className="uamore__block">
-          <b><IconUsers />{t("panel")}</b>
-          <ul className="uamore__files">
-            {panel.map((g) => <li key={g.id}>{g.name}</li>)}
-          </ul>
-          {req.scheduledAt ? (
-            <span className="advmuted"><IconCalendar /> {t("scheduledFor", { when: dateTimeFull(req.scheduledAt, locale) })}</span>
+    <Root className="uasg__detail" data-ai-private>
+      <Hero
+        role={t("client")}
+        name={req.clientName || t("clientHidden")}
+        avatarName={req.clientName}
+        phone={req.clientPhone || undefined}
+        locked={clientLock}
+        meta={req.region ? <Chip icon={<IconMapPin {...px(13)} aria-hidden="true" />}>{regionLabel(te, req.region)}</Chip> : undefined}
+        aside={
+          meetAt ? (
+            <NextFact icon={<IcMeeting size={22} />} label={x("nextMeeting")} tone={req.status === "meeting_active" ? "ok" : "info"}>
+              <When at={req.scheduledAt} />
+            </NextFact>
+          ) : st ? (
+            <NextFact icon={statusIcon(req.status, 22)} label={x("status")} tone={stTone}>
+              <b className="opx-dk-next__v">{st.label}</b>
+            </NextFact>
+          ) : undefined
+        }
+      >
+        <div className="opx-dk-chips">
+          {meetAt && st ? <Chip tone={stTone} dot live={st.dot === "live"}>{st.label}</Chip> : null}
+          {req.channel ? (
+            <Chip tone="info" icon={req.channel === "chat" ? <IconChat {...px(13)} aria-hidden="true" /> : <IconVideo {...px(13)} aria-hidden="true" />}>
+              {req.channel === "chat" ? tk("chChat") : tk("chVideo")}
+            </Chip>
           ) : null}
-          {req.meetingNote ? <span className="advmuted">{req.meetingNote}</span> : null}
+          {kind ? <Chip icon={<KindGlyph kind={req.serviceKind} />}>{kind}</Chip> : null}
+          <CodeRow code={req.workId} label={tk("workId")} />
         </div>
-      ) : null}
+      </Hero>
 
-      {req.operator ? (
-        <div className="uamore__block">
-          <b><IconUser />{t("operator")}</b>
-          <p>{req.operator.name}{req.operator.phone ? ` · ${req.operator.phone}` : ""}</p>
-        </div>
-      ) : null}
+      <Grid>
+        <Group icon={<IconFileText {...px(16)} aria-hidden="true" />} title={t("need")}>
+          <p className="opx-dk-text">{req.need || t("noNeed")}</p>
+          {dirs.length ? (
+            <div className="opx-dk-chips">
+              {dirs.map((d) => (
+                <Chip key={d} tone="info" icon={<IconScale {...px(13)} aria-hidden="true" />}>{d}</Chip>
+              ))}
+            </div>
+          ) : null}
+          {req.lawyerCount > 1 ? <p className="opx-dk-sub">{x("requested", { n: req.lawyerCount })}</p> : null}
+        </Group>
 
-      {req.meetingMinutes || req.amount ? (
-        <div className="uamore__block">
-          <b><IconClock />{t("terms")}</b>
-          <p>
-            {[
-              req.meetingMinutes ? t("minutesN", { n: req.meetingMinutes }) : "",
-              req.amount ? `${fmtUzs(req.amount)} ${te("currency")}` : "",
-            ].filter(Boolean).join(" · ")}
-          </p>
-        </div>
-      ) : null}
+        {panel.length || duty.length ? (
+          <Group icon={<IconUsers {...px(16)} aria-hidden="true" />} title={panel.length ? t("panel") : t("operator")} count={panel.length + duty.length}>
+            <People people={[...duty, ...panel]} />
+          </Group>
+        ) : null}
 
-      {req.resultSummary ? (
-        <div className="uamore__block uamore__block--ok">
-          <b><IconCheck />{t("result")}</b>
-          <p>{req.resultSummary}</p>
-          {req.nextAction ? <span className="advmuted">{t("nextAction")}: {req.nextAction}</span> : null}
-        </div>
-      ) : null}
-      {req.cancelReason ? (
-        <div className="uamore__block uamore__block--warn">
-          <b><IconClose />{t("cancelled")}</b>
-          <p>{req.cancelReason}</p>
-        </div>
-      ) : null}
+        {req.scheduledAt || terms.length || req.meetingNote ? (
+          <Group icon={<IcMeeting size={16} />} title={x("meeting")}>
+            <Facts
+              items={[
+                req.scheduledAt ? { key: "when", icon: <IconCalendar {...px(15)} aria-hidden="true" />, label: x("when"), value: <When at={req.scheduledAt} /> } : null,
+                req.meetingMinutes ? { key: "dur", icon: <IconClock {...px(15)} aria-hidden="true" />, label: x("duration"), value: t("minutesN", { n: req.meetingMinutes }) } : null,
+                req.amount ? { key: "price", icon: <IcCoins size={15} />, label: x("price"), value: <span className="opx-num">{`${fmtUzs(req.amount)} ${te("currency")}`}</span> } : null,
+              ]}
+            />
+            {req.meetingNote ? <p className="opx-dk-quote">{req.meetingNote}</p> : null}
+          </Group>
+        ) : null}
 
-      {req.statusHistory.length ? (
-        <div className="uamore__block">
-          <b><IconClock />{t("history")}</b>
-          <ol className="uamore__hist">
-            {req.statusHistory.map((h, i) => (
-              <li key={i}>
-                <span>{statusSpecOf(urg, h.to, statusLabel(tcm, h.to))?.label ?? ""}</span>
-                <em>{h.at ? dateTimeFull(h.at, locale) : ""}</em>
-              </li>
-            ))}
-          </ol>
-        </div>
-      ) : null}
+        <Group icon={<IconClock {...px(16)} aria-hidden="true" />} title={x("state")}>
+          <Facts
+            items={[
+              st ? { key: "st", icon: statusIcon(req.status, 15), label: x("status"), value: <Chip tone={stTone} dot live={st.dot === "live"}>{st.label}</Chip> } : null,
+              !done ? { key: "sla", icon: <IcBolt size={15} />, label: x("sla"), value: <Chip tone={req.slaBreached ? "hot" : "ok"}>{req.slaBreached ? x("slaOver") : x("slaOk")}</Chip> } : null,
+              req.createdAt ? { key: "made", icon: <IcInbox size={15} />, label: x("created"), value: <When at={req.createdAt} /> } : null,
+            ]}
+          />
+        </Group>
 
-      {err ? <ErrorState error={err} onRetry={() => setAttempt((n) => n + 1)} compact /> : null}
-    </div>
+        {req.files.length || req.voiceMessages.length ? (
+          <Group icon={<IconFileText {...px(16)} aria-hidden="true" />} title={t("attachments")} count={req.files.length + req.voiceMessages.length}>
+            <ul className="opx-dk-files">
+              {req.files.map((f, i) => (
+                <li key={f.id || `f${i}`}>
+                  <IconFileText {...px(15)} aria-hidden="true" />
+                  {f.url ? <a href={f.url} target="_blank" rel="noopener noreferrer">{f.name}</a> : <span>{f.name}</span>}
+                </li>
+              ))}
+              {req.voiceMessages.map((v, i) => (
+                <li key={v.id || `v${i}`}>
+                  <IconMic {...px(15)} aria-hidden="true" />
+                  {v.url ? <audio src={v.url} controls preload="none" aria-label={v.name || x("voice")} /> : <span>{v.name || x("voice")}</span>}
+                  {v.durationSeconds ? <small className="opx-num">{t("seconds", { n: v.durationSeconds })}</small> : null}
+                </li>
+              ))}
+            </ul>
+          </Group>
+        ) : null}
+
+        {req.resultSummary ? (
+          <Group icon={<IconCheck {...px(16)} aria-hidden="true" />} title={t("result")} tone="ok" wide>
+            <p className="opx-dk-text">{req.resultSummary}</p>
+            {req.nextAction ? <p className="opx-dk-quote">{t("nextAction")}: {req.nextAction}</p> : null}
+          </Group>
+        ) : null}
+        {req.cancelReason ? (
+          <Group icon={<IconClose {...px(16)} aria-hidden="true" />} title={t("cancelled")} tone="hot" wide>
+            <p className="opx-dk-text">{req.cancelReason}</p>
+          </Group>
+        ) : null}
+
+        <Group icon={<IcTimeline size={16} />} title={x("history")} count={loaded ? steps.length : undefined} wide>
+          {!loaded && !steps.length ? <DkSkeleton rows={3} label={x("loading")} /> : <History steps={steps} empty={x("noHistory")} newestFirst />}
+        </Group>
+      </Grid>
+
+      {err ? <Failed text={x("loadFailed")} onRetry={() => setAttempt((n) => n + 1)} /> : null}
+    </Root>
   );
+}
+
+function KindGlyph({ kind }: { kind: string }) {
+  const Icon = KIND_ICON[kind] ?? IconScale;
+  return <Icon {...px(13)} aria-hidden="true" />;
 }

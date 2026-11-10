@@ -31,13 +31,16 @@ import PhoneLock from "@/components/marketplace/order/PhoneLock";
 import { directionLabel, useUrgentStatuses } from "@/components/admin/UrgentAdvocateQueue";
 import { IconAlert, IconChat, IconExternal, IconMapPin, IconMic, IconUsers } from "@/components/icons";
 import { CaseBox, Loading, PartyCard, Section } from "../panel/bits";
-import { CopyButton } from "../now/NowFocus";
+import { Chip, CodeRow, Disclosure, Facts, Grid, Group, History, People, Root, When, statusIcon, type DkTone, type Person } from "../panel/Detail";
 import { prettyPhone } from "../now/feed";
 import { IcArrowLeft, IcBolt, IcCheck, IcChevron, IcClock, IcClose, IcCoins, IcDoc, IcMeeting, IcScale, IcShield, IcTimeline, IcUser } from "../icons";
 import { UrgentJourney } from "./UrgentJourney";
 import { AI_ITEM, GROUP, SOURCES_SHOWN, chatHref, dedupeSources, kindName, ntfId, statusChoicesOf, statusOf, telOf, type Ask, type Change, type Step } from "./model";
-import { ChannelChip, KindIcon, MoreMenu, UrgBadge, VoiceNote, px, type MenuItem } from "./parts";
+import { KindIcon, MoreMenu, VoiceNote, px, type MenuItem } from "./parts";
 import { useReportDirty } from "./kit";
+import type { StatusTone } from "@/lib/labels";
+
+const TONE_DK: Record<StatusTone, DkTone> = { neutral: "mute", info: "info", ok: "ok", warn: "warn", err: "hot" };
 import { CancelStep, CompleteStep, StatusStep, TransferStep } from "./UrgentForms";
 import UrgentCandidates from "./UrgentCandidates";
 
@@ -77,7 +80,9 @@ export default function UrgentDetail({
   const t = useTranslations("admin.urgent");
   const tp = useTranslations("admin.ccx.panel");
   const tc = useTranslations("admin.ccx.now");
+  const tx = useTranslations("admin.ccx.detail");
   const [details, setDetails] = useState(false);
+  const moreId = useId();
   const x = useTranslations("admin.ccx.urgent");
   const none = useTranslations("common")("none");
   const tk = useTranslations("portal.client.urgent");
@@ -86,7 +91,6 @@ export default function UrgentDetail({
   const te = useTranslations("enums");
   const tv = useTranslations("secureChat");
   const locale = useLocale();
-  const histId = useId();
   const urg = useUrgentStatuses();
   const urgLabel = (s: string) => statusSpecOf(urg, s, statusLabel(tcm, s))?.label ?? "";
   const { session } = useAuth();
@@ -107,7 +111,6 @@ export default function UrgentDetail({
   const [stepDirty, setStepDirty] = useState(false);
   const [stepBusy, setStepBusy] = useState(false);
   const [allSources, setAllSources] = useState(false);
-  const [histOpen, setHistOpen] = useState(false);
   const [seenAsk, setSeenAsk] = useState(ask);
   const root = useRef<HTMLDivElement>(null);
   const alive = useRef(true);
@@ -348,6 +351,20 @@ export default function UrgentDetail({
     status: t("moveTo"),
   };
   const dirs = req.directions.map((d) => directionLabel(te, d, t)).filter((d, i, all) => d && all.indexOf(d) === i);
+  const stSpec = statusSpecOf(urg, statusOf(req), statusLabel(tcm, statusOf(req)));
+  const isFinalReq = !req.nextStatuses.length && statusOf(req) !== "open_pool";
+  // Who is on it, as people: the operator who took it, the call-center
+  // operator, the assigned advocate. Nobody is listed twice.
+  const staff: Person[] = [];
+  const addStaff = (key: string, who: { id?: string; name?: string; phone?: string } | null | undefined, fallbackId: string, role: string) => {
+    const pid = who?.id || fallbackId;
+    if (!pid && !who?.name) return;
+    if (pid && staff.some((p) => p.key.endsWith(`:${pid}`))) return;
+    staff.push({ key: `${key}:${pid}`, name: <PersonName id={pid} name={who?.name} />, avatarName: who?.name ?? "", role, phone: who?.phone || undefined, me: !!me && pid === me });
+  };
+  addStaff("claimed", req.claimedBy, req.claimedByUserId, t("claimedBy"));
+  addStaff("operator", req.operator, req.operatorUserId, t("operator"));
+  addStaff("lawyer", req.assignedLawyer, req.assignedLawyerUserId, t("assignedLawyer"));
 
   const items: MenuItem[] = [];
   if (can.chat && primary !== "chat") items.push({ key: "chat", group: 0, label: t("openChat"), hint: t("newTab"), icon: <IconChat {...px(16)} aria-hidden="true" />, href: chatHref(req, kindLabel), title: t("openChatTitle"), aiId: aiId(AI_ITEM, req.id, "chat") });
@@ -667,113 +684,77 @@ export default function UrgentDetail({
               </Section>
             ) : null}
 
-            <button type="button" className="opx-ug-link opx-ug-morebtn" aria-expanded={details} onClick={() => setDetails((v) => !v)}>
+            <button type="button" className="opx-ug-link opx-ug-morebtn" aria-expanded={details} aria-controls={moreId} onClick={() => setDetails((v) => !v)}>
               {tc("more")}
               <IcChevron size={15} />
             </button>
-            {details ? (
-              <>
-                <div className="opx-ug-dhead__chips">
-                  {req.workId ? (
-                    <span className="opx-ug-chip opx-num">
-                      {req.workId}
-                      <CopyButton value={req.workId} label={tk("workId")} />
-                    </span>
-                  ) : null}
-                  <UrgBadge status={statusOf(req)} urg={urg} />
-                  <ChannelChip channel={req.channel} />
-                  {req.meetingMinutes ? (
-                    <span className="opx-ug-chip opx-num">
-                      <IcClock size={14} />
-                      {tk("minutesN", { n: req.meetingMinutes })}
-                    </span>
-                  ) : null}
-                  {req.amount ? (
-                    <span className="opx-ug-chip opx-num">
-                      <IcCoins size={14} />
-                      {fmtUzs(req.amount)} {te("currency")}
-                    </span>
-                  ) : null}
-                  {req.immediateCall ? (
-                    <span className="opx-ug-chip is-now">
-                      <IcBolt size={14} />
-                      {t("onDuty")}
-                    </span>
-                  ) : null}
-                </div>
-            <div className={sources.length ? "opx-pgrid2" : undefined}>
-              <Section icon={<IcUser size={17} />} title={t("assignment")}>
-                <dl className="opx-ug-dl">
-                  <div>
-                    <dt>{t("claimedBy")}</dt>
-                    <dd>
-                      <PersonName id={req.claimedBy?.id ?? req.claimedByUserId} name={req.claimedBy?.name} />
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>{t("operator")}</dt>
-                    <dd>
-                      <PersonName id={req.operator?.id ?? req.operatorUserId} name={req.operator?.name} />
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>{t("assignedLawyer")}</dt>
-                    <dd>
-                      <PersonName id={req.assignedLawyer?.id} name={req.assignedLawyer?.name} />
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>{t("created")}</dt>
-                    <dd className="opx-num">{req.createdAt ? dateTimeFull(req.createdAt, locale) : none}</dd>
-                  </div>
-                </dl>
-              </Section>
+            <Disclosure id={moreId} open={details}>
+              <Root className="opx-ug-more">
+                <Grid>
+                  <Group icon={<IcClock size={16} />} title={tx("state")} tone={req.slaBreached ? "hot" : undefined}>
+                    <div className="opx-dk-chips">
+                      {stSpec ? (
+                        <Chip tone={TONE_DK[stSpec.tone]} dot live={stSpec.dot === "live"}>
+                          {stSpec.label}
+                        </Chip>
+                      ) : null}
+                      {!isFinalReq ? <Chip tone={req.slaBreached ? "hot" : "ok"} icon={<IcBolt size={14} />}>{req.slaBreached ? tx("slaOver") : tx("slaOk")}</Chip> : null}
+                      {req.immediateCall ? (
+                        <Chip tone="warn" icon={<IcBolt size={14} />}>
+                          {t("onDuty")}
+                        </Chip>
+                      ) : null}
+                      <CodeRow code={req.workId} label={tk("workId")} />
+                    </div>
+                    <Facts
+                      items={[
+                        req.channel ? { key: "ch", icon: req.channel === "chat" ? <IconChat {...px(15)} aria-hidden="true" /> : <IcMeeting size={15} />, label: tx("channel"), value: req.channel === "chat" ? tk("chChat") : tk("chVideo") } : null,
+                        req.meetingMinutes ? { key: "min", icon: <IcClock size={15} />, label: tx("duration"), value: tk("minutesN", { n: req.meetingMinutes }) } : null,
+                        req.amount ? { key: "sum", icon: <IcCoins size={15} />, label: tx("price"), value: <span className="opx-num">{`${fmtUzs(req.amount)} ${te("currency")}`}</span> } : null,
+                        req.createdAt ? { key: "made", icon: <IcTimeline size={15} />, label: t("created"), value: <When at={req.createdAt} /> } : null,
+                      ]}
+                    />
+                  </Group>
 
-              {sources.length ? (
-                <Section icon={<IcShield size={17} />} title={t("eligibleSources")} count={sources.length}>
-                  <ul className="opx-ug-sources">
-                    {(allSources ? sources : sources.slice(0, SOURCES_SHOWN)).map((s, i) => (
-                      <li key={`${s.type}-${s.id}-${i}`}>
-                        <b>{s.title || (s.serviceKind && tk.has(`kinds.${s.serviceKind}`) ? tk(`kinds.${s.serviceKind}`) : humanize(s.serviceKind || s.type))}</b>
-                        <small>{[statusLabel(tcm, s.status), s.createdAt ? dateTimeFull(s.createdAt, locale) : ""].filter(Boolean).join(" · ")}</small>
-                      </li>
-                    ))}
-                  </ul>
-                  {sources.length > SOURCES_SHOWN ? (
-                    <button type="button" className="opx-ug-link" aria-expanded={allSources} onClick={() => setAllSources((v) => !v)}>
-                      {allSources ? t("sourcesLess") : t("sourcesAll", { n: sources.length })}
-                    </button>
-                  ) : null}
-                </Section>
-              ) : null}
-            </div>
+                  <Group icon={<IcUser size={16} />} title={t("assignment")} count={staff.length}>
+                    {staff.length ? <People people={staff} /> : <p className="opx-dk-none">{none}</p>}
+                  </Group>
 
-            {req.statusHistory.length ? (
-              <section className="opx-psec opx-ug-hist">
-                <h3>
-                  <button type="button" className="opx-ug-htog" aria-expanded={histOpen} aria-controls={histId} onClick={() => setHistOpen((v) => !v)}>
-                    <IcTimeline size={17} />
-                    {t("history")}
-                    <b className="opx-num">{req.statusHistory.length}</b>
-                    <IcChevron size={16} className="opx-ug-htog__cv" />
-                  </button>
-                </h3>
-                <ol id={histId} className="opx-tl" hidden={!histOpen}>
-                  {req.statusHistory.map((h, i) => (
-                    <li key={i} className={i === req.statusHistory.length - 1 ? "is-last" : undefined}>
-                      <time className="opx-num" dateTime={h.at}>
-                        {h.at ? dateTimeFull(h.at, locale) : ""}
-                      </time>
-                      <span>
-                        <b>{urgLabel(h.to)}</b>
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            ) : null}
-              </>
-            ) : null}
+                  {sources.length ? (
+                    <Group icon={<IcShield size={16} />} title={t("eligibleSources")} count={sources.length}>
+                      <ul className="opx-ug-sources">
+                        {(allSources ? sources : sources.slice(0, SOURCES_SHOWN)).map((s, i) => (
+                          <li key={`${s.type}-${s.id}-${i}`}>
+                            <b>{s.title || (s.serviceKind && tk.has(`kinds.${s.serviceKind}`) ? tk(`kinds.${s.serviceKind}`) : humanize(s.serviceKind || s.type))}</b>
+                            <small>{[statusLabel(tcm, s.status), s.createdAt ? dateTimeFull(s.createdAt, locale) : ""].filter(Boolean).join(" · ")}</small>
+                          </li>
+                        ))}
+                      </ul>
+                      {sources.length > SOURCES_SHOWN ? (
+                        <button type="button" className="opx-ug-link" aria-expanded={allSources} onClick={() => setAllSources((v) => !v)}>
+                          {allSources ? t("sourcesLess") : t("sourcesAll", { n: sources.length })}
+                        </button>
+                      ) : null}
+                    </Group>
+                  ) : null}
+
+                  <Group icon={<IcTimeline size={16} />} title={t("history")} count={req.statusHistory.length} wide>
+                    <History
+                      newestFirst
+                      empty={tx("noHistory")}
+                      steps={req.statusHistory.map((h, i) => ({
+                        id: `${h.at}-${i}`,
+                        at: h.at,
+                        title: urgLabel(h.to),
+                        sub: h.from ? `${urgLabel(h.from)} → ${urgLabel(h.to)}` : undefined,
+                        icon: statusIcon(h.to),
+                        tone: i === req.statusHistory.length - 1 ? TONE_DK[statusSpecOf(urg, h.to, statusLabel(tcm, h.to))?.tone ?? "info"] : "mute",
+                      }))}
+                    />
+                  </Group>
+                </Grid>
+              </Root>
+            </Disclosure>
           </div>
 
           {hasSecondary || items.length > 0 || can.cancel ? (

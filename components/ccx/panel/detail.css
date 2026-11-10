@@ -1,0 +1,967 @@
+/* The call-center detail kit (Detail.tsx). Every colour comes from the ccx
+   tokens (html[data-opx]) and falls back to the portal's own, so the same
+   markup is right in the call-center and in the lawyer cabinet, in light and
+   dark. */
+
+.opx-dk,
+.opx-dk-disc {
+  --dkt-ink: var(--opx-ink, var(--ink, #0e1a2b));
+  --dkt-ink-2: var(--opx-ink-2, var(--gray, #4a5b72));
+  --dkt-ink-3: var(--opx-ink-3, var(--gray2, #5d6e84));
+  --dkt-line: var(--opx-line, var(--line, rgba(20, 50, 90, 0.1)));
+  --dkt-line-2: var(--opx-line-2, var(--line, rgba(20, 50, 90, 0.17)));
+  --dkt-card: var(--opx-card-2, var(--dk-surface, rgba(255, 255, 255, 0.78)));
+  --dkt-card-hi: var(--opx-glass-2, var(--dk-surface, rgba(255, 255, 255, 0.92)));
+  --dkt-ice: var(--opx-ice, var(--dk-acc, var(--b600, #2a63c9)));
+  --dkt-aqua: var(--opx-aqua, var(--ok, #0e8b80));
+  --dkt-warn: var(--opx-warn, var(--dk-txt-warn, #a16207));
+  --dkt-hot: var(--opx-hot, var(--dk-txt-err, #c0392b));
+  --dkt-ease: var(--opx-ease, cubic-bezier(0.16, 1, 0.3, 1));
+  --dkt-ring: var(--opx-ring, 0 0 0 3px color-mix(in srgb, var(--dkt-ice) 30%, transparent));
+}
+
+/* ── Disclosure motion ───────────────────────────────────────────── */
+.opx-dk-disc {
+  display: grid;
+  grid-template-rows: 0fr;
+  min-width: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    grid-template-rows 0.26s var(--dkt-ease),
+    opacity 0.2s ease,
+    transform 0.26s var(--dkt-ease);
+}
+
+.opx-dk-disc[data-open] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: none;
+}
+
+.opx-dk-disc__in {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.opx-dk-disc[data-open] > .opx-dk-disc__in {
+  overflow: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opx-dk-disc {
+    transition: none;
+    transform: none;
+  }
+}
+
+html[data-opx-motion="off"] .opx-dk-disc {
+  transition: none;
+}
+
+/* ── Root ────────────────────────────────────────────────────────── */
+.opx-dk {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  color: var(--dkt-ink);
+}
+
+.opx-dk .opx-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Hero: who, and the next fact ───────────────────────────────── */
+.opx-dk-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px 18px;
+  min-width: 0;
+  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--dkt-ice) 26%, transparent);
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--dkt-ice) 14%, transparent), transparent 60%),
+    radial-gradient(90% 120% at 100% 100%, color-mix(in srgb, var(--dkt-aqua) 10%, transparent), transparent 60%),
+    var(--dkt-card);
+  overflow: hidden;
+}
+
+.opx-dk-hero > :nth-child(n + 3) {
+  grid-column: 1 / -1;
+}
+
+.opx-dk-hero__who {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.opx-dk-hero__txt {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.opx-dk-hero__txt > small {
+  color: var(--dkt-ink-3);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.opx-dk-hero__txt > b {
+  font-size: clamp(17px, 1.5vw, 21px);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.opx-dk-hero__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.opx-dk-hero__next {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.opx-dk-next {
+  --tone: var(--dkt-ice);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 10px 16px 10px 10px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--tone) 34%, transparent);
+  background: color-mix(in srgb, var(--tone) 10%, var(--dkt-card-hi));
+}
+
+.opx-dk-next[data-tone="ok"] {
+  --tone: var(--dkt-aqua);
+}
+
+.opx-dk-next[data-tone="warn"] {
+  --tone: var(--dkt-warn);
+}
+
+.opx-dk-next[data-tone="hot"] {
+  --tone: var(--dkt-hot);
+}
+
+.opx-dk-next[data-tone="mute"] {
+  --tone: var(--dkt-ink-3);
+}
+
+.opx-dk-next__ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--tone) 18%, transparent);
+  color: var(--tone);
+}
+
+.opx-dk-next__txt {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.opx-dk-next__txt > small {
+  color: var(--tone);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* ── Time: relative over absolute ───────────────────────────────── */
+.opx-dk-when {
+  display: inline-grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.opx-dk-when > b {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.opx-dk-when > span {
+  color: var(--dkt-ink-2);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+/* ── Avatars ─────────────────────────────────────────────────────── */
+.opx-dk-av {
+  --tone: var(--dkt-ice);
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--tone) 34%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--tone) 26%, transparent), color-mix(in srgb, var(--dkt-aqua) 12%, transparent));
+  color: var(--dkt-ink);
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.opx-dk-av--lg {
+  width: 54px;
+  height: 54px;
+  border-radius: 17px;
+  font-size: 18px;
+}
+
+.opx-dk-av[data-tone="ok"] {
+  --tone: var(--dkt-aqua);
+}
+
+.opx-dk-av[data-tone="warn"] {
+  --tone: var(--dkt-warn);
+}
+
+.opx-dk-av[data-tone="mute"] {
+  --tone: var(--dkt-ink-3);
+}
+
+/* ── Phone: tap to call, or a lock ──────────────────────────────── */
+.opx-dk-phone {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.opx-dk-tel {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--dkt-aqua) 40%, transparent);
+  background: color-mix(in srgb, var(--dkt-aqua) 12%, transparent);
+  color: var(--dkt-aqua);
+  font-size: 13.5px;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.18s, transform 0.18s;
+}
+
+.opx-dk-tel:hover {
+  background: color-mix(in srgb, var(--dkt-aqua) 20%, transparent);
+}
+
+.opx-dk-tel:active {
+  transform: scale(0.97);
+}
+
+.opx-dk-tel:focus-visible,
+.opx-dk-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--dkt-ring);
+}
+
+.opx-dk-lock {
+  display: inline-flex;
+  min-width: 0;
+}
+
+/* The lock reads as a state: a muted pill with the lock icon, not a line of
+   orange text. Overrides PhoneLock's inline look inside the kit. */
+.opx-dk-lock > * {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 0 12px !important;
+  border-radius: 999px;
+  border: 1px dashed color-mix(in srgb, var(--dkt-warn) 55%, transparent);
+  background: color-mix(in srgb, var(--dkt-warn) 9%, transparent) !important;
+  color: var(--dkt-warn) !important;
+  font-size: 12.5px !important;
+  font-weight: 750 !important;
+  line-height: 1.2;
+}
+
+.opx-dk-lock svg {
+  width: 14px !important;
+  height: 14px !important;
+  flex: none;
+}
+
+.opx-dk .opx-copy {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--dkt-ink-3);
+  cursor: pointer;
+}
+
+.opx-dk .opx-copy:hover {
+  background: color-mix(in srgb, var(--dkt-ice) 12%, transparent);
+  color: var(--dkt-ink);
+}
+
+.opx-dk .opx-copy.is-done {
+  color: var(--dkt-aqua);
+}
+
+/* ── Chips coloured by meaning ──────────────────────────────────── */
+.opx-dk-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.opx-dk-chip {
+  --tone: var(--dkt-ink-2);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 28px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--tone) 36%, transparent);
+  background: color-mix(in srgb, var(--tone) 11%, transparent);
+  color: var(--tone);
+  font-size: 12.5px;
+  font-weight: 780;
+  line-height: 1.2;
+}
+
+.opx-dk-chip > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.opx-dk-chip > svg {
+  flex: none;
+}
+
+.opx-dk-chip > i {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.opx-dk-chip[data-live] > i {
+  animation: opx-dk-pulse 1.6s ease-in-out infinite;
+}
+
+.opx-dk-chip[data-tone="info"] {
+  --tone: var(--dkt-ice);
+}
+
+.opx-dk-chip[data-tone="ok"] {
+  --tone: var(--dkt-aqua);
+}
+
+.opx-dk-chip[data-tone="warn"] {
+  --tone: var(--dkt-warn);
+}
+
+.opx-dk-chip[data-tone="hot"] {
+  --tone: var(--dkt-hot);
+}
+
+.opx-dk-chip[data-tone="mute"] {
+  --tone: var(--dkt-ink-2);
+  border-color: var(--dkt-line-2);
+  background: color-mix(in srgb, var(--dkt-ink-3) 8%, transparent);
+}
+
+@keyframes opx-dk-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opx-dk-chip[data-live] > i {
+    animation: none;
+  }
+}
+
+/* ── Code row ───────────────────────────────────────────────────── */
+.opx-dk-code {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-height: 34px;
+  padding: 0 4px 0 12px;
+  border-radius: 12px;
+  border: 1px solid var(--dkt-line-2);
+  background: var(--dkt-card-hi);
+}
+
+.opx-dk-code > small {
+  color: var(--dkt-ink-3);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.opx-dk-code > b {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Groups ─────────────────────────────────────────────────────── */
+.opx-dk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 12px;
+  align-items: start;
+  min-width: 0;
+}
+
+.opx-dk-group {
+  --tone: var(--dkt-ice);
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px 15px 15px;
+  border-radius: 18px;
+  border: 1px solid var(--dkt-line);
+  background: var(--dkt-card);
+}
+
+.opx-dk-group.is-wide {
+  grid-column: 1 / -1;
+}
+
+.opx-dk-group[data-tone="ok"] {
+  --tone: var(--dkt-aqua);
+  border-color: color-mix(in srgb, var(--dkt-aqua) 34%, transparent);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--dkt-aqua) 10%, transparent), transparent 70%), var(--dkt-card);
+}
+
+.opx-dk-group[data-tone="hot"] {
+  --tone: var(--dkt-hot);
+  border-color: color-mix(in srgb, var(--dkt-hot) 34%, transparent);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--dkt-hot) 9%, transparent), transparent 70%), var(--dkt-card);
+}
+
+.opx-dk-group[data-tone="warn"] {
+  --tone: var(--dkt-warn);
+}
+
+.opx-dk-group__h {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.opx-dk-group__ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+  color: var(--tone);
+}
+
+.opx-dk-group__h h4 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.opx-dk-group__aside {
+  display: inline-flex;
+  margin-left: auto;
+}
+
+.opx-dk-count {
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--dkt-ink-3) 14%, transparent);
+  color: var(--dkt-ink-2);
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.opx-dk-group__b {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.opx-dk-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.opx-dk-sub {
+  margin: 0;
+  color: var(--dkt-ink-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.opx-dk-quote {
+  margin: 0;
+  padding: 9px 12px;
+  border-left: 3px solid color-mix(in srgb, var(--tone) 60%, transparent);
+  border-radius: 4px 12px 12px 4px;
+  background: color-mix(in srgb, var(--tone) 7%, transparent);
+  color: var(--dkt-ink-2);
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.opx-dk-none {
+  margin: 0;
+  color: var(--dkt-ink-3);
+  font-size: 13px;
+}
+
+/* ── People ─────────────────────────────────────────────────────── */
+.opx-dk-people {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.opx-dk-people > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 11px;
+  min-width: 0;
+  padding: 8px 8px 8px 9px;
+  border-radius: 14px;
+  border: 1px solid var(--dkt-line);
+  background: var(--dkt-card-hi);
+}
+
+.opx-dk-people > li[data-me] {
+  border-color: color-mix(in srgb, var(--dkt-aqua) 36%, transparent);
+}
+
+.opx-dk-people__txt {
+  display: grid;
+  flex: 1 1 140px;
+  gap: 1px;
+  min-width: 0;
+}
+
+.opx-dk-people__txt > b {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 780;
+  overflow-wrap: anywhere;
+}
+
+.opx-dk-people__txt > small {
+  color: var(--dkt-ink-3);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.opx-dk-me {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--dkt-aqua) 16%, transparent);
+  color: var(--dkt-aqua);
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ── Facts ──────────────────────────────────────────────────────── */
+.opx-dk-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.opx-dk-facts > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 9px 11px;
+  border-radius: 14px;
+  border: 1px solid var(--dkt-line);
+  background: var(--dkt-card-hi);
+}
+
+.opx-dk-facts__ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--dkt-ice) 12%, transparent);
+  color: var(--dkt-ice);
+}
+
+.opx-dk-facts__txt {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.opx-dk-facts dt {
+  color: var(--dkt-ink-3);
+  font-size: 11.5px;
+  font-weight: 750;
+}
+
+.opx-dk-facts dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+/* ── Timeline: an icon in every dot ─────────────────────────────── */
+.opx-dk-tl {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.opx-dk-tl > li {
+  --tone: var(--dkt-ink-3);
+  position: relative;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 4px 12px;
+  min-width: 0;
+  padding: 4px 0 10px;
+}
+
+.opx-dk-tl > li:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  top: 34px;
+  bottom: -4px;
+  left: 14px;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(var(--dkt-line-2), var(--dkt-line));
+}
+
+.opx-dk-tl > li[data-tone="info"] {
+  --tone: var(--dkt-ice);
+}
+
+.opx-dk-tl > li[data-tone="ok"] {
+  --tone: var(--dkt-aqua);
+}
+
+.opx-dk-tl > li[data-tone="warn"] {
+  --tone: var(--dkt-warn);
+}
+
+.opx-dk-tl > li[data-tone="hot"] {
+  --tone: var(--dkt-hot);
+}
+
+.opx-dk-tl__dot {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--tone) 55%, transparent);
+  background: color-mix(in srgb, var(--tone) 14%, var(--dkt-card-hi));
+  color: var(--tone);
+}
+
+.opx-dk-tl > li[data-lit] .opx-dk-tl__dot {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--tone) 16%, transparent), 0 0 16px color-mix(in srgb, var(--tone) 40%, transparent);
+}
+
+.opx-dk-tl__txt {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding-top: 5px;
+}
+
+.opx-dk-tl__txt > b {
+  font-size: 14px;
+  font-weight: 780;
+  overflow-wrap: anywhere;
+}
+
+.opx-dk-tl__txt > small {
+  color: var(--dkt-ink-3);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.opx-dk-tl__at {
+  display: grid;
+  justify-items: end;
+  gap: 1px;
+  padding-top: 5px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.opx-dk-tl__at > b {
+  font-size: 12.5px;
+  font-weight: 780;
+}
+
+.opx-dk-tl__at > span {
+  color: var(--dkt-ink-3);
+  font-size: 11.5px;
+  font-weight: 650;
+}
+
+/* ── States ─────────────────────────────────────────────────────── */
+.opx-dk-skel {
+  display: grid;
+  gap: 8px;
+}
+
+.opx-dk-skel > i {
+  display: block;
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(100deg, color-mix(in srgb, var(--dkt-ink-3) 8%, transparent) 30%, color-mix(in srgb, var(--dkt-ink-3) 18%, transparent) 50%, color-mix(in srgb, var(--dkt-ink-3) 8%, transparent) 70%);
+  background-size: 200% 100%;
+  animation: opx-dk-shim 1.4s linear infinite;
+}
+
+.opx-dk-skel > i:nth-child(2) {
+  width: 82%;
+}
+
+.opx-dk-skel > i:nth-child(3) {
+  width: 64%;
+}
+
+@keyframes opx-dk-shim {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opx-dk-skel > i {
+    animation: none;
+  }
+}
+
+.opx-dk-fail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--dkt-hot) 40%, transparent);
+  background: color-mix(in srgb, var(--dkt-hot) 8%, transparent);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.opx-dk-fail > span:nth-child(2) {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.opx-dk-fail__ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--dkt-hot) 16%, transparent);
+  color: var(--dkt-hot);
+}
+
+.opx-dk-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 13px;
+  border-radius: 11px;
+  border: 1px solid var(--dkt-line-2);
+  background: var(--dkt-card-hi);
+  color: var(--dkt-ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.opx-dk-btn:hover {
+  border-color: color-mix(in srgb, var(--dkt-ice) 45%, transparent);
+}
+
+/* ── Files ──────────────────────────────────────────────────────── */
+.opx-dk-files {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.opx-dk-files > li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--dkt-line);
+  background: var(--dkt-card-hi);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.opx-dk-files > li > svg {
+  flex: none;
+  color: var(--dkt-ice);
+}
+
+.opx-dk-files a {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dkt-ice);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.opx-dk-files audio {
+  min-width: 0;
+  max-width: 100%;
+  height: 34px;
+  flex: 1;
+}
+
+.opx-dk-files small {
+  margin-left: auto;
+  color: var(--dkt-ink-3);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+/* ── Phones and narrow columns ──────────────────────────────────── */
+@media (max-width: 640px) {
+  .opx-dk-hero {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 14px;
+  }
+
+  .opx-dk-hero__next {
+    justify-content: stretch;
+  }
+
+  .opx-dk-next {
+    flex: 1;
+  }
+
+  .opx-dk-tl > li {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .opx-dk-tl__at {
+    display: flex;
+    flex-wrap: wrap;
+    grid-column: 2;
+    gap: 6px;
+    padding-top: 0;
+    text-align: left;
+  }
+
+  .opx-dk-group {
+    padding: 12px;
+  }
+}
+
+.opx-dk-next__v {
+  font-size: 15px;
+  font-weight: 800;
+}

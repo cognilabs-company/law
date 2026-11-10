@@ -1324,38 +1324,6 @@ button.opx-cd-who:hover,
   font-style: italic;
 }
 
-.opx-cd-facts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 8px;
-  margin: 2px 0 0;
-}
-
-.opx-cd-facts > div {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-  padding: 8px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--opx-line);
-  background: var(--opx-card-2);
-}
-
-.opx-cd-facts dt {
-  color: var(--opx-ink-3);
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.opx-cd-facts dd {
-  margin: 0;
-  overflow: hidden;
-  font-size: 13.5px;
-  font-weight: 750;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .opx-cd-contacts {
   display: grid;
   gap: 2px;
@@ -3241,10 +3209,6 @@ html[data-opx-theme="light"] .opx-cd-slash {
 
   .opx-cd-conv__row {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .opx-cd-facts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .opx-cd-rail li {

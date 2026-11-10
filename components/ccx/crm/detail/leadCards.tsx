@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { shortDateTime } from "@/lib/date";
@@ -10,7 +10,9 @@ import { minutesUntil, useCrmEvents } from "@/lib/crm/useCrm";
 import { prettyPhone } from "../../now/feed";
 import { CopyButton } from "../../now/NowFocus";
 import { Note } from "../../panel/bits";
-import { IcArrowRight, IcChevron, IcClock } from "../../icons";
+import { IcArrowRight, IcChevron, IcClock, IcInbox, IcLayers, IcRefresh, IcScale } from "../../icons";
+import { IconMapPin } from "@/components/icons";
+import { CodeRow, Disclosure, Facts, People, Root, When, type FactItem } from "../../panel/Detail";
 import { customerHref } from "../nav";
 import { useCategoryName, useCrmErr, useRegionName } from "../leads/util";
 import { DetailBlocks } from "./detailList";
@@ -123,21 +125,23 @@ export function NeedCard({ lead }: { lead: CrmLead }) {
   const tl = useTranslations("admin.ccx.crm.lang");
   const regionName = useRegionName();
   const categoryName = useCategoryName();
-  const locale = useLocale();
   const [more, setMore] = useState(false);
+  const moreId = useId();
   const need = (lead.problem || lead.title).trim();
-  const facts: [string, string][] = [
-    lead.workId ? [t("f.code"), lead.workId] : null,
-    lead.category ? [ts("category"), categoryName(lead.category)] : null,
-    lead.source ? [t("f.source"), tsrc.has(lead.source) ? tsrc(lead.source) : tsrc("other")] : null,
-    lead.region ? [t("f.region"), regionName(lead.region)] : null,
-    lead.language ? [t("f.language"), tl.has(lead.language) ? tl(lead.language) : t("f.other")] : null,
-    lead.score ? [t("f.score"), tsc.has(lead.score) ? tsc(lead.score) : t("scoreOther")] : null,
-    [t("f.operator"), lead.operator?.name || t("f.nobody")],
-    [t("f.cycle"), t("cycleN", { n: lead.cycleNumber })],
-    lead.createdAt ? [t("f.created"), shortDateTime(lead.createdAt, locale)] : null,
-    lead.claimedAt ? [t("f.claimed"), shortDateTime(lead.claimedAt, locale)] : null,
-  ].filter((x): x is [string, string] => !!x);
+  // «Batafsil»: the lead's facts with an icon each, the operator as a person
+  // and both times relative and absolute; the code stays copyable.
+  const facts: (FactItem | null)[] = [
+    lead.category ? { key: "category", icon: <IcScale size={15} />, label: ts("category"), value: categoryName(lead.category) } : null,
+    lead.source ? { key: "source", icon: <IcLayers size={15} />, label: t("f.source"), value: tsrc.has(lead.source) ? tsrc(lead.source) : tsrc("other") } : null,
+    lead.region ? { key: "region", icon: <IconMapPin width={15} height={15} style={{ width: 15, height: 15 }} aria-hidden="true" />, label: t("f.region"), value: regionName(lead.region) } : null,
+    lead.language ? { key: "language", icon: <IcChat size={15} />, label: t("f.language"), value: tl.has(lead.language) ? tl(lead.language) : t("f.other") } : null,
+    lead.score ? { key: "score", icon: <IcStar size={15} />, label: t("f.score"), value: tsc.has(lead.score) ? tsc(lead.score) : t("scoreOther") } : null,
+    { key: "cycle", icon: <IcRefresh size={15} />, label: t("f.cycle"), value: t("cycleN", { n: lead.cycleNumber }) },
+  ];
+  const times: (FactItem | null)[] = [
+    lead.createdAt ? { key: "created", icon: <IcInbox size={15} />, label: t("f.created"), value: <When at={lead.createdAt} /> } : null,
+    lead.claimedAt ? { key: "claimed", icon: <IcClock size={15} />, label: t("f.claimed"), value: <When at={lead.claimedAt} /> } : null,
+  ];
   return (
     <Card icon={<IcChat size={17} />} title={t("need")} className="opx-cd-needcard">
       <p className="opx-cd-need">{need || t("noNeed")}</p>
@@ -147,20 +151,27 @@ export function NeedCard({ lead }: { lead: CrmLead }) {
           {lead.lostReason}
         </Note>
       ) : null}
-      <button type="button" className="opx-jr-toggle" aria-expanded={more} onClick={() => setMore((o) => !o)}>
+      <button type="button" className="opx-jr-toggle" aria-expanded={more} aria-controls={moreId} onClick={() => setMore((o) => !o)}>
         {t("details")}
         <IcChevron size={15} />
       </button>
-      {more ? (
-        <dl className="opx-cd-facts">
-          {facts.map(([k, v]) => (
-            <div key={k}>
-              <dt>{k}</dt>
-              <dd>{v}</dd>
+      <Disclosure id={moreId} open={more}>
+        <Root className="opx-cd-needmore">
+          {lead.workId ? (
+            <div className="opx-dk-chips">
+              <CodeRow code={lead.workId} label={t("f.code")} />
             </div>
-          ))}
-        </dl>
-      ) : null}
+          ) : null}
+          <Facts items={[...facts, ...times]} />
+          <People
+            people={[
+              lead.operator?.name
+                ? { key: "operator", name: lead.operator.name, avatarName: lead.operator.name, role: t("f.operator") }
+                : { key: "operator", name: t("f.nobody"), avatarName: "", role: t("f.operator"), tone: "mute" },
+            ]}
+          />
+        </Root>
+      </Disclosure>
     </Card>
   );
 }

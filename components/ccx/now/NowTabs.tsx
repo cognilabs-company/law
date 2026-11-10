@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type KeyboardEvent } from "react";
+import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { shortDateTime } from "@/lib/date";
 import { notify } from "@/lib/toast";
@@ -9,15 +9,17 @@ import { isForbidden } from "@/lib/http";
 import { IcDoc, IcFeedback, IcTimeline, IcWave } from "../icons";
 import type { NowJob } from "./feed";
 import type { JobDetail } from "./useNow";
+import { History, Skeleton } from "../panel/Detail";
 
 type TabKey = "history" | "notes" | "docs";
-type Step = { id: string; at: string; title: string; sub: string };
+type Step = { id: string; at: string; title: string; sub: string; icon?: ReactNode };
 
 const NOTE_TYPES = new Set(["note", "call_note", "message", "follow_up", "meeting"]);
 const urlOf = (p: Record<string, unknown>) => String(p.url ?? p.file_url ?? p.download_url ?? "");
 
 export default function NowTabs({ job, detail, steps, waiting, onNote }: { job: NowJob; detail: JobDetail | null; steps: Step[]; waiting: boolean; onNote: () => void }) {
   const t = useTranslations("admin.ccx.now");
+  const tx = useTranslations("admin.ccx.detail");
   const locale = useLocale();
   const [tab, setTab] = useState<TabKey>("history");
   const [text, setText] = useState("");
@@ -97,25 +99,11 @@ export default function NowTabs({ job, detail, steps, waiting, onNote }: { job: 
 
       <div className="opx-ntabs__panel" role="tabpanel" id="opx-ntab-panel" aria-labelledby={`opx-ntab-${current}`}>
         {waiting ? (
-          <i className="opx-shim opx-shim--para" />
+          <Skeleton rows={3} label={tx("loading")} />
         ) : current === "history" ? (
-          shown.length ? (
-            <ol className="opx-hist__list">
-              {shown.map((s, i) => (
-                <li key={s.id} className={i === shown.length - 1 ? "is-last" : undefined}>
-                  <time className="opx-num" dateTime={s.at}>
-                    {shortDateTime(s.at, locale)}
-                  </time>
-                  <span>
-                    <b>{s.title}</b>
-                    {s.sub ? <small>{s.sub}</small> : null}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p className="opx-hist__none">{t("noHistory")}</p>
-          )
+          <div className="opx-dk opx-ntabs__hist">
+            <History steps={shown.map((s) => ({ id: s.id, at: s.at, title: s.title, sub: s.sub || undefined, icon: s.icon }))} empty={t("noHistory")} />
+          </div>
         ) : current === "notes" ? (
           <div className="opx-nnotes">
             {canNote ? (

@@ -7002,11 +7002,6 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
 .uad__sec--warn h4{color:var(--dk-txt-warn, #92400E)}
 .uad__sec--warn h4 svg{color:var(--dk-txt-warn, #b45309)}
 
-.uad__who{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0;font-size:.86rem}
-.uad__who b{font-size:.96rem;font-weight:700}
-.uad__who a{display:inline-flex;align-items:center;gap:5px;font-weight:700;color:var(--dk-acc, var(--b600))}
-.uad__who svg{width:13px;height:13px}
-.uad__who span{display:inline-flex;align-items:center;gap:5px;font-size:.8rem}
 .uad__need{margin:0;font-size:.88rem;line-height:1.6;overflow-wrap:anywhere;white-space:pre-wrap}
 .uad__note{margin:0;font-size:.8rem;line-height:1.5}
 
@@ -7022,26 +7017,15 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
 .uad__when{display:inline-flex;align-items:center;gap:6px;margin:0;font-size:.8rem;font-weight:700;color:var(--dk-acc, var(--b600))}
 .uad__when svg{width:13px;height:13px}
 
-.uad__dl{display:flex;flex-direction:column;gap:7px;margin:0}
-.uad__dl>div{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
-.uad__dl dt{font-size:.78rem;color:var(--gray)}
-.uad__dl dd{margin:0;font-size:.82rem;font-weight:700;text-align:right;overflow-wrap:anywhere}
 
 .uad__sources{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .uad__sources li{display:flex;flex-direction:column;gap:2px;font-size:.82rem}
 .uad__sources b{font-weight:700;overflow-wrap:anywhere}
 .uad__sources span{font-size:.74rem}
 
-/* The status history reads top-down with a hairline running through it, so a
-   long lifecycle stays scannable. */
-.uad__hist{list-style:none;margin:0;padding:0 0 0 14px;display:flex;flex-direction:column;gap:9px;
-  border-left:2px solid var(--line)}
-.uad__hist li{position:relative;display:flex;flex-direction:column;gap:1px;font-size:.8rem}
-.uad__hist li::before{content:"";position:absolute;left:-19px;top:5px;width:7px;height:7px;border-radius:50%;
-  background:var(--b300)}
-.uad__hist li:last-child::before{background:var(--dk-acc, var(--b600))}
-.uad__hist b{font-weight:700}
-.uad__hist span{font-size:.72rem}
+/* The status history: the call-center detail kit's icon timeline
+   (components/ccx/panel/Detail.tsx), folded until asked for. */
+.uad__hist[hidden]{display:none}
 
 .uad__acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .uad__move{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}
@@ -7359,6 +7343,10 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
 .uasg__when svg{width:13px;height:13px}
 .uasg__r{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:7px}
 .uasg__row .uamore{flex-basis:100%;border-top-color:var(--line)}
+/* «Tafsilotlar»: the detail kit (components/ccx/panel/Detail.tsx) opens
+   under the row, full width, below a hairline. */
+.uasg__row>.uasg__more{flex-basis:100%;min-width:0}
+.uasg__more .uasg__detail{margin-top:4px;padding-top:14px;border-top:1px solid var(--line)}
 .uasg__row .uamore__block a{display:inline-flex;align-items:center;gap:5px;color:var(--dk-acc, var(--b600));font-weight:600}
 .uasg__row .uamore__block svg{width:13px;height:13px;flex:none}
 .uasg__row .uamore__block>span{display:inline-flex;align-items:center;gap:5px}

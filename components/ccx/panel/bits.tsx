@@ -2,9 +2,10 @@
 
 import { useEffect, useId, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { fmtAgeMin, shortDateTime } from "@/lib/date";
+import { fmtAgeMin } from "@/lib/date";
 import { prettyPhone } from "../now/feed";
 import { CopyButton } from "../now/NowFocus";
+import { History } from "./Detail";
 import { IcCheck, IcDoc, IcPhone, IcTimeline, IcUser } from "../icons";
 
 export type Tone = "hot" | "warn" | "ok";
@@ -114,27 +115,16 @@ export function Section({ icon, title, count, children, className }: { icon?: Re
   );
 }
 
-export type Step = { id: string; at: string; title: string; sub?: string };
+export type Step = { id: string; at: string; title: string; sub?: string; icon?: ReactNode };
 
 export function Timeline({ steps, empty }: { steps: Step[]; empty: string }) {
   const t = useTranslations("admin.ccx.panel");
-  const locale = useLocale();
   return (
     <Section icon={<IcTimeline size={17} />} title={t("history")} count={steps.length} className="opx-psec--tl">
       {steps.length ? (
-        <ol className="opx-tl">
-          {steps.map((s, i) => (
-            <li key={s.id} className={i === steps.length - 1 ? "is-last" : undefined}>
-              <time className="opx-num" dateTime={s.at}>
-                {s.at ? shortDateTime(s.at, locale) : ""}
-              </time>
-              <span>
-                <b>{s.title}</b>
-                {s.sub ? <small>{s.sub}</small> : null}
-              </span>
-            </li>
-          ))}
-        </ol>
+        <div className="opx-dk">
+          <History steps={steps} empty={empty} />
+        </div>
       ) : (
         <p className="opx-pnone">{empty}</p>
       )}

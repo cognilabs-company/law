@@ -12,7 +12,7 @@ import { minutesSince, useSupportLabels, waitText } from "@/components/support/b
 import PersonName from "@/components/ui/PersonName";
 import { CopyButton } from "../now/NowFocus";
 import { Loading, PartyCard, Timeline, type Step } from "../panel/bits";
-import { IcClock, IcDoc, IcFlag, IcLayers, IcPhone, IcShield, IcTimeline, IcUser } from "../icons";
+import { IcCheck, IcClock, IcDoc, IcFlag, IcInbox, IcLayers, IcPhone, IcShield, IcTimeline, IcUser } from "../icons";
 import { IcBubble, IcScreen, IcVideo } from "./icons";
 import { priorityTone, statusTone, waitTone, whoOf } from "./model";
 
@@ -69,16 +69,16 @@ export default function Details({ ticket, ctx, msgs, meId, now, mine, callable, 
   const tid = ticket.id;
 
   const steps: Step[] = [];
-  if (ticket.createdAt) steps.push({ id: "created", at: ticket.createdAt, title: tx("history.created"), sub: channel || undefined });
+  if (ticket.createdAt) steps.push({ id: "created", at: ticket.createdAt, title: tx("history.created"), sub: channel || undefined, icon: <IcInbox size={14} /> });
   const reply = msgs.find((m) => {
     const who = whoOf(m, meId, clientUserId);
     return who === "staff" || who === "me";
   });
-  if (reply) steps.push({ id: `reply-${reply.id}`, at: reply.createdAt, title: tx("history.firstReply"), sub: reply.senderName || undefined });
+  if (reply) steps.push({ id: `reply-${reply.id}`, at: reply.createdAt, title: tx("history.firstReply"), sub: reply.senderName || undefined, icon: <IcBubble size={14} /> });
   for (const m of msgs) {
-    if (whoOf(m, meId, clientUserId) === "sys" && m.content.trim()) steps.push({ id: `sys-${m.id}`, at: m.createdAt, title: m.content.trim() });
+    if (whoOf(m, meId, clientUserId) === "sys" && m.content.trim()) steps.push({ id: `sys-${m.id}`, at: m.createdAt, title: m.content.trim(), icon: <IcTimeline size={14} /> });
   }
-  if (isClosedStatus(ticket.status) && ticket.closedAt) steps.push({ id: "closed", at: ticket.closedAt, title: t("closedBanner"), sub: ticket.resolution || undefined });
+  if (isClosedStatus(ticket.status) && ticket.closedAt) steps.push({ id: "closed", at: ticket.closedAt, title: t("closedBanner"), sub: ticket.resolution || undefined, icon: <IcCheck size={14} /> });
   const history = steps
     .map((s, i) => ({ s, i, at: timeOf(s.at) }))
     .sort((a, b) => a.at - b.at || a.i - b.i)

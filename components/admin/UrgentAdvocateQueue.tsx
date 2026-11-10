@@ -55,6 +55,8 @@ import { isCoarsePointer, usePopover } from "@/lib/usePopover";
 import { VoiceNotePlayer } from "@/components/portal/AttachmentPreview";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import CallRoom from "@/components/chat/CallRoom";
+import PhoneLock from "@/components/marketplace/order/PhoneLock";
+import { Facts, History, People, When, statusIcon, type Person } from "@/components/ccx/panel/Detail";
 import {
   IconBolt,
   IconVideo,
@@ -67,8 +69,6 @@ import {
   IconAlert,
   IconCalendar,
   IconUser,
-  IconPhone,
-  IconMapPin,
   IconFileText,
   IconMic,
   IconStar,
@@ -1156,6 +1156,20 @@ function UrgentDetailDrawer({
   };
   const hasFoot = ready && (shownStep !== "" || !!primary || items.length > 0);
 
+  // Who is on it, as people (the same block the call-center detail shows).
+  const staff: Person[] = [];
+  if (req) {
+    const add = (key: string, who: { id?: string; name?: string; phone?: string } | null | undefined, fallbackId: string, role: string) => {
+      const pid = who?.id || fallbackId;
+      if (!pid && !who?.name) return;
+      if (pid && staff.some((p) => p.key.endsWith(`:${pid}`))) return;
+      staff.push({ key: `${key}:${pid}`, name: <PersonName id={pid} name={who?.name} />, avatarName: who?.name ?? "", role, phone: who?.phone || undefined, me: !!me && pid === me });
+    };
+    add("claimed", req.claimedBy, req.claimedByUserId, t("claimedBy"));
+    add("operator", req.operator, req.operatorUserId, t("operator"));
+    add("lawyer", req.assignedLawyer, req.assignedLawyerUserId, t("assignedLawyer"));
+  }
+
   // ── Everything the lifecycle still allows ───────────────────────
   const primaryBtn = !req ? null : primary === "claim" ? (
     <button
@@ -1295,12 +1309,20 @@ function UrgentDetailDrawer({
                   {/* ── Who asked ───────────────────────────────────────── */}
                   <section className="uad__sec">
                     <h4><IconUser />{t("client")}</h4>
-                    <p className="uad__who">
-                      <b>{req.clientName || t("unknownClient")}</b>
-                      {req.clientPhone ? <a href={`tel:${req.clientPhone}`}><IconPhone />{req.clientPhone}</a> : null}
-                      {req.client?.lexgoId ? <span className="advmuted">{req.client.lexgoId}</span> : null}
-                      {req.region ? <span className="advmuted"><IconMapPin />{regionLabel(te, req.region)}</span> : null}
-                    </p>
+                    <div className="opx-dk">
+                      <People
+                        people={[
+                          {
+                            key: "client",
+                            name: req.clientName || t("unknownClient"),
+                            avatarName: req.clientName,
+                            role: [req.client?.lexgoId, req.region ? regionLabel(te, req.region) : ""].filter(Boolean).join(" · ") || t("client"),
+                            phone: req.clientPhone || undefined,
+                            locked: !req.clientPhone && req.clientPhoneVisible === false ? <PhoneLock reason={req.clientPhoneHiddenReason} /> : undefined,
+                          },
+                        ]}
+                      />
+                    </div>
                   </section>
 
                   {/* ── What for ────────────────────────────────────────── */}
@@ -1403,12 +1425,12 @@ function UrgentDetailDrawer({
                   {/* ── Who is on it ────────────────────────────────────── */}
                   <section className="uad__sec">
                     <h4><IconHeadset />{t("assignment")}</h4>
-                    <dl className="uad__dl">
-                      <div><dt>{t("claimedBy")}</dt><dd><PersonName id={req.claimedBy?.id ?? req.claimedByUserId} name={req.claimedBy?.name} /></dd></div>
-                      <div><dt>{t("operator")}</dt><dd><PersonName id={req.operator?.id ?? req.operatorUserId} name={req.operator?.name} /></dd></div>
-                      <div><dt>{t("assignedLawyer")}</dt><dd><PersonName id={req.assignedLawyer?.id} name={req.assignedLawyer?.name} /></dd></div>
-                      <div><dt>{t("created")}</dt><dd>{req.createdAt ? dateTimeFull(req.createdAt, locale) : none}</dd></div>
-                    </dl>
+                    <div className="opx-dk">
+                      {staff.length ? <People people={staff} /> : <p className="opx-dk-none">{none}</p>}
+                      {req.createdAt ? (
+                        <Facts items={[{ key: "created", icon: <IconClock />, label: t("created"), value: <When at={req.createdAt} /> }]} />
+                      ) : null}
+                    </div>
                   </section>
 
                   {/* ── Why this client may order a second opinion ──────── */}
@@ -1443,14 +1465,20 @@ function UrgentDetailDrawer({
                           <IconChevronDown className="uad__hcv" />
                         </button>
                       </h4>
-                      <ol id={histId} className="uad__hist" hidden={!histOpen}>
-                        {req.statusHistory.map((h, i) => (
-                          <li key={i}>
-                            <b>{urgLabel(h.to)}</b>
-                            <span className="advmuted">{h.at ? dateTimeFull(h.at, locale) : ""}</span>
-                          </li>
-                        ))}
-                      </ol>
+                      <div id={histId} className="opx-dk uad__hist" hidden={!histOpen}>
+                        <History
+                          newestFirst
+                          empty={none}
+                          steps={req.statusHistory.map((h, i) => ({
+                            id: `${h.at}-${i}`,
+                            at: h.at,
+                            title: urgLabel(h.to),
+                            sub: h.from ? `${urgLabel(h.from)} → ${urgLabel(h.to)}` : undefined,
+                            icon: statusIcon(h.to),
+                            tone: i === req.statusHistory.length - 1 ? "info" : "mute",
+                          }))}
+                        />
+                      </div>
                     </section>
                   ) : null}
                 </div>
