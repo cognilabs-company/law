@@ -9,7 +9,8 @@ import { createCrmCustomer, createCrmLead, crmCan, crmField, optionOfCustomer, s
 import Sheet from "../../panel/Sheet";
 import { Choice, Field, Note, PanelFoot } from "../../panel/bits";
 import { prettyPhone } from "../../now/feed";
-import { IcArrowLeft, IcRefresh, IcSearch, IcUser } from "../../icons";
+import { initials } from "@/lib/lawyers";
+import { IcArrowLeft, IcCheck, IcRefresh, IcSearch, IcUser } from "../../icons";
 import { leadHref } from "../nav";
 import { IcPlus } from "./icons";
 import { DateTimeField, SelectField, TextField } from "./fields";
@@ -171,7 +172,7 @@ function NewLeadSheet({ meta, onClose }: { meta: CrmMeta; onClose: () => void })
     );
 
   return (
-    <Sheet label={step === "lead" ? t("title") : tc("title")} head={head} onClose={onClose} dirty={dirty}>
+    <Sheet label={step === "lead" ? t("title") : tc("title")} head={head} onClose={onClose} dirty={dirty} className="opx-nl">
       {step === "lead" ? (
         <>
           <div className="opx-pscroll opx-ld-form">
@@ -183,7 +184,10 @@ function NewLeadSheet({ meta, onClose }: { meta: CrmMeta; onClose: () => void })
               {customer ? (
                 <div className="opx-ld-cust">
                   <span className="opx-ld-cust__ic" aria-hidden="true">
-                    <IcUser size={20} />
+                    <Initials name={customer.name} size={20} />
+                    <i className="opx-ld-cust__ok">
+                      <IcCheck size={11} />
+                    </i>
                   </span>
                   <span className="opx-ld-cust__txt">
                     <b>{customer.name || customer.label}</b>
@@ -203,12 +207,13 @@ function NewLeadSheet({ meta, onClose }: { meta: CrmMeta; onClose: () => void })
                 </p>
               ) : null}
             </div>
-            <TextField inputRef={titleRef} label={t("titleLabel")} value={title} onChange={setTitle} required error={show("title") || undefined} />
-            <Field label={t("problem")} value={problem} onChange={setProblem} multiline rows={4} />
+            <TextField inputRef={titleRef} label={t("titleLabel")} value={title} onChange={setTitle} required error={show("title") || undefined} placeholder={t("ph.title")} />
+            <Field label={t("problem")} value={problem} onChange={setProblem} multiline rows={4} placeholder={t("ph.problem")} />
             <div className="opx-pgrid2">
               <TextField
                 label={t("region")}
                 value={region}
+                placeholder={t("ph.region")}
                 onChange={(v) => {
                   setRegion(v);
                   setRegionTouched(true);
@@ -242,17 +247,17 @@ function NewLeadSheet({ meta, onClose }: { meta: CrmMeta; onClose: () => void })
       ) : (
         <>
           <div className="opx-pscroll opx-ld-form">
-            <TextField label={tc("name")} value={cName} onChange={setCName} required autoFocus error={cTried && !cName.trim() ? tc("nameRequired") : undefined} />
+            <TextField label={tc("name")} value={cName} onChange={setCName} placeholder={tc("ph.name")} required autoFocus error={cTried && !cName.trim() ? tc("nameRequired") : undefined} />
             <div className="opx-pgrid2">
-              <TextField type="tel" inputMode="tel" label={tc("phone")} value={cPhone} onChange={setCPhone} placeholder="+998" />
-              <TextField label={tc("telegram")} value={cTelegram} onChange={setCTelegram} placeholder="@" />
+              <TextField type="tel" inputMode="tel" label={tc("phone")} value={cPhone} onChange={setCPhone} placeholder={tc("ph.phone")} />
+              <TextField label={tc("telegram")} value={cTelegram} onChange={setCTelegram} placeholder={tc("ph.telegram")} />
             </div>
             <div className="opx-pgrid2">
-              <TextField type="email" inputMode="email" label={tc("email")} value={cEmail} onChange={setCEmail} />
-              <TextField label={tc("region")} value={cRegion} onChange={setCRegion} />
+              <TextField type="email" inputMode="email" label={tc("email")} value={cEmail} onChange={setCEmail} placeholder={tc("ph.email")} />
+              <TextField label={tc("region")} value={cRegion} onChange={setCRegion} placeholder={tc("ph.region")} />
             </div>
             <SelectField label={tc("language")} value={cLanguage} onChange={setCLanguage} options={langs} />
-            <Field label={tc("notes")} value={cNotes} onChange={setCNotes} multiline rows={3} />
+            <Field label={tc("notes")} value={cNotes} onChange={setCNotes} multiline rows={3} placeholder={tc("ph.notes")} />
             {cErr ? <Note tone="bad">{cErr}</Note> : null}
           </div>
           <PanelFoot onCancel={() => setStep("lead")} cancelLabel={tx("back")} primary={() => void createCustomer()} primaryLabel={tc("createAndPick")} busy={cBusy} />
@@ -260,6 +265,12 @@ function NewLeadSheet({ meta, onClose }: { meta: CrmMeta; onClose: () => void })
       )}
     </Sheet>
   );
+}
+
+// A person's initials in a tinted circle; the generic icon only without a name.
+function Initials({ name, size }: { name: string; size: number }) {
+  const ab = initials(name.trim().replace(/\s+/g, " "));
+  return ab ? <b className="opx-ld-ini">{ab}</b> : <IcUser size={size} />;
 }
 
 type PickState = "loading" | "idle" | "more" | "failed";
@@ -387,13 +398,24 @@ function CustomerPick({ invalid, onPick, onNew }: { invalid: boolean; onPick: (c
           items.map((c, i) => (
             <button key={c.id} id={optId(c)} type="button" role="option" aria-selected={i === active} className={`opx-ld-opt${i === active ? " is-on" : ""}`} onMouseEnter={() => setActive(i)} onClick={() => onPick(c)}>
               <span className="opx-ld-opt__av" aria-hidden="true">
-                <IcUser size={16} />
+                <Initials name={c.name} size={16} />
               </span>
               <span className="opx-ld-opt__txt">
-                <b>{c.label}</b>
+                {c.name ? (
+                  <span className="opx-ld-opt__top">
+                    <b>{c.name}</b>
+                    {c.publicId ? <em className="opx-ld-opt__id opx-num">{c.publicId}</em> : null}
+                    {c.phone ? <span className="opx-ld-opt__tel opx-num">{prettyPhone(c.phone)}</span> : null}
+                  </span>
+                ) : (
+                  <b>{c.label}</b>
+                )}
                 <small>{[regionName(c.region), t("leadsN", { n: c.leadCount })].filter(Boolean).join(" · ")}</small>
               </span>
               {c.isLexgoUser ? <em className="opx-pill" data-tone="info">{t("lexgoUser")}</em> : null}
+              <span className="opx-ld-opt__ok" aria-hidden="true">
+                <IcCheck size={14} />
+              </span>
             </button>
           ))
         )}

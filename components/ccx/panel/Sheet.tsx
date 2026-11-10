@@ -12,10 +12,12 @@ type Props = {
   onClose: () => void;
   dirty?: boolean;
   wide?: boolean;
+  /** An extra class on the panel, for a sheet's own look. */
+  className?: string;
   children: ReactNode;
 };
 
-export default function Sheet({ label, head, onClose, dirty = false, wide = false, children }: Props) {
+export default function Sheet({ label, head, onClose, dirty = false, wide = false, className, children }: Props) {
   const t = useTranslations("admin.ccx.panel");
   const box = useRef<HTMLDivElement>(null);
   const [warn, setWarn] = useState(false);
@@ -58,7 +60,7 @@ export default function Sheet({ label, head, onClose, dirty = false, wide = fals
   return createPortal(
     <div className="opx-sheet">
       <div className="opx-sheet__scrim" onClick={tryClose} aria-hidden="true" />
-      <div className={`opx-sheet__panel${wide ? " opx-sheet__panel--wide" : ""}`} role="dialog" aria-modal="true" aria-label={label} ref={box} tabIndex={-1}>
+      <div className={`opx-sheet__panel${wide ? " opx-sheet__panel--wide" : ""}${className ? ` ${className}` : ""}`} role="dialog" aria-modal="true" aria-label={label} ref={box} tabIndex={-1}>
         <header className="opx-sheet__head">
           {head}
           <button type="button" className="opx-sheet__x" onClick={tryClose} aria-label={t("close")} title={t("close")}>
