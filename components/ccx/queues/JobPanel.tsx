@@ -82,6 +82,7 @@ export default function JobPanel({ job, onClose, onChanged }: { job: QView; onCl
       onClose={onClose}
       dirty={dirty}
       wide={job.queue === "experience" || job.queue === "achievements" || job.queue === "licenses"}
+      className="opx-jobsheet"
     >
       {!Module || job.raw == null ? (
         <PanelFailed />

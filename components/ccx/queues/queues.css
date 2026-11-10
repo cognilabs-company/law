@@ -1278,3 +1278,749 @@ html[data-opx-theme="light"] .opx-qbtn--call {
     font-size: 18px;
   }
 }
+
+/* ───────────────────────────────────────────────────────────────────────
+   «Navbat» polish: the same blocks in the same places and sizes, a richer
+   surface. Layered cards with a soft top highlight, gradient icon tiles
+   with a gentle glow, an urgency edge on job cards, one button family,
+   clearer hover/focus/selected states, tidy thin scrollbars and empty
+   states with an icon. Light theme matched below.
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* Header bar: layered glass with a faint top sheen. */
+.opx-qhead {
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(127, 178, 255, 0.09), transparent 55%),
+    radial-gradient(90% 140% at 100% 100%, rgba(94, 230, 208, 0.06), transparent 60%),
+    var(--opx-glass);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 0 0 1px rgba(127, 178, 255, 0.04), var(--opx-shadow);
+}
+
+.opx-qhead h2 {
+  background: linear-gradient(180deg, var(--opx-ink) 35%, color-mix(in srgb, var(--opx-ink) 70%, var(--opx-ice)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.opx-qhead__stat .opx-i {
+  box-sizing: content-box;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--opx-blue-soft);
+}
+
+.opx-qhead__stat.is-late .opx-i {
+  background: color-mix(in srgb, var(--opx-hot) 14%, transparent);
+}
+
+.opx-seg {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.opx-seg button:not(.is-on):hover {
+  background: var(--opx-glass-3);
+}
+
+.opx-seg button:active {
+  transform: scale(0.97);
+}
+
+.opx-qhead__sync {
+  transition: color 0.2s, border-color 0.2s, background 0.2s, box-shadow 0.3s;
+}
+
+.opx-qhead__sync:hover {
+  border-color: color-mix(in srgb, var(--opx-aqua) 40%, transparent);
+  background: var(--opx-glass-3);
+  box-shadow: 0 8px 20px -12px color-mix(in srgb, var(--opx-aqua) 70%, transparent);
+}
+
+/* Board: the «oldest job» bar glows softly; the icon disc has depth. */
+.opx-board2__do {
+  position: relative;
+  background:
+    radial-gradient(60% 160% at 0% 50%, color-mix(in srgb, var(--opx-ice) 20%, transparent), transparent 70%),
+    linear-gradient(110deg, color-mix(in srgb, var(--opx-aqua) 16%, var(--opx-glass)), color-mix(in srgb, var(--opx-ice) 12%, var(--opx-glass)));
+  box-shadow:
+    inset 0 1px 0 var(--opx-hi),
+    inset 0 0 0 1px color-mix(in srgb, var(--opx-aqua) 30%, transparent),
+    0 26px 60px -40px color-mix(in srgb, var(--opx-aqua) 80%, transparent);
+  animation: opx-rise 0.5s var(--opx-ease) both;
+}
+
+.opx-board2__ic {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -8px 16px -8px rgba(0, 0, 0, 0.3),
+    0 12px 28px -12px rgba(47, 116, 236, 0.85);
+}
+
+.opx-board2__do .opx-pbtn {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 18px 40px -22px color-mix(in srgb, var(--opx-aqua) 90%, transparent);
+  transition: transform 0.35s var(--opx-spring), box-shadow 0.3s, filter 0.2s;
+}
+
+.opx-board2__do .opx-pbtn:hover {
+  filter: brightness(1.05);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32), 0 22px 46px -20px color-mix(in srgb, var(--opx-aqua) 95%, transparent);
+}
+
+.opx-board2__do .opx-pbtn .opx-i,
+.opx-board2__do .opx-pbtn svg {
+  transition: transform 0.35s var(--opx-spring);
+}
+
+.opx-board2__do .opx-pbtn:hover svg {
+  transform: translateX(3px);
+}
+
+/* Board rows: a layered card, an urgency-tinted icon tile, a count badge. */
+.opx-board2__row {
+  --tone: var(--opx-aqua);
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 60%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 18px 40px -32px rgba(0, 0, 0, 0.7);
+  transition: border-color 0.25s, background 0.25s, box-shadow 0.3s, transform 0.35s var(--opx-spring);
+  animation: opx-rise 0.45s var(--opx-ease) both;
+}
+
+.opx-board2__row[data-tone="warn"] {
+  --tone: var(--opx-warn);
+}
+
+.opx-board2__row[data-tone="hot"] {
+  --tone: var(--opx-hot);
+}
+
+.opx-board2__row::before {
+  content: "";
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, var(--tone), color-mix(in srgb, var(--tone) 20%, transparent));
+  opacity: 0.85;
+}
+
+.opx-board2__row.is-failed::before {
+  display: none;
+}
+
+.opx-board2__row:hover {
+  border-color: color-mix(in srgb, var(--tone) 42%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--tone) 6%, transparent), transparent 70%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 20px 44px -28px color-mix(in srgb, var(--tone) 70%, transparent);
+  transform: translateY(-1px);
+}
+
+.opx-board2__row:active {
+  transform: translateY(0) scale(0.995);
+}
+
+.opx-board2__fam {
+  border: 1px solid color-mix(in srgb, var(--opx-ice) 28%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 22%, transparent), color-mix(in srgb, var(--opx-aqua) 10%, transparent));
+  color: var(--opx-ice);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -12px color-mix(in srgb, var(--opx-ice) 80%, transparent);
+}
+
+.opx-board2__row.is-failed .opx-board2__fam {
+  border-color: color-mix(in srgb, var(--opx-warn) 35%, transparent);
+  background: color-mix(in srgb, var(--opx-warn) 12%, transparent);
+  color: var(--opx-warn);
+  box-shadow: none;
+}
+
+.opx-board2__row em[data-tone] {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.opx-board2__row em[data-tone]::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.opx-board2__row em[data-tone="ok"] {
+  color: var(--opx-aqua);
+}
+
+.opx-board2__row em[data-tone="warn"] {
+  color: var(--opx-warn);
+}
+
+.opx-board2__row strong {
+  border: 1px solid color-mix(in srgb, var(--opx-aqua) 30%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-aqua) 22%, transparent), color-mix(in srgb, var(--opx-aqua) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 16px -10px color-mix(in srgb, var(--opx-aqua) 80%, transparent);
+}
+
+.opx-board2__row > svg:last-child,
+.opx-board2__row > .opx-i:last-child {
+  color: var(--opx-ink-3);
+  transition: transform 0.35s var(--opx-spring), color 0.2s;
+}
+
+.opx-board2__row:hover > svg:last-child,
+.opx-board2__row:hover > .opx-i:last-child {
+  color: var(--opx-ink);
+  transform: translateX(3px);
+}
+
+.opx-board2__empty li {
+  border: 1px solid var(--opx-line);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+/* The «Clients and calls» lane on the board. */
+.opx-lane {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 50%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-lane__head h4 {
+  letter-spacing: -0.005em;
+}
+
+.opx-lane__n {
+  border: 1px solid var(--opx-line);
+}
+
+.opx-lrow {
+  padding-inline: 8px;
+}
+
+.opx-lane__rows > li.opx-lrow:hover {
+  background: var(--opx-glass-3);
+  color: var(--opx-ink);
+}
+
+.opx-lrow--call .opx-i {
+  box-sizing: content-box;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--opx-teal-soft);
+  color: var(--opx-aqua);
+}
+
+.opx-lrow--call[data-st="missed"] .opx-i,
+.opx-lrow--call[data-st="no_answer"] .opx-i {
+  background: color-mix(in srgb, var(--opx-hot) 13%, transparent);
+}
+
+.opx-lane__empty,
+.opx-lane__note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Family cards: a gradient icon tile, a stronger number, a selected glow. */
+.opx-famcard {
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(127, 178, 255, 0.07), transparent 60%),
+    var(--opx-glass);
+}
+
+.opx-famcard:hover {
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 24px 50px -30px rgba(41, 120, 255, 0.55);
+}
+
+.opx-famcard:active {
+  transform: translateY(0) scale(0.99);
+}
+
+.opx-col__ic,
+.opx-famcard__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 24%, transparent), color-mix(in srgb, var(--opx-ice) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -12px color-mix(in srgb, var(--opx-ice) 85%, transparent);
+  transition: transform 0.35s var(--opx-spring), box-shadow 0.3s;
+}
+
+.opx-famcard:hover .opx-famcard__ic {
+  transform: scale(1.05);
+}
+
+.opx-famcard.is-on {
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(94, 230, 208, 0.12), transparent 60%),
+    var(--opx-card);
+}
+
+.opx-famcard.is-on .opx-famcard__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-aqua) 28%, transparent), color-mix(in srgb, var(--opx-aqua) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 22px -10px color-mix(in srgb, var(--opx-aqua) 90%, transparent);
+}
+
+.opx-famcard__n {
+  background: linear-gradient(180deg, var(--opx-ink) 40%, color-mix(in srgb, var(--opx-ink) 68%, var(--opx-ice)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.opx-famcard__late,
+.opx-famcard__calm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.opx-famcard__late::before,
+.opx-famcard__calm::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+
+/* Lane tab bar under the family cards. */
+.opx-fam__bar {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent),
+    var(--opx-glass);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 18px 40px -34px rgba(0, 0, 0, 0.7);
+}
+
+.opx-qtab {
+  transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.3s, transform 0.35s var(--opx-spring);
+}
+
+.opx-qtab:hover {
+  background: var(--opx-glass-3);
+}
+
+.opx-qtab:active {
+  transform: scale(0.97);
+}
+
+.opx-qtab.is-on {
+  background: linear-gradient(135deg, rgba(127, 178, 255, 0.2), rgba(127, 178, 255, 0.07));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 24px -14px rgba(127, 178, 255, 0.8);
+}
+
+.opx-qtab.is-on b {
+  background: var(--opx-grad);
+  color: #fff;
+  box-shadow: 0 4px 12px -6px rgba(47, 116, 236, 0.9);
+}
+
+/* Job cards: layered surface, an urgency edge, a gradient icon tile. */
+.opx-qcard {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 80% at 100% 0%, color-mix(in srgb, var(--tone) 7%, transparent), transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 40%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 18px 40px -32px rgba(0, 0, 0, 0.7);
+}
+
+.opx-qcard[data-tone="warn"] {
+  --tone: var(--opx-warn);
+}
+
+.opx-qcard[data-tone="hot"] {
+  --tone: var(--opx-hot);
+}
+
+.opx-qcard::before {
+  content: "";
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, var(--tone), color-mix(in srgb, var(--tone) 15%, transparent));
+  opacity: 0.9;
+}
+
+.opx-qcard--link::before {
+  background: linear-gradient(180deg, var(--opx-ice), color-mix(in srgb, var(--opx-ice) 15%, transparent));
+}
+
+.opx-qcard:hover {
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 22px 46px -26px color-mix(in srgb, var(--tone) 75%, transparent);
+}
+
+.opx-qcard__ic {
+  border: 1px solid color-mix(in srgb, var(--opx-ice) 28%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 24%, transparent), color-mix(in srgb, var(--opx-ice) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 16px -10px color-mix(in srgb, var(--opx-ice) 85%, transparent);
+}
+
+.opx-qcard__head b {
+  letter-spacing: -0.005em;
+}
+
+.opx-qcard__age {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 6px 14px -10px color-mix(in srgb, var(--tone) 90%, transparent);
+}
+
+.opx-qcard__age::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tone);
+  box-shadow: 0 0 8px var(--tone);
+}
+
+.opx-qcard__who .opx-i {
+  box-sizing: content-box;
+  padding: 2px;
+  border-radius: 6px;
+  background: var(--opx-blue-soft);
+}
+
+.opx-qcard__why {
+  border-left-color: var(--opx-line-2);
+}
+
+.opx-qcard__mine {
+  border: 1px solid color-mix(in srgb, var(--opx-ice) 30%, transparent);
+}
+
+/* One button family for the cards. */
+.opx-qbtn {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-qbtn:hover {
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 20px -12px rgba(127, 178, 255, 0.7);
+}
+
+.opx-qbtn--call {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 12px 26px -16px rgba(60, 220, 200, 0.95);
+}
+
+.opx-qbtn--call:hover {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 14px 30px -14px rgba(60, 220, 200, 1);
+}
+
+.opx-qbtn--call .opx-i,
+.opx-qbtn--call svg {
+  transition: transform 0.35s var(--opx-spring);
+}
+
+.opx-qbtn--call:hover svg {
+  transform: rotate(-12deg) scale(1.08);
+}
+
+/* Empty lane: an icon above the one line. */
+.opx-fam__none {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  background: radial-gradient(70% 120% at 50% 0%, rgba(127, 178, 255, 0.06), transparent 70%);
+}
+
+.opx-fam__none::before {
+  content: "";
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='%237fb2ff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 12h-6l-2 3h-4l-2-3H2'/%3E%3Cpath d='M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z'/%3E%3C/svg%3E") center / 22px no-repeat,
+    linear-gradient(145deg, rgba(127, 178, 255, 0.22), rgba(127, 178, 255, 0.06));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 24px -14px rgba(127, 178, 255, 0.8);
+}
+
+/* Error / denied state card. */
+.opx-qs-msg {
+  background:
+    radial-gradient(80% 60% at 50% 0%, rgba(127, 178, 255, 0.1), transparent 70%),
+    var(--opx-glass);
+  box-shadow: inset 0 1px 0 var(--opx-hi), var(--opx-shadow);
+}
+
+.opx-qs-msg__orb {
+  box-shadow: inset 0 0 0 1px rgba(94, 230, 208, 0.18);
+}
+
+.opx-qs__warn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-qs__warn button,
+.opx-lane__empty button {
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.opx-qs__warn button:hover,
+.opx-lane__empty button:hover {
+  border-color: color-mix(in srgb, var(--opx-warn) 50%, transparent);
+  background: var(--opx-glass-3);
+}
+
+.opx-qs__warn button:focus-visible,
+.opx-lane__empty button:focus-visible,
+.opx-qbtn:focus-visible,
+.opx-board2__row:focus-visible,
+.opx-qtab:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--opx-base), 0 0 0 4px color-mix(in srgb, var(--opx-aqua) 70%, transparent);
+}
+
+/* Lane tabs scroll sideways on small screens: keep a thin, quiet bar. */
+.opx-fam__tabs {
+  scrollbar-width: thin;
+  scrollbar-color: var(--opx-line-2) transparent;
+}
+
+.opx-fam__tabs::-webkit-scrollbar {
+  height: 4px;
+}
+
+.opx-fam__tabs::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: var(--opx-line-2);
+}
+
+/* Job sheet (opened from a queue card): the header and its sections. */
+.opx-jobsheet .opx-phead__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 26%, transparent), color-mix(in srgb, var(--opx-ice) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 10px 24px -12px color-mix(in srgb, var(--opx-ice) 85%, transparent);
+}
+
+.opx-jobsheet .opx-phead__tag {
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-jobsheet .opx-phead__age {
+  box-shadow: 0 6px 16px -10px color-mix(in srgb, var(--tone) 90%, transparent);
+}
+
+.opx-jobsheet .opx-party,
+.opx-jobsheet .opx-facts,
+.opx-jobsheet .opx-case,
+.opx-jobsheet .opx-psec {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 50%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 16px 36px -30px rgba(0, 0, 0, 0.7);
+  transition: border-color 0.25s;
+}
+
+.opx-jobsheet .opx-party:hover,
+.opx-jobsheet .opx-case:hover {
+  border-color: var(--opx-line-2);
+}
+
+.opx-jobsheet .opx-party__ic,
+.opx-jobsheet .opx-case__ic,
+.opx-jobsheet .opx-facts__ic {
+  border: 1px solid color-mix(in srgb, var(--opx-ice) 26%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 22%, transparent), color-mix(in srgb, var(--opx-ice) 6%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 8px 18px -12px color-mix(in srgb, var(--opx-ice) 80%, transparent);
+}
+
+.opx-jobsheet .opx-pscroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.opx-jobsheet .opx-pscroll::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background: var(--opx-line-2);
+}
+
+/* Decision controls inside the job sheet. */
+.opx-jobsheet .opx-choice__row {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.opx-jobsheet .opx-choice__opt {
+  transition: background 0.2s, color 0.2s, box-shadow 0.3s;
+}
+
+.opx-jobsheet .opx-choice__opt:not(.is-on):not(.is-off):hover {
+  background: var(--opx-glass-3);
+}
+
+.opx-jobsheet .opx-choice__opt.is-on {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 0 0 1px rgba(94, 230, 208, 0.6), 0 10px 26px -14px rgba(60, 220, 200, 0.9);
+}
+
+.opx-jobsheet .opx-field input,
+.opx-jobsheet .opx-field textarea {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+  transition: border-color 0.2s, box-shadow 0.25s, background 0.2s;
+}
+
+.opx-jobsheet .opx-field input:hover:not(:focus),
+.opx-jobsheet .opx-field textarea:hover:not(:focus) {
+  border-color: color-mix(in srgb, var(--opx-ice) 35%, transparent);
+}
+
+.opx-jobsheet .opx-field input:focus,
+.opx-jobsheet .opx-field textarea:focus {
+  background: var(--opx-glass-3);
+}
+
+.opx-jobsheet .opx-psec h3 .opx-i,
+.opx-jobsheet .opx-psec h3 svg {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--opx-ice) 55%, transparent));
+}
+
+/* Verify / warranty / cancellation modules inside the job sheet. */
+.opx-jobsheet .opx-vrf-room,
+.opx-jobsheet .opx-vrf-past > li,
+.opx-jobsheet .opx-wsw {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 55%),
+    var(--opx-card-2);
+  box-shadow: inset 0 1px 0 var(--opx-hi);
+}
+
+.opx-jobsheet .opx-vrf-room:hover,
+.opx-jobsheet .opx-wsw:hover {
+  border-color: var(--opx-line-2);
+}
+
+.opx-jobsheet .opx-vrf-room__ic,
+.opx-jobsheet .opx-vrf-slist__ic,
+.opx-jobsheet .opx-wsw__ic,
+.opx-jobsheet .opx-sp__av {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-ice) 22%, transparent), color-mix(in srgb, var(--opx-ice) 6%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 16px -10px color-mix(in srgb, var(--opx-ice) 80%, transparent);
+}
+
+.opx-jobsheet .opx-vrf-drop__ic {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--opx-aqua) 24%, transparent), color-mix(in srgb, var(--opx-aqua) 6%, transparent));
+  box-shadow: inset 0 1px 0 var(--opx-hi), 0 6px 16px -10px color-mix(in srgb, var(--opx-aqua) 80%, transparent);
+}
+
+.opx-jobsheet .opx-vrf-drop:hover {
+  border-color: color-mix(in srgb, var(--opx-aqua) 45%, transparent);
+}
+
+/* Light theme: the same layering, tuned for a pale backdrop. */
+html[data-opx-theme="light"] .opx-qhead {
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(42, 99, 201, 0.07), transparent 55%),
+    radial-gradient(90% 140% at 100% 100%, rgba(14, 139, 128, 0.05), transparent 60%),
+    var(--opx-glass);
+}
+
+html[data-opx-theme="light"] .opx-seg {
+  box-shadow: inset 0 1px 2px rgba(20, 50, 90, 0.08);
+}
+
+html[data-opx-theme="light"] .opx-board2__row,
+html[data-opx-theme="light"] .opx-qcard,
+html[data-opx-theme="light"] .opx-lane {
+  box-shadow: inset 0 1px 0 #fff, 0 16px 34px -26px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-board2__row:hover,
+html[data-opx-theme="light"] .opx-qcard:hover {
+  box-shadow: inset 0 1px 0 #fff, 0 20px 40px -24px color-mix(in srgb, var(--tone) 55%, transparent);
+}
+
+html[data-opx-theme="light"] .opx-famcard {
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(42, 99, 201, 0.06), transparent 60%),
+    var(--opx-glass);
+}
+
+html[data-opx-theme="light"] .opx-famcard.is-on {
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(14, 139, 128, 0.1), transparent 60%),
+    var(--opx-card);
+  box-shadow: inset 0 1px 0 #fff, 0 0 0 1px rgba(14, 139, 128, 0.35), 0 22px 46px -28px rgba(14, 139, 128, 0.55);
+}
+
+html[data-opx-theme="light"] .opx-famcard:hover {
+  box-shadow: inset 0 1px 0 #fff, 0 22px 44px -28px rgba(30, 80, 160, 0.4);
+}
+
+html[data-opx-theme="light"] .opx-qtab.is-on {
+  border-color: rgba(42, 99, 201, 0.4);
+  background: linear-gradient(135deg, rgba(42, 99, 201, 0.14), rgba(42, 99, 201, 0.04));
+  box-shadow: inset 0 1px 0 #fff, 0 10px 22px -14px rgba(42, 99, 201, 0.55);
+}
+
+html[data-opx-theme="light"] .opx-board2__do {
+  box-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 0 0 1px color-mix(in srgb, var(--opx-aqua) 28%, transparent),
+    0 24px 50px -36px rgba(14, 139, 128, 0.55);
+}
+
+html[data-opx-theme="light"] .opx-fam__none::before {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='%232a63c9' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 12h-6l-2 3h-4l-2-3H2'/%3E%3Cpath d='M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z'/%3E%3C/svg%3E") center / 22px no-repeat,
+    linear-gradient(145deg, rgba(42, 99, 201, 0.14), rgba(42, 99, 201, 0.04));
+  box-shadow: inset 0 1px 0 #fff, 0 10px 22px -14px rgba(42, 99, 201, 0.5);
+}
+
+html[data-opx-theme="light"] .opx-jobsheet .opx-choice__row,
+html[data-opx-theme="light"] .opx-jobsheet .opx-field input,
+html[data-opx-theme="light"] .opx-jobsheet .opx-field textarea {
+  box-shadow: inset 0 1px 2px rgba(20, 50, 90, 0.07);
+}
+
+html[data-opx-theme="light"] .opx-jobsheet .opx-vrf-room,
+html[data-opx-theme="light"] .opx-jobsheet .opx-vrf-past > li,
+html[data-opx-theme="light"] .opx-jobsheet .opx-wsw {
+  box-shadow: inset 0 1px 0 #fff, 0 10px 24px -22px rgba(30, 70, 140, 0.35);
+}
+
+html[data-opx-theme="light"] .opx-jobsheet .opx-party,
+html[data-opx-theme="light"] .opx-jobsheet .opx-facts,
+html[data-opx-theme="light"] .opx-jobsheet .opx-case,
+html[data-opx-theme="light"] .opx-jobsheet .opx-psec {
+  box-shadow: inset 0 1px 0 #fff, 0 14px 30px -26px rgba(30, 70, 140, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opx-board2__row,
+  .opx-board2__do,
+  .opx-qcard,
+  .opx-famcard,
+  .opx-qtab,
+  .opx-qbtn,
+  .opx-board2__do .opx-pbtn,
+  .opx-famcard__ic,
+  .opx-board2__row > svg:last-child,
+  .opx-qbtn--call svg {
+    animation: none;
+    transition: none;
+  }
+
+  .opx-board2__row:hover,
+  .opx-board2__row:active,
+  .opx-famcard:hover,
+  .opx-famcard:active,
+  .opx-qtab:active,
+  .opx-board2__row:hover > svg:last-child,
+  .opx-board2__do .opx-pbtn:hover svg,
+  .opx-qbtn--call:hover svg,
+  .opx-famcard:hover .opx-famcard__ic {
+    transform: none;
+  }
+}
