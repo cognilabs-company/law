@@ -86,7 +86,7 @@ export function stagesMotion(api: MotionApi) {
 
         if (fits && i > 0) {
           // Sink it below the floor of the steps in front of it: fully covered.
-          tl.fromTo(step, { yPercent: 100 * i + 8 }, { yPercent: 0, duration: rise, ease: "power3.out" }, at);
+          tl.fromTo(step, { yPercent: 52 * i + 8 }, { yPercent: 0, duration: rise, ease: "power3.out" }, at);
         }
         if (fits) {
           if (body) tl.fromTo(body, { y: 34, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: rise * 0.7, ease: "expo.out" }, at + 0.16);

@@ -44,7 +44,7 @@ export function aiMotion({ gsap, root, finePointer, onCleanup }: MotionApi) {
       scrollTrigger: { trigger: row, start: "top 90%", once: true },
     });
     if (rule) tl.from(rule, { scaleX: 0, duration: 1.5, ease: "expo.out" }, 0);
-    tl.from(parts, { y: 30, autoAlpha: 0, duration: 1.1, ease: "expo.out", stagger: 0.07 }, 0.08);
+    tl.from(parts, { y: 30, autoAlpha: 0, duration: 1.1, ease: "expo.out", stagger: 0.07, clearProps: "transform,opacity,visibility" }, 0.08);
   });
 
   if (!device) return;

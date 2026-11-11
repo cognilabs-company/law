@@ -75,6 +75,21 @@ export default function LandingGallery({ behind, side, children, labelledBy, cou
     };
   }, [measure]);
 
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        for (const img of view.querySelectorAll<HTMLImageElement>('img[loading="lazy"]')) img.loading = "eager";
+        io.disconnect();
+      },
+      { rootMargin: "100% 0px" },
+    );
+    io.observe(view);
+    return () => io.disconnect();
+  }, []);
+
   const scrollToX = (left: number) => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     viewRef.current?.scrollTo({ left, behavior: reduced ? "auto" : "smooth" });

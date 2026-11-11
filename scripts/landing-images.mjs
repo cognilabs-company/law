@@ -17,7 +17,7 @@ mkdirSync(out, { recursive: true });
 // falling back to the browser's softer scaling.
 const JOBS = [
   { key: "heroPlate", raw: "lexgo-hero-plate.png", file: "hero-plate.webp", width: 3200, quality: 90 },
-  { key: "heroSubject", raw: "lexgo-hero-main-matte.png", file: "hero-subject.webp", trim: true, scale: 2, quality: 92, alpha: true },
+  { key: "heroSubject", raw: "lexgo-hero-runner.png", file: "hero-runner.webp", scale: 1, quality: 90, alpha: true },
   { key: "problemMaze", raw: "lexgo-problem-maze.png", file: "problem-maze.webp", width: 2600, quality: 84 },
   { key: "problemDoors", raw: "lexgo-problem-doors.png", file: "problem-doors.webp", width: 2600, quality: 88 },
   { key: "problemTorn", raw: "lexgo-problem-torn.png", file: "problem-torn.webp", width: 2600, quality: 84 },

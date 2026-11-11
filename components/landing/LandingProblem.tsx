@@ -9,10 +9,10 @@ type Item = { title: string; text: string };
 // Object-position doubles as the zoom origin: the point named here sits at the
 // same spot of the frame at every aspect ratio, so the subject always survives.
 const SCENES = [
-  { key: "maze", img: IMG.problemMaze, focus: "63% 65%" },
-  { key: "doors", img: IMG.problemDoors, focus: "50% 50%" },
-  { key: "torn", img: IMG.problemTorn, focus: "50% 50%" },
-  { key: "storm", img: IMG.problemStorm, focus: "50% 50%" },
+  { key: "maze", img: IMG.problemMaze, tall: IMG.problemMazeTall, focus: "63% 65%", tallFocus: "50% 65%" },
+  { key: "doors", img: IMG.problemDoors, tall: IMG.problemDoorsTall, focus: "50% 50%", tallFocus: "50% 50%" },
+  { key: "torn", img: IMG.problemTorn, tall: IMG.problemTornTall, focus: "50% 50%", tallFocus: "50% 50%" },
+  { key: "storm", img: IMG.problemStorm, tall: IMG.problemStormTall, focus: "50% 50%", tallFocus: "50% 50%" },
 ] as const;
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -66,12 +66,22 @@ export default function LandingProblem() {
             <article key={scene.key} className={`lh-prob__scene lh-prob__scene--${scene.key}`}>
               <div className="lh-prob__media">
                 <Image
+                  className="lh-prob__img lh-prob__img--wide"
                   src={scene.img.src}
                   alt=""
                   fill
                   quality={90}
                   sizes="100vw"
                   style={{ objectPosition: scene.focus, transformOrigin: scene.focus }}
+                />
+                <Image
+                  className="lh-prob__img lh-prob__img--tall"
+                  src={scene.tall.src}
+                  alt=""
+                  fill
+                  quality={90}
+                  sizes="100vw"
+                  style={{ objectPosition: scene.tallFocus, transformOrigin: scene.tallFocus }}
                 />
               </div>
               <div className="lh-prob__scrim" />

@@ -41,21 +41,8 @@ export default function LandingWarranty() {
             <i />
           </div>
           <div className="lh-war__ghost" aria-hidden="true" style={{ ["--chars" as string]: kicker.length }}>
-            {kicker}
+            <span className="lh-war__ghost-in">{kicker}</span>
           </div>
-
-          <ul className="lh-war__panels">
-            {cards.map((card, i) => (
-              <li className="lh-war__panel lh-glass" key={card.title}>
-                <i className="lh-war__tick" aria-hidden="true" />
-                <span className="lh-war__no" aria-hidden="true">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <h3 className="lh-h3 lh-war__ptitle">{card.title}</h3>
-                <p className="lh-war__ptext">{card.text}</p>
-              </li>
-            ))}
-          </ul>
 
           <div className="lh-war__core" aria-hidden="true">
             <div className="lh-war__depth">
@@ -75,6 +62,19 @@ export default function LandingWarranty() {
               </div>
             </div>
           </div>
+
+          <ul className="lh-war__panels">
+            {cards.map((card, i) => (
+              <li className="lh-war__panel lh-glass" key={card.title}>
+                <i className="lh-war__tick" aria-hidden="true" />
+                <span className="lh-war__no" aria-hidden="true">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <h3 className="lh-h3 lh-war__ptitle">{card.title}</h3>
+                <p className="lh-war__ptext">{card.text}</p>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
       </div>

@@ -23,6 +23,8 @@
   background: var(--lh-card);
   border-radius: var(--lh-r-l);
   will-change: transform;
+  max-width: min(100%, 165svh);
+  margin-inline: auto;
 }
 
 .lhome .lh-finder__head,
@@ -107,7 +109,7 @@
 
 /* The bar: one line drawn around everything, the button inset at its end. */
 .lhome .lh-finder .fbar {
-  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr) auto;
   background: transparent;
   border-radius: var(--lh-r-m);
   box-shadow: inset 0 0 0 1px var(--lh-line);
@@ -322,7 +324,7 @@
     margin-top: calc(var(--lh-f) * 1);
   }
   .lhome .lh-finder__title em.lh-accent { display: inline; }
-  .lhome .lh-finder .ftabs { gap: calc(var(--lh-f) * 1.4); }
+  .lhome .lh-finder .ftabs { flex-wrap: wrap; row-gap: calc(var(--lh-f) * 0.6); gap: calc(var(--lh-f) * 1.4); }
   .lhome .lh-finder .ftab { font-size: calc(var(--lh-f) * 1.06); }
   .lhome .lh-finder .fform { padding-top: calc(var(--lh-f) * 1.05); }
   .lhome .lh-finder .fbar,

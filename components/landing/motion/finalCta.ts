@@ -17,6 +17,19 @@ export function finalCtaMotion(api: MotionApi) {
   const title = section.querySelector<HTMLElement>(".lh-final__title");
   const sun = section.querySelector<HTMLElement>(".lh-final__sun");
   if (!frame || !back || !front || !title || !sun) return;
+
+  const cut = front.querySelector<HTMLImageElement>("img");
+  const lit = front.querySelector<HTMLElement>(".lh-final__lit");
+  if (cut && lit) {
+    const mask = () => {
+      const url = `url("${cut.currentSrc || cut.src}")`;
+      lit.style.setProperty("-webkit-mask-image", url);
+      lit.style.setProperty("mask-image", url);
+      lit.dataset.ready = "";
+    };
+    if (cut.complete && cut.naturalWidth) mask();
+    else cut.addEventListener("load", mask, { once: true });
+  }
   const words = gsap.utils.toArray<HTMLElement>("b", title);
   const plates = [back, front];
   const isPortrait = () => window.matchMedia("(max-aspect-ratio: 1/1)").matches;

@@ -95,6 +95,7 @@ export default function LawyersSection({
   const source = useMemo(() => res.data.map(toLawyer), [res.data]);
   const { session } = useAuth();
   const tcommon = useTranslations("common");
+  const th = useTranslations("home");
   const router = useRouter();
   const [chatBusy, setChatBusy] = useState<string | null>(null);
   const [chatErr, setChatErr] = useState<string | null>(null);
@@ -309,7 +310,7 @@ export default function LawyersSection({
           </div>
         </div>
         <div className="advcard__b">
-          <div className="rating">
+          <div className={isRated(l) ? "rating" : "rating rating--none"}>
             <b>{!isRated(l) ? t("card.unrated") : fmtRating(l.rate, locale)}</b>
             <span>{!isRated(l) ? t("card.newHint") : t("card.reviews", { count: l.rev, years: l.exp })}</span>
           </div>
@@ -331,10 +332,14 @@ export default function LawyersSection({
             </div>
           </div>
           <div className="advcard__ft">
-            <div className="price">
-              <b>{l.price}</b>
-              <span>{t("card.priceNote")}</span>
-            </div>
+            {l.price !== "—" ? (
+              <div className="price">
+                <b>{l.price}</b>
+                <span>{t("card.priceNote")}</span>
+              </div>
+            ) : (
+              <span className="price" aria-hidden="true" />
+            )}
             <span className="advcard__ctas">
               <button className="btn btn--ghost btn--sm" type="button" onClick={() => openPrivateChat(l)} disabled={chatBusy === l.userId} title={t("card.privateChatHint")}>
                 {chatBusy === l.userId ? t("card.opening") : t("card.privateChat")}
@@ -426,7 +431,14 @@ export default function LawyersSection({
         {res.status === "loading" ? (
           <Skeleton rows={3} />
         ) : !list.length ? (
-          <EmptyState title={t("empty")} />
+          <EmptyState
+            title={t("empty")}
+            action={
+              <Link href="/chat" className="btn btn--pri btn--sm">
+                {th("funnelCta.primary")}
+              </Link>
+            }
+          />
         ) : compact ? (
           // advgrid is a centred flex row rather than a grid: the count comes
           // from the catalogue (76 today), so no column count divides it at

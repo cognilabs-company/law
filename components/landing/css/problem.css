@@ -67,6 +67,11 @@
 }
 .lhome .lh-prob__media { overflow: hidden; }
 .lhome .lh-prob__media img { object-fit: cover; }
+.lhome .lh-prob__img--tall { display: none; }
+@media (max-aspect-ratio: 1/1) {
+  .lhome .lh-prob__img--wide { display: none; }
+  .lhome .lh-prob__img--tall { display: block; }
+}
 .lhome .lh-prob__scrim { pointer-events: none; }
 .lhome .lh-prob__veil {
   pointer-events: none;
@@ -184,6 +189,7 @@
     grid-column: 3;
     grid-row: 2;
     align-self: end;
+    padding-right: calc(60px + var(--lh-u));
     padding-bottom: 0.2em;
   }
   .lhome .lh-prob__scene--doors .lh-prob__scrim {

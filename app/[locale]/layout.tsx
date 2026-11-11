@@ -72,10 +72,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "meta" });
+  const host = process.env.VERCEL_PROJECT_PRODUCTION_URL;
   return {
-    metadataBase: new URL("https://lexgo.uz"),
+    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || (host ? `https://${host}` : "https://lexgo.uz")),
     title: { default: t("title"), template: t("titleTemplate") },
     description: t("description"),
+    openGraph: { type: "website", siteName: "Tezkor Himoya", locale, title: t("title"), description: t("description") },
+    twitter: { card: "summary_large_image", title: t("title"), description: t("description") },
   };
 }
 

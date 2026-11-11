@@ -69,7 +69,7 @@ export function problemMotion(api: MotionApi) {
     once: true,
     onEnter: () => {
       stage.querySelectorAll("img").forEach((img) => {
-        img.loading = "eager";
+        if (img.getClientRects().length) img.loading = "eager";
       });
     },
   });
@@ -77,7 +77,7 @@ export function problemMotion(api: MotionApi) {
   const parts = scenes.map((scene) => ({
     scene,
     media: scene.querySelector<HTMLElement>(".lh-prob__media")!,
-    img: scene.querySelector<HTMLElement>("img")!,
+    img: [...scene.querySelectorAll<HTMLElement>("img")],
     veil: scene.querySelector<HTMLElement>(".lh-prob__veil")!,
     copy: scene.querySelector<HTMLElement>(".lh-prob__copy")!,
     words: scene.querySelectorAll<HTMLElement>(".lh-prob__wi"),

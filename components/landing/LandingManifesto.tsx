@@ -61,10 +61,11 @@ export default function LandingManifesto() {
 
   const w = [t("w1"), t("w2"), t("w3"), t("w4")];
   const [e1, e2, e3, e4] = w.map(emWidth);
+  const cyr = /[а-яё]/i.test(w.join("")) ? 1.15 : 1;
   const fit = {
     // Widest word on each side, and widest full line: the type is sized from these.
-    "--lh-a": Math.max(e1, e3).toFixed(2),
-    "--lh-b": Math.max(e2, e4).toFixed(2),
+    "--lh-a": (Math.max(e1, e3) * cyr).toFixed(2),
+    "--lh-b": (Math.max(e2, e4) * cyr).toFixed(2),
     // Portrait fits this on one line. The per-letter table runs short, most of all
     // for Cyrillic, and a word pushed past the screen's edge is cut off.
     "--lh-l": (Math.max(e1 + e2, e3 + e4) * (/[а-яё]/i.test(w.join("")) ? 1.12 : 1.05)).toFixed(2),

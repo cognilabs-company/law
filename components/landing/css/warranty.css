@@ -82,15 +82,22 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
-  -webkit-mask: url("/img/landing/warranty-shield.webp") center / 100% 100% no-repeat;
-  mask: url("/img/landing/warranty-shield.webp") center / 100% 100% no-repeat;
-  mix-blend-mode: screen;
+  visibility: hidden;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+.lhome .lh-war__sheen[data-ready] {
+  visibility: visible;
 }
 .lhome .lh-war__sheen::before {
   content: "";
   position: absolute;
   inset: -20% -60%;
-  background: linear-gradient(105deg, transparent 42%, rgba(190, 226, 255, 0.5) 50%, transparent 58%);
+  background: linear-gradient(105deg, transparent 42%, rgba(190, 226, 255, 0.35) 50%, transparent 58%);
   transform: translateX(-46%);
 }
 
@@ -163,12 +170,15 @@
   line-height: 0.86;
   text-transform: uppercase;
   white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+.lhome .lh-war__ghost-in {
+  display: block;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.52) 12%, rgba(120, 176, 255, 0.14) 88%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  pointer-events: none;
-  user-select: none;
 }
 
 /* --------------------------------------------------------------------------

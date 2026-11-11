@@ -6,7 +6,8 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { useTranslations } from "next-intl";
 import { AlertTriangle, ArrowDown, ArrowRight, ArrowUpRight, BookOpenCheck, Check, Clock3, Copy, Lock, MessageSquare, MessageSquarePlus, PanelLeft, RefreshCw, Search, SearchX, ShieldCheck, Sparkles, X } from "lucide-react";
 import { getClientId } from "@/lib/client";
-import { aiQuotaOf, guestLimitOf } from "@/lib/http";
+import { ApiError, aiQuotaOf, guestLimitOf } from "@/lib/http";
+import { takeAsk } from "@/lib/askHandoff";
 import {
   listChats,
   createChat,
@@ -152,7 +153,12 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
         setChats(cs);
         setChatsLoad("ready");
       })
-      .catch(() => setChatsLoad("error"));
+      .catch((e) => {
+        if (e instanceof ApiError && e.status === 404) {
+          setChats([]);
+          setChatsLoad("ready");
+        } else setChatsLoad("error");
+      });
   }
   function loadChats() {
     setChatsLoad("loading");
@@ -163,7 +169,7 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
     fetchChats();
     // Auto-send a message handed off from the finder via /chat?q=...
     if (!seeded.current) {
-      const q0 = new URLSearchParams(window.location.search).get("q");
+      const q0 = new URLSearchParams(window.location.search).get("q") || takeAsk();
       if (q0 && q0.trim()) {
         seeded.current = true;
         window.history.replaceState(null, "", window.location.pathname);

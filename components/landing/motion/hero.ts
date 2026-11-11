@@ -111,7 +111,8 @@ export function heroMotion(api: MotionApi) {
 
   /* ---- Scroll: she runs at the camera, the type leaves, the frame closes. ---- */
   // A hero taller than the screen (phones, with the cards) holds once its end arrives.
-  const held = hold(api, pin.parentElement as HTMLElement, pin, () => window.innerHeight * 0.7);
+  const tall = () => pin.offsetHeight > window.innerHeight * 1.02;
+  const held = hold(api, pin.parentElement as HTMLElement, pin, () => window.innerHeight * (tall() ? 0.12 : 0.7));
   onCleanup(held.release);
 
   const tl = gsap.timeline({
@@ -137,14 +138,26 @@ export function heroMotion(api: MotionApi) {
   tl.fromTo(
     small,
     { "--lh-sy": "0px", "--lh-so": 1 },
-    { "--lh-sy": () => `${Math.round(-0.14 * window.innerHeight)}px`, "--lh-so": 0, duration: 0.6 },
+    {
+      "--lh-sy": () => `${tall() ? 0 : Math.round(-0.14 * window.innerHeight)}px`,
+      "--lh-so": () => (tall() ? 1 : 0),
+      duration: 0.6,
+    },
     0,
   );
 
-  if (tags) tl.fromTo(tags, { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.3 }, 0);
-  if (foot) tl.fromTo(foot, { yPercent: 0, autoAlpha: 1 }, { yPercent: -40, autoAlpha: 0, duration: 0.55 }, 0.02);
+  const fade = () => (tall() ? 1 : 0);
+  if (tags) tl.fromTo(tags, { autoAlpha: 1 }, { autoAlpha: fade, duration: 0.3 }, 0);
+  if (foot) tl.fromTo(foot, { yPercent: 0, autoAlpha: 1 }, { yPercent: () => (tall() ? 0 : -40), autoAlpha: fade, duration: 0.55 }, 0.02);
   for (const [el, at, lift] of [[mark, 0, -60], [slotA, 0, -60], [slotB, 0.06, -90]] as const) {
-    if (el) tl.fromTo(el, { yPercent: 0, autoAlpha: 1 }, { yPercent: el === mark ? 0 : lift, autoAlpha: 0, duration: 0.6 }, at);
+    if (el) {
+      tl.fromTo(
+        el,
+        { yPercent: 0, autoAlpha: 1 },
+        { yPercent: () => (tall() || el === mark ? 0 : lift), autoAlpha: fade, duration: 0.6 },
+        at,
+      );
+    }
   }
 
   tl.add(clipTween(api, pin, insetClip([0, 0, 0, 0], [3, 3, 5, 3], 0, 2.5), { duration: 1 }), 0);

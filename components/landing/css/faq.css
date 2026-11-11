@@ -21,6 +21,12 @@
 }
 @container (min-width: 880px) {
   .lhome .lh-faq .wrap { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
+  .lhome .lh-faq .head {
+    position: sticky;
+    top: calc(70px + var(--lh-u));
+    align-self: start;
+    min-height: min(calc(100svh - 70px - var(--lh-u) * 2), 52rem);
+  }
 }
 
 /* --------------------------------------------------------------------------

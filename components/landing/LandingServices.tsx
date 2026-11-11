@@ -92,7 +92,11 @@ export default function LandingServices() {
                       <h3 className="lh-svc__name">{item.title}</h3>
                       <p className="lh-svc__text">{item.text}</p>
                       <p className="lh-svc__price">
-                        <b>{item.price}</b> <span>{item.unit}</span>
+                        {t.rich("price", {
+                          price: item.price,
+                          b: (chunks) => <b>{chunks}</b>,
+                          u: (chunks) => <span>{chunks}</span>,
+                        })}
                       </p>
                     </div>
                   </div>

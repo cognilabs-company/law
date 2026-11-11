@@ -211,7 +211,7 @@
   letter-spacing: -0.035em;
   color: #fff;
   text-wrap: balance;
-  transition: transform 0.7s var(--lh-ease), color 0.3s;
+  transition: translate 0.7s var(--lh-ease), color 0.3s;
 }
 .lhome .lh-ai__detail {
   grid-column: 2;
@@ -226,7 +226,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .lhome .lh-ai__row:hover .lh-ai__term {
-    transform: translateX(0.28em);
+    translate: 0.28em 0;
     color: #6ea8ff;
   }
 }

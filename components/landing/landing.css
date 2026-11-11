@@ -19,6 +19,24 @@ body:has(.lhome) {
   overflow-y: visible !important;
 }
 
+body:has(.lhome) .fab {
+  transition: opacity 0.35s ease, scale 0.35s ease, visibility 0.35s;
+}
+html[data-lh-hero] body:has(.lhome) .fab {
+  opacity: 0;
+  scale: 0.6;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@media (min-aspect-ratio: 1/1) and (min-width: 1000px) {
+  body:has(.lhome) .ckc {
+    left: auto;
+    right: 24px;
+    width: min(540px, 46vw);
+  }
+}
+
 /* On the narrowest phones the logo, language, CTA and burger do not all fit at their
    usual spacing, and the burger was cut off at the screen's edge. */
 @media (max-width: 430px) {
@@ -209,9 +227,9 @@ html[data-theme="dark"] .lhome {
   letter-spacing: -0.01em;
   cursor: pointer;
   text-align: center;
-  transition: transform 0.45s var(--lh-ease), background-color 0.25s, color 0.25s, border-color 0.25s;
+  transition: translate 0.45s var(--lh-ease), background-color 0.25s, color 0.25s, border-color 0.25s;
 }
-.lh-btn:hover { transform: translateY(-2px); }
+.lh-btn:hover { translate: 0 -2px; }
 .lh-btn:focus-visible { border-radius: 999px; }
 .lh-btn svg { width: 1.05em; height: 1.05em; flex: none; }
 .lh-btn--white { --lh-btn-bg: #fff; --lh-btn-fg: var(--lh-black); }
@@ -239,9 +257,9 @@ html[data-theme="dark"] .lhome {
   background: transparent;
   color: var(--lh-text);
   cursor: pointer;
-  transition: transform 0.45s var(--lh-ease), background-color 0.25s, color 0.25s, border-color 0.25s;
+  transition: scale 0.45s var(--lh-ease), background-color 0.25s, color 0.25s, border-color 0.25s;
 }
-.lh-round:hover:where(:not(:disabled, [aria-disabled="true"])) { transform: scale(1.06); }
+.lh-round:hover:where(:not(:disabled, [aria-disabled="true"])) { scale: 1.06; }
 .lh-round:focus-visible { border-radius: 50%; }
 .lh-round svg { width: 1.1em; height: 1.1em; }
 .lh-round--solid {

@@ -55,7 +55,7 @@ for (const size of sizes) {
       const act = document.querySelector(".bar__act");
       const burg = document.querySelector(".burg");
       const burgBox = burg && getComputedStyle(burg).display !== "none" ? burg.getBoundingClientRect() : null;
-      const cta = document.querySelector(".lh-hero__cta a");
+      const cta = document.querySelector(".lh-hero__ask");
       const tab = document.querySelector(".tabbar");
       const tabTop = tab && getComputedStyle(tab).display !== "none" ? tab.getBoundingClientRect().top : innerHeight;
       const c = cta.getBoundingClientRect();

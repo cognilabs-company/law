@@ -317,8 +317,20 @@
 }
 .lhome .lh-lawyers .advcard:nth-child(3n + 2) .advcard__av { background: var(--lh-navy); }
 .lhome .lh-lawyers .advcard:nth-child(3n) .advcard__av { background: var(--lh-black); }
+html[data-theme="dark"] .lhome .lh-lawyers .advcard:nth-child(3n) .advcard__av { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.28); }
+.lhome .lh-lawyers .advcard .rating--none b {
+  font-size: calc(var(--lh-u) * 1.05);
+  font-weight: 500;
+  color: var(--lh-text);
+  opacity: 0.66;
+}
 
 .lhome .lh-lawyers .advcard__n {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   color: var(--lh-text);
   font-family: var(--lh-sans);
   font-size: calc(var(--lh-u) * 1.75);
@@ -576,8 +588,8 @@
    rule below only adds to the finished state above.
    -------------------------------------------------------------------------- */
 @keyframes lh-law-sheet {
-  from { clip-path: inset(0 3.5% 0 3.5% round calc(var(--lh-r-l) * 1.5)); }
-  to { clip-path: inset(0 0 0 0 round var(--lh-r-l)); }
+  from { transform: scaleX(0.93); }
+  to { transform: none; }
 }
 @keyframes lh-law-title {
   from { transform: translate3d(calc(var(--lh-u) * 5), 0, 0); }

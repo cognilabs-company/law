@@ -6,12 +6,6 @@
   position: relative;
   padding-block-start: calc(var(--lh-u) * 1);
 }
-.lhome .lh-sub__defs {
-  position: absolute;
-  width: 0;
-  height: 0;
-  overflow: hidden;
-}
 
 /* --------------------------------------------------------------------------
    The band
@@ -42,25 +36,9 @@
   will-change: transform;
 }
 .lhome .lh-sub__photo,
-.lhome .lh-sub__matte {
+.lhome .lh-sub__front {
   object-fit: cover;
   object-position: 50% 30%;
-}
-
-/* A group of its own: black, the white line, then the thresholded photograph
-   multiplied on top so the silhouettes cut the letters. Screened onto the photo,
-   the black disappears and only the surviving letters add light. */
-.lhome .lh-sub__behind {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  isolation: isolate;
-  background: #000;
-  mix-blend-mode: screen;
-}
-.lhome .lh-sub__matte {
-  mix-blend-mode: multiply;
-  filter: url(#lh-sub-silhouette);
 }
 .lhome .lh-sub__ghost {
   position: absolute;
@@ -109,12 +87,21 @@
   .lhome .lh-sub__pin { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
 }
 
+@media (max-aspect-ratio: 1/1) and (min-width: 600px) {
+  .lhome .lh-sub__media { height: 100%; }
+  .lhome .lh-sub__photo,
+  .lhome .lh-sub__front { object-position: 50% 32%; }
+  .lhome .lh-sub__scrim {
+    background: linear-gradient(0deg, #04102f 0%, #04102f 26%, rgba(4, 16, 47, 0.8) 44%, rgba(4, 16, 47, 0) 66%);
+  }
+}
+
 /* Landscape: the photograph fills the band, type runs behind the family at head
    height, the title rests on the dark floor. */
 @media (min-aspect-ratio: 1/1) {
   .lhome .lh-sub__media { height: 100%; }
   .lhome .lh-sub__photo,
-  .lhome .lh-sub__matte { object-position: 50% 38%; }
+  .lhome .lh-sub__front { object-position: 50% 38%; }
   .lhome .lh-sub__ghost {
     top: 11%;
     white-space: nowrap;
@@ -128,7 +115,7 @@
     grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr);
     align-items: end;
     column-gap: calc(var(--lh-u) * 3);
-    padding: 38svh calc(var(--lh-u) * 2.4) calc(var(--lh-u) * 2.2);
+    padding: 38svh max(calc(var(--lh-u) * 2.4), 96px) calc(var(--lh-u) * 2.2) calc(var(--lh-u) * 2.4);
   }
   .lhome .lh-sub__kicker { grid-column: 1 / -1; }
 }

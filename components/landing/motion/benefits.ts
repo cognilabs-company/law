@@ -48,14 +48,17 @@ export function benefitsMotion({ gsap, root, finePointer, onCleanup }: MotionApi
 
   // The tiles slide past each other a little, which is what gives the bento depth.
   const speeds = [-46, 34, -22, 26, 40, -30];
+  const tiles = sec.querySelector<HTMLElement>(".lh-ben__tiles");
+  const bento = () => !!tiles && getComputedStyle(tiles).gridTemplateColumns.trim().split(/\s+/).length > 2;
   items.forEach((item, i) => {
+    const speed = speeds[i % speeds.length];
     gsap.fromTo(
       item,
-      { y: -speeds[i % speeds.length] },
+      { y: () => (bento() ? -speed : 0) },
       {
-        y: speeds[i % speeds.length],
+        y: () => (bento() ? speed : 0),
         ease: "none",
-        scrollTrigger: { trigger: sec, start: "top bottom", end: "bottom top", scrub: 1 },
+        scrollTrigger: { trigger: sec, start: "top bottom", end: "bottom top", scrub: 1, invalidateOnRefresh: true },
       },
     );
   });

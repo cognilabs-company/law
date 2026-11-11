@@ -259,7 +259,7 @@ html[data-theme="dark"] .lhome .lh-st__step:nth-child(5) { --f: #fff; --t: #0507
       min-height: var(--row);
       padding-block: calc(var(--s) * 0.5);
       /* The fixed chat button keeps the far right of the floor to itself. */
-      padding-right: 7cqw;
+      padding-right: max(7cqw, 112px);
     }
     .lhome .lh-st__name {
       font-size: calc(var(--s) * 3.3);

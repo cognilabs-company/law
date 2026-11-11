@@ -1,7 +1,8 @@
 import type { CSSProperties } from "react";
 import Image from "next/image";
-import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import { useLocale, useTranslations } from "next-intl";
+import { Link, getPathname } from "@/i18n/navigation";
+import LandingHeroAsk from "./LandingHeroAsk";
 import { IMG } from "./images";
 import "./css/hero.css";
 
@@ -18,7 +19,7 @@ const CAPS: Record<string, number> = {
   А: 629, Б: 612, В: 604, Г: 528, Д: 698, Е: 551, Ё: 551, Ж: 901, З: 590, И: 707,
   Й: 707, К: 601, Л: 666, М: 846, Н: 692, О: 715, П: 675, Р: 588, С: 681, Т: 595,
   У: 576, Ф: 744, Х: 595, Ц: 698, Ч: 667, Ш: 904, Щ: 927, Ъ: 766, Ы: 802, Ь: 606,
-  Э: 623, Ю: 965, Я: 621, " ": 234, "'": 249, "’": 249, "ʻ": 220,
+  Э: 623, Ю: 965, Я: 621, " ": 234, "'": 249, "’": 249, "ʻ": 220, "?": 460,
 };
 const TRACKING = -0.06;
 
@@ -40,11 +41,30 @@ function Arrow() {
   );
 }
 
+function Spark() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 2.5c.5 4.6 2.4 7 7.5 9.5-5.1 2.5-7 4.9-7.5 9.5-.5-4.6-2.4-7-7.5-9.5 5.1-2.5 7-4.9 7.5-9.5z" />
+    </svg>
+  );
+}
+
+function Bubble() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 11.5a8.4 8.4 0 0 1-12.3 7.4L3.5 20.5l1.6-4.8A8.4 8.4 0 1 1 21 11.5z" />
+      <path d="M9.4 9.6a2.6 2.6 0 0 1 5 .9c0 1.7-2.4 2.1-2.4 3.4M12 16.6h.01" />
+    </svg>
+  );
+}
+
 export default function LandingHero() {
   const t = useTranslations();
+  const locale = useLocale();
   const big = t("landing.hero.big");
   const words = big.split(/\s+/).filter(Boolean);
-  const tags = t.raw("home.hero.tags") as string[];
+  const tags = t.raw("landing.hero.proof") as string[];
+  const examples = t.raw("landing.hero.examples") as { label: string; q: string }[];
 
   const vars = {
     "--chars": big.length,
@@ -92,7 +112,7 @@ export default function LandingHero() {
               width={IMG.heroSubject.width}
               height={IMG.heroSubject.height}
               alt=""
-              sizes="(max-aspect-ratio: 1/1) 110vw, 62vw"
+              sizes="(max-aspect-ratio: 1/1) 100vw, 55vw"
               quality={90}
               fetchPriority="high"
               loading="eager"
@@ -103,7 +123,7 @@ export default function LandingHero() {
               width={IMG.heroSubject.width}
               height={IMG.heroSubject.height}
               alt=""
-              sizes="(max-aspect-ratio: 1/1) 110vw, 62vw"
+              sizes="(max-aspect-ratio: 1/1) 100vw, 55vw"
               quality={90}
               fetchPriority="high"
               loading="eager"
@@ -123,16 +143,23 @@ export default function LandingHero() {
 
         <div className="lh-hero__foot">
           <div className="lh-hero__foot-in">
-            <p className="lh-hero__lead">{t("landing.hero.lead")}</p>
-            <div className="lh-hero__cta">
-              <Link href="/chat" className="lh-btn lh-btn--white">
-                {t("landing.hero.primary")}
-                <Arrow />
-              </Link>
-              <Link href="/lawyers" className="lh-btn lh-btn--glass">
-                {t("landing.hero.secondary")}
-              </Link>
-            </div>
+            <p className="lh-hero__lead" id="lh-ask-note">
+              <Spark />
+              <span>
+                {t("landing.hero.lead")} <span className="lh-hero__free">{t("landing.hero.leadFree")}</span>
+              </span>
+            </p>
+            <LandingHeroAsk
+              action={getPathname({ href: "/chat", locale })}
+              label={t("landing.hero.askLabel")}
+              placeholder={t("landing.hero.askPlaceholder")}
+              send={t("landing.hero.askSend")}
+              examplesLabel={t("landing.hero.examplesLabel")}
+              examples={examples}
+              lawyers={t("landing.hero.lawyersLink")}
+              icon={<Bubble />}
+              arrow={<Arrow />}
+            />
           </div>
         </div>
 
@@ -144,8 +171,8 @@ export default function LandingHero() {
         <div className="lh-hero__cards">
           <div className="lh-hero__slot lh-hero__slot--a">
             <Link href="/lawyers" className="lh-hero__card lh-hero__card--a lh-glass">
-              <span className="lh-hero__thumb">
-                <Image src={IMG.trustSteps.src} width={IMG.trustSteps.width} height={IMG.trustSteps.height} alt="" sizes="96px" loading="eager" />
+              <span className="lh-hero__thumb lh-hero__thumb--cols">
+                <Image src={IMG.trustSteps.src} width={IMG.trustSteps.width} height={IMG.trustSteps.height} alt="" sizes="(min-width: 2400px) 300px, (min-width: 1800px) 200px, 170px" loading="eager" />
               </span>
               <span className="lh-hero__card-copy">
                 <strong>{t("landing.hero.lawyersCardTitle")}</strong>

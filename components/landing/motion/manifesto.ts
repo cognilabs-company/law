@@ -146,7 +146,8 @@ function manifesto({ gsap, root, finePointer, onCleanup }: MotionApi) {
     duration: 1.2,
     ease: "expo.out",
     stagger: 0.1,
-    scrollTrigger: { trigger: card, start: "center 80%", once: true },
+    clearProps: "transform,opacity,visibility",
+    scrollTrigger: { trigger: card, start: "top 85%", once: true },
   });
 
   // The words. Beside the card they part from behind it. Where they sit above

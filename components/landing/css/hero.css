@@ -201,7 +201,7 @@
   width: var(--lh-ww);
   height: var(--lh-wh);
   pointer-events: none;
-  transform-origin: 62% 100%;
+  transform-origin: 62% 12%;
 }
 .lhome .lh-hero__woman-in {
   position: absolute;
@@ -292,28 +292,138 @@
   grid-row: 5;
   grid-column: 1;
   margin-inline: var(--lh-gut);
-  width: min(calc(100cqw - 2 * var(--lh-gut)), max(35cqw, 25em));
+  width: min(calc(100cqw - 2 * var(--lh-gut)), max(30em, min(40cqw, calc(var(--lh-hu) * 36))));
 }
 .lhome .lh-hero__foot-in {
   display: grid;
-  gap: calc(var(--lh-hu) * 1.05);
+  gap: calc(var(--lh-hu) * 0.85);
 }
 .lhome .lh-hero__lead {
-  max-width: 42ch;
-  font-size: calc(var(--lh-hu) * 1.04);
-  line-height: 1.38;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+  max-width: 46ch;
+  font-size: max(calc(var(--lh-hu) * 0.98), 14.5px);
+  line-height: 1.36;
   letter-spacing: 0.002em;
   color: rgba(255, 255, 255, 0.92);
   text-wrap: pretty;
 }
-.lhome .lh-hero__cta {
+.lhome .lh-hero__lead svg {
+  flex: none;
+  width: 1.05em;
+  height: 1.05em;
+  margin-top: 0.16em;
+  color: #9cc2ff;
+}
+.lhome .lh-hero__free {
+  display: none;
+}
+.lhome .lh-hero__act {
+  display: grid;
+  gap: calc(var(--lh-hu) * 0.75);
+  min-width: 0;
+}
+.lhome .lh-hero__ask {
+  --lh-ask-h: max(calc(var(--lh-hu) * 3.5), 54px);
+  --lh-ask-pad: max(calc(var(--lh-hu) * 0.3), 5px);
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: calc(var(--lh-hu) * 0.6);
+  min-height: var(--lh-ask-h);
+  padding: var(--lh-ask-pad);
+  padding-left: calc(var(--lh-hu) * 1.05);
+  border-radius: 999px;
+  background: #fff;
+  color: #05070d;
+  box-shadow: 0 calc(var(--lh-hu) * 1.1) calc(var(--lh-hu) * 2.6) rgba(2, 8, 40, 0.32);
+}
+.lhome .lh-hero__ask:focus-within {
+  box-shadow: 0 0 0 3px #6ea8ff, 0 calc(var(--lh-hu) * 1.1) calc(var(--lh-hu) * 2.6) rgba(2, 8, 40, 0.32);
+}
+.lhome .lh-hero__ask-ic {
+  display: grid;
+  width: calc(var(--lh-hu) * 1.25);
+  height: calc(var(--lh-hu) * 1.25);
+  color: var(--lh-cobalt);
+}
+.lhome .lh-hero__ask-ic svg {
+  width: 100%;
+  height: 100%;
+}
+.lhome .lh-hero__ask-in {
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: 400 max(16px, calc(var(--lh-hu) * 1.06)) / 1.2 var(--lh-sans);
+  letter-spacing: -0.005em;
+  color: #05070d;
+  text-overflow: ellipsis;
+}
+.lhome .lh-hero__ask-in::placeholder {
+  color: rgba(5, 7, 13, 0.6);
+  opacity: 1;
+}
+.lhome .lh-hero__ask-in:focus,
+.lhome .lh-hero__ask-in:focus-visible {
+  outline: none;
+}
+.lhome .lh-hero__ask .lh-hero__ask-go {
+  min-height: calc(var(--lh-ask-h) - 2 * var(--lh-ask-pad));
+  padding-inline: calc(var(--lh-hu) * 1.15);
+  font-size: max(calc(var(--lh-hu) * 0.98), 14.5px);
+  white-space: nowrap;
+}
+.lhome .lh-hero__ex {
   display: flex;
   flex-wrap: wrap;
-  gap: calc(var(--lh-hu) * 0.6);
+  align-items: center;
+  gap: calc(var(--lh-hu) * 0.45);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
-.lhome .lh-hero__cta .lh-btn {
-  min-height: max(calc(var(--lh-hu) * 3.15), 46px);
-  font-size: max(calc(var(--lh-hu) * 0.98), 14.5px);
+.lhome .lh-hero__chip,
+.lhome .lh-hero__alt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  min-height: max(calc(var(--lh-hu) * 2.15), 36px);
+  padding: 0 calc(var(--lh-hu) * 0.9);
+  border-radius: 999px;
+  color: #fff;
+  font: 500 max(calc(var(--lh-hu) * 0.84), 13px) / 1.1 var(--lh-sans);
+  white-space: nowrap;
+  text-decoration: none;
+  transition: transform 0.35s var(--lh-ease), background-color 0.25s, color 0.25s;
+}
+.lhome .lh-hero__chip {
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  background: rgba(4, 14, 62, 0.56);
+  cursor: pointer;
+}
+.lhome .lh-hero__alt {
+  padding-inline: calc(var(--lh-hu) * 0.5);
+  color: rgba(255, 255, 255, 0.86);
+}
+.lhome .lh-hero__alt svg {
+  width: 1em;
+  height: 1em;
+}
+@media (hover: hover) and (pointer: fine) {
+  .lhome .lh-hero__chip:hover {
+    transform: translateY(-2px);
+    background: rgba(4, 14, 62, 0.78);
+  }
+  .lhome .lh-hero__alt:hover {
+    color: #fff;
+    transform: translateX(2px);
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -381,6 +491,11 @@
   height: 100%;
   object-fit: cover;
   object-position: 45% 40%;
+}
+.lhome .lh-hero__thumb--cols img {
+  object-position: 100% 0;
+  transform-origin: 100% 0;
+  scale: 1.9;
 }
 .lhome .lh-hero__card-copy {
   display: grid;
@@ -458,6 +573,14 @@
   border-radius: 50%;
   background: #fff;
   box-shadow: 0 0 0 calc(var(--lh-hu) * 0.28) rgba(255, 255, 255, 0.24);
+}
+.lhome .lh-hero__dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  opacity: 0;
 }
 
 /* --------------------------------------------------------------------------
@@ -544,9 +667,6 @@
     .lhome .lh-hero__foot {
       width: auto;
     }
-    .lhome .lh-hero__cta .lh-btn {
-      flex: 1 1 auto;
-    }
     .lhome .lh-hero__elbow {
       display: none;
     }
@@ -594,9 +714,58 @@
 }
 
 /* Long leads (Russian) must still leave the CTAs above the tab bar on short phones. */
+@media (max-aspect-ratio: 1/1) {
+  @container (max-width: 819px) {
+    .lhome .lh-hero__ex {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 2.4em), transparent);
+      mask-image: linear-gradient(90deg, #000 calc(100% - 2.4em), transparent);
+    }
+    .lhome .lh-hero__ex::-webkit-scrollbar {
+      display: none;
+    }
+    .lhome .lh-hero__ex-alt {
+      display: none;
+    }
+  }
+  @container (max-width: 739px) {
+    .lhome .lh-hero__ask {
+      grid-template-columns: minmax(0, 1fr) auto;
+      column-gap: calc(var(--lh-hu) * 0.45);
+      padding-left: calc(var(--lh-hu) * 0.9);
+    }
+    .lhome .lh-hero__ask-ic {
+      display: none;
+    }
+    .lhome .lh-hero__ask .lh-hero__ask-go {
+      width: calc(var(--lh-ask-h) - 2 * var(--lh-ask-pad));
+      padding: 0;
+    }
+    .lhome .lh-hero__ask-go-t {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+    }
+  }
+  @container (max-width: 599px) {
+    .lhome .lh-hero__free {
+      display: inline;
+    }
+    .lhome .lh-hero__ex {
+      margin-right: calc(var(--lh-gut) * -1);
+      padding-right: var(--lh-gut);
+    }
+  }
+}
+
 @media (max-aspect-ratio: 1/1) and (max-width: 599px) {
   .lhome .lh-hero__pin {
-    --lh-stack: calc(90px + var(--lh-hu) * 16.6);
+    --lh-stack: calc(90px + var(--lh-hu) * 17.8);
   }
 }
 
@@ -604,12 +773,12 @@
 @media (max-aspect-ratio: 1/1) and (min-width: 600px) {
   .lhome .lh-hero__pin {
     --lh-small: min(8cqw, 6.2svh);
-    --lh-stack: calc(90px + var(--lh-hu) * 21);
+    --lh-stack: calc(90px + var(--lh-hu) * 23);
   }
   /* Narrow tablets also carry the tab bar. */
   @media (max-width: 760px) {
     .lhome .lh-hero__pin {
-      --lh-stack: calc(90px + var(--lh-hu) * 24);
+      --lh-stack: calc(90px + var(--lh-hu) * 26);
       --lh-wh: clamp(58cqw, calc(100svh - var(--lh-stack) - var(--lh-wy)), 100cqw);
     }
   }
@@ -622,6 +791,19 @@
 @media (max-width: 760px) {
   .lhome .lh-hero__pin {
     padding-bottom: calc(90px + env(safe-area-inset-bottom));
+  }
+  @container (min-width: 600px) {
+    .lhome .lh-hero__slot--b {
+      bottom: calc(90px + env(safe-area-inset-bottom));
+    }
+  }
+}
+
+@media (min-aspect-ratio: 1/1) and (max-height: 520px) {
+  .lhome .lh-hero__mark,
+  .lhome .lh-hero__slot--a,
+  .lhome .lh-hero__thumb--tall {
+    display: none;
   }
 }
 
@@ -663,10 +845,18 @@
     animation: lh-hero-draw 1s var(--lh-ease) 1.5s both;
   }
   .lhome .lh-hero__dot {
-    animation:
-      lh-hero-dot 0.7s var(--lh-ease) 1.3s both,
-      lh-hero-pulse 2.6s ease-out 2s infinite;
+    animation: lh-hero-dot 0.7s var(--lh-ease) 1.3s both;
   }
+  .lhome .lh-hero__dot::after {
+    animation: lh-hero-ring 2.6s ease-out 2s infinite;
+  }
+  .lhome .lh-hero__ex li {
+    animation: lh-hero-rise 1.1s var(--lh-ease) both;
+  }
+  .lhome .lh-hero__ex li:nth-child(1) { animation-delay: 1.06s; }
+  .lhome .lh-hero__ex li:nth-child(2) { animation-delay: 1.13s; }
+  .lhome .lh-hero__ex li:nth-child(3) { animation-delay: 1.2s; }
+  .lhome .lh-hero__ex li:nth-child(4) { animation-delay: 1.27s; }
 
   .lhome .lh-hero__paper {
     will-change: transform, opacity;
@@ -709,9 +899,9 @@
 @keyframes lh-hero-dot {
   from { transform: scale(0); opacity: 0; }
 }
-@keyframes lh-hero-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.55); }
-  70%, 100% { box-shadow: 0 0 0 calc(var(--lh-hu) * 1.3) rgba(255, 255, 255, 0); }
+@keyframes lh-hero-ring {
+  0% { transform: scale(1); opacity: 0.6; }
+  70%, 100% { transform: scale(4.6); opacity: 0; }
 }
 /* Each sheet crosses the frame on the wind of her run, left to right, from its
    own resting place. Offsets are relative to that place. */

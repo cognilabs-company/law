@@ -18,11 +18,24 @@ export function warrantyMotion(api: MotionApi) {
   const core = section.querySelector<HTMLElement>(".lh-war__core");
   const depth = section.querySelector<HTMLElement>(".lh-war__depth");
   const tilt = section.querySelector<HTMLElement>(".lh-war__tilt");
-  const ghost = section.querySelector<HTMLElement>(".lh-war__ghost");
+  const ghost = section.querySelector<HTMLElement>(".lh-war__ghost-in");
   const rings = section.querySelector<HTMLElement>(".lh-war__rings");
   const glow = section.querySelector<HTMLElement>(".lh-war__glow");
   if (!pin || !orbit || !panelsBox || !core || !depth || !tilt || !ghost || !rings || !glow) return;
   const panels = gsap.utils.toArray<HTMLElement>(".lh-war__panel", section);
+
+  const shield = section.querySelector<HTMLImageElement>(".lh-war__shield");
+  const sheen = section.querySelector<HTMLElement>(".lh-war__sheen");
+  if (shield && sheen) {
+    const mask = () => {
+      const url = `url("${shield.currentSrc || shield.src}")`;
+      sheen.style.setProperty("-webkit-mask-image", url);
+      sheen.style.setProperty("mask-image", url);
+      sheen.dataset.ready = "";
+    };
+    if (shield.complete && shield.naturalWidth) mask();
+    else shield.addEventListener("load", mask, { once: true });
+  }
 
   gsap.set(depth, { transformPerspective: 1400 });
 

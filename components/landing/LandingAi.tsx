@@ -46,6 +46,8 @@ export default function LandingAi() {
               alt=""
               quality={90}
               sizes="(max-aspect-ratio: 1/1) 135vw, min(86vw, 150vh)"
+              placeholder="blur"
+              blurDataURL={IMG.aiThemis.blur}
             />
           </div>
         </div>
@@ -112,7 +114,7 @@ export default function LandingAi() {
             <p className="lh-ai__info" data-lh-rise>
               {page("info")}
             </p>
-            <div className="lh-ai__cta" data-lh-rise-group>
+            <div className="lh-ai__cta" data-lh-rise>
               <Link href="/chat" className="lh-btn lh-btn--white">
                 {cta("tryFree")}
               </Link>

@@ -184,6 +184,11 @@
 /* --------------------------------------------------------------------------
    Six columns
    -------------------------------------------------------------------------- */
+@container lh-ben (max-width: 599px) {
+  .lhome .lh-ben__tiles { gap: calc(var(--b) * 3.4); }
+  .lhome .lh-ben__ico { top: calc(var(--ico) * -0.2); }
+}
+
 @container lh-ben (min-width: 600px) {
   .lhome .lh-ben__bento { --b: clamp(15px, 2.1cqw, calc(var(--lh-u) * 1.5)); }
   .lhome .lh-ben__title { font-size: 10cqw; }
