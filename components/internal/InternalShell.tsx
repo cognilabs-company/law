@@ -12,7 +12,8 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import FeedbackButton from "@/components/internal/feedback/FeedbackButton";
 import CommandPalette from "@/components/internal/CommandPalette";
 import { IconChevronDown, IconChevronLeft, IconClose, IconLogo, IconLogoText, IconMenu, IconMoreHorizontal } from "@/components/icons";
-import { NAV_GROUPS, activeNav, navHref, navId, navMatches, type NavBadge, type NavItem } from "./nav";
+import { NAV_GROUPS, activeNav, navAllowed, navHref, navId, navMatches, type NavBadge, type NavItem } from "./nav";
+import { useExecScope } from "@/lib/useExecScope";
 import { AppSwitcher, NavProgress, NotificationsBell, OfflineBanner, ShortcutsDialog, SkipLink, UserMenu, isTypingTarget, useUnreadNotifications } from "./ShellParts";
 
 // The HRM workspace chrome. The sidebar is an accordion of groups (the one
@@ -103,7 +104,11 @@ function Shell({ children }: { children: ReactNode }) {
   const rail = useSyncExternalStore(railStore.subscribe, railStore.read, () => "") === "1";
   const roles = internalRoles(session);
   const allowed = hasInternalAccess(session);
-  const groups = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((item) => !item.permission || canInternal(session, item.permission)) })).filter((g) => g.items.length);
+  const scope = useExecScope(session, ready && allowed);
+  const groups = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((item) => navAllowed(item, (p) => canInternal(session, p), scope)) })).filter((g) => g.items.length);
+  // A scoped page opened by its address waits for the backend's answer
+  // instead of being sent home while the answer is on its way.
+  const asking = NAV_GROUPS.some((g) => g.items.some((item) => item.scope && scope[item.scope] === null && navMatches(pathname, item)));
   const visible = groups.flatMap((g) => g.items);
   const active = activeNav(pathname, visible, typeParam);
   const activeGroup = groups.find((g) => active && g.items.includes(active));
@@ -138,11 +143,11 @@ function Shell({ children }: { children: ReactNode }) {
       return;
     }
     if (!allowed) router.replace(`/portal/${session.role}`);
-    else if (!visible.some((item) => navMatches(pathname, item))) router.replace("/internal");
+    else if (!asking && !visible.some((item) => navMatches(pathname, item))) router.replace("/internal");
     // Route access is checked again by the backend; this only prevents an
     // unauthorized module from mounting and issuing a request.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, session, allowed, pathname, router]);
+  }, [ready, session, allowed, pathname, router, asking]);
 
   if (!ready || !allowed || !active) return <div className="portal portal--redirect" aria-busy="true"><span className="rf__spinner" /></div>;
 

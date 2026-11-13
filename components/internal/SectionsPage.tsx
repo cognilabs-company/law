@@ -8,7 +8,8 @@ import { useAuth } from "@/lib/auth";
 import { canInternal } from "@/lib/services/internalHrm";
 import { HrmHead } from "@/components/internal/HrmUi";
 import { IconChevronDown } from "@/components/icons";
-import { NAV_GROUPS, navHref, navId } from "./nav";
+import { NAV_GROUPS, navAllowed, navHref, navId } from "./nav";
+import { useExecScope } from "@/lib/useExecScope";
 
 // Which areas the viewer folded ("pay,admin"), kept per browser. Read
 // through useSyncExternalStore so the server render and the first client
@@ -45,7 +46,8 @@ export default function SectionsPage() {
   const { session } = useAuth();
   const raw = useSyncExternalStore(subscribe, readFolded, () => "");
   const folded = new Set(raw.split(",").filter(Boolean));
-  const groups = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => (!i.permission || canInternal(session, i.permission)) && i.href !== "/internal/sections") })).filter((g) => g.items.length);
+  const scope = useExecScope(session, Boolean(session));
+  const groups = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => navAllowed(i, (p) => canInternal(session, p), scope) && i.href !== "/internal/sections") })).filter((g) => g.items.length);
   const allFolded = groups.every((g) => folded.has(g.key));
   const toggle = (key: string) => writeFolded(folded.has(key) ? [...folded].filter((k) => k !== key) : [...folded, key]);
   return (

@@ -1,0 +1,32 @@
+/* HRM pages of the 2026-11-13 contract: IT monitoring and the department
+   head. Built on the HRM kit (hrm-panel, hrm-stat, hrm-table). */
+.exh-stats{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.exh-conn{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin:0;padding:0;list-style:none}
+.exh-conn__i{display:flex;align-items:flex-start;gap:10px;min-width:0;padding:12px 14px;border-radius:14px;background:var(--dk-surface-2, #F7FAFE);box-shadow:inset 0 0 0 1.5px var(--line)}
+.exh-conn__i>div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.exh-conn__i b{font-size:.92rem;color:var(--ink)}
+.exh-conn__i small{font-size:.74rem;line-height:1.4;color:var(--gray);overflow-wrap:anywhere}
+.exh-conn__s{font-size:.8rem;font-weight:700}
+.exh-dot{flex:none;width:10px;height:10px;margin-top:5px;border-radius:50%;background:var(--gray2)}
+.exh-conn__i.is-ok .exh-dot{background:#12B76A}
+.exh-conn__i.is-ok .exh-conn__s{color:var(--dk-txt-ok, #00764F)}
+.exh-conn__i.is-warn .exh-dot{background:#F59E0B}
+.exh-conn__i.is-warn .exh-conn__s{color:var(--dk-txt-warn, #8A5300)}
+.exh-conn__i.is-bad .exh-dot{background:#E5484D}
+.exh-conn__i.is-bad .exh-conn__s{color:var(--dk-txt-err, #B42328)}
+.exh-conn__i.is-off .exh-conn__s{color:var(--gray)}
+.exh-inc{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.exh-inc li{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.exh-inc li:last-child{border-bottom:0}
+.exh-inc li>div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.exh-inc b{font-size:.9rem;color:var(--ink);overflow-wrap:anywhere}
+.exh-inc small{font-size:.76rem;color:var(--gray)}
+.exh-sev{flex:none;padding:2px 9px;border-radius:999px;font-size:.72rem;font-weight:700;white-space:nowrap;background:var(--dk-surface-2, #F1F5FA);color:var(--gray)}
+.exh-sev.is-bad{background:var(--dk-tint-err, #FDECEC);color:var(--dk-txt-err, #B42328)}
+.exh-sev.is-warn{background:var(--dk-tint-warn, #FFF4E0);color:var(--dk-txt-warn, #8A5300)}
+.exh-units{display:flex;flex-wrap:wrap;gap:6px}
+.exh-note{margin:0;font-size:.82rem;line-height:1.5;color:var(--gray)}
+.exh-type{display:flex;gap:8px;flex-wrap:wrap}
+.exh-type label{display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:12px;box-shadow:inset 0 0 0 1.5px var(--line);font-size:.86rem;font-weight:600;color:var(--ink);cursor:pointer}
+.exh-type label:has(input:checked){box-shadow:inset 0 0 0 2px var(--dk-acc, var(--b600));background:var(--dk-tint-blue, var(--b50))}
+.exh-type input{accent-color:var(--b600)}

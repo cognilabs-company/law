@@ -56,6 +56,9 @@ export type NavItem = {
   type?: string;
   permission?: InternalPermission;
   badge?: NavBadge;
+  // Shown only when the backend says this account may (contract
+  // 2026-11-13 §2): the head of a unit, or IT monitoring (lib/useExecScope).
+  scope?: "department" | "it";
   mobile?: boolean;
   // Words the command palette also matches on.
   keywords?: string;
@@ -79,6 +82,10 @@ export const NAV_GROUPS: NavGroup[] = [
     { href: "/internal/me/attendance", key: "attendance", Icon: IconCalendar },
     { href: "/internal/me/payslips", key: "myPayslips", Icon: IconCoins, keywords: "oylik maosh payslip расчётный" },
     { href: "/internal/me/records", key: "myRecords", Icon: IconFolder },
+  ] },
+  { key: "lead", Icon: IconTarget, items: [
+    { href: "/internal/department", key: "department", Icon: IconUsers, scope: "department", keywords: "bo'lim rahbar jadval 24/7 department head" },
+    { href: "/internal/it", key: "itMonitoring", Icon: IconMonitor, scope: "it", keywords: "it monitoring server redis database incident" },
   ] },
   { key: "org", Icon: IconBuilding, items: [
     { href: "/internal/org", key: "org", Icon: IconBuilding, permission: "internal_org.manage", keywords: "chart struktura" },
@@ -180,6 +187,11 @@ export const NAV_GROUPS: NavGroup[] = [
     { href: "/internal/hrm/ai", key: "aiOversight", Icon: IconLightbulb, permission: HR },
   ] },
 ];
+
+// May this account see the item? Its permission, and for a scoped item the
+// backend's answer (null = still asking: hidden for now).
+export const navAllowed = (item: NavItem, canPerm: (p: InternalPermission) => boolean, scope: { department: boolean | null; it: boolean | null }): boolean =>
+  (!item.permission || canPerm(item.permission)) && (!item.scope || scope[item.scope] === true);
 
 export const navHref = (item: NavItem) => (item.type ? `${item.href}?type=${encodeURIComponent(item.type)}` : item.href);
 export const navId = (item: NavItem) => `${item.href}#${item.type ?? ""}`;
