@@ -2,7 +2,6 @@
 
 import { useLayoutEffect } from "react";
 import { commonMotion, cursorMotion } from "./motion/common";
-import { heroMotion } from "./motion/hero";
 import { manifestoMotion } from "./motion/manifesto";
 import { problemMotion } from "./motion/problem";
 import { bandMotion } from "./motion/band";
@@ -17,7 +16,6 @@ import type { MotionApi, SectionMotion } from "./motion/types";
 
 // In page order: pinned sections add height, so later triggers must measure after them.
 const SECTIONS: SectionMotion[] = [
-  heroMotion,
   manifestoMotion,
   problemMotion,
   bandMotion,
