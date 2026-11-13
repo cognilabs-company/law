@@ -63,12 +63,13 @@
 .lhome .lh-hero__title {
   max-width: 15em;
   margin: 0;
-  font: 500 min(calc(var(--lh-u) * 5), 8.2svh, 10cqi) / 1.04 var(--lh-sans);
+  font: 500 min(calc(var(--lh-u) * 4.3), 8.2svh, 10cqi) / 1.04 var(--lh-sans);
   letter-spacing: -0.035em;
   text-wrap: balance;
   color: #fff;
 }
 .lhome .lh-hero__title em.lh-accent {
+  display: block;
   color: var(--lh-accent);
 }
 
