@@ -1,0 +1,16 @@
+/* The duty lawyer's AI draft block (contract 2026-11-13 §10). */
+.dad{display:grid;gap:10px}
+.dad__note{margin:0;font-size:.84rem;line-height:1.5;color:var(--opx-muted, var(--gray))}
+.dad__must{margin:0;padding:8px 10px;border-radius:10px;background:var(--dk-tint-warn, #FFF4E0);color:var(--dk-txt-warn, #8A5300);font-size:.82rem;font-weight:600;line-height:1.45}
+.dad__err{margin:0;padding:8px 10px;border-radius:10px;background:var(--dk-tint-err, #FDECEC);color:var(--dk-txt-err, #B42328);font-size:.82rem;font-weight:600}
+.dad__field{display:grid;gap:5px}
+.dad__field span,.dad__q>span{font-size:.76rem;font-weight:700;color:var(--opx-muted, var(--gray))}
+.dad__field textarea,.dad__field input{width:100%;min-width:0;padding:9px 11px;border:0;border-radius:10px;background:var(--dk-surface-2, #F7FAFE);color:inherit;font:inherit;font-size:.88rem;line-height:1.5;box-shadow:inset 0 0 0 1.5px var(--line);outline:0;resize:vertical}
+.dad__field textarea:focus,.dad__field input:focus{box-shadow:inset 0 0 0 2px var(--dk-acc, var(--b600))}
+.dad__field textarea[readonly]{background:transparent}
+.dad__q ul{margin:4px 0 0;padding-left:18px;display:grid;gap:3px;font-size:.86rem;line-height:1.45}
+.dad__acts{display:flex;flex-wrap:wrap;gap:8px}
+.dad__done{display:grid;gap:6px;padding:10px 12px;border-radius:12px;background:var(--dk-tint-ok, #E6F7F0)}
+.dad__done b{display:inline-flex;align-items:center;gap:6px;color:var(--dk-txt-ok, #00764F);font-size:.88rem}
+.dad__done p{margin:0;font-size:.82rem;line-height:1.45;color:var(--ink)}
+.dad__done .btn{justify-self:start}

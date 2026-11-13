@@ -19,6 +19,8 @@ import { notify } from "@/lib/toast";
 import { fmtUzs } from "@/lib/money";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
+import { hasRole } from "@/lib/permissions";
+import DutyAiDraft, { urgentDraftContext } from "@/components/portal/dutyDraft/DutyAiDraft";
 import WorkFilterBar, { inPeriod, useStoredFilters, type Period } from "./WorkFilterBar";
 import { matchesSearch } from "@/lib/searchText";
 import { aiId, aiSeg } from "@/lib/ai/ids";
@@ -553,6 +555,8 @@ function AssignedDetail({ recordId, fallback, me }: { recordId: string; fallback
   const urg = useUrgentStatuses();
   const when = useWhen();
   const [req, setReq] = useState<UrgentRequest>(fallback);
+  const { session } = useAuth();
+  const dutyLawyer = hasRole(session, "call_center_lawyer");
   const [err, setErr] = useState<unknown>(null);
   const [loaded, setLoaded] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -653,6 +657,10 @@ function AssignedDetail({ recordId, fallback, me }: { recordId: string; fallback
           ) : null}
           {req.lawyerCount > 1 ? <p className="opx-dk-sub">{x("requested", { n: req.lawyerCount })}</p> : null}
         </Group>
+
+        {/* The duty lawyer's AI draft (2026-11-13 §10): internal duty lawyers
+            only, never an external marketplace advocate. */}
+        {dutyLawyer ? <DutyAiDraft entity={{ type: "urgent_advokat_request", id: req.id }} context={urgentDraftContext(req)} /> : null}
 
         {panel.length || duty.length ? (
           <Group icon={<IconUsers {...px(16)} aria-hidden="true" />} title={panel.length ? t("panel") : t("operator")} count={panel.length + duty.length}>
