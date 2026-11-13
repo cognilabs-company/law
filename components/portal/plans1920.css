@@ -189,9 +189,9 @@ html[data-theme="dark"] .portal.lx .plx-faq{border-bottom-color:var(--lx-line)}
 /* the gift tariff: the dashboard's navy gift banner as a card */
 .portal.lx .splan.plx-giftcard{
   display:flex;flex-direction:column;align-items:flex-start;min-width:0;padding:24px;
-  background:var(--lx-navy);color:#fff;border:0;border-radius:24px;box-shadow:none;transform:none;
+  background:var(--lx-promo);color:#fff;border:0;border-radius:24px;box-shadow:none;transform:none;
 }
-html[data-theme="dark"] .portal.lx .splan.plx-giftcard{background:#0B1830;box-shadow:inset 0 0 0 1px var(--lx-navy-line)}
+html[data-theme="dark"] .portal.lx .splan.plx-giftcard{box-shadow:inset 0 0 0 1px rgba(255,255,255,.09)}
 .portal.lx .plx-giftcard__art{width:92px;height:92px;margin-bottom:18px}
 .portal.lx .plx-giftcard .splan__name{display:block;font-family:var(--fd);font-size:1.3rem;font-weight:700;letter-spacing:-.015em;color:#fff}
 /* .cx-gift p grows (flex:1) in the dashboard's banner; here the list does */

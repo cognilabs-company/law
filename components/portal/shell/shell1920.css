@@ -8,13 +8,16 @@
 .portal.lx{
   --lx-blue:#1668F0; --lx-blue-h:#0F57D6; --lx-link:#1460DC; --lx-blue-ink:#154CB0; --lx-blue-tint:#EFF4FE;
   --lx-navy:#0A1526; --lx-navy-2:#162131; --lx-navy-3:#1A2D49; --lx-navy-line:#232D3C;
+  --lx-rail:#FFFFFF; --lx-rail-line:#E4EBF5; --lx-rail-hover:#F2F6FC; --lx-sb-brand:#0A1526;
+  --lx-sb-chip:#EFF4FE; --lx-sb-chip-txt:#154CB0; --lx-promo:#0B1E42;
+  --lx-svc-a:#1163F7; --lx-svc-b:#0A47C6; --lx-svc-txt:#FFFFFF; --lx-svc-sub:#D8E4FF;
   /* the header search is at least as wide as its hint plus its padding and
      icon (measured): "Ishlar, hujjatlar, xabarlar..." needs 249px; ru/en below */
   --lx-search-min:250px;
   --lx-bg:#F5F9FF; --lx-card:#FFFFFF; --lx-line:#E4EBF5; --lx-line-2:#ECF0F7; --lx-chip:#F2F6FC;
   --lx-ink:#0A1526; --lx-gray:#4F5F75; --lx-gray2:#5D6E84;
   --lx-ok:#0E7A55; --lx-ok-bg:#E7F6EE; --lx-warn:#9A5B00; --lx-warn-bg:#FFF3D6; --lx-err:#D93B30; --lx-err-bg:#FDECEA;
-  --lx-sb-txt:#C9D4E3; --lx-sb-lbl:#8494AB; --lx-sb-danger:#FF9494;
+  --lx-sb-txt:#42566E; --lx-sb-lbl:#64748B; --lx-sb-danger:#D93B30;
   --lx-r:24px; --lx-r-md:16px; --lx-r-sm:12px;
   --lx-shadow:0 1px 2px rgba(10,21,38,.04);
   /* the old tokens pages still read, aligned with the design */
@@ -27,6 +30,10 @@
 html[data-theme="dark"] .portal.lx{
   --lx-blue:#1F66E5; --lx-blue-h:#2C74F0; --lx-link:#6EA8FF; --lx-blue-ink:#A3C8FF; --lx-blue-tint:rgba(96,165,250,.14);
   --lx-navy:#081120; --lx-navy-2:#121D31; --lx-navy-3:#1A2D49; --lx-navy-line:#22324D;
+  --lx-rail:#121E39; --lx-rail-line:rgba(255,255,255,.08); --lx-rail-hover:rgba(255,255,255,.07); --lx-sb-brand:#FFFFFF;
+  --lx-sb-chip:var(--lx-navy-3); --lx-sb-chip-txt:#A3C8FF; --lx-promo:#0E1A33;
+  --lx-sb-txt:#C9D4E3; --lx-sb-lbl:#8494AB; --lx-sb-danger:#FF9494;
+  --lx-svc-a:#1A4BC4; --lx-svc-b:#0E2F8E; --lx-svc-txt:#FFFFFF; --lx-svc-sub:#C9D8FF;
   --lx-bg:#0A1120; --lx-card:#121C31; --lx-line:#26365A; --lx-line-2:#22314F; --lx-chip:#18253E;
   --lx-ink:#E7EEF8; --lx-gray:#A5B4C8; --lx-gray2:#8494AB;
   --lx-ok:#4ADE9F; --lx-ok-bg:rgba(52,211,153,.14); --lx-warn:#FBC15E; --lx-warn-bg:rgba(251,191,36,.14); --lx-err:#FF9494; --lx-err-bg:rgba(248,113,113,.14);
@@ -36,14 +43,15 @@ html[data-theme="dark"] .portal.lx{
 
 /* ── Sidebar ───────────────────────────────────────────── */
 .portal.lx .psb.lx-sb{
-  margin:16px;background:var(--lx-navy);border:0;border-radius:24px;color:var(--lx-sb-txt);
+  margin:16px;background:var(--lx-rail);border:0;border-radius:24px;color:var(--lx-sb-txt);
   padding:20px 14px 14px;display:flex;flex-direction:column;min-height:0;overflow:hidden;
-  box-shadow:0 20px 40px -24px rgba(10,21,38,.5);
+  box-shadow:inset 0 0 0 1px var(--lx-rail-line),0 18px 36px -26px rgba(10,21,38,.28);
 }
-html[data-theme="dark"] .portal.lx .psb.lx-sb{box-shadow:inset 0 0 0 1px var(--lx-navy-line)}
+html[data-theme="dark"] .portal.lx .psb.lx-sb{box-shadow:inset 0 0 0 1px var(--lx-rail-line)}
+html:not([data-theme="dark"]) .lx-sb{--logo-blue:#1668F0;--logo-light:block;--logo-dark:none}
 /* The logo keeps clear room under it before the first menu row. */
 .lx-sb__brand{display:flex!important;flex-direction:row!important;align-items:center!important;gap:10px;padding:2px 6px 24px!important}
-.lx-sb__logo{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none;font-family:var(--fd);font-weight:700;font-size:1.2rem;letter-spacing:-.01em;min-width:0}
+.lx-sb__logo{display:flex;align-items:center;gap:10px;color:var(--lx-sb-brand);text-decoration:none;font-family:var(--fd);font-weight:700;font-size:1.2rem;letter-spacing:-.01em;min-width:0}
 /* The mark stands on the navy rail by itself — the white scales and the
    blue book read on it without the blue tile that used to sit behind them. */
 .lx-sb__mark{width:38px;height:38px;padding:0;background:none;box-shadow:none;display:grid;place-items:center;flex:none}
@@ -51,7 +59,7 @@ html[data-theme="dark"] .portal.lx .psb.lx-sb{box-shadow:inset 0 0 0 1px var(--l
 .lx-sb__word{display:inline-flex;align-items:center;font-size:1.26rem}
 /* The cabinet sidebar no longer renders this chip, but the CRM shell
    (components/crm/rop/RopShell.tsx) still does. */
-.lx-sb__role{margin-left:auto;font-size:.74rem;font-weight:600;color:#A3C8FF;background:var(--lx-navy-3);padding:4px 10px;border-radius:999px;white-space:nowrap}
+.lx-sb__role{margin-left:auto;font-size:.74rem;font-weight:600;color:var(--lx-sb-chip-txt);background:var(--lx-sb-chip);padding:4px 10px;border-radius:999px;white-space:nowrap}
 .lx-sb__x{display:none}
 .portal.lx .lx-sb__nav{flex:1;overflow-y:auto;padding:0;display:block;scrollbar-width:none}
 /* The list's scrollbar is hidden, so when it does scroll the edge that has
@@ -66,12 +74,12 @@ html[data-theme="dark"] .portal.lx .psb.lx-sb{box-shadow:inset 0 0 0 1px var(--l
 .lx-sb__grp{display:grid;gap:2px}
 .lx-sb__glabel{display:flex;align-items:center;justify-content:space-between;padding:6px 12px 6px;font-size:.72rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--lx-sb-lbl);background:none;border:0;width:100%;text-align:left}
 .lx-sb__glabel--btn{cursor:pointer;border-radius:8px}
-.lx-sb__glabel--btn:hover{color:#C9D4E3}
+.lx-sb__glabel--btn:hover{color:var(--lx-sb-brand)}
 .lx-sb__glabel svg{width:14px;height:14px;transition:transform .18s}
 .lx-sb__grp.is-shut .lx-sb__glabel svg{transform:rotate(180deg)}
 .portal.lx .lx-sb__link{display:flex;align-items:center;gap:12px;min-height:40px;padding:8px 12px;border-radius:10px;font-weight:500;font-size:.94rem;color:var(--lx-sb-txt);background:transparent;text-decoration:none;transition:background .15s,color .15s}
 .portal.lx .lx-sb__link svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;flex:none}
-.portal.lx .lx-sb__link:hover{background:rgba(255,255,255,.06);color:#fff}
+.portal.lx .lx-sb__link:hover{background:var(--lx-rail-hover);color:var(--lx-sb-brand)}
 .portal.lx .lx-sb__link.on{background:var(--lx-blue);color:#fff;font-weight:600}
 .portal.lx .lx-sb__link.is-danger{color:var(--lx-sb-danger)}
 .portal.lx .lx-sb__link.is-danger.on{background:#D93B30;color:#fff}
@@ -82,16 +90,16 @@ html[data-theme="dark"] .portal.lx .psb.lx-sb{box-shadow:inset 0 0 0 1px var(--l
 /* One flat fill down the whole sidebar: the foot used to sit on a lighter
    --lx-navy-2 panel, which read as a different colour from the rest of the
    rail and from the service cards. A hairline keeps it separated. */
-.portal.lx .lx-sb__foot{margin-top:12px;border:0;border-top:1px solid var(--lx-navy-line);background:transparent;border-radius:0;padding:12px 6px 2px;display:flex;align-items:center;gap:8px}
-.lx-sb__me{display:flex;align-items:center;gap:10px;flex:1;min-width:0;text-decoration:none;color:#fff;border-radius:10px}
+.portal.lx .lx-sb__foot{margin-top:12px;border:0;border-top:1px solid var(--lx-rail-line);background:transparent;border-radius:0;padding:12px 6px 2px;display:flex;align-items:center;gap:8px}
+.lx-sb__me{display:flex;align-items:center;gap:10px;flex:1;min-width:0;text-decoration:none;color:var(--lx-sb-brand);border-radius:10px}
 .lx-sb__av{width:38px;height:38px;border-radius:50%;background:var(--lx-blue);color:#fff;display:grid;place-items:center;font-weight:700;font-size:.82rem;flex:none}
 .lx-sb__who{display:grid;min-width:0;line-height:1.25}
 .lx-sb__who b{font-size:.88rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.lx-sb__who small{font-size:.8rem;color:#A9B3C2}
-.lx-sb__fold{width:34px;height:34px;border-radius:10px;border:0;background:transparent;color:#A9B3C2;display:grid;place-items:center;cursor:pointer;flex:none}
+.lx-sb__who small{font-size:.8rem;color:var(--lx-sb-lbl)}
+.lx-sb__fold{width:34px;height:34px;border-radius:10px;border:0;background:transparent;color:var(--lx-sb-lbl);display:grid;place-items:center;cursor:pointer;flex:none}
 .lx-sb__fold--top{margin-left:auto}
-.lx-sb__out:hover{background:rgba(229,72,77,.16);color:#FF9494}
-.lx-sb__fold:hover{background:rgba(255,255,255,.08);color:#fff}
+.lx-sb__out:hover{background:rgba(217,59,48,.12);color:var(--lx-sb-danger)}
+.lx-sb__fold:hover{background:var(--lx-rail-hover);color:var(--lx-sb-brand)}
 .lx-sb__fold svg{width:19px;height:19px}
 @media (min-width:901px){
   .portal.lx .psb.lx-sb.collapsed{width:auto}
@@ -100,7 +108,7 @@ html[data-theme="dark"] .portal.lx .psb.lx-sb{box-shadow:inset 0 0 0 1px var(--l
   .portal.lx .psb.collapsed .lx-sb__brand{flex-direction:column!important;gap:8px}
   .portal.lx .psb.collapsed .lx-sb__fold--top{margin-left:0}
   .portal.lx .psb.collapsed .lx-sb__glabel{justify-content:center;padding:4px 0;min-height:10px}
-  .portal.lx .psb.collapsed .lx-sb__glabel::before{content:"";width:18px;height:1px;background:var(--lx-navy-line)}
+  .portal.lx .psb.collapsed .lx-sb__glabel::before{content:"";width:18px;height:1px;background:var(--lx-rail-line)}
   .portal.lx .psb.collapsed .lx-sb__glabel svg{display:none}
   .portal.lx .psb.collapsed .lx-sb__link{justify-content:center;padding-inline:0;position:relative}
   .portal.lx .psb.collapsed .lx-sb__badge{position:absolute;top:2px;right:6px;min-width:16px;height:16px;font-size:.6rem;padding:0 4px}
@@ -285,7 +293,7 @@ html[data-theme="dark"] .portal.lx .btn--soft:hover{background:#22314F}
   .portal.lx .psb.lx-sb{position:fixed;margin:0;top:8px;left:8px;bottom:8px;width:min(300px,calc(100vw - 48px));z-index:40;transform:translateX(calc(-100% - 16px))}
   .portal.lx .psb.lx-sb.on{transform:none}
   .portal.lx .psb__scrim{position:fixed;z-index:35}
-  .lx-sb__x{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;border:0;background:rgba(255,255,255,.08);color:#fff;margin-left:6px;cursor:pointer;flex:none}
+  .lx-sb__x{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;border:0;background:var(--lx-rail-hover);color:var(--lx-sb-brand);margin-left:6px;cursor:pointer;flex:none}
   .lx-sb__x svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.2}
   .portal.lx .pbody{padding:16px 16px 32px}
   .portal.lx .ptop.lx-top{align-items:center;margin-bottom:18px;gap:12px}
@@ -333,8 +341,8 @@ html[data-theme="dark"] .portal.lx .btn--soft:hover{background:#22314F}
    blue/red (action), one radius, no glow. Tokens first so every gradient
    built on --grad / --grad-dark follows. */
 .portal.lx{--grad:var(--lx-blue);--grad-dark:var(--lx-navy)}
-.portal.lx :is(.asist__hero,.ref__hero,.ua__hero,.dhero,.aicard,.cdhero){background:var(--lx-navy)!important;border-radius:24px;box-shadow:none!important;color:#fff}
-html[data-theme="dark"] .portal.lx :is(.asist__hero,.ref__hero,.ua__hero,.dhero,.aicard,.cdhero){background:#0B1830!important;box-shadow:inset 0 0 0 1px var(--lx-navy-line)!important}
+.portal.lx :is(.asist__hero,.ref__hero,.ua__hero,.dhero,.aicard,.cdhero,.lxd-hero){background:var(--lx-promo)!important;border-radius:24px;box-shadow:none!important;color:#fff}
+html[data-theme="dark"] .portal.lx :is(.asist__hero,.ref__hero,.ua__hero,.dhero,.aicard,.cdhero,.lxd-hero){box-shadow:inset 0 0 0 1px rgba(255,255,255,.09)!important}
 .portal.lx :is(.asist__hero,.ref__hero,.ua__hero)::before,.portal.lx :is(.asist__hero,.ref__hero,.ua__hero)::after,.portal.lx .sos2__glow,.portal.lx .cdhero__glow{display:none}
 .portal.lx .mkt__act--ai{background:var(--lx-blue)!important;box-shadow:none!important}
 .portal.lx :is(.mkt__act--sos,.sos2__hero){background:#D93B30!important;box-shadow:none!important;border-radius:20px}

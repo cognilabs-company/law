@@ -79,7 +79,7 @@ html[data-theme="dark"] .portal.lx .mk-prof .mk-prof__hero.lxp-hero{border-color
   border:1px dashed #BFCBDD;background:linear-gradient(160deg,var(--lx-chip),var(--lx-blue-tint));
 }
 html[data-theme="dark"] .portal.lx .lxp-hero__ph{border-color:#2C3D60}
-.portal.lx .lxp-hero__av{width:96px;height:96px;border-radius:50%;display:grid;place-items:center;background:var(--lx-navy);color:#fff;font-size:1.6rem;font-weight:700;letter-spacing:.01em}
+.portal.lx .lxp-hero__av{width:96px;height:96px;border-radius:50%;display:grid;place-items:center;background:var(--lx-blue);color:#fff;font-size:1.6rem;font-weight:700;letter-spacing:.01em}
 html[data-theme="dark"] .portal.lx .lxp-hero__av{background:var(--lx-blue)}
 .portal.lx .lxp-hero__main{display:grid;gap:12px;align-content:start;min-width:0}
 .portal.lx .mk-prof .mk-prof__name.lxp-hero__name{

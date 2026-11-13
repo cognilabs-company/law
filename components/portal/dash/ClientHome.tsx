@@ -55,7 +55,7 @@ const GIFT_KEY = "lexgo_dash_gift_closed";
 // open the Tezkor Advokat page as it is: no ?service=, so no order dialog
 // pops open on arrival — choosing a service there is the client's own step.
 // Every other card goes to its own place. `allDay` puts the 24/7 badge on.
-type Svc = { key: "urgent" | "ai" | "docs" | "catalog" | "traffic"; img: string; href: string; allDay?: boolean };
+type Svc = { key: "urgent" | "ai" | "docs" | "catalog" | "traffic" | "review"; img: string; href: string; allDay?: boolean };
 const SERVICES: Svc[] = [
   { key: "urgent", img: "/img/xizmatlar/Tezkor_Advokat.webp", href: "/portal/client/urgent", allDay: true },
   // "Advokat va yuristlar" opened on its "Xizmatlar bo'yicha" view, from the
@@ -65,6 +65,7 @@ const SERVICES: Svc[] = [
   // a road accident needs an advocate now: the Tezkor Advokat page, as is
   { key: "traffic", img: "/img/xizmatlar/Avtoavariya.webp", href: "/portal/client/urgent" },
   { key: "docs", img: "/img/xizmatlar/Huquqiy_hujjatlar.webp", href: "/portal/client/services" },
+  { key: "review", img: "/img/xizmatlar/Hujjat_tahlili.webp", href: "/portal/client/doc-analysis" },
 ];
 
 // The questions clients actually open with, in the order they do.
@@ -371,7 +372,7 @@ export default function ClientHome() {
                     <span className="cx-exp__geo"><MapPin />{regionLabel(te, s.region)}</span>
                   ) : null}
                   <div className="cx-exp__act">
-                    <Link href={`/portal/client/lawyers/${s.userId}`} className="btn btn--dark btn--sm">{t("experts.consult")}</Link>
+                    <Link href={`/portal/client/lawyers/${s.userId}`} className="btn btn--pri btn--sm">{t("experts.consult")}</Link>
                     <Link href={`/portal/client/lawyers/${s.userId}#services`} className="cx-iconbtn" aria-label={t("experts.message")}><MessageSquareText /></Link>
                   </div>
                 </div>

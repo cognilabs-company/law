@@ -56,14 +56,14 @@
 .portal.lx .ua__grid > .uacard{flex:1 1 0;min-width:0}
 .portal.lx .uacard{
   position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;gap:0;
-  padding:18px 16px 16px;cursor:pointer;color:#fff;
-  background:var(--lx-navy);border:0;box-shadow:none;
+  padding:18px 16px 16px;cursor:pointer;color:var(--lx-svc-txt);
+  background:linear-gradient(180deg,var(--lx-svc-a) 0%,var(--lx-svc-b) 100%);border:0;box-shadow:none;
   border-radius:50% 50% 16px 16px / 76px 76px 16px 16px;
   transition:transform .18s,box-shadow .18s,filter .18s;
 }
-html[data-theme="dark"] .portal.lx .uacard{background:#16243C;box-shadow:inset 0 0 0 1px var(--lx-navy-line)}
-.portal.lx .uacard:hover{transform:translateY(-4px);box-shadow:0 22px 38px -24px rgba(10,21,38,.55);filter:brightness(1.07);border-color:transparent}
-html[data-theme="dark"] .portal.lx .uacard:hover{box-shadow:inset 0 0 0 1px var(--lx-navy-line),0 22px 38px -24px rgba(0,0,0,.7)}
+html[data-theme="dark"] .portal.lx .uacard{box-shadow:inset 0 0 0 1px rgba(255,255,255,.10)}
+.portal.lx .uacard:hover{transform:translateY(-4px);box-shadow:0 22px 38px -24px rgba(10,47,142,.6);filter:brightness(1.06);border-color:transparent}
+html[data-theme="dark"] .portal.lx .uacard:hover{box-shadow:inset 0 0 0 1px rgba(255,255,255,.10),0 22px 38px -24px rgba(0,0,0,.7)}
 .portal.lx .uacard:focus-visible{outline:3px solid var(--lx-blue);outline-offset:3px}
 /* the service the client last configured, seen behind the dialog */
 .portal.lx .uacard.on{box-shadow:0 0 0 3px var(--lx-bg),0 0 0 5px var(--lx-blue)}
@@ -72,16 +72,16 @@ html[data-theme="dark"] .portal.lx .uacard:hover{box-shadow:inset 0 0 0 1px var(
   background:var(--art) center/62% no-repeat,#fff;transition:background-size .2s ease;
 }
 .portal.lx .uacard:hover .uacard__art{background-size:68%,auto}
-.portal.lx .uacard__t{font-size:.92rem;font-weight:600;line-height:1.3;letter-spacing:-.005em;color:#fff}
-.portal.lx .uacard__d{display:block;margin-top:5px;font-size:.78rem;line-height:1.45;color:rgba(255,255,255,.72);overflow:visible;-webkit-line-clamp:unset;line-clamp:unset}
+.portal.lx .uacard__t{font-size:.92rem;font-weight:600;line-height:1.3;letter-spacing:-.005em;color:var(--lx-svc-txt)}
+.portal.lx .uacard__d{display:block;margin-top:5px;font-size:.78rem;line-height:1.45;color:var(--lx-svc-sub);overflow:visible;-webkit-line-clamp:unset;line-clamp:unset}
 /* the facts: icon + word, no pills */
 .portal.lx .uacard__f{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 12px;margin-top:10px}
 .portal.lx .uacard__f:empty{display:none}
 .portal.lx .uacard__f em{display:inline-flex;align-items:center;gap:5px;font-style:normal;font-size:.74rem;font-weight:600;
   padding:0;border-radius:0;background:none;color:rgba(255,255,255,.9);white-space:nowrap}
-.portal.lx .uacard__f em svg{width:14px;height:14px;flex:none;color:#7FB2FF}
+.portal.lx .uacard__f em svg{width:14px;height:14px;flex:none;color:var(--lx-svc-sub)}
 .portal.lx .uacard__f em.uacard__now,.portal.lx .uacard__f em.uacard__now svg{color:#FBC15E}
-.portal.lx .uacard__f em.uacard__kinds{background:none;color:rgba(255,255,255,.9)}
+.portal.lx .uacard__f em.uacard__kinds{background:none;color:var(--lx-svc-txt)}
 .portal.lx .uacard .uacard__lock{margin-top:8px;display:inline-flex;align-items:center;gap:5px;padding:0;border-radius:0;
   font-size:.72rem;font-weight:600;background:none;color:#FBC15E}
 .portal.lx .uacard .uacard__lock svg{width:13px;height:13px;flex:none}

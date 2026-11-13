@@ -35,7 +35,7 @@ html[data-theme="dark"] .sp-kind button.on{background:var(--lx-blue)}
 .sp-card{display:grid;grid-template-columns:220px minmax(0,1fr) minmax(240px,296px);gap:22px;padding:20px!important}
 .sp-card__ph{border:1px dashed #BFCBDD;border-radius:14px;background:linear-gradient(160deg,var(--lx-chip),var(--lx-blue-tint));display:grid;place-items:center;align-content:center;gap:12px;min-height:240px;text-decoration:none;color:var(--lx-gray)}
 html[data-theme="dark"] .sp-card__ph{border-color:#2C3D60}
-.sp-card__av{width:84px;height:84px;border-radius:50%;background:var(--lx-navy);color:#fff;display:grid;place-items:center;font-size:1.5rem;font-weight:700}
+.sp-card__av{width:84px;height:84px;border-radius:50%;background:var(--lx-blue);color:#fff;display:grid;place-items:center;font-size:1.5rem;font-weight:700}
 html[data-theme="dark"] .sp-card__av{background:var(--lx-blue)}
 .sp-card__phl{display:flex;align-items:center;gap:6px;font-size:.82rem}
 .sp-card__phl svg{width:16px;height:16px}
