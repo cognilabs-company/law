@@ -20,6 +20,7 @@ import Segmented from "@/components/ui/Segmented";
 import Menu, { type MenuEntry } from "@/components/ui/Menu";
 import { useCan } from "@/lib/useCan";
 import { IconAlert, IconArrowRight, IconChartBar, IconDownload, IconList, IconRefresh } from "@/components/icons";
+import CeoTabs from "@/components/admin/exec/CeoTabs";
 
 const GIFT0 = { giftPurchases: 0, giftActivationRate: 0, recipientConversion: 0, giftToPaidConversion: 0, averageGiftValue: 0, referralRate: 0, giftCac: 0, giftLtv: 0 };
 const EMPTY: CeoDashboardFull = {
@@ -705,6 +706,7 @@ export default function AdminCeo() {
 
   return (
     <div className="ceo">
+      <CeoTabs current="business" />
       <article className={`ceo-sheet${loading ? "" : " is-ready"}`} aria-busy={loading}>
         {!first && loading ? (
           <div className="ceo-pin">

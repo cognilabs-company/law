@@ -1,0 +1,38 @@
+/* Executive pages (contract 2026-11-13): CEO platform analytics, IT
+   monitoring, department head, sales scripts, realtime call AI. They reuse
+   the CEO sheet (.ceo-sheet/.ceo-sec/.ceo-figs/.ceo-table) and add only
+   what that page does not have. */
+.ex-tabs{display:flex;gap:4px;margin:0 0 14px;padding:4px;border-radius:999px;background:var(--dk-surface-2, #F1F5FA);width:max-content;max-width:100%}
+.ex-tab{padding:7px 16px;border-radius:999px;font-size:.86rem;font-weight:700;color:var(--gray);text-decoration:none;white-space:nowrap}
+.ex-tab:hover{color:var(--ink)}
+.ex-tab.is-on{background:var(--dk-surface, #fff);color:var(--ink);box-shadow:0 1px 3px rgba(11,31,69,.12)}
+.ex-head__row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.ex-title{margin:0;font-family:var(--fd);font-size:1.45rem;font-weight:700;letter-spacing:-.02em;color:var(--ink)}
+.ex-head .ceo-head__meta{margin-top:6px}
+.ex-head .ceo-range{margin-top:16px}
+.ceo .ex-kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0;margin:22px 0 4px;background:var(--dk-surface, #fff)}
+.ceo .ex-kpis>div{grid-column:auto;box-shadow:1px 0 0 var(--line),0 1px 0 var(--line)}
+.ex-kpis .ceo-kpis__s{display:flex;flex-wrap:wrap;align-items:center;gap:2px 6px}
+.ex-delta{display:inline-flex;align-items:center;gap:3px;font-size:.74rem;font-weight:700;color:var(--gray);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ex-delta.is-up{color:var(--dk-txt-ok, #00764F)}
+.ex-delta.is-down{color:var(--dk-txt-err, #B42328)}
+.ex-delta span[aria-hidden]{font-size:.62rem}
+.ex-num,.ceo-table .ex-num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ex-muted{margin:0;font-size:.86rem;color:var(--gray)}
+.ex-gap{margin-top:18px}
+.ex-conn{display:flex;flex-wrap:wrap;gap:8px 18px;margin:16px 0 0;padding:14px 0 0;border-top:1px dashed var(--line);list-style:none}
+.ex-conn li{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:.84rem}
+.ex-conn b{font-weight:600;color:var(--ink)}
+.ex-conn small{flex-basis:100%;font-size:.74rem;color:var(--gray)}
+.ex-conn .ceo-chip{margin:0}
+.ex-funnel{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.ex-funnel li{display:grid;grid-template-columns:minmax(120px,190px) minmax(0,1fr) 72px 56px;align-items:center;gap:12px;font-size:.86rem}
+.ex-funnel__l{font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.ex-funnel__bar{height:10px;border-radius:999px;background:var(--dk-surface-2, #F1F5FA);overflow:hidden}
+.ex-funnel__bar i{display:block;height:100%;border-radius:inherit;background:var(--grad)}
+.ex-funnel b{font-weight:700;color:var(--ink)}
+.ex-funnel small{font-size:.76rem;color:var(--gray)}
+@media (max-width:640px){
+  .ex-funnel li{grid-template-columns:minmax(0,1fr) auto auto;gap:4px 10px}
+  .ex-funnel__bar{grid-column:1/-1;grid-row:2}
+}
