@@ -67,7 +67,7 @@ import { useFlip } from "@/lib/useFlip";
 import { useScrollEdges } from "@/lib/useScrollEdges";
 import { NO_BG, bgSupported, cameraProcessor, claimBgUnavailableNotice, getBgEffect, preloadBgAssets, serverBgEffect, setBgEffect, releaseBackgroundEngine, retainBackgroundEngine, setBgOwner, subscribeBgEffect, syncBackground, type BgEffect, type BgHooks } from "@/lib/callBackground";
 import CallBackgroundPicker from "./CallBackgroundPicker";
-import { IconPhone, IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus, IconPlus, IconClock, IconRecord, IconBgPerson, IconPip } from "../icons";
+import { IconPhone, IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus, IconPlus, IconClock, IconRecord, IconBgPerson, IconPip, IconSparkle } from "../icons";
 import { regionLabel } from "@/lib/labels";
 import { CALLROOM_EVENT, CALLROOM_FLOAT_EVENT, isCallRoomMounted, trackCallRoomMount } from "@/lib/callEvents";
 import { callPipSupported, onAutoCallPip, openCallPip } from "@/lib/callPip";
@@ -75,6 +75,9 @@ import { createPortal } from "react-dom";
 import { clearRaCallRoom, setRaCallRoom } from "@/lib/remoteAssist/callLinkLiveKit";
 import { tellDesk } from "@/lib/deskBridge";
 import { notify, notifyStore, type NotifyOptions } from "@/lib/toast";
+import { can, hasRole } from "@/lib/permissions";
+import { useRealtimeAssist } from "@/lib/realtime/useRealtimeAssist";
+import RealtimeAssistPanel from "./RealtimeAssistPanel";
 
 type Props = {
   roomId: string;
@@ -365,6 +368,7 @@ export type CallView = {
 // LiveKit data channel, and host controls from the backend roster.
 export default function CallRoom({ roomId, callId, callType, isCaller, title, lk, float, keepAlone: keepAloneProp, aiScope, skin, onEnd }: Props) {
   const t = useTranslations("call");
+  const tx = useTranslations("exec");
   const te = useTranslations("enums");
   const tn = useTranslations("common.notify");
   const { session } = useAuth();
@@ -489,7 +493,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const [declined, setDeclined] = useState<string[]>([]);
   const declinedRef = useRef<Set<string>>(new Set());
   const [perms, setPerms] = useState<CallPermissions | null>(null);
-  const [panel, setPanel] = useState<"" | "chat" | "people">("");
+  const [panel, setPanel] = useState<"" | "chat" | "people" | "ai">("");
+  // The realtime call assistant (2026-11-13 §9): internal operators and duty
+  // lawyers with realtime_ai.use. External marketplace lawyers never hold it.
+  const rtAllowed = can(session, ["realtime_ai.use", "realtime_ai.manage"]);
+  const rtSelf: "operator" | "lawyer" = hasRole(session, "call_center_lawyer") ? "lawyer" : "operator";
+  const rt = useRealtimeAssist({ room, callId, self: rtSelf, enabled: rtAllowed });
   const [view, setView] = useState<"grid" | "speaker">("grid");
   const [pinned, setPinned] = useState<string | null>(null); // participant identity on the stage
   // The tile last clicked — a camera or a screen share — goes on the stage.
@@ -1491,7 +1500,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   useEffect(() => {
     if (panel === "chat") chatEndRef.current?.scrollIntoView({ block: "end" });
   }, [panel, messages.length]);
-  const openPanel = (p: "" | "chat" | "people") => { if (p === "chat") setUnread(0); setPanel(p); };
+  const openPanel = (p: "" | "chat" | "people" | "ai") => { if (p === "chat") setUnread(0); setPanel(p); };
 
   async function enableSound() {
     const r = roomRef.current;
@@ -2220,7 +2229,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         setPinned(id);
         setView("speaker");
       },
-      panel,
+      // Skins draw chat and people only; the assistant lives in the full call.
+      panel: panel === "ai" ? "" : panel,
       openPanel,
       toasts,
       audioBlocked,
@@ -2568,9 +2578,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             <div className="mtg__tabs">
               <button type="button" className={panel === "chat" ? "on" : ""} onClick={() => openPanel("chat")}>{t("chatTab")}</button>
               <button type="button" className={panel === "people" ? "on" : ""} onClick={() => openPanel("people")}>{t("rosterTitle")} · {count}</button>
+              {rtAllowed ? <button type="button" className={panel === "ai" ? "on" : ""} onClick={() => openPanel("ai")} aria-label={tx("rt.tab")} title={tx("rt.tab")}>{tx("rt.tabShort")}</button> : null}
               <button type="button" className="mtg__sx" onClick={() => setPanel("")} aria-label={t("close")}><IconClose /></button>
             </div>
-            {panel === "chat" ? (
+            {panel === "ai" ? (
+              <RealtimeAssistPanel rt={rt} self={rtSelf} />
+            ) : panel === "chat" ? (
               <>
                 <div className="mtg__chat">
                   {messages.length === 0 ? <p className="mtg__empty">{t("noMessages")}</p> : null}
@@ -2689,6 +2702,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         {canRecord() ? <Ctl on={recOn || !!recReq} label={recOn ? t("recStopShort") : recReq ? t("recWaitingShort") : t("recStart")} onClick={() => void toggleRec()} rec={recOn} disabled={!!recReq} desktop aiId={aiAt("record")}><IconRecord /></Ctl> : null}
         <Ctl on={panel === "people"} label={t("rosterTitle")} onClick={() => openPanel(panel === "people" ? "" : "people")} desktop><IconUsers /></Ctl>
         <Ctl on={panel === "chat"} label={t("chatTab")} onClick={() => openPanel(panel === "chat" ? "" : "chat")} badge={unread} desktop><IconChat /></Ctl>
+        {rtAllowed ? <Ctl on={panel === "ai"} label={tx("rt.tab")} onClick={() => openPanel(panel === "ai" ? "" : "ai")} badge={panel === "ai" ? 0 : rt.unseen}><IconSparkle /></Ctl> : null}
         {/* Extensions are host-only server-side, and only offered at all on
             a call that actually has a time limit — a staff meeting with no
             max duration gets neither button. */}
