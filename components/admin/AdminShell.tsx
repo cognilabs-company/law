@@ -68,7 +68,7 @@ type SvgC = ComponentType<{ className?: string }>;
 // perm: one code, or a list where any one code is enough. Codes outside
 // ADMIN_PERMISSIONS (b2b.manage, meetings.manage) only gate the item; they
 // don't grant admin access on their own.
-type NavPerm = AdminPermission | "b2b.manage" | "meetings.manage" | "orders.manage" | "tasks.view" | "remote_assist.supervise" | "remote_assist.view_audit" | "crm.customers.view" | "marketplace.experience.review";
+type NavPerm = AdminPermission | "b2b.manage" | "meetings.manage" | "orders.manage" | "tasks.view" | "remote_assist.supervise" | "remote_assist.view_audit" | "crm.customers.view" | "marketplace.experience.review" | "sales_scripts.manage";
 type NavItem = { href: string; key: string; Icon: SvgC; perm?: NavPerm | NavPerm[]; hidden?: boolean };
 // CRM modules grouped per the platform plan. `perm` = the backend permission a
 // page needs; items without a perm (overview, ceo, bootstrap…) are full-admin
@@ -91,6 +91,8 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
       // the operator queue and the AI copilot. Each page then follows
       // GET /crm/meta and every lead's allowed_actions.
       { href: "/admin/crm", key: "crm", Icon: NavPipeline, perm: ["crm.leads.view", "crm.customers.view"] },
+      // Versioned sales scripts (2026-11-13 §8): ROP and superadmin.
+      { href: "/admin/crm/scripts", key: "salesScripts", Icon: NavTemplates, perm: "sales_scripts.manage" },
       // Hidden for now: the same board as the CRM kanban since 2026-10-28;
       // /admin/pipeline redirects there.
       // { href: "/admin/pipeline", key: "pipeline", Icon: NavPipeline, perm: "leads.manage" },

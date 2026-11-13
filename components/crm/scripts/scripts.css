@@ -1,0 +1,24 @@
+/* Versioned sales scripts (contract 2026-11-13 §8). */
+.ssc-card{display:grid;gap:8px;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.ssc-card{align-content:start}
+.ssc-card__top{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:6px 10px}
+.ssc-card__top b{flex:1 1 160px;min-width:0;font-size:.95rem;line-height:1.35;overflow-wrap:anywhere}
+.ssc-open{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.ssc-pill{flex:none;padding:3px 10px;border-radius:999px;font-size:.72rem;font-weight:700;white-space:nowrap;background:var(--crm-soft, #F1F5FA);color:var(--crm-muted, #50627A)}
+.ssc-pill.is-published{background:var(--dk-tint-ok, #E6F7F0);color:var(--dk-txt-ok, #00764F)}
+.ssc-pill.is-draft{background:var(--dk-tint-warn, #FFF4E0);color:var(--dk-txt-warn, #8A5300)}
+.ssc-meta{margin:0}
+.ssc-content{display:grid;gap:14px}
+.ssc-content h4,.ssc-h{margin:0 0 6px;font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--crm-muted, #50627A)}
+.ssc-h{margin-top:18px}
+.ssc-content p{margin:0;white-space:pre-wrap;line-height:1.55}
+.ssc-content ol,.ssc-content ul{margin:0;padding-left:20px;display:grid;gap:4px;line-height:1.5}
+.ssc-versions{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.ssc-versions li{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;box-shadow:inset 0 0 0 1.5px var(--crm-line, #E4EBF5)}
+.ssc-v{flex:none;font-weight:800;font-variant-numeric:tabular-nums}
+.ssc-vbody{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;flex:1;min-width:0}
+.ssc-vbody small{font-size:.76rem;overflow-wrap:anywhere}
+.ssc-list{display:grid;gap:8px}
+.ssc-list__row{display:flex;gap:8px;align-items:center}
+.ssc-list__row .crm-input{flex:1;min-width:0}
+.ssc-err{margin:0;padding:10px 12px;border-radius:10px;background:var(--dk-tint-err, #FDECEC);color:var(--dk-txt-err, #B42328);font-size:.84rem;font-weight:600}

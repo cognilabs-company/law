@@ -17,6 +17,8 @@ import { AccountMenu, LangSelect } from "@/components/portal/shell/LxHeaderTools
 import { LiveDot } from "../bits";
 import { ROP_NAV, ropActive, ropVisible, type RopItem } from "./ropNav";
 import { RopCtx } from "./ropCtx";
+import { useAuth } from "@/lib/auth";
+import { permissionsOf } from "@/lib/permissions";
 
 // The ROP (sales supervisor) workspace: the LexGo 1920 cabinet shell — the
 // dark navy sidebar with grouped rows, the header with the date line, big
@@ -64,7 +66,8 @@ export default function RopShell({
       return !c;
     });
 
-  const items = ropVisible(meta);
+  const { session } = useAuth();
+  const items = ropVisible(meta, permissionsOf(session));
   const active = ropActive(items, pathname);
   // A row whose permission was revoked (or the landing page itself without
   // crm.analytics.self) sends the visitor to the first page still open.

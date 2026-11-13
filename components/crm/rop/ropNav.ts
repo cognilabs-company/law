@@ -1,13 +1,15 @@
 import type { ComponentType } from "react";
-import { Bot, ClipboardCheck, Columns3, Download, FileText, LayoutDashboard, ListChecks, PhoneCall, Rows3, UserCog, Users } from "lucide-react";
+import { Bot, ClipboardCheck, Columns3, Download, FileText, LayoutDashboard, ListChecks, PhoneCall, Rows3, ScrollText, UserCog, Users } from "lucide-react";
 import { crmCan, type CrmMeta } from "@/lib/services/crm";
 
 // The ROP workspace menu (ROP final contract 2026-11-04 §4). Every row is
 // shown only when GET /crm/meta grants its permission — never by role
 // name — so a permission a superadmin revokes takes the row away with no
 // code change. There is no Revenue row: ROP never sees revenue (§3).
-export type RopKey = "overview" | "leads" | "kanban" | "customers" | "operators" | "live" | "robots" | "runs" | "drafts" | "templates" | "exports";
-export type RopItem = { key: RopKey; href: string; group: "" | "work" | "robots" | "tools"; Icon: ComponentType<{ className?: string }>; ok: (m: CrmMeta | null) => boolean; exact?: boolean };
+export type RopKey = "overview" | "leads" | "kanban" | "customers" | "operators" | "live" | "robots" | "runs" | "drafts" | "templates" | "scripts" | "exports";
+// `perm`: a row gated by the session's own permission rather than the CRM
+// meta (sales scripts, 2026-11-13 §8).
+export type RopItem = { key: RopKey; href: string; group: "" | "work" | "robots" | "tools"; Icon: ComponentType<{ className?: string }>; ok: (m: CrmMeta | null) => boolean; perm?: string; exact?: boolean };
 
 const crmAccess = (m: CrmMeta | null) => crmCan(m, "crm.leads.view") || crmCan(m, "crm.customers.view");
 
@@ -22,10 +24,11 @@ export const ROP_NAV: readonly RopItem[] = [
   { key: "runs", href: "/admin/crm/automation/runs", group: "robots", Icon: ListChecks, ok: (m) => crmCan(m, "crm.automation.manage") },
   { key: "drafts", href: "/admin/crm/automation/drafts", group: "robots", Icon: ClipboardCheck, ok: (m) => crmCan(m, "crm.automation.manage") },
   { key: "templates", href: "/admin/crm/templates", group: "tools", Icon: FileText, ok: crmAccess },
+  { key: "scripts", href: "/admin/crm/scripts", group: "tools", Icon: ScrollText, ok: () => false, perm: "sales_scripts.manage" },
   { key: "exports", href: "/admin/crm/exports", group: "tools", Icon: Download, ok: (m) => crmCan(m, "crm.exports.create") },
 ];
 
-export const ropVisible = (m: CrmMeta | null): RopItem[] => ROP_NAV.filter((i) => i.ok(m));
+export const ropVisible = (m: CrmMeta | null, perms: readonly string[] = []): RopItem[] => ROP_NAV.filter((i) => (i.perm ? perms.includes(i.perm) || perms.includes("*") : i.ok(m)));
 
 // The row a path belongs to: the longest href that matches it. A lead or a
 // customer page sits under its list.
