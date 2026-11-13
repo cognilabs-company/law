@@ -76,6 +76,11 @@
       "file": "../../md/BACKEND_CALLCENTER_OPERATOR_2026_10_30.md",
       "title": "Call-center operator interfeysi — backend'dan kerakli ishlar (30.10)",
       "description": "Frontend call-center rolini to'liq qayta qurdi (o'z skini, sidebar, header, navbatlar 5 oilaga, bosh ekran 'bitta hozirgi ish'). Yuqori: operator holati (bo'sh/band/tanaffus/yakunlash) uchun GET+PUT /call-center/me/status va realtime; smena boshlanishi va bugungi hisob; cockpit elementida due_at/SLA. O'rta: GET /call-center/next-task; wrap-up kodlari; cockpit call-center yuristga 403 o'rniga qisqartirilgan javob (hozir u bosh ekranda bo'sh ekran ko'radi). Past: navbat elementida til, bog'lanish usuli, phone_visible."
+    },
+    {
+      "file": "../../docs/TEZKOR_HIMOYA_FRONTEND_QUESTIONS_EXECUTIVE_HRM_LIVE_AI_2026_11_13.md",
+      "title": "Executive HRM, Live Office, realtime AI, CEO analitika — backend'ga savollar (13.11)",
+      "description": "13.11 hujjatidagi 8 yo'nalishning hammasi frontendda qilindi va production'da (406e5589), lekin faqat mock bilan tekshirildi. Eng muhimlari: test akkauntlari; /analytics/ceo/platform va /internal/it/monitoring/overview uchun JSON namunasi; bo'lim dashboard'ida unit nomlari va jadvallar ro'yxati/tahrirlash; masofaviy xonaga qanday tushiladi; GET /internal/sales-scripts/{id} va versiyalar shakli; LiveKit transkripsiya agenti va call_id ma'nosi; lawyer-ai uchun ruxsat etilgan entity_type (urgent_advokat_request?), qoralama javobi shakli va navbatchi yurist buyurtmalari qayerda. Har bo'limda frontend nima yuborishi va o'qishi yozilgan."
     }
   ]
 }
