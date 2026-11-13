@@ -10,6 +10,7 @@ import { IconBuilding, IconCalendar, IconLock, IconPlus, IconRefresh, IconUser, 
 import Select from "@/components/Select";
 import TimePicker from "@/components/TimePicker";
 import CheckBox from "@/components/CheckBox";
+import Segmented from "@/components/ui/Segmented";
 import InternalField from "@/components/internal/InternalField";
 import { useHrmDirectory } from "@/components/internal/useHrmDirectory";
 import { EntitySelect, HrmCallout, HrmDrawer, HrmEmpty, HrmError, HrmHead, HrmLoading, HrmPanel, HrmStat, useHrmFormat } from "@/components/internal/HrmUi";
@@ -275,16 +276,15 @@ function ScheduleCreate({ open, onClose, onCreated, units, people }: { open: boo
           </InternalField>
         </div>
         <span className="ldrw__lbl">{t("f.type")}</span>
-        <div className="exh-type" role="radiogroup" aria-label={t("f.type")}>
-          <label>
-            <input type="radio" name="sched-type" checked={type === "weekly"} onChange={() => setType("weekly")} />
-            {t("type.weekly")}
-          </label>
-          <label>
-            <input type="radio" name="sched-type" checked={type === "24_7"} onChange={() => setType("24_7")} />
-            {t("type.24_7")}
-          </label>
-        </div>
+        <Segmented<ScheduleType>
+          value={type}
+          onChange={setType}
+          label={t("f.type")}
+          options={[
+            { value: "weekly", label: t("type.weekly") },
+            { value: "24_7", label: t("type.24_7") },
+          ]}
+        />
         {type === "24_7" ? (
           <p className="exh-note">{t("allDay")}</p>
         ) : (
