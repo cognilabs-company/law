@@ -1,6 +1,7 @@
 "use client";
 
 import "./ordersList1920.css";
+import { track } from "@/lib/productAnalytics";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
@@ -53,6 +54,7 @@ export function CheckoutIntent({
         <button className="btn btn--grad btn--full" type="button" onClick={() => {
             // Watched on return until the verified callback marks it paid (TSK-664399).
             rememberPendingPayment({ id: intent.id, amount: intent.amount });
+            track("payment_page_opened", { properties: { payment_id: intent.id, amount: intent.amount, target_type: "order" } });
             window.location.assign(intent.paymentUrl!);
           }} data-ai-id={`${aiId}.proceed`}>
           {t("proceed")}

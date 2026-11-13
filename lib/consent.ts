@@ -12,8 +12,9 @@
 // - functional: Yandex Maps JS API 2.1 (api-maps.yandex.ru), which sets
 //   Yandex's own cookies. The marketplace and office maps only load it with
 //   this category on (components/marketplace/map/ymaps.ts).
-// - analytics: Tezkor Himoya runs no analytics or error-tracking script today. The
-//   switch is offered so a later one has to wait for it.
+// - analytics: first-party product analytics (lib/productAnalytics.ts) — page
+//   and funnel events sent to our own backend with a random install id and a
+//   session id. No third-party script. Off: nothing is sent and both ids go.
 // - marketing: first-touch UTM tags and the referral code kept for 90 days
 //   (lib/attribution.ts, lib/referral.ts) and the promotion click memory
 //   (lib/services/promoEvents.ts). Without it they are not written to the
@@ -37,7 +38,7 @@ export const ALL_OPTIONAL: ConsentChoices = { functional: true, analytics: true,
 // What a category leaves on the device, removed the moment it is turned off.
 export const CONSENT_STORAGE: Record<ConsentCategory, { local: string[]; session: string[] }> = {
   functional: { local: [], session: [] },
-  analytics: { local: [], session: [] },
+  analytics: { local: ["th_install_id", "th_analytics_session", "th_analytics_queue"], session: [] },
   marketing: { local: ["lexgo_ref", "lexgo_attr"], session: ["lexgo_promo_session", "lexgo_promo_attribution"] },
 };
 

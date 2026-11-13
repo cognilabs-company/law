@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { IconCheck, IconClose, IconAlert, IconClock } from "@/components/icons";
 import { useAuth } from "@/lib/auth";
+import { track } from "@/lib/productAnalytics";
 import { fmtUzs } from "@/lib/money";
 import { forgetPendingPayment, getPaymentState, readPendingPayment, type PendingPayment } from "@/lib/services/paymentProviders";
 import "./payment-return.css";
@@ -55,6 +56,7 @@ export default function PaymentReturnWatcher(): ReactElement | null {
         }
         if (outcome === "paid") {
           forgetPendingPayment();
+          track("payment_succeeded", { properties: { payment_id: p.id, amount: amount || p.amount } });
           setView({ state: "paid", p: { ...p, amount: amount || p.amount } });
           window.dispatchEvent(new CustomEvent(PAYMENT_CONFIRMED_EVENT, { detail: { id: p.id } }));
           timer.current = window.setTimeout(() => setView(null), 7000);
@@ -62,6 +64,7 @@ export default function PaymentReturnWatcher(): ReactElement | null {
         }
         if (outcome === "failed") {
           forgetPendingPayment();
+          track("payment_failed", { result: "failure", properties: { payment_id: p.id } });
           setView({ state: "failed", p });
           return;
         }

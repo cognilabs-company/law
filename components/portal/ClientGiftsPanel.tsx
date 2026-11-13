@@ -1,6 +1,7 @@
 "use client";
 
 import "./plans1920.css";
+import { track } from "@/lib/productAnalytics";
 import { useEffect, useId, useState, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Check, CircleCheck, CircleX, Copy, Gift, Hourglass, Plus, QrCode } from "lucide-react";
@@ -138,6 +139,7 @@ export default function ClientGiftsPanel() {
       // The gift and its share link stay listed here after payment.
       if (r.paymentUrl) {
         leaving = true;
+        track("payment_page_opened", { properties: { target_type: "gift" } });
         window.location.assign(r.paymentUrl);
       }
     } catch (e) {

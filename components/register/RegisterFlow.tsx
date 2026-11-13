@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { readReferral } from "@/lib/referral";
 import { useRouter } from "@/i18n/navigation";
@@ -10,7 +10,8 @@ import { consentsFor, currentConsents, listLegalConsents, type RegisterStartResu
 import { useResource } from "@/lib/useResource";
 import { clearPendingRegistration, savePendingRegistration } from "@/lib/consents";
 import { LEGAL_FALLBACK_ITEMS, legalLang } from "@/lib/legal";
-import { maskUzPhone, normUzPhone } from "@/lib/phone";
+import { isValidUzPhone, maskUzPhone, normUzPhone } from "@/lib/phone";
+import { track } from "@/lib/productAnalytics";
 import { OTP_DELIVERY_METHODS, type OtpDeliveryMethod } from "@/lib/otpDelivery";
 import OtpMethodPicker, { useOtpMethodName } from "@/components/auth/OtpMethodPicker";
 import { OTP_RESEND_SEC, fmtClock, useOtpTimer } from "@/lib/useOtpTimer";
@@ -94,6 +95,20 @@ export default function RegisterFlow() {
   }, [ready, session, router]);
 
   const [draft, setDraft] = useState<RegistrationDraft>(emptyDraft());
+  // Funnel events (product analytics): the visit to the form, then the first
+  // time the number is complete. Never the number itself.
+  const funnel = useRef({ started: false, phone: false });
+  useEffect(() => {
+    if (!ready || session || funnel.current.started) return;
+    funnel.current.started = true;
+    track("register_started");
+  }, [ready, session]);
+  const phoneOk = isValidUzPhone(draft.phone);
+  useEffect(() => {
+    if (!phoneOk || funnel.current.phone) return;
+    funnel.current.phone = true;
+    track("phone_entered");
+  }, [phoneOk]);
   const [idx, setIdx] = useState(0);
   const [creating, setCreating] = useState(false);
   const [missing, setMissing] = useState<string[]>([]); // shown in red when a gated button is tapped
@@ -287,6 +302,7 @@ export default function RegisterFlow() {
         return;
       }
       applyIssue(r, d);
+      track("otp_started", { properties: { channel: d.otpDeliveryMethod } });
       setOtpNote(null);
       next();
     } catch (e) {
@@ -319,6 +335,7 @@ export default function RegisterFlow() {
       if (r.verificationId) {
         if (via) setDraft(d);
         applyIssue(r, d);
+        track("otp_started", { properties: { channel: d.otpDeliveryMethod, resend: true } });
         setOtpNote(tOtp("resent"));
       } else {
         setVerifyErr(tOtp("resendError"));
@@ -353,6 +370,7 @@ export default function RegisterFlow() {
     setCreating(true);
     try {
       const s = await register(draft, verificationId, code);
+      track("otp_succeeded", { properties: { account_type: draft.accountType ?? "client" } });
       // Verified: runs before React renders the new session, so the gate finds it.
       savePendingConsents();
       clearRegDraft();

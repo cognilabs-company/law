@@ -1,12 +1,13 @@
 "use client";
 
 import "./builder1920.css";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import ServiceDocumentRequest from "./ServiceDocumentRequest";
 import { clearDraft, hasDraftAnswers, DocChromeContext, type DocChrome } from "./DocFill";
 import { useCatalogBackHref } from "@/lib/catalogNav";
+import { track } from "@/lib/productAnalytics";
 import Modal from "@/components/admin/Modal";
 import { IconChevronLeft, IconClose, IconAlert } from "@/components/icons";
 import InstructorButton from "@/components/guide/InstructorButton";
@@ -30,6 +31,9 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
   const [draftId, setDraftId] = useState("");
   const [exitOpen, setExitOpen] = useState(false);
   const backHref = useCatalogBackHref();
+  useEffect(() => {
+    if (serviceId) track("service_viewed", { properties: { service_id: serviceId } });
+  }, [serviceId]);
 
   // Once the builder itself is on screen it takes over the whole page in the
   // advocate editor's frame (DocFill's workspace mode) and puts these two in

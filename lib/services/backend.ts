@@ -11,6 +11,7 @@ import { mimeFromName } from "@/lib/download";
 import { sellerTrustOf, type RatingStatus } from "./trust";
 import { gatedPhone, phoneGateOf } from "./clientPhone";
 import { getToken } from "@/lib/client";
+import { track } from "@/lib/productAnalytics";
 import type { ProfessionalProfile } from "@/lib/types";
 import { DEFAULT_OTP_DELIVERY, otpDeliveryOf, type OtpDeliveryMethod } from "@/lib/otpDelivery";
 export { DEFAULT_OTP_DELIVERY, OTP_DELIVERY_METHODS, otpDeliveryOf, type OtpDeliveryMethod } from "@/lib/otpDelivery";
@@ -1771,6 +1772,7 @@ export async function createPayment(input: {
   target_id?: string;
   provider_payload?: Record<string, unknown>;
 }): Promise<PaymentIntent> {
+  track("purchase_started", { properties: { target_type: input.target_type ?? "order", provider: String(input.provider), amount: input.amount } });
   const d = asDict(
     await http("/payments", {
       method: "POST",

@@ -6,6 +6,7 @@
 // the payments whose provider record does not match ours.
 // Payment ids are kept only as React keys — never rendered (UI law).
 import { ApiError, http } from "@/lib/http";
+import { flush as flushAnalytics, track } from "@/lib/productAnalytics";
 
 type Dict = Record<string, unknown>;
 const asDict = (v: unknown): Dict => (v && typeof v === "object" && !Array.isArray(v) ? (v as Dict) : {});
@@ -189,6 +190,8 @@ export function readPendingPayment(now = Date.now()): PendingPayment | null {
 // blocked), remembering the payment so the return is watched.
 export function goToPaymentPage(url: string, paymentId?: string, amount = 0): void {
   if (paymentId) rememberPendingPayment({ id: paymentId, amount });
+  track("payment_page_opened", { properties: { payment_id: paymentId ?? "", amount } });
+  void flushAnalytics(true);
   window.location.assign(url);
 }
 export function forgetPendingPayment(): void {

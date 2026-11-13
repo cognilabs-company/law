@@ -27,6 +27,7 @@ import ThemeSync from "@/components/ThemeSync";
 import ChromeGate from "@/components/ChromeGate";
 import LiveOfficeHeartbeat from "@/components/live/LiveOfficeHeartbeat";
 import ReferralCapture from "@/components/ReferralCapture";
+import ProductAnalytics from "@/components/ProductAnalytics";
 import Toaster from "@/components/Toaster";
 import RoleNavHost, { RoleRouteGuard } from "@/components/RoleNavHost";
 import ConfirmHost from "@/components/ui/ConfirmDialog";
@@ -112,6 +113,7 @@ export default async function LocaleLayout({ children, params }: Props) {
             <CookieConsent />
             <VersionWatch labels={{ newVersion: tCommon("newVersion"), reload: tCommon("reload") }} />
             <ReferralCapture />
+            <ProductAnalytics />
           </ChromeGate>
           <AuthProvider>
             <RoleNavHost />

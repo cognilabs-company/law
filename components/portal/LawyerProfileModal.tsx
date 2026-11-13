@@ -20,6 +20,7 @@ import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/servic
 import { CheckoutIntent } from "./OrderMilestones";
 import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
+import { track } from "@/lib/productAnalytics";
 import { initials, humanizeSlug } from "@/lib/lawyers";
 import { fmtUzs } from "@/lib/money";
 import Modal from "@/components/admin/Modal";
@@ -90,6 +91,9 @@ export default function LawyerProfileModal({
     return () => { alive = false; };
   }, [session]);
   const [hoursNote, setHoursNote] = useState<string | null>(null);
+  useEffect(() => {
+    if (open && userId) track("lawyer_viewed", { properties: { lawyer_id: userId, surface: "modal" } });
+  }, [open, userId]);
   const orderHref = () => `/portal/client/services?lawyer=${encodeURIComponent(data?.userId ?? "")}&name=${encodeURIComponent(data?.name ?? "")}`;
   function chooseOrder() {
     if (!data?.userId) return;

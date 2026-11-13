@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth, hasAdminAccess } from "@/lib/auth";
 import { ApiError } from "@/lib/http";
+import { track } from "@/lib/productAnalytics";
 import { fmtUzs } from "@/lib/money";
 import { dateOnly } from "@/lib/date";
 import { setReturnTo } from "@/lib/returnTo";
@@ -47,6 +48,9 @@ const artStyle = (name: string, dir = "xizmatlar") => ({ "--art": `url(/img/${di
 const plateStyle = (name: string) => ({ "--img": `url(/img/doc-catalog/${name}-sq.webp)` }) as CSSProperties;
 
 export default function SellerProfile({ userId, variant, preview }: { userId: string; variant: "public" | "portal"; preview?: ProfilePreview }) {
+  useEffect(() => {
+    if (!preview && userId) track("lawyer_viewed", { properties: { lawyer_id: userId, surface: variant } });
+  }, [userId, variant, preview]);
   const t = useTranslations("marketplace");
   const te = useTranslations("enums");
   const rt = useTranslations("marketplace.runtime");

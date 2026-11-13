@@ -1,6 +1,7 @@
 "use client";
 
 import "./documents1920.css";
+import { track } from "@/lib/productAnalytics";
 import PlanGateCard from "@/components/ui/PlanGateCard";
 import { planGateOf, type PlanGate } from "@/lib/planGate";
 import { useContext, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -456,6 +457,7 @@ export default function DocumentRequestPanel({
           return;
         }
         leaving = true;
+        track("payment_page_opened", { properties: { target_type: "document_request" } });
         window.location.assign(r.paymentUrl);
         return;
       }
