@@ -20203,7 +20203,7 @@
         "meeting": "Uchrashuvda",
         "remote": "Masofadan"
       },
-      "roomType": {
+      "roomType": { "remote": "Masofaviy",
         "virtual": "Virtual",
         "physical": "Jismoniy",
         "hybrid": "Gibrid"
@@ -20288,7 +20288,7 @@
         "last6": "7 kun",
         "last29": "30 kun"
       },
-      "board": {
+      "board": { "outside": "Ofisdan tashqarida — masofaviy ish",
         "emptyTitle": "Live Office hali bo'sh",
         "emptyText": "Xodimlar tizimga kirib ishlashni boshlaganda shu yerda paydo bo'ladi.",
         "noMatch": "Filtr bo'yicha hech kim topilmadi",
@@ -20468,7 +20468,7 @@
         "active": "Faol",
         "empty": "Qoida topilmadi"
       },
-      "floor": {
+      "floor": { "remote": "Masofaviy ish",
         "title": "Ofis xaritasi",
         "view": "Ko'rinish",
         "viewFloor": "Xarita",

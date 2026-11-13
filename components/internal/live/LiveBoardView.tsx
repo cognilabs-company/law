@@ -1,14 +1,21 @@
 "use client";
 
+import "./remote.css";
 import { useMemo } from "react";
 import type { LiveBoard, LivePerson, LiveRoom, LiveUnit } from "@/lib/services/internalLive";
-import { IconBuilding, IconClock, IconUsers } from "@/components/icons";
+import { asDict } from "@/lib/http";
+import { IconBuilding, IconClock, IconHome, IconUsers } from "@/components/icons";
 import { HrmAvatar, HrmEmpty, useHrmFormat } from "@/components/internal/HrmUi";
 import { LiveStatus, ObjectLink, STATUS_TONE, shownStatus, useLiveText } from "./bits";
 import CharacterArt, { backdropOf } from "./CharacterArt";
 import type { Look } from "./character";
 
-export type Group = { unit: LiveUnit | null; depth: number; rooms: { room: LiveRoom | null; people: LivePerson[] }[]; total: number; on: number };
+export type Group = { unit: LiveUnit | null; depth: number; rooms: { room: LiveRoom | null; people: LivePerson[] }[]; total: number; on: number; remote?: boolean };
+
+// A room outside the physical office — the seeded "Masofaviy ish" room
+// (room_type "remote", meta.outside_office), contract 2026-11-13 §7. Its
+// people are shown apart from the office rooms, never seated at a desk.
+export const isOutsideOffice = (r: LiveRoom): boolean => r.type === "remote" || asDict(r.raw.meta).outside_office === true;
 
 const ONLINE = new Set(["online", "working", "busy", "break"]);
 // Who is at work first, then by name.
@@ -32,17 +39,32 @@ export function groupBoard(board: LiveBoard, statusOf: (p: LivePerson) => string
   };
   walk("", 0);
   const sort = (list: LivePerson[]) => [...list].sort((a, b) => (RANK[statusOf(a)] ?? 9) - (RANK[statusOf(b)] ?? 9) || a.name.localeCompare(b.name));
-  const roomIds = new Set(board.rooms.map((r) => r.id));
+  const outside = board.rooms.filter(isOutsideOffice);
+  const outsideIds = new Set(outside.map((r) => r.id));
+  const office = board.rooms.filter((r) => !outsideIds.has(r.id));
+  const roomIds = new Set(office.map((r) => r.id));
   const make = (unit: LiveUnit | null, depth: number, people: LivePerson[]): Group => {
-    const rooms = board.rooms.filter((r) => (unit ? r.unitId === unit.id : !ids.has(r.unitId))).sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
+    const rooms = office.filter((r) => (unit ? r.unitId === unit.id : !ids.has(r.unitId))).sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
     const inRooms = rooms.map((room) => ({ room, people: sort(people.filter((p) => p.roomId === room.id)) }));
     const loose = sort(people.filter((p) => !p.roomId || !roomIds.has(p.roomId) || !rooms.some((r) => r.id === p.roomId)));
     const all = [...(loose.length ? [{ room: null, people: loose }] : []), ...inRooms];
     return { unit, depth, rooms: all, total: people.length, on: people.filter((p) => ONLINE.has(statusOf(p))).length };
   };
-  const out = ordered.map(({ unit, depth }) => make(unit, depth, board.people.filter((p) => p.unitId === unit.id)));
-  const orphans = board.people.filter((p) => !p.unitId || !ids.has(p.unitId));
+  const inOffice = board.people.filter((p) => !outsideIds.has(p.roomId));
+  const out = ordered.map(({ unit, depth }) => make(unit, depth, inOffice.filter((p) => p.unitId === unit.id)));
+  const orphans = inOffice.filter((p) => !p.unitId || !ids.has(p.unitId));
   if (orphans.length) out.push(make(null, 0, orphans));
+  if (outside.length) {
+    const away = board.people.filter((p) => outsideIds.has(p.roomId));
+    out.push({
+      unit: null,
+      depth: 0,
+      remote: true,
+      rooms: outside.sort((a, b) => a.order - b.order || a.name.localeCompare(b.name)).map((room) => ({ room, people: sort(away.filter((p) => p.roomId === room.id)) })),
+      total: away.length,
+      on: away.filter((p) => ONLINE.has(statusOf(p))).length,
+    });
+  }
   return out;
 }
 
@@ -74,13 +96,13 @@ export default function LiveBoardView({
     <div className="lv-board">
       {!board.people.length ? <p className="lv-board__note">{filtered ? t("board.noMatch") : t("board.nobody")}</p> : null}
       {visible.map((g) => (
-        <section key={g.unit?.id ?? "none"} className="lv-unit" style={{ ["--lv-depth" as string]: g.depth }}>
+        <section key={g.remote ? "remote" : g.unit?.id ?? "none"} className={`lv-unit${g.remote ? " lv-unit--remote" : ""}`} style={{ ["--lv-depth" as string]: g.depth }}>
           <header className="lv-unit__h">
             <span className="lv-unit__i" aria-hidden>
-              <IconBuilding />
+              {g.remote ? <IconHome /> : <IconBuilding />}
             </span>
             <span className="lv-unit__t">
-              <b>{g.unit?.name ?? t("board.noUnit")}</b>
+              <b>{g.remote ? t("board.outside") : g.unit?.name ?? t("board.noUnit")}</b>
               {g.unit?.code ? <small>{g.unit.code}</small> : null}
             </span>
             <span className="lv-unit__n" title={t("board.onlineOfTotal")}>

@@ -20197,7 +20197,7 @@
         "meeting": "In a meeting",
         "remote": "Remote"
       },
-      "roomType": {
+      "roomType": { "remote": "Remote",
         "virtual": "Virtual",
         "physical": "Physical",
         "hybrid": "Hybrid"
@@ -20282,7 +20282,7 @@
         "last6": "7 days",
         "last29": "30 days"
       },
-      "board": {
+      "board": { "outside": "Outside the office — remote work",
         "emptyTitle": "The Live Office is empty so far",
         "emptyText": "Employees appear here once they sign in and start working.",
         "noMatch": "Nobody matches the filter",
@@ -20462,7 +20462,7 @@
         "active": "Active",
         "empty": "No rules found"
       },
-      "floor": {
+      "floor": { "remote": "Remote work",
         "title": "Office map",
         "view": "View",
         "viewFloor": "Map",

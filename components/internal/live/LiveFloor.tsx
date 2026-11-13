@@ -1,5 +1,6 @@
 "use client";
 
+import "./remote.css";
 import { useCallback, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { asDict, isForbidden } from "@/lib/http";
 import type { LiveBoard, LivePerson, LiveRoom, LiveUnit } from "@/lib/services/internalLive";
@@ -8,7 +9,7 @@ import { IconMoon, IconSun, IconCheck, IconChevronDown, IconChevronLeft, IconChe
 import { HrmEmpty } from "@/components/internal/HrmUi";
 import { Block, U, boxOf, onFloor, pt, unpt, useFloorCamera, type Rect } from "@/components/live/floorKit";
 import { FloorDefs, SeatMark, WindowWallX, WindowWallY } from "@/components/live/floorArt";
-import { groupBoard } from "./LiveBoardView";
+import { groupBoard, isOutsideOffice } from "./LiveBoardView";
 import { STATUS_TONE, apiMessage, shownStatus, useLiveText } from "./bits";
 import { deskGrid, floorOf, tintOf, type Dict } from "./roomPlan";
 import { RoomArt, SIDE, themeOf, type ThemeId } from "./roomArt";
@@ -59,7 +60,8 @@ const TRAY_MAX = 14;
 // shelves below them, side by side until a row is as wide as the floor wants.
 function layout(board: LiveBoard, statusOf: (p: LivePerson) => string, filtered: boolean, openSpaces: boolean, placeOf: (id: string) => Pos | null, tintFor: (id: string) => number | null, metaFor: (id: string) => Dict): Plan[] {
   const plans: Plan[] = [];
-  groupBoard(board, statusOf).forEach((g, gi) => {
+  // Remote work is not on the floor: it has its own tray below (§7).
+  groupBoard(board, statusOf).filter((g) => !g.remote).forEach((g, gi) => {
     const bays = g.rooms.length || !g.unit || filtered || !openSpaces ? g.rooms : [{ room: null, people: [] }];
     for (const { room, people } of bays) {
       const seated = people.filter((p) => SEATED.has(statusOf(p)));
@@ -188,7 +190,12 @@ export default function LiveFloor({
     const d = Math.max(...plans.map((p) => p.y + p.d));
     return { x: x0 - 1.2, y: y0 - 1.2, w: w - x0 + 2.4, d: d - y0 + 2.4 };
   }, [plans]);
-  const away = useMemo(() => TRAYS.map((s) => ({ status: s, people: board.people.filter((p) => statusOf(p) === s) })).filter((g) => g.people.length), [board.people, statusOf]);
+  const away = useMemo(() => {
+    const outside = new Set(board.rooms.filter(isOutsideOffice).map((r) => r.id));
+    // People working from the "Masofaviy ish" room: outside the office, first.
+    const remote = { status: "remote", people: board.people.filter((p) => outside.has(p.roomId) && SEATED.has(statusOf(p))) };
+    return [remote, ...TRAYS.map((s) => ({ status: s as string, people: board.people.filter((p) => statusOf(p) === s) }))].filter((g) => g.people.length);
+  }, [board.people, board.rooms, statusOf]);
 
   // Where the camera should rest. The whole floor leaves room below for the
   // trays that lie over the drawing; while rooms are being moved it stays
@@ -558,9 +565,9 @@ export default function LiveFloor({
       {away.length && !arrange ? (
         <div className="lf__trays">
           {away.map((g) => (
-            <section key={g.status} className={`lf-tray lf-tray--${STATUS_TONE[g.status]}`}>
+            <section key={g.status} className={`lf-tray lf-tray--${g.status === "remote" ? "remote" : STATUS_TONE[g.status]}`}>
               <h3>
-                {status(g.status)}
+                {g.status === "remote" ? t("floor.remote") : status(g.status)}
                 <span>{g.people.length}</span>
               </h3>
               <div>

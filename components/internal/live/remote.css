@@ -1,0 +1,6 @@
+/* Remote work (the "Masofaviy ish" room, contract 2026-11-13 §7): shown
+   outside the office — its own tray under the floor, its own board group. */
+.lf-tray--remote{background:rgba(20,96,220,.86)}
+.lf-tray--remote button{border-color:#93C6FF}
+.lv-unit--remote .lv-unit__i{background:var(--dk-tint-ok, #E6F7F0);color:var(--dk-txt-ok, #00764F)}
+.lv-rtype--remote{background:var(--dk-tint-blue,#E6F0FF);color:var(--dk-acc,var(--b600))}
