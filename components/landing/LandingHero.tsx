@@ -42,6 +42,15 @@ function Spark() {
   );
 }
 
+function Book() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15z" />
+      <path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5A2.5 2.5 0 0 1 4 20.5z" />
+    </svg>
+  );
+}
+
 function Shield() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -58,7 +67,7 @@ export default function LandingHero() {
   const locale = useLocale();
 
   const checks = t.raw("checks") as string[];
-  const items = t.raw("sample.items") as string[];
+  const next = t.raw("sample.next") as string[];
   const steps = t.raw("steps") as Step[];
   const offers = t.raw("offers") as Offer[];
   const consultation = page.raw("consultation.cards") as Card[];
@@ -70,10 +79,6 @@ export default function LandingHero() {
     <section className="hero lh-hero" id="top">
       <div className="lh-hero__in">
         <div className="lh-hero__main">
-          <p className="lh-hero__kicker">
-            <i aria-hidden="true" />
-            {t("kicker")}
-          </p>
           <h1 className="lh-hero__title">
             {t("titleA")} <em className="lh-accent">{t("titleB")}</em>
           </h1>
@@ -113,34 +118,44 @@ export default function LandingHero() {
             <i className="lh-hero__shade" aria-hidden="true" />
           </div>
 
-          <div className="lh-hero__sample" aria-label={t("sample.label")}>
-            <span className="lh-hero__sample-label">{t("sample.label")}</span>
+          <figure className="lh-hero__chat" aria-label={t("sample.tag")}>
+            <figcaption className="lh-hero__chat-top">
+              <span className="lh-hero__chat-ava" aria-hidden="true">
+                <Spark />
+              </span>
+              <span className="lh-hero__chat-who">
+                <b>{t("sample.who")}</b>
+                <small>{t("sample.status")}</small>
+              </span>
+              <span className="lh-hero__chat-tag">{t("sample.tag")}</span>
+            </figcaption>
             <p className="lh-hero__q">{t("sample.q")}</p>
             <div className="lh-hero__a">
-              <b>
-                <Spark />
-                {t("sample.title")}
-              </b>
-              <ul>
-                {items.map((item) => (
-                  <li key={item}>
-                    <Check />
-                    {item}
-                  </li>
-                ))}
-              </ul>
+              <p>{t("sample.a")}</p>
+              <span className="lh-hero__src">
+                <Book />
+                {t("sample.src")}
+              </span>
             </div>
-          </div>
+            <ul className="lh-hero__next">
+              {next.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </figure>
 
           <Link href="/lawyers" className="lh-hero__lawyers">
             <span className="lh-hero__lawyers-ic">
               <Shield />
             </span>
             <span className="lh-hero__lawyers-copy">
-              <strong>{t("lawyersCardTitle")}</strong>
-              <small>{t("lawyersCardText")}</small>
+              <strong>{t("lawyers.t")}</strong>
+              <small>{t("lawyers.d")}</small>
             </span>
-            <Arrow />
+            <span className="lh-hero__lawyers-go">
+              {t("lawyers.go")}
+              <Arrow />
+            </span>
           </Link>
         </div>
       </div>
