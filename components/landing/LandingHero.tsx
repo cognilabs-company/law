@@ -101,26 +101,16 @@ export default function LandingHero() {
         <div className="lh-hero__visual">
           <div className="lh-hero__stage">
             <Image
-              className="lh-hero__plate"
-              src={IMG.heroPlate.src}
+              className="lh-hero__photo"
+              src={IMG.heroPhoto.src}
               alt=""
               fill
               sizes="(max-width: 960px) 100vw, 46vw"
-              quality={80}
-              fetchPriority="high"
-              loading="eager"
-            />
-            <Image
-              className="lh-hero__runner"
-              src={IMG.heroSubject.src}
-              width={IMG.heroSubject.width}
-              height={IMG.heroSubject.height}
-              alt=""
-              sizes="(max-width: 960px) 92vw, 44vw"
               quality={85}
               fetchPriority="high"
               loading="eager"
             />
+            <i className="lh-hero__shade" aria-hidden="true" />
           </div>
 
           <div className="lh-hero__sample" aria-label={t("sample.label")}>

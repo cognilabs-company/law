@@ -176,27 +176,20 @@
   background: #0a2bd8;
   box-shadow: 0 calc(var(--lh-u) * 2.4) calc(var(--lh-u) * 4.6) calc(var(--lh-u) * -1.8) rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
-.lhome .lh-hero__plate {
+.lhome .lh-hero__photo {
   object-fit: cover;
-  object-position: 30% 62%;
+  object-position: 66% 40%;
 }
-.lhome .lh-hero__runner {
+.lhome .lh-hero__shade {
   position: absolute;
-  left: 50%;
-  bottom: 3%;
-  width: 66%;
-  height: auto;
-  max-width: none;
-  translate: -48% 0;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(3, 11, 38, 0) 58%, rgba(3, 11, 38, 0.5) 100%);
 }
 @container lh-hero (min-width: 960px) {
   .lhome .lh-hero__stage {
     aspect-ratio: 4 / 4.3;
     max-height: calc(100svh - 70px - clamp(20px, 4svh, 56px) - calc(var(--lh-u) * 4.4));
-  }
-  .lhome .lh-hero__runner {
-    width: 104%;
-    translate: -50% 0;
   }
 }
 
@@ -461,9 +454,6 @@
     display: grid;
     gap: calc(var(--lh-u) * 0.7);
     padding-bottom: 0;
-  }
-  .lhome .lh-hero__runner {
-    width: 78%;
   }
   .lhome .lh-hero__sample,
   .lhome .lh-hero__lawyers {

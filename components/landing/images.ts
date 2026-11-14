@@ -1,7 +1,6 @@
 // Generated from the source images; real pixel sizes keep every frame from shifting.
 export const IMG = {
-  heroPlate: { src: "/img/landing/hero-plate.webp", width: 3200, height: 1801 },
-  heroSubject: { src: "/img/landing/hero-runner.webp", width: 1876, height: 1758 },
+  heroPhoto: { src: "/img/landing/hero-photo.webp", width: 1600, height: 1600 },
   problemMaze: { src: "/img/landing/problem-maze.webp", width: 2600, height: 1463 },
   problemDoors: { src: "/img/landing/problem-doors.webp", width: 2600, height: 1463 },
   problemTorn: { src: "/img/landing/problem-torn.webp", width: 2600, height: 1463 },
