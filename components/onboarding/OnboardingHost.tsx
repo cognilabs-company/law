@@ -110,6 +110,20 @@ function waitFor(selector: string, ms: number, signal: AbortSignal): Promise<HTM
   });
 }
 
+// The legal re-consent dialog (components/legal/ConsentGate) marks <html> with
+// `cgate-open` while it is up. It is mandatory and modal, so the tour neither
+// starts nor shows over it: it waits, and carries on once the documents are
+// accepted. Before this the two opened together and the tour's dim layer cut
+// the dialog in half.
+const GATE_CLASS = "cgate-open";
+function subscribeGate(onChange: () => void): () => void {
+  const mo = new MutationObserver(onChange);
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+  return () => mo.disconnect();
+}
+const gateOpen = () => document.documentElement.classList.contains(GATE_CLASS);
+const gateClosed = () => false;
+
 export default function OnboardingHost() {
   const t = useTranslations("onboarding");
   const locale = useLocale();
@@ -117,6 +131,7 @@ export default function OnboardingHost() {
   const router = useRouter();
   const { session, ready } = useAuth();
   const state = useSyncExternalStore(subscribeOnboarding, getOnboarding, getIdleOnboarding);
+  const gated = useSyncExternalStore(subscribeGate, gateOpen, gateClosed);
 
   const [el, setEl] = useState<HTMLElement | null>(null);
   const [visible, setVisible] = useState(false);
@@ -128,7 +143,8 @@ export default function OnboardingHost() {
 
   const steps = session ? tourFor(session.role) : [];
   const step: TourStep | undefined = steps[state.index];
-  const running = state.running && !!step;
+  // Paused, not stopped, while the consent dialog is open.
+  const running = state.running && !!step && !gated;
   // The dashboard is the tour's home: the first arrival there plays it.
   const home = session ? `/portal/${session.role}` : "";
 
@@ -154,6 +170,7 @@ export default function OnboardingHost() {
     if (!ready || !session) return;
     if (bootedFor.current === session.id) return;
     if (pathname !== home) return;
+    if (gated) return;
     if (!tourFor(session.role).length || tourSeen(session.id)) {
       bootedFor.current = session.id;
       return;
@@ -165,7 +182,7 @@ export default function OnboardingHost() {
       if (!onboardingRunning()) startOnboarding();
     }, 900);
     return () => window.clearTimeout(id);
-  }, [ready, session, pathname, home]);
+  }, [ready, session, pathname, home, gated]);
 
   // A signed-out user can never be mid-tour.
   useEffect(() => {

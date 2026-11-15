@@ -113,3 +113,36 @@ describe("the admin editor's language rules", () => {
     expect(serverDraftErrors(new ApiError(500, "boom"), d)).toBeNull();
   });
 });
+
+// Who is asked to accept what (lib/services/backend.ts CONSENT_AUDIENCE).
+// The backend's canonical slugs (eecebb9) must be recognised: a client was
+// once asked for the lawyer partnership offer and the per-order contract
+// template because only their older names were in the map.
+describe("consentsFor: the documents each role signs at sign-up and re-consent", async () => {
+  const { consentsFor } = await import("@/lib/services/backend");
+  const LIVE = ["user_offer", "privacy", "platform_rules", "cookie", "personal_data_consent", "payment_refund_warranty", "age_18", "lawyer_partnership_offer", "organization_agreement", "client_advocate_contract_template", "remote_assistance_consent"];
+  const docs = LIVE.map((slug) => normConsentDoc({ id: slug, slug, version: "1.0", title: slug, is_active: true }, "uz"));
+  const slugs = (role: "client" | "lawyer" | "advocate" | "staff") => consentsFor(docs, role).map((d) => d.slug);
+
+  it("never asks a client for the lawyer partnership offer or the per-order contract", () => {
+    expect(slugs("client")).not.toContain("lawyer_partnership_offer");
+    expect(slugs("client")).not.toContain("organization_agreement");
+    expect(slugs("client")).not.toContain("client_advocate_contract_template");
+    expect(slugs("client")).toContain("user_offer");
+    expect(slugs("client")).toContain("age_18");
+  });
+
+  it("asks lawyers and advocates for the partnership offer; only advocates for the organisation agreement", () => {
+    expect(slugs("lawyer")).toContain("lawyer_partnership_offer");
+    expect(slugs("advocate")).toContain("lawyer_partnership_offer");
+    expect(slugs("advocate")).toContain("organization_agreement");
+    expect(slugs("lawyer")).not.toContain("organization_agreement");
+    expect(slugs("lawyer")).not.toContain("client_advocate_contract_template");
+  });
+
+  it("still knows the older slugs", () => {
+    const old = ["advocate_partnership", "client_provider_contract"].map((slug) => normConsentDoc({ id: slug, slug, version: "1.0", title: slug, is_active: true }, "uz"));
+    expect(consentsFor(old, "client").map((d) => d.slug)).toEqual([]);
+    expect(consentsFor(old, "lawyer").map((d) => d.slug)).toEqual(["advocate_partnership"]);
+  });
+});

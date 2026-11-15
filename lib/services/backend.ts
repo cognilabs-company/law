@@ -7855,14 +7855,20 @@ export function currentConsents(docs: ConsentDoc[]): ConsentDoc[] {
   };
   return [...best.values()].sort((a, b) => rank(a.slug) - rank(b.slug) || a.slug.localeCompare(b.slug));
 }
-// Who a consent document is for. The backend has no audience field yet, so
-// role-specific documents are recognised by slug; any other slug applies to
-// everyone. client_provider_contract is signed per order (T1A-04), not at
-// sign-up, so it is never part of the sign-up/re-consent set.
+// Who a consent document is for. The backend sends `audience` and
+// `acceptance_required` but leaves them empty for every document (checked
+// 2026-11-15), so role-specific documents are recognised by slug; any other
+// slug applies to everyone. The canonical slugs (backend eecebb9) are listed
+// with the older names an older backend still sends — the map knew only the
+// old ones, so a client was asked to sign the lawyer partnership offer and the
+// per-order contract template. The client–advocate contract is signed per
+// order (T1A-04), never at sign-up or re-consent.
 export type ConsentAudience = "client" | "lawyer" | "advocate" | "staff";
 const CONSENT_AUDIENCE: Record<string, ConsentAudience[]> = {
+  lawyer_partnership_offer: ["lawyer", "advocate"],
   advocate_partnership: ["lawyer", "advocate"],
   organization_agreement: ["advocate"],
+  client_advocate_contract_template: [],
   client_provider_contract: [],
   payment_refund_warranty: ["client", "lawyer", "advocate"],
   age_18: ["client", "lawyer", "advocate"],
