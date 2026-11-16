@@ -147,12 +147,10 @@ html[data-theme="dark"] .cx-skel{background:linear-gradient(90deg,#18253E,#1E2D4
 .cx-ai__q::placeholder{color:var(--lx-gray2)}
 .cx-ai__go{
   flex:none;height:50px;padding:0 22px;border:0;border-radius:13px;cursor:pointer;
-  background:var(--lx-navy);color:#fff;font-size:.96rem;font-weight:600;
+  background:var(--lx-blue);color:#fff;font-size:.96rem;font-weight:600;
   display:inline-flex;align-items:center;gap:10px;white-space:nowrap;transition:background .15s;
 }
-html[data-theme="dark"] .cx-ai__go{background:var(--lx-blue)}
-.cx-ai__go:hover{background:#16243C}
-html[data-theme="dark"] .cx-ai__go:hover{background:var(--lx-blue-h)}
+.cx-ai__go:hover{background:var(--lx-blue-h)}
 .cx-ai__go svg{width:18px;height:18px}
 /* Starter questions: never cut, and never one left alone on a row. Where
    they fit, the label and the four in one row at their own widths; with less
@@ -262,15 +260,20 @@ html[data-theme="dark"] .cx-exp__ph{border-color:#2C3D60}
 .cx-exp__act .btn{flex:1;height:40px}
 
 /* gift */
-.cx-gift{background:var(--lx-promo);color:#fff;border-radius:24px;padding:26px 24px 24px;display:flex;flex-direction:column;min-width:0}
-html[data-theme="dark"] .cx-gift{box-shadow:inset 0 0 0 1px rgba(255,255,255,.09)}
-.cx-gift__top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
+/* The service cards' blue (the gift card was left on the promo navy that the
+   Tezkor Advokat banner keeps). */
+.cx-gift{background:linear-gradient(180deg,var(--lx-svc-a) 0%,var(--lx-svc-b) 100%);color:#fff;border-radius:24px;padding:26px 24px 24px;display:flex;flex-direction:column;min-width:0}
+html[data-theme="dark"] .cx-gift{box-shadow:inset 0 0 0 1px rgba(255,255,255,.10)}
+/* the close button on the gift picture's centre line, not hung from its top */
+.cx-gift__top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
 .cx-gift__ic{width:48px;height:48px;border-radius:12px;background:#fff;color:var(--lx-blue);display:grid;place-items:center;flex:none}
 .cx-gift__ic svg{width:22px;height:22px}
-.cx-gift__x{width:40px;height:40px;border-radius:12px;border:0;background:rgba(255,255,255,.08);color:#fff;display:grid;place-items:center;cursor:pointer}
+.cx-gift__x{width:40px;height:40px;border-radius:12px;border:0;background:rgba(255,255,255,.16);color:#fff;display:grid;place-items:center;cursor:pointer;transition:background .15s}
+.cx-gift__x:hover{background:rgba(255,255,255,.26)}
+.cx-gift__x:focus-visible{outline:2px solid #fff;outline-offset:2px}
 .cx-gift__x svg{width:18px;height:18px}
 .cx-gift h2{font-family:var(--fd);font-size:1.45rem;font-weight:700;margin:0 0 12px;letter-spacing:-.015em}
-.cx-gift p{margin:0;color:#C9D4E3;font-size:.92rem;line-height:1.6;flex:1}
+.cx-gift p{margin:0;color:var(--lx-svc-sub);font-size:.92rem;line-height:1.6;flex:1}
 .cx-gift__foot{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:28px}
 .portal.lx .cx-gift__cta{background:#fff;color:var(--lx-blue);height:48px}
 .portal.lx .cx-gift__cta:hover{background:#E9EFF8}
@@ -304,7 +307,7 @@ html[data-theme="dark"] .cx-gift{box-shadow:inset 0 0 0 1px rgba(255,255,255,.09
   }
   .cx-gift:not(.cx-gift--slim) .cx-gift__top{display:contents}
   .cx-gift:not(.cx-gift--slim) .cx-gift__ic{grid-area:ic}
-  .cx-gift:not(.cx-gift--slim) .cx-gift__x{position:absolute;top:16px;right:16px}
+  .cx-gift:not(.cx-gift--slim) .cx-gift__x{position:absolute;top:50%;right:16px;transform:translateY(-50%)}
   .cx-gift:not(.cx-gift--slim) h2{grid-area:h;margin:0;font-size:1.25rem}
   .cx-gift:not(.cx-gift--slim) p{grid-area:p}
   .cx-gift:not(.cx-gift--slim) .cx-gift__foot{grid-area:foot;margin-top:0;flex-wrap:nowrap}
@@ -313,6 +316,7 @@ html[data-theme="dark"] .cx-gift{box-shadow:inset 0 0 0 1px rgba(255,255,255,.09
   .cx-works__list{grid-template-columns:minmax(0,1fr)}
   .cx-gift:not(.cx-gift--slim){grid-template-columns:auto minmax(0,1fr);grid-template-areas:"ic h" "p p" "foot foot";row-gap:10px;padding:20px 64px 20px 20px}
   .cx-gift:not(.cx-gift--slim) .cx-gift__foot{flex-wrap:wrap;margin-top:6px}
+  .cx-gift:not(.cx-gift--slim) .cx-gift__x{top:16px;transform:none}
 }
 @container cx (min-width:1300px){
   .cx-row{grid-template-columns:minmax(0,1fr) clamp(380px,32%,507px)}
