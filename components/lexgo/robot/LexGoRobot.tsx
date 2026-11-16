@@ -64,6 +64,12 @@ function slowConnection(): boolean {
 }
 
 const PEEK_AFTER = 48;
+// On a short screen (a 13–15" laptop: ~830px of page) the content reaches
+// the bottom corner before any scrolling, and the full-size mascot sat on
+// top of the last card's text. There it starts tucked into the corner (the
+// same peek it takes when the page scrolls) and comes out on hover.
+const TUCK_BELOW_HEIGHT = 900;
+const shortScreen = () => typeof window !== "undefined" && window.innerHeight < TUCK_BELOW_HEIGHT;
 const SIZE_SCALE: Record<Tier, number> = { full: 0.88, compact: 0.88, mini: 1 };
 const NOT_PAGE = 'aside,nav,[role="dialog"],[aria-modal="true"],[data-ai-ignore],.amodal,.robot-edge-zone';
 
@@ -88,6 +94,17 @@ export default function LexGoRobot({ onRobotClick }: { onRobotClick?: () => void
   const [reducedMotion, setReducedMotion] = useState(false);
   const [ready, setReady] = useState(false);
   const [peek, setPeek] = useState(false);
+  // Tucked from the start on a short screen; a resize past the line flips it.
+  useEffect(() => {
+    const q = window.matchMedia(`(max-height:${TUCK_BELOW_HEIGHT - 1}px)`);
+    const sync = () => setPeek((cur) => (q.matches ? true : cur && (document.scrollingElement?.scrollTop ?? 0) > PEEK_AFTER));
+    const id = window.setTimeout(sync, 0);
+    q.addEventListener("change", sync);
+    return () => {
+      window.clearTimeout(id);
+      q.removeEventListener("change", sync);
+    };
+  }, []);
   const [canvasDue, setCanvasDue] = useState<"" | "3d" | "still">("");
   const [scrolling, setScrolling] = useState(false);
 
@@ -144,7 +161,7 @@ export default function LexGoRobot({ onRobotClick }: { onRobotClick?: () => void
       const top = el.scrollTop;
       if (tops.get(el) === top) return;
       tops.set(el, top);
-      setPeek(top > PEEK_AFTER);
+      setPeek(top > PEEK_AFTER || shortScreen());
     };
     const onScroll = (e: Event) => {
       const el = e.target instanceof Element ? e.target : document.scrollingElement;

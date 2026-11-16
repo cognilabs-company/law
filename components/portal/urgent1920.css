@@ -197,9 +197,22 @@ html[data-theme="dark"] :is(.uakind__art,.uaform__art,.uagate__art){box-shadow:n
   .portal.lx .ua__hero{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"art main" "meta meta"}
   .portal.lx .ua__meta{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
-/* four arches in a row while each keeps ~220px; then two by two */
-@container ua (max-width:979px){
-  .portal.lx .ua__grid{flex-wrap:wrap}
+/* All five arches share one row only while each keeps ~230px (the row needs
+   ~1240px: a large monitor). On a laptop (~1110px) five in a row were 209px
+   wide and their sentences ran to five lines, so there they go three over
+   two, the short row centred; on a narrow page two by two. */
+@container ua (max-width:1239px){
+  .portal.lx .ua__grid{flex-wrap:wrap;row-gap:18px}
+  .portal.lx .ua__grid > .uacard{flex:0 1 calc((100% - 32px) / 3)}
+  /* the dome grows with the wider card instead of flattening, and the type
+     takes the room the card now has */
+  .portal.lx .uacard{padding:20px 22px 18px;border-radius:50% 50% 16px 16px / clamp(84px,9cqi,118px) clamp(84px,9cqi,118px) 16px 16px}
+  .portal.lx .uacard__t{font-size:1rem}
+  .portal.lx .uacard__d{font-size:.84rem}
+  .portal.lx .uacard__f em{font-size:.8rem}
+  .portal.lx .uacard .uacard__how{font-size:.78rem}
+}
+@container ua (max-width:759px){
   .portal.lx .ua__grid > .uacard{flex:0 1 calc((100% - 16px) / 2)}
 }
 /* the requests: two to a row while each keeps ~380px */

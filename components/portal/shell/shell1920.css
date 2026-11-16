@@ -83,7 +83,12 @@ html:not([data-theme="dark"]) .lx-sb{--logo-blue:#1668F0;--logo-light:block;--lo
 .portal.lx .lx-sb__link.on{background:var(--lx-blue);color:#fff;font-weight:600}
 .portal.lx .lx-sb__link.is-danger{color:var(--lx-sb-danger)}
 .portal.lx .lx-sb__link.is-danger.on{background:#D93B30;color:#fff}
-.portal.lx .lx-sb__link .psb__label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* A long name (Russian "Искусственный интеллект") used to make the link
+   wider than the rail — a grid item never shrinks below its text — and the
+   rail cut the word off. The link may shrink now and the name wraps to a
+   second line instead of being cut. */
+.portal.lx .lx-sb__link{min-width:0}
+.portal.lx .lx-sb__link .psb__label{flex:1;min-width:0;white-space:normal;overflow-wrap:break-word;line-height:1.25}
 .lx-sb__badge{min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--lx-blue);color:#fff;font-size:.7rem;font-weight:700;display:grid;place-items:center;flex:none}
 .lx-sb__link.on .lx-sb__badge{background:#fff;color:#1668F0}
 .portal.lx .psb__link--locked{opacity:.45}
