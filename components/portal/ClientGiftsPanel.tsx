@@ -13,9 +13,15 @@ import {
   getAllServices,
   type BackendPlan,
   type BackendService,
+  type GiftInput,
   type GiftResult,
+  GIFT_UNPAID,
   canGiftPlan
 } from "@/lib/services/backend";
+import { ClickPayPanel } from "@/components/payments/ClickPay";
+import { PROVIDER_LIST_STALE, clickErrorOf, type ClickPayment } from "@/lib/services/clickCheckout";
+import { refreshCheckoutProviders, useCheckoutProviders } from "@/lib/useCheckoutProviders";
+import { formatUzSubscriber, isValidUzPhone, normUzPhone, uzSubscriber } from "@/lib/phone";
 import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
@@ -51,7 +57,7 @@ function estimateGiftTotal(plan: BackendPlan, months: number): number {
 
 function statusTone(status: string): "ok" | "wait" | "live" | "off" {
   if (status === "claimed" || status === "activated") return "ok";
-  if (status === "pending" || status === "unpaid") return "wait";
+  if (status === "pending" || GIFT_UNPAID.includes(status)) return "wait";
   if (status === "expired" || status === "canceled" || status === "cancelled") return "off";
   return "live";
 }
@@ -88,6 +94,13 @@ export default function ClientGiftsPanel() {
   const [busy, setBusy] = useState(false);
   const [created, setCreated] = useState<GiftResult | null>(null);
   const [copied, setCopied] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [note, setNote] = useState("");
+  // Click (integration §7): the gift's invoice. Its code and link stay hidden
+  // until the backend says the payment is paid.
+  const pays = useCheckoutProviders();
+  const [paidNow, setPaidNow] = useState(false);
+  const [payFor, setPayFor] = useState<{ giftId: string; title: string; payment: ClickPayment } | null>(null);
 
   const chosenPlan = giftable.find((p) => p.id === planId) || giftable[0] || null;
   const planOpts = giftable.map((p) => ({ value: p.id, label: p.name }));
@@ -110,6 +123,10 @@ export default function ClientGiftsPanel() {
   function reset() {
     setCreated(null);
     setCopied(false);
+    setPayFor(null);
+    setPaidNow(false);
+    setPhone("");
+    setNote("");
     setHint("");
     setKind("plan");
     setPlanId("");
@@ -125,16 +142,29 @@ export default function ClientGiftsPanel() {
       notify.error(t("error"), { id: "gift-create" });
       return;
     }
+    if (phone && !isValidUzPhone(phone)) {
+      notify.error(t("phoneInvalid"), { id: "gift-create" });
+      return;
+    }
     setBusy(true);
     let leaving = false; // stay busy while the browser opens the checkout
+    const viaClick = pays.has("click");
+    const who = { recipient_hint: hint.trim() || undefined, recipient_phone: phone ? normUzPhone(phone) : undefined, message: note.trim() || undefined };
+    const input: GiftInput = viaClick
+      ? isService
+        ? { service_id: chosenService, ...who, provider: "click" }
+        : { plan_id: chosenPlan!.id, term_months: term, ...who, provider: "click" }
+      : isService
+        ? { service_id: chosenService, ...who }
+        : { plan_slug: chosenPlan!.slug, duration_months: term, ...who };
     try {
-      const r = await createGift(
-        isService
-          ? { service_id: chosenService, recipient_hint: hint.trim() || undefined }
-          : { plan_slug: chosenPlan!.slug, duration_months: term, recipient_hint: hint.trim() || undefined },
-      );
-      setCreated(r);
+      const r = await createGift(input);
       setReloadKey((k) => k + 1);
+      if (viaClick && r.payment) {
+        setPayFor({ giftId: r.giftId, title: isService ? serviceOpts.find((o) => o.value === chosenService)?.label ?? "" : chosenPlan?.name ?? "", payment: r.payment });
+        return;
+      }
+      setCreated(r);
       // Real checkout: same-tab navigation (a popup after an await is blocked).
       // The gift and its share link stay listed here after payment.
       if (r.paymentUrl) {
@@ -143,7 +173,9 @@ export default function ClientGiftsPanel() {
         window.location.assign(r.paymentUrl);
       }
     } catch (e) {
-      const unavailable = isProviderUnavailable(e) || isDemoUnavailable(e);
+      const ce = clickErrorOf(e);
+      if (PROVIDER_LIST_STALE.includes(ce.key)) refreshCheckoutProviders();
+      const unavailable = isProviderUnavailable(e) || isDemoUnavailable(e) || ce.key === "unavailable" || PROVIDER_LIST_STALE.includes(ce.key);
       notify.error(t("createFailed"), { id: "gift-create", body: unavailable ? tcommon("paymentUnavailable") : undefined, error: unavailable ? undefined : e });
     } finally {
       if (!leaving) setBusy(false);
@@ -159,6 +191,26 @@ export default function ClientGiftsPanel() {
     } catch {
       /* clipboard blocked — the field is selectable */
     }
+  }
+
+  // Paid: the gift is real now — its link comes from the backend's own list.
+  async function onGiftPaid(giftId: string) {
+    setReloadKey((k) => k + 1);
+    try {
+      const g = (await listGifts()).find((x) => x.id === giftId);
+      if (g && g.shareUrl && !GIFT_UNPAID.includes(g.status)) {
+        setCreated({ giftId: g.id, giftCode: g.giftCode, shareUrl: g.shareUrl, qrUrl: g.qrUrl, status: g.status, payment: null });
+        setPaidNow(true);
+        setPayFor(null);
+      }
+    } catch {
+      /* the list below shows it once it loads */
+    }
+  }
+  function payGift(g: { id: string; title: string; paymentId: string }) {
+    reset();
+    setPayFor({ giftId: g.id, title: g.title, payment: { id: g.paymentId, status: "pending", amount: 0, currency: "UZS", provider: "click", url: "" } });
+    setOpen(true);
   }
 
   const close = () => { setOpen(false); reset(); };
@@ -222,7 +274,13 @@ export default function ClientGiftsPanel() {
                       {incoming ? <small className="gift__kind gift__kind--in cx-tag">{t("gotIt")}</small> : null}
                     </div>
                     {meta ? <span className="plx-gift__meta">{meta}</span> : null}
-                    {g.shareUrl && !incoming && g.status !== "claimed" ? (
+                    {!incoming && GIFT_UNPAID.includes(g.status) && g.paymentId && pays.has("click") ? (
+                      <button type="button" className="gift__list-link cx-link plx-gift__pay" onClick={() => payGift(g)} data-ai-id={`gifts.pay.${g.id}`}>
+                        {t("payNow")}
+                        <IconArrowRight aria-hidden />
+                      </button>
+                    ) : null}
+                    {g.shareUrl && !incoming && g.status !== "claimed" && !GIFT_UNPAID.includes(g.status) ? (
                       <a className="gift__list-link cx-link" href={g.shareUrl} target="_blank" rel="noreferrer">
                         <QrCode aria-hidden />
                         {t("shareCta")}
@@ -241,7 +299,13 @@ export default function ClientGiftsPanel() {
         onClose={close}
         title={t("give")}
         footer={
-          created ? (
+          payFor ? (
+            <div className="plx-acts">
+              <button type="button" className="btn btn--line" onClick={close}>
+                {t("done")}
+              </button>
+            </div>
+          ) : created ? (
             <div className="plx-acts">
               <button type="button" className="btn btn--line" onClick={close}>
                 {t("done")}
@@ -265,11 +329,13 @@ export default function ClientGiftsPanel() {
           )
         }
       >
-        {created ? (
+        {payFor ? (
+          <ClickPayPanel key={payFor.payment.id} payment={payFor.payment} title={payFor.title} onPaid={() => void onGiftPaid(payFor.giftId)} aiId="gifts.click" />
+        ) : created ? (
           <div className="gift__done plx-made">
             <span className="gift__done-ic plx-made__art" style={mArt("Sovga")} aria-hidden />
             <b>{t("shareTitle")}</b>
-            <p className="advmuted">{t("shareHint")}</p>
+            <p className="advmuted">{paidNow ? t("paidShareLead") : t("shareHint")}</p>
             {created.qrUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img className="gift__qr" src={created.qrUrl} alt={t("qrAlt")} width={148} height={148} onError={(e) => { e.currentTarget.style.display = "none"; }} />
@@ -348,8 +414,32 @@ export default function ClientGiftsPanel() {
             )}
 
             <div>
+              <label htmlFor={`${formId}-phone`}>{t("phone")}</label>
+              <div className="phonf">
+                <span className="phonf__cc">+998</span>
+                <input
+                  id={`${formId}-phone`}
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="off"
+                  placeholder="90 123 45 67"
+                  value={formatUzSubscriber(phone)}
+                  onChange={(e) => setPhone(uzSubscriber(e.target.value))}
+                  aria-describedby={`${formId}-phone-h`}
+                  data-ai-private
+                />
+              </div>
+              <small id={`${formId}-phone-h`} className="rf__hint">{t("phoneHint")}</small>
+            </div>
+
+            <div>
               <label>{t("recipient")}</label>
               <input value={hint} onChange={(e) => setHint(e.target.value)} placeholder={t("recipientHintPh")} />
+            </div>
+
+            <div>
+              <label htmlFor={`${formId}-note`}>{t("message")}</label>
+              <input id={`${formId}-note`} value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} placeholder={t("messagePh")} />
             </div>
 
             {kind === "plan" && priced ? (

@@ -3,8 +3,11 @@
 import "./plans1920.css";
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { getSubscriptionPlans, purchasePlan, demoPlanPurchase, isAtmosCheckout, isProviderUnsupported, type BackendPlan } from "@/lib/services/backend";
-import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
+import { getSubscriptionPlans, purchasePlan, demoPlanPurchase, isAtmosCheckout, isProviderUnsupported, requestPlanTelegramPurchase, type BackendPlan } from "@/lib/services/backend";
+import { isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
+import { ClickPayLoading, ClickPayPanel } from "@/components/payments/ClickPay";
+import { PROVIDER_LIST_STALE, clickErrorOf, purchasePlanWithClick, type ClickPayment } from "@/lib/services/clickCheckout";
+import { refreshCheckoutProviders, useCheckoutProviders } from "@/lib/useCheckoutProviders";
 import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { CheckoutIntent } from "./OrderMilestones";
 import { useResource } from "@/lib/useResource";
@@ -80,6 +83,9 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
   const [period, setPeriod] = useState<Period>("monthly");
   const [busy, setBusy] = useState(false);
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
+  // Click (integration §6): the invoice for the chosen plan, priced by the server.
+  const pays = useCheckoutProviders();
+  const [clickBuy, setClickBuy] = useState<{ title: string; payment: ClickPayment | null } | null>(null);
   // Renewal is the subscriber's own choice on the terms below, unticked.
   const [renew, setRenew] = useState(false);
 
@@ -91,6 +97,7 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
       setPeriod("monthly");
       setIntent(null);
       setRenew(false);
+      setClickBuy(null);
     }
   }
 
@@ -115,13 +122,23 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
         }
         return;
       }
-      if (!isDemoCheckout()) {
-        const total = priceFor(plan, period);
-        if (!total) {
+      if (!isDemoCheckout() && pays.has("click")) {
+        setClickBuy({ title: plan.name, payment: null });
+        const r = await purchasePlanWithClick(plan.id, { billingPeriod: period, autoRenew: renew });
+        if (!r.payment) {
+          setClickBuy(null);
           notify.error(t("purchaseError"), { id: "ai-plan-gate" });
           return;
         }
-        setIntent(await createCheckout({ kind: "subscription_plan", planId: plan.id, amount: total, payload: { billing_period: period, title: plan.name } }));
+        setClickBuy({ title: plan.name, payment: r.payment });
+        return;
+      }
+      if (!isDemoCheckout()) {
+        // No online provider on: the operator-approved request (the backend's
+        // fallback); generic POST /payments is not for plans.
+        await requestPlanTelegramPurchase(plan.id, period);
+        notify.success(t("telegram.sent"), { id: "ai-plan-gate", body: t("telegram.sentLead") });
+        onClose();
         return;
       }
       const r = await demoPlanPurchase(plan.id, { billing_period: period });
@@ -134,7 +151,10 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
         onClose();
       }
     } catch (e) {
-      const unavailable = isProviderUnavailable(e) || isProviderUnsupported(e) || isDemoUnavailable(e);
+      setClickBuy(null);
+      const ce = clickErrorOf(e);
+      if (PROVIDER_LIST_STALE.includes(ce.key)) refreshCheckoutProviders();
+      const unavailable = isProviderUnavailable(e) || isProviderUnsupported(e) || isDemoUnavailable(e) || PROVIDER_LIST_STALE.includes(ce.key) || ce.key === "unavailable";
       notify.error(t("purchaseError"), { id: "ai-plan-gate", body: unavailable ? tc("paymentUnavailable") : undefined, error: unavailable ? undefined : e });
     } finally {
       if (!leaving) setBusy(false);
@@ -147,8 +167,15 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
         <p className="advmuted" style={{ margin: 0 }}>{ts("aiPlanGateLead")}</p>
 
         {intent ? <CheckoutIntent intent={intent} onCancel={() => setIntent(null)} untitled /> : null}
+        {clickBuy ? (
+          clickBuy.payment ? (
+            <ClickPayPanel key={clickBuy.payment.id} payment={clickBuy.payment} title={clickBuy.title} aiId="ai-plan-gate.click" />
+          ) : (
+            <ClickPayLoading title={clickBuy.title} />
+          )
+        ) : null}
 
-        {intent ? null : plans.status === "loading" ? (
+        {intent || clickBuy ? null : plans.status === "loading" ? (
           <Skeleton rows={3} />
         ) : plans.status === "error" ? (
           <ErrorState compact error={plans.error} onRetry={plans.refresh} />

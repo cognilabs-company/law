@@ -19,6 +19,7 @@ import { uzs, uzsOpt, fmtUzs } from "@/lib/money";
 import { attributionDetails } from "@/lib/attribution";
 import { applyCategoryOverrides, categoryOverridesFrom, sellablePlans } from "@/lib/catalogOverlay";
 import { stripContacts } from "@/lib/contactGuard";
+import { clickPaymentOf, type ClickPayment } from "./clickCheckout";
 
 // ── Auth ──────────────────────────────────────────────────────────
 export type BackendRole =
@@ -2973,6 +2974,17 @@ export async function payDocumentRequest(
     }),
   );
 }
+// Click (integration §9): amount 0 — the backend charges the stored price.
+// `file_ready` back means this environment confirms by itself and there is
+// nothing to open; otherwise the payment is approved in Click.
+export async function payDocumentRequestClick(requestId: string): Promise<{ req: DocumentRequest; payment: ClickPayment | null }> {
+  const raw = await http(`/document-requests/${encodeURIComponent(requestId)}/payments`, {
+    method: "POST",
+    body: JSON.stringify({ provider: "click", amount: 0, currency: "UZS", provider_payload: {} }),
+  });
+  const req = normDocRequest(raw);
+  return { req, payment: req.status === "file_ready" ? null : clickPaymentOf(raw) };
+}
 export async function getDocumentRequest(requestId: string): Promise<DocumentRequest> {
   return normDocRequest(await http(`/document-requests/${requestId}`));
 }
@@ -4888,6 +4900,8 @@ export type Gift = {
   giftCode: string;
   shareUrl: string;
   qrUrl: string;
+  // The payment behind a gift still waiting for it (Click §7), when given.
+  paymentId: string;
 };
 function normGift(v: unknown): Gift {
   const d = asDict(v);
@@ -4910,8 +4924,11 @@ function normGift(v: unknown): Gift {
     giftCode: code,
     shareUrl: asStr(d.share_url),
     qrUrl: d.qr_url ? absUrl(asStr(d.qr_url)) : code ? absUrl(`/gifts/${code}/qr`) : "",
+    paymentId: asStr(d.payment_id ?? asDict(d.payment).id),
   };
 }
+// Click §7: a gift is not ready, and its code is not shown, before payment.
+export const GIFT_UNPAID: readonly string[] = ["pending_payment", "unpaid", "payment_pending"];
 export async function listGifts(): Promise<Gift[]> {
   return listFrom(await http("/gifts"), "items", "data").map(normGift);
 }
@@ -4919,24 +4936,33 @@ export async function listGifts(): Promise<Gift[]> {
 // single service. Returns the shareable link + QR the buyer sends on.
 export type GiftInput = {
   plan_slug?: string;
+  plan_id?: string;
   service_id?: string;
   recipient_hint?: string;
+  recipient_phone?: string;
   duration_months?: number;
+  term_months?: number;
+  message?: string;
+  provider?: string;
 };
 export type GiftResult = {
   paymentUrl?: string;
+  giftId: string;
   giftCode: string;
   shareUrl: string;
   qrUrl: string;
   status: string;
+  // Click (§7): the invoice to approve before the gift becomes real.
+  payment: ClickPayment | null;
 };
 export async function createGift(input: GiftInput): Promise<GiftResult> {
-  const raw = asDict(
+  const top = asDict(
     await http("/gifts", {
       method: "POST",
       body: JSON.stringify({ provider: CHECKOUT_PROVIDER, ...input }),
     }),
   );
+  const raw = top.gift && typeof top.gift === "object" ? { ...asDict(top.gift), payment: top.payment ?? asDict(top.gift).payment } : top;
   // `payment` may be a bare URL string or an object with payment_url.
   const payUrl = safePaymentUrl(
     typeof raw.payment === "string"
@@ -4946,6 +4972,8 @@ export async function createGift(input: GiftInput): Promise<GiftResult> {
   const code = asStr(raw.gift_code ?? raw.code);
   return {
     paymentUrl: payUrl || undefined,
+    giftId: asStr(raw.id ?? raw.gift_id),
+    payment: clickPaymentOf(raw),
     giftCode: code,
     shareUrl: asStr(raw.share_url),
     qrUrl: raw.qr_url ? absUrl(asStr(raw.qr_url)) : code ? absUrl(`/gifts/${code}/qr`) : "",

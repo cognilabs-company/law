@@ -93,11 +93,13 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
   const [channel, setChannel] = useState<PreferredChannel>("chat");
   const [time, setTime] = useState("");
   const [speed, setSpeed] = useState<ContactSpeed | "">("");
-  const [provider, setProvider] = useState<PurchaseProvider>("telegram_manual");
+  const [picked, setProvider] = useState<PurchaseProvider | "">("");
   // Only what the backend has switched on, under its own labels.
   const pays = useCheckoutProviders();
   const offered = PURCHASE_PROVIDERS.filter((pv) => pays.options.some((o) => o.provider === pv));
   const fallback = (PURCHASE_PROVIDERS as readonly string[]).includes(pays.fallback) ? (pays.fallback as PurchaseProvider) : "telegram_manual";
+  // Click first when the backend has it on (Click integration §1).
+  const provider: PurchaseProvider = picked && offered.includes(picked) ? picked : offered.includes("click") ? "click" : (offered[0] ?? fallback);
   const providerName = (pv: string) => pays.labelOf(pv) || (t.has(`providers.${pv}.name`) ? t(`providers.${pv}.name`) : pv);
   const [provErr, setProvErr] = useState("");
   const [files, setFiles] = useState<PurchaseAttachment[]>([]);

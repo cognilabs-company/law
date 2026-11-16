@@ -20,6 +20,8 @@ import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import { notify } from "@/lib/toast";
 import { Skeleton, EmptyState, ErrorState } from "./DataState";
 import { IconArrowRight, IconBell, IconCheckDouble, IconLayers, IconRefresh, IconSearch } from "@/components/icons";
+import ClickPayDialog, { ClickMark } from "@/components/payments/ClickPay";
+import { notifPaymentOf, type ClickPayment } from "@/lib/services/clickCheckout";
 
 // Fired whenever notifications are read so the header bell can refresh its
 // unread count without a full reload.
@@ -129,6 +131,9 @@ export default function NotificationsPanel({ internal = false }: { internal?: bo
   const locale = useLocale();
   const { session } = useAuth();
   const role = session?.role ?? "";
+  // Click §8: a payment the operator opened (SOS) is paid from its notice.
+  const tcp = useTranslations("clickPay");
+  const [payN, setPayN] = useState<{ payment: ClickPayment; title: string; at: number } | null>(null);
   const staff = hasAdminAccess(session);
   const callCenter = isCallCenterUser(session);
   const textOf = useNotifText();
@@ -351,6 +356,7 @@ export default function NotificationsPanel({ internal = false }: { internal?: bo
   // opens with what is new and the actions, as the dashboard's sections do.
   return (
     <div className="ppanel ntl">
+      <ClickPayDialog open={!!payN} payment={payN?.payment ?? null} title={payN?.title} urlIssuedAt={payN?.at} aiId="notifications.click" onClose={() => setPayN(null)} />
       <div className="ppanel__h ntl__h">
         <p className="lx-sub ntl__sum" role="status">
           {unreadBy.all ? <><i className="ntl__dot" aria-hidden />{t("unreadN", { n: unreadBy.all })}</> : catCounts ? tl("notifAllRead") : null}
@@ -398,6 +404,7 @@ export default function NotificationsPanel({ internal = false }: { internal?: bo
         <div className="ntlist" data-ai-target="notifications:list">
           {shown.map(({ n, title, body }) => {
             const link = notifLink(n.event, n.category, n.data, role, staff, callCenter, (code) => can(session, code));
+            const pay = role === "client" ? notifPaymentOf(n.data) : null;
             const via = n.channels.filter((c) => VIA_CHANNELS.includes(c)).map(chLabel);
             return (
               <div key={n.id} className={`ntrow${n.read ? "" : " ntrow--unread"}${link ? " ntrow--go" : ""}`}>
@@ -421,7 +428,20 @@ export default function NotificationsPanel({ internal = false }: { internal?: bo
                     </em>
                   </div>
                 </button>
-                {link ? (
+                {pay ? (
+                  <button
+                    type="button"
+                    className="cx-link ntitem__go ntitem__pay"
+                    onClick={() => {
+                      void readOne(n);
+                      setPayN({ payment: pay, title, at: Date.parse(n.createdAt) || 0 });
+                    }}
+                    data-ai-id={`notifications.pay.${n.id}`}
+                  >
+                    <ClickMark className="ckp-opt-mark" />
+                    {tcp("pay")}
+                  </button>
+                ) : link ? (
                   <Link href={link} className="cx-link ntitem__go" onClick={() => readOne(n)}>
                     {t("open")}
                     <IconArrowRight aria-hidden />

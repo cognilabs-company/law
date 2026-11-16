@@ -12,6 +12,7 @@ import {
   getPlatformPolicies,
   updateDocumentAnswers,
   payDocumentRequest,
+  payDocumentRequestClick,
   getDocumentRequest,
   getDocumentUnlockPolicy,
   generateDocumentRequest,
@@ -46,6 +47,9 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { IconDownload, IconExternal, IconHeadset, IconAlert, IconEdit, IconCircleCheck, IconCircleX } from "@/components/icons";
 import { useAiField } from "@/lib/ai/registry";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
+import ClickPayDialog from "@/components/payments/ClickPay";
+import { PROVIDER_LIST_STALE, clickErrorOf, type ClickPayment } from "@/lib/services/clickCheckout";
+import { refreshCheckoutProviders, useCheckoutProviders } from "@/lib/useCheckoutProviders";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
 
@@ -307,6 +311,10 @@ export default function DocumentRequestPanel({
   // on top of the two already stacked. Reproduced on 2026-09-29 against the
   // held row df415fdb…: two .amodal elements on screen at once.
   const chrome = useContext(DocChromeContext);
+  // Click (integration §9): the request's invoice, approved in Click Up.
+  const pays = useCheckoutProviders();
+  const [clickPay, setClickPay] = useState<ClickPayment | null>(null);
+  const [clickOpen, setClickOpen] = useState(false);
   const inConstructor = chrome !== null;
   const router = useRouter();
   const [pdfBusy, setPdfBusy] = useState(false);
@@ -448,6 +456,24 @@ export default function DocumentRequestPanel({
     setBusy(true);
     let leaving = false;
     try {
+      if (pays.has("click") && !chrome?.openUrl) {
+        setClickPay(null);
+        setClickOpen(true);
+        const c = await payDocumentRequestClick(req.id);
+        if (!c.payment) {
+          // Confirmed without a checkout (auto-confirm environment).
+          setClickOpen(false);
+          const r = (await unlock(c.req).catch(() => null)) ?? c.req;
+          setReq(r);
+          setStage(r.status === "file_ready" ? "done" : "pending");
+          bump();
+          return;
+        }
+        setReq(c.req);
+        setStage("pending");
+        setClickPay(c.payment);
+        return;
+      }
       let r = await payDocumentRequest(req.id, "payme", req.price);
       if (r.paymentUrl) {
         // A desktop window opens the payment beside itself and keeps polling.
@@ -466,7 +492,10 @@ export default function DocumentRequestPanel({
       setStage(r.status === "file_ready" ? "done" : "pending");
       bump();
     } catch (e) {
-      if (isProviderUnavailable(e)) notify.warning(t("payFailed"), { id: `docreq-pay:${req.id}`, body: tcommon("paymentUnavailable") });
+      setClickOpen(false);
+      const ce = clickErrorOf(e);
+      if (PROVIDER_LIST_STALE.includes(ce.key)) refreshCheckoutProviders();
+      if (isProviderUnavailable(e) || ce.key === "unavailable" || PROVIDER_LIST_STALE.includes(ce.key)) notify.warning(t("payFailed"), { id: `docreq-pay:${req.id}`, body: tcommon("paymentUnavailable") });
       else notify.error(t("payFailed"), { id: `docreq-pay:${req.id}`, error: e });
     } finally {
       if (!leaving) setBusy(false);
@@ -841,6 +870,15 @@ export default function DocumentRequestPanel({
 
   return (
     <div className={`cform lxdp${shown === "answers" ? " cform--doc" : ""}`} style={{ maxWidth: "none" }}>
+      <ClickPayDialog
+        open={clickOpen}
+        payment={clickPay}
+        title={req.title}
+        aiId="documents.click"
+        onClose={() => setClickOpen(false)}
+        // Paid: the request itself is re-read and the file is built.
+        onPaid={() => void refresh()}
+      />
       {planGate ? <PlanGateCard gate={planGate} onClose={() => setPlanGate(null)} /> : null}
       {fatal ? (
         <InlineAlert tone={fatal === "noAccess" ? "locked" : "error"} role="alert">

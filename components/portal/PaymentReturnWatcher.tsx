@@ -8,12 +8,13 @@ import { useAuth } from "@/lib/auth";
 import { track } from "@/lib/productAnalytics";
 import { fmtUzs } from "@/lib/money";
 import { forgetPendingPayment, getPaymentState, readPendingPayment, type PendingPayment } from "@/lib/services/paymentProviders";
+import { eventPaymentId, isPaymentOnScreen, pollDelayMs } from "@/lib/services/clickCheckout";
+import { subscribeUserEvents } from "@/lib/userSocket";
 import "./payment-return.css";
 
-// Polling after a return from the provider page: quick at first (the
-// callback usually lands in seconds), then slower, for at most 3 minutes.
-const STEPS_MS = [2000, 3000, 4000, 6000, 8000, 10000];
-const GIVE_UP_MS = 3 * 60 * 1000;
+// Polling after a return from the provider page (Click integration §11):
+// every 3 s for the first minute, then every 10 s, for at most 20 minutes,
+// and never while the page is hidden.
 // Pages that show payment state listen for this to refresh themselves.
 export const PAYMENT_CONFIRMED_EVENT = "lexgo:payment-confirmed";
 
@@ -38,13 +39,16 @@ export default function PaymentReturnWatcher(): ReactElement | null {
 
   const watch = useCallback(() => {
     const p = readPendingPayment();
-    if (!p) return;
+    // A Click panel on screen already shows this payment's state.
+    if (!p || isPaymentOnScreen(p.id)) return;
     stop();
     const mine = run.current;
     const started = Date.now();
     setView({ state: "waiting", p });
     const tick = async (step: number) => {
       if (mine !== run.current) return;
+      // Hidden: no reads; the visibility handler starts a fresh watch on return.
+      if (document.visibilityState === "hidden") return;
       try {
         const { outcome, amount } = await getPaymentState(p.id);
         if (mine !== run.current) return;
@@ -71,11 +75,12 @@ export default function PaymentReturnWatcher(): ReactElement | null {
       } catch {
         /* a blip: keep waiting */
       }
-      if (Date.now() - started > GIVE_UP_MS) {
+      const wait = pollDelayMs(Date.now() - started);
+      if (wait === null) {
         setView({ state: "late", p });
         return;
       }
-      timer.current = window.setTimeout(() => void tick(step + 1), STEPS_MS[Math.min(step, STEPS_MS.length - 1)]);
+      timer.current = window.setTimeout(() => void tick(step + 1), wait);
     };
     timer.current = window.setTimeout(() => void tick(0), 600);
   }, [stop]);
@@ -92,7 +97,13 @@ export default function PaymentReturnWatcher(): ReactElement | null {
     };
     window.addEventListener("pageshow", onShow);
     document.addEventListener("visibilitychange", onVisible);
+    // A realtime frame about the watched payment: read REST now (§12).
+    const offEvents = subscribeUserEvents((e) => {
+      const p = readPendingPayment();
+      if (p && eventPaymentId(e) === p.id) watch();
+    });
     return () => {
+      offEvents();
       window.clearTimeout(id);
       stop();
       window.removeEventListener("pageshow", onShow);

@@ -444,6 +444,8 @@ export function purchaseBodyOf(input: PurchaseInput): Record<string, unknown> {
     selected_option_ids: input.selectedOptionIds ?? [],
     note,
     preferred_channel: input.preferredChannel,
+    // Click integration §4 names it contact_channel (chat | audio | video).
+    contact_channel: input.preferredChannel,
   };
   const time = (input.preferredTime ?? "").trim();
   if (time) body.preferred_time = time;

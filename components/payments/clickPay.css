@@ -1,0 +1,120 @@
+/* Click checkout panel (components/payments/ClickPay.tsx).
+   Click's own look: its blue (#0065FF, from the Click logo) on the button,
+   the mark and the step numbers; a plain white card around them. */
+.ckp{
+  --click-blue:#0065FF; --click-blue-h:#0052D9; --click-blue-a:#0047BD;
+  --click-tint:#EAF2FF; --click-ink:var(--dk-ink,#0A1526); --click-gray:var(--dk-gray,#50627A);
+  --click-card:var(--dk-surface,#fff); --click-line:var(--dk-tip,#E4EBF5);
+  display:flex; flex-direction:column; gap:16px; min-width:0;
+  padding:20px; border:1px solid var(--click-line); border-radius:20px;
+  background:var(--click-card); color:var(--click-ink);
+  font-family:var(--fb); text-align:left;
+}
+html[data-theme="dark"] .ckp{ --click-blue:#2F84FF; --click-blue-h:#4A94FF; --click-blue-a:#1F6FE6; --click-tint:rgba(47,132,255,.16); }
+
+.ckp__head{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.ckp__logo{ display:block; width:auto; height:26px; color:var(--click-ink); flex:none; }
+
+.ckp__pill{
+  display:inline-flex; align-items:center; gap:7px; max-width:100%;
+  padding:6px 12px; border-radius:999px; font-size:.82rem; font-weight:600; line-height:1.25;
+  background:var(--dk-tint-warn,#FFF6E0); color:var(--dk-ink,#8A5A00);
+}
+.ckp__pill i{ width:8px; height:8px; border-radius:50%; background:currentColor; flex:none; }
+.ckp__pill--wait i{ background:#F5A524; animation:ckp-pulse 1.4s ease-in-out infinite; }
+.ckp__pill--ok{ background:var(--dk-tint-ok,#E3F6EE); color:var(--ok,#007A52); }
+.ckp__pill--bad{ background:var(--dk-tint-err,#FDECEC); color:var(--dk-ink,#B42318); }
+.ckp__pill--bad i{ background:#E5484D; }
+.ckp__pill--off{ background:var(--dk-surface-2,#EEF2F7); color:var(--click-gray); }
+@keyframes ckp-pulse{ 0%,100%{ opacity:1; transform:scale(1); } 50%{ opacity:.35; transform:scale(.8); } }
+
+.ckp__sum{ display:flex; flex-direction:column; gap:4px; min-width:0; padding:14px 16px; border-radius:14px; background:var(--click-tint); }
+.ckp__what{ font-size:.9rem; color:var(--click-gray); overflow-wrap:anywhere; }
+.ckp__amt{ font-family:var(--fd); font-size:clamp(1.5rem,1.2rem + 1.2vw,1.9rem); font-weight:700; line-height:1.15; letter-spacing:-.01em; color:var(--click-ink); }
+.ckp__amt span{ font-size:.55em; font-weight:600; color:var(--click-gray); letter-spacing:.02em; }
+
+.ckp__steps{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px; counter-reset:ckp; }
+.ckp__steps li{ position:relative; padding-left:36px; min-height:26px; font-size:.95rem; line-height:1.4; color:var(--click-ink); counter-increment:ckp; overflow-wrap:anywhere; }
+.ckp__steps li::before{
+  content:counter(ckp); position:absolute; left:0; top:-1px;
+  display:grid; place-items:center; width:26px; height:26px; border-radius:50%;
+  background:var(--click-blue); color:#fff; font-size:.8rem; font-weight:700;
+}
+
+/* The Click button: Click blue, white mark, white words. */
+.ckp__btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:10px; width:100%;
+  min-height:52px; padding:12px 20px; border:0; border-radius:14px;
+  background:var(--click-blue); color:#fff; font:700 1.02rem/1.2 var(--fb); text-align:center;
+  cursor:pointer; box-shadow:0 10px 24px -12px rgba(0,101,255,.65);
+  transition:background-color .15s ease, transform .1s ease, box-shadow .15s ease;
+}
+.ckp__btn:hover{ background:var(--click-blue-h); }
+.ckp__btn:active{ background:var(--click-blue-a); transform:translateY(1px); }
+.ckp__btn:focus-visible{ outline:3px solid var(--click-blue); outline-offset:3px; }
+.ckp__btn:disabled{ opacity:.7; cursor:progress; }
+.ckp__btn-mark{ width:22px; height:22px; flex:none; }
+.ckp__btn--sk{ opacity:.55; pointer-events:none; }
+
+.ckp__live{ display:flex; align-items:center; justify-content:center; gap:8px; margin:-4px 0 0; font-size:.85rem; color:var(--click-gray); text-align:center; }
+.ckp__live i{ width:7px; height:7px; border-radius:50%; background:var(--click-blue); flex:none; animation:ckp-pulse 1.4s ease-in-out infinite; }
+
+.ckp__renew{ margin:0; font-size:.85rem; line-height:1.45; color:var(--click-gray); text-align:center; }
+.ckp__link{ display:inline; padding:0; border:0; background:none; color:var(--click-blue); font:inherit; font-weight:600; text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
+.ckp__link:disabled{ opacity:.6; cursor:progress; }
+
+.ckp__ghost{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:10px 16px;
+  border:1px solid var(--click-blue); border-radius:12px; background:transparent; color:var(--click-blue);
+  font:600 .95rem/1.2 var(--fb); cursor:pointer; text-decoration:none;
+}
+.ckp__ghost:hover{ background:var(--click-tint); }
+.ckp__ghost:disabled{ opacity:.6; cursor:progress; }
+.ckp__ghost svg{ width:18px; height:18px; flex:none; }
+
+.ckp__late{ display:flex; flex-wrap:wrap; align-items:center; gap:10px 12px; padding:12px 14px; border-radius:14px; background:var(--dk-tint-warn,#FFF6E0); font-size:.9rem; line-height:1.4; }
+.ckp__late > svg{ width:20px; height:20px; flex:none; color:#C27803; }
+.ckp__late span{ flex:1 1 200px; min-width:0; }
+.ckp__late b{ display:block; }
+
+.ckp__done{ display:flex; flex-direction:column; align-items:center; gap:12px; text-align:center; }
+.ckp__done-t b{ display:block; font-family:var(--fd); font-size:1.15rem; }
+.ckp__done-t p{ margin:4px 0 0; font-size:.92rem; line-height:1.45; color:var(--click-gray); }
+.ckp__stamp{ display:grid; place-items:center; width:56px; height:56px; border-radius:50%; }
+.ckp__stamp svg{ width:28px; height:28px; }
+.ckp__stamp--ok{ background:var(--dk-tint-ok,#E3F6EE); color:var(--ok,#007A52); }
+.ckp__stamp--bad{ background:var(--dk-tint-err,#FDECEC); color:#E5484D; }
+.ckp__stamp--off{ background:var(--dk-surface-2,#EEF2F7); color:var(--click-gray); }
+.ckp__acts{ display:flex; flex-wrap:wrap; justify-content:center; gap:10px; width:100%; }
+.ckp__acts > *{ flex:1 1 180px; }
+
+.ckp__err{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0; padding:10px 12px; border-radius:12px; background:var(--dk-tint-err,#FDECEC); color:var(--dk-ink,#912018); font-size:.9rem; line-height:1.4; }
+.ckp__err svg{ width:18px; height:18px; flex:none; }
+.ckp__err span{ flex:1 1 180px; min-width:0; }
+
+.ckp__secure{ display:flex; align-items:center; justify-content:center; gap:6px; margin:0; font-size:.8rem; line-height:1.4; color:var(--click-gray); text-align:center; }
+.ckp__secure svg{ width:14px; height:14px; flex:none; }
+
+.ckp__sk{ display:block; width:140px; max-width:60%; height:30px; border-radius:8px; background:linear-gradient(90deg,rgba(0,101,255,.10),rgba(0,101,255,.22),rgba(0,101,255,.10)); background-size:200% 100%; animation:ckp-sk 1.2s linear infinite; }
+@keyframes ckp-sk{ to{ background-position:-200% 0; } }
+
+.ckp-foot{ display:flex; justify-content:flex-end; width:100%; }
+
+/* A payment option card in the purchase forms showing Click's mark. */
+.ckp-opt-mark{ width:22px; height:22px; }
+
+@media (max-width:420px){
+  .ckp{ padding:16px; gap:14px; border-radius:16px; }
+  .ckp__logo{ height:22px; }
+  .ckp__steps li{ font-size:.9rem; }
+}
+@media (prefers-reduced-motion:reduce){
+  .ckp__pill--wait i,.ckp__live i,.ckp__sk{ animation:none; }
+}
+
+/* Paid, inside a page that goes on (the order now waits for the lawyer). */
+.ckp--slim{ flex-direction:row; flex-wrap:wrap; align-items:center; gap:10px 12px; padding:12px 14px; border-radius:16px; }
+.ckp--slim .ckp__logo{ height:22px; }
+.ckp--slim .ckp__ghost{ margin-left:auto; min-height:40px; padding:8px 14px; font-size:.9rem; }
+.ckp--slim .ckp__err{ flex-basis:100%; }
+@media (max-width:420px){ .ckp--slim .ckp__ghost{ margin-left:0; flex:1 1 100%; } }

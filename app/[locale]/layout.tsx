@@ -13,6 +13,7 @@ import { AuthProvider } from "@/lib/auth";
 import SessionExpiryWatcher from "@/components/auth/SessionExpiryWatcher";
 import IncomingCallWatcher from "@/components/portal/IncomingCallWatcher";
 import PaymentReturnWatcher from "@/components/portal/PaymentReturnWatcher";
+import ClickPaymentPrompt from "@/components/payments/ClickPaymentPrompt";
 import RemoteAssistHost from "@/components/remoteAssist/RemoteAssistHost";
 import ConsentGate from "@/components/legal/ConsentGate";
 import CookieConsent from "@/components/legal/CookieConsent";
@@ -123,6 +124,7 @@ export default async function LocaleLayout({ children, params }: Props) {
               <RemoteAssistHost />
               <LiveOfficeHeartbeat />
               <PaymentReturnWatcher />
+              <ClickPaymentPrompt />
               <ConsentGate />
               <ScrollProgress />
               <Navbar />

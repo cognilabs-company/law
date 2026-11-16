@@ -30,7 +30,7 @@ import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
 import { aiId } from "@/lib/ai/ids";
 import { useAiField, useAiModal, useAiSelection } from "@/lib/ai/registry";
 import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
-import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
+import { isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
 import { CheckoutIntent } from "./OrderMilestones";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
@@ -63,6 +63,9 @@ import MyPlanCard from "./MyPlanCard";
 import { PlanCheckoutReview } from "./PlanPurchaseTerms";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
 import { goToPaymentPage } from "@/lib/services/paymentProviders";
+import ClickPayDialog from "@/components/payments/ClickPay";
+import { PROVIDER_LIST_STALE, clickErrorOf, purchasePlanWithClick, type ClickPayment } from "@/lib/services/clickCheckout";
+import { refreshCheckoutProviders, useCheckoutProviders } from "@/lib/useCheckoutProviders";
 
 type Term = 1 | 6 | 12;
 type Variant = "personal" | "all";
@@ -180,6 +183,10 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   const [busy, setBusy] = useState<string | null>(null);
   const once = useSameTickGuard();
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
+  // Click (integration §6): the plan's invoice, from the backend's own price.
+  const pays = useCheckoutProviders();
+  const [clickBuy, setClickBuy] = useState<{ title: string; payment: ClickPayment | null } | null>(null);
+  const [planKey, setPlanKey] = useState(0);
   // Set when a purchase falls through to the Telegram approval flow.
   const [tgPlan, setTgPlan] = useState<{ plan: BackendPlan; period: ManualDocBillingPeriod } | null>(null);
   // "Choose" first opens the terms (amount now, renewal and its price, the
@@ -321,7 +328,8 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
       // The renewal choice made on the terms: sent with an ATMOS purchase;
       // otherwise saved the way the auto-pay switch saves it (on the current
       // subscription, or kept until there is one), when it changed.
-      if (!isAtmosCheckout() && uid && autoRenew !== (autopay?.enabled ?? false)) {
+      const viaClick = !isAtmosCheckout() && !isDemoCheckout() && pays.has("click");
+      if (!isAtmosCheckout() && !viaClick && uid && autoRenew !== (autopay?.enabled ?? false)) {
         const source = await saveAutopay(uid, autoRenew, autopay?.subscription?.id);
         setAutopay((s) => (s ? { ...s, enabled: autoRenew, source } : s));
       }
@@ -336,12 +344,23 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
         }
         return;
       }
-      if (!isDemoCheckout()) {
-        if (!total) {
+      if (viaClick) {
+        // The server prices it (§6); the dialog shows its amount, not ours.
+        setReview(null);
+        setClickBuy({ title: planName(plan), payment: null });
+        const r = await purchasePlanWithClick(plan.id, { billingPeriod: asBillingPeriod(period), autoRenew });
+        if (!r.payment) {
+          setClickBuy(null);
           notify.error(t("purchaseError"), { id: "plans-buy" });
           return;
         }
-        setIntent(await createCheckout({ kind: "subscription_plan", planId: plan.id, amount: total, payload: { billing_period: period, title: planName(plan) } }));
+        setClickBuy({ title: planName(plan), payment: r.payment });
+        return;
+      }
+      if (!isDemoCheckout()) {
+        // No online provider switched on: the backend's own fallback, an
+        // operator-approved request (generic POST /payments is not for plans).
+        setTgPlan({ plan, period: asBillingPeriod(period) });
         return;
       }
       const r = await demoPlanPurchase(plan.id, { billing_period: period });
@@ -359,7 +378,10 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
       // do instead: telegram-purchase-request, which now works for every
       // active plan. The plan is approved in the admin Telegram chat and
       // activates itself, so this is a real way to buy rather than a dead end.
-      if (isProviderUnavailable(e) || isProviderUnsupported(e) || isDemoUnavailable(e)) {
+      setClickBuy(null);
+      const ce = clickErrorOf(e);
+      if (PROVIDER_LIST_STALE.includes(ce.key)) refreshCheckoutProviders();
+      if (isProviderUnavailable(e) || isProviderUnsupported(e) || isDemoUnavailable(e) || PROVIDER_LIST_STALE.includes(ce.key)) {
         setTgPlan({ plan, period: asBillingPeriod(period) });
         return;
       }
@@ -377,6 +399,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
     <div className="subs plx-subs">
       {intent ? <div className="ppanel plx-intent"><CheckoutIntent intent={intent} onCancel={() => setIntent(null)} /></div> : null}
       <MyPlanCard
+        key={planKey}
         renewal={autopay?.subscription ? { autoRenew: autopay.source === "backend" ? autopay.enabled : autopay.subscription.autoRenew, renewsAt: autopay.subscription.renewsAt } : null}
         onRenewalChange={(on) => setAutopay((s) => (s ? { ...s, enabled: on, source: "backend" } : s))}
         slugFor={slugOf}
@@ -388,6 +411,21 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
         busy={!!busy}
         onConfirm={() => review && void choose(review.plan, review.total, review.period, renew)}
         onClose={() => setReview(null)}
+      />
+
+      <ClickPayDialog
+        open={!!clickBuy}
+        payment={clickBuy?.payment ?? null}
+        title={clickBuy?.title}
+        aiId="plans.click"
+        onClose={() => setClickBuy(null)}
+        // §6: after payment the subscription itself is re-read (it turns active).
+        onPaid={() => {
+          void payments.refresh();
+          void res.refresh();
+          if (uid) loadAutopay(uid).then(setAutopay).catch(() => { /* keep what is on screen */ });
+          setPlanKey((k) => k + 1);
+        }}
       />
 
       <TelegramPlanRequest

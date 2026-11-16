@@ -56,6 +56,7 @@ import ContactGuardNote, { useContactStrip } from "@/components/ui/ContactGuardN
 import { findContacts } from "@/lib/contactGuard";
 import { goToPaymentPage } from "@/lib/services/paymentProviders";
 import { useCheckoutProviders } from "@/lib/useCheckoutProviders";
+import { ClickMark, ClickPayPanel } from "@/components/payments/ClickPay";
 
 export type PackagePurchaseTarget = { id: string; purchaseUrl: string; duration: string };
 
@@ -109,12 +110,14 @@ export default function PurchaseDialog({
   const [channel, setChannel] = useState<PreferredChannel>("chat");
   const [chOpen, setChOpen] = useState(false);
   const [speed, setSpeed] = useState<ContactSpeed | "">("");
-  // Telegram first: Payme / Click work once their production keys are on.
-  const [provider, setProvider] = useState<PurchaseProvider>("telegram_manual");
+  // The client's own pick; until they make one, Click when the backend has
+  // it on (Click integration §1), else the first method offered.
+  const [picked, setProvider] = useState<PurchaseProvider | "">("");
   // Only what the backend has switched on, under its own labels.
   const pays = useCheckoutProviders();
   const offered = PURCHASE_PROVIDERS.filter((pv) => pays.options.some((o) => o.provider === pv));
   const fallback = (PURCHASE_PROVIDERS as readonly string[]).includes(pays.fallback) ? (pays.fallback as PurchaseProvider) : "telegram_manual";
+  const provider: PurchaseProvider = picked && offered.includes(picked) ? picked : offered.includes("click") ? "click" : (offered[0] ?? fallback);
   const providerName = (pv: string) => pays.labelOf(pv) || (t.has(`providers.${pv}.name`) ? t(`providers.${pv}.name`) : pv);
   // The chosen online provider cannot take the payment right now.
   const [provErr, setProvErr] = useState("");
@@ -149,7 +152,7 @@ export default function PurchaseDialog({
     setChannel("chat");
     setChOpen(false);
     setSpeed("");
-    setProvider("telegram_manual");
+    setProvider("");
     setProvErr("");
     setFiles([]);
     setVoices([]);
@@ -280,6 +283,10 @@ export default function PurchaseDialog({
   const online = paidVia === "payme" || paidVia === "click";
   const payUrl = done?.payment?.url && online && done.payment.status !== "paid" ? done.payment.url : "";
   const paidSure = !!track?.paid || done?.payment?.status === "paid";
+  // Click (integration §4): the payment is approved in Click Up and watched
+  // here; the order moves on only when the backend says it is paid.
+  const clickPay = paidVia === "click" && done?.payment && (phase === "pending" || phase === "accepting" || phase === "paid" || phase === "chat") ? done.payment : null;
+  const clickPending = !!clickPay && phase === "pending";
   const titles: Record<MarketTrackPhase, string> = {
     accepting: isActive ? t("active") : paidSure ? t("acceptTitle") : t("sentTitle"),
     pending: isActive ? t("active") : t("payTitle"),
@@ -302,10 +309,12 @@ export default function PurchaseDialog({
   const receiptTitle = phase ? titles[phase] : "";
   const receiptLead = phase ? leads[phase] : "";
 
+  // A refused duplicate goes straight to the order already open (§14).
+  const ordersHref = isActive && active?.orderId ? `${CLIENT_ORDERS_HREF}/${encodeURIComponent(active.orderId)}` : CLIENT_ORDERS_HREF;
   const ordersLink = (primary: boolean) => (
     <Link
       key="orders"
-      href={CLIENT_ORDERS_HREF}
+      href={ordersHref}
       className={`btn ${primary ? "btn--grad" : "btn--line"}`}
       data-ai-id={isActive ? "marketplace.purchase.active-order" : "marketplace.purchase.to-orders"}
     >
@@ -351,6 +360,8 @@ export default function PurchaseDialog({
           ]
         : ended
           ? [ordersLink(true)]
+          : clickPending
+            ? [ordersLink(false), closeButton]
           : phase === "pending" && payUrl && done?.payment
             ? [
                 <button key="pay" type="button" className="btn btn--grad" onClick={() => goToPaymentPage(payUrl, done.payment?.id, done.payment?.amount)} data-ai-id="marketplace.purchase.pay">
@@ -453,7 +464,7 @@ export default function PurchaseDialog({
           >
             <div className="mk-receipt__msg" role="status">
               <div key={phase} className="mk-receipt__in">
-                {isActive ? (
+                {clickPending ? null : isActive ? (
                   <span className="mk-receipt__stamp lxp-stamp lxp-stamp--info" aria-hidden="true">
                     <IconInfo />
                   </span>
@@ -470,7 +481,7 @@ export default function PurchaseDialog({
                     <IconCheck />
                   </span>
                 )}
-                <b className="mk-receipt__t">{receiptTitle}</b>
+                {clickPending ? null : <b className="mk-receipt__t">{receiptTitle}</b>}
                 {tracked?.workId ? <span className="wid">{tracked.workId}</span> : null}
                 {phase === "accepting" ? (
                   <span className={`mk-pending cx-pill cx-pill--warn${live ? "" : " mk-pending--idle"}`}>
@@ -478,7 +489,7 @@ export default function PurchaseDialog({
                     <IconClock aria-hidden="true" />
                     {left ? t("acceptWaitClock", { time: clockOf(left) }) : left === 0 ? t("acceptOver") : t("acceptWait")}
                   </span>
-                ) : phase === "pending" ? (
+                ) : phase === "pending" && !clickPending ? (
                   <span className={`mk-pending cx-pill cx-pill--warn${live ? "" : " mk-pending--idle"}`}>
                     <i aria-hidden="true" />
                     <IconClock aria-hidden="true" />
@@ -491,11 +502,11 @@ export default function PurchaseDialog({
                     {t("paidPreparing")}
                   </span>
                 ) : null}
-                {receiptLead ? <p>{receiptLead}</p> : null}
+                {receiptLead && !clickPending ? <p>{receiptLead}</p> : null}
                 {phase === "accepting" ? <p className="mk-receipt__note">{t("acceptNote")}</p> : null}
                 {phase === "pending" && done && !online && !done.telegramSent ? <Notice ok={false} msg={t("notDelivered")} /> : null}
               </div>
-              {live ? (
+              {live && !clickPending ? (
                 <div className="mk-live">
                   <span className="mk-live__main">
                     <i aria-hidden="true" />
@@ -511,6 +522,16 @@ export default function PurchaseDialog({
                 </div>
               ) : null}
             </div>
+            {clickPay ? (
+              <ClickPayPanel
+                key={clickPay.id}
+                payment={clickPay}
+                title={service.title}
+                compactPaid={phase !== "pending"}
+                onPaid={() => track?.recheck()}
+                aiId="marketplace.purchase.click"
+              />
+            ) : null}
             <div className="mk-buy__acts">{actions}</div>
           </div>
         ) : (
@@ -595,6 +616,7 @@ export default function PurchaseDialog({
               <div className="mk-pay__opts">
                 {offered.map((pv) => {
                   const Icon = PROVIDER_ICON[pv];
+                  const mark = pv === "click" ? <ClickMark className="ckp-opt-mark" /> : <Icon />;
                   return (
                     <button
                       key={pv}
@@ -609,7 +631,7 @@ export default function PurchaseDialog({
                       data-ai-id={`marketplace.purchase.provider.${pv}`}
                     >
                       <span className="mk-pay__ic" aria-hidden="true">
-                        <Icon />
+                        {mark}
                       </span>
                       <span className="mk-pay__m">
                         <b>{providerName(pv)}</b>
