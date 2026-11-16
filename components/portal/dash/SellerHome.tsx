@@ -381,7 +381,7 @@ export default function SellerHome({ role }: { role: "advocate" | "lawyer" }) {
             <b>{t("promo.title")}</b>
             <p>{t("promo.text")}</p>
           </div>
-          <Link href={`${base}/services?new=1`} className="btn btn--dark"><Plus />{t("promo.cta")}</Link>
+          <Link href={`${base}/services?new=1`} className="btn btn--pri"><Plus />{t("promo.cta")}</Link>
         </section>
       ) : null}
     </div>
