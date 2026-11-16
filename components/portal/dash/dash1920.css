@@ -317,25 +317,17 @@ html[data-theme="dark"] .cx-gift{box-shadow:inset 0 0 0 1px rgba(255,255,255,.09
 @container cx (min-width:1300px){
   .cx-row{grid-template-columns:minmax(0,1fr) clamp(380px,32%,507px)}
 }
-/* Six arches share one row only while each keeps ~200px (the row needs
-   ~1290px: a large monitor). On a laptop — a 13–15" MacBook gives the page
-   ~1110px — six in a row were 170px wide and every name broke into three
-   lines, so there they go three over three at a readable size. Narrower
-   still the half-column rule below keeps three to a row (a short last row
-   centred), and two to a row on a phone. */
+/* Five arches stay in one row down to ~165px each (a 13" MacBook, a 1280px
+   window). Once a card is narrower than the standard 248px (the row needs
+   1312px) its type tightens with it, so it keeps the design's proportions
+   instead of growing tall around wrapped lines. Narrower still they go three
+   over two, and two-two-one on a phone, the short last row centred. */
 @container cx (max-width:1311px){
   .cx-svcs__grid{gap:14px}
-}
-@container cx (max-width:1289px){
-  .cx-svcs__grid{grid-template-columns:repeat(3,minmax(0,1fr));justify-content:stretch;gap:18px}
-  /* A wider arch keeps the 248px card's dome: its height grows with the
-     width (≈0.37 of it) instead of flattening into a low ellipse. */
-  .cx-svc{padding:22px 22px 26px;border-radius:50% 50% 18px 18px / clamp(110px,12cqi,160px) clamp(110px,12cqi,160px) 18px 18px}
-  .cx-svc__t{font-size:1.04rem}
-  .cx-svc__s{font-size:.86rem}
-  /* the sticker rides the picture's shoulder: in a wide card the corner is
-     far from the dome and it floated in the air there */
-  .cx-svc__247{top:12px;right:auto;left:calc(50% + 22px)}
+  .cx-svc{padding:20px 12px 22px}
+  .cx-svc__ic{width:80px;height:80px;margin-bottom:14px}
+  .cx-svc__t{font-size:.9rem}
+  .cx-svc__s{font-size:.77rem}
 }
 @container cx (max-width:859px){
   /* six half-columns, each card spans two, so a short last row can sit in the middle */
