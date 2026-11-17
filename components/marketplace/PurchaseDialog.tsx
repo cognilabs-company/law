@@ -18,6 +18,8 @@ import {
   PREFERRED_CHANNELS,
   PRICE_OPTION_ERRORS,
   activePurchaseOf,
+  findLostMarketPurchase,
+  purchaseAnswerLost,
   marketChatHref,
   marketErrorCode,
   phaseOfStatus,
@@ -126,6 +128,12 @@ export default function PurchaseDialog({
   const [attaching, setAttaching] = useState(false);
   const onAttachBusy = useCallback((b: boolean) => setAttaching(b), []);
   const [busy, setBusy] = useState(false);
+  // Set inside the click itself, before any render: a second press (a double
+  // click, Enter held) never sends a second request (Click web contract §9).
+  const sending = useRef(false);
+  // When a request was lost on the way (no answer, the network dropped): the
+  // order may exist, so the next send looks for it first (§8).
+  const lostAt = useRef(0);
   const [err, setErr] = useState("");
   // The backend refused this account the purchase (403): the reason stays,
   // the submit buttons go.
@@ -134,6 +142,9 @@ export default function PurchaseDialog({
   const [active, setActive] = useState<ActivePurchase | null>(null);
   const [price, setPrice] = useState<PriceState>(EMPTY_PRICE);
   const [optReload, setOptReload] = useState(0);
+  // The Click panel has had the backend's final word on the payment; until
+  // then it alone reads the order (§5), and the tracker below waits.
+  const [clickSettled, setClickSettled] = useState(false);
   const marketErr = useMarketError();
   // The total and the send live in the dialog's pinned footer (outside the
   // form, tied to it by id); a refusal or a provider fallback appears at the
@@ -161,6 +172,7 @@ export default function PurchaseDialog({
     setDone(null);
     setActive(null);
     setPrice(EMPTY_PRICE);
+    setClickSettled(false);
   }
 
   const aiForm = !!service && !done && !active;
@@ -189,7 +201,8 @@ export default function PurchaseDialog({
   useAiSelection(aiForm ? "preferred_channel" : "", channel);
 
   const tracked = done ?? active;
-  const track = useMarketOrderTracker(service && tracked ? tracked.orderId : "", service && tracked ? tracked.workId : "", service && tracked ? tracked.status : "", !!done?.accepting);
+  const clickWatching = !!done?.payment && done.payment.provider === "click" && done.payment.status !== "paid" && !!done.orderId && !clickSettled;
+  const track = useMarketOrderTracker(service && tracked ? tracked.orderId : "", service && tracked ? tracked.workId : "", service && tracked ? tracked.status : "", !!done?.accepting, clickWatching);
   const checkout = useRuntimeFacts(service?.id ?? "", "checkout", { enabled: !!service && !pkg });
   // The seller's acceptance window, as the backend set it.
   const left = useCountdown(track?.phase === "accepting" ? track.deadlineAt || (done?.accepting ? done.deadlineAt : "") : "", () => track?.recheck());
@@ -209,19 +222,36 @@ export default function PurchaseDialog({
     setDone(null);
     setActive(null);
     setErr("");
+    setClickSettled(false);
+  }
+
+  // An order already open for this (§8): straight to it — an unpaid one is
+  // paid from its own page.
+  function toExisting(act: ActivePurchase) {
+    setActive(act);
+    if (act.orderId) router.push(`${CLIENT_ORDERS_HREF}/${encodeURIComponent(act.orderId)}`);
   }
 
   async function submit(via: PurchaseProvider = provider) {
-    if (busy || done || refused || !service || price.pending || price.failed || attaching) return;
+    if (sending.current || busy || done || refused || !service || price.pending || price.failed || attaching) return;
     if (findContacts(note).length) return;
     if (note.length > NOTE_MAX) {
       setErr(t("noteTooLong"));
       return;
     }
+    sending.current = true;
     setBusy(true);
     setErr("");
     setProvErr("");
     try {
+      if (lostAt.current) {
+        const lost = await findLostMarketPurchase({ serviceId: service.id, sellerUserId: auto ? "" : sellerUserId, since: lostAt.current });
+        lostAt.current = 0;
+        if (lost) {
+          toExisting(lost);
+          return;
+        }
+      }
       const input = { paymentProvider: via, note, preferredChannel: channel, contactSpeed: speed, preferredTime: speed ? t(`speeds.${speed}`) : "", selectedOptionIds: price.ids, urgency: speed ? URGENCY_OF[speed] : ("" as const), attachments: files, voiceMessages: voices.map(({ fileId, seconds }) => ({ fileId, seconds })), region };
       const r = auto
         ? await requestMarketplaceMatch(service.id, input)
@@ -233,7 +263,12 @@ export default function PurchaseDialog({
     } catch (e) {
       const act = activePurchaseOf(e);
       if (act) {
-        setActive(act);
+        toExisting(act);
+      } else if (purchaseAnswerLost(e)) {
+        // No answer: the order may have been made. Nothing new is sent
+        // before the client's orders are checked for it.
+        lostAt.current = lostAt.current || Date.now();
+        setErr(t("networkLost"));
       } else if (isForbidden(e)) {
         setErr(marketErr(e, t("error")));
         setRefused(true);
@@ -264,6 +299,7 @@ export default function PurchaseDialog({
         setErr(errDetail(e) || t("error"));
       }
     } finally {
+      sending.current = false;
       setBusy(false);
     }
   }
@@ -304,7 +340,8 @@ export default function PurchaseDialog({
     resolution: t("resolveLead"),
     chat: t("chatLead"),
     completed: "",
-    cancelled: t("rejectedLead"),
+    // The backend's own words about a closed order come first (§7).
+    cancelled: track?.message || t("rejectedLead"),
   };
   const receiptTitle = phase ? titles[phase] : "";
   const receiptLead = phase ? leads[phase] : "";
@@ -526,9 +563,13 @@ export default function PurchaseDialog({
               <ClickPayPanel
                 key={clickPay.id}
                 payment={clickPay}
+                orderId={done?.orderId || undefined}
                 title={service.title}
                 compactPaid={phase !== "pending"}
-                onPaid={() => track?.recheck()}
+                onSettled={() => {
+                  setClickSettled(true);
+                  track?.recheck();
+                }}
                 aiId="marketplace.purchase.click"
               />
             ) : null}

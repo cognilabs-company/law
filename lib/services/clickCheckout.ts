@@ -64,6 +64,11 @@ export type PaymentInfo = {
   description: string;
   orderId: string;
   receiptUrl: string;
+  // Read from a marketplace order (Click web contract 2026-11-17 §5): the
+  // order itself is closed (cancelled, refunded…) and can no longer be paid,
+  // and the backend's own words for the client about it.
+  orderClosed: boolean;
+  message: string;
 };
 export function paymentInfoOf(raw: unknown, id = ""): PaymentInfo {
   const d = asDict(raw);
@@ -77,10 +82,48 @@ export function paymentInfoOf(raw: unknown, id = ""): PaymentInfo {
     description: asStr(d.description),
     orderId: asStr(d.order_id),
     receiptUrl: asStr(d.receipt_url),
+    orderClosed: false,
+    message: "",
   };
 }
 export async function getPayment(id: string, signal?: AbortSignal): Promise<PaymentInfo> {
   return paymentInfoOf(await http(`/payments/${encodeURIComponent(id)}`, { signal }), id);
+}
+
+// Click web contract 2026-11-17 §5: a marketplace payment is read from its
+// order, GET /marketplace/me/orders/{order_id}. Its payment.status and the
+// order's payment_status are the backend's word on the money; a closed order
+// (cancelled, declined, refunded…) closes the payment with it.
+const ORDER_CLOSED = new Set(["cancelled", "canceled", "declined", "rejected", "lost", "expired", "refunded", "refund_pending"]);
+export function orderPaymentInfoOf(raw: unknown, orderId: string, paymentId: string): PaymentInfo {
+  const top = asDict(raw);
+  const d = top.order && typeof top.order === "object" ? asDict(top.order) : top;
+  const details = asDict(d.details);
+  const p = asDict(d.payment ?? top.payment);
+  // Another payment on the order (an extra one) says nothing about this one.
+  const own = !asStr(p.id) || asStr(p.id) === paymentId;
+  const orderPay = payStatusOf(asStr(d.payment_status));
+  const orderStatus = asStr(d.status).trim().toLowerCase();
+  const closed = ORDER_CLOSED.has(orderStatus);
+  let status = own && asStr(p.status) ? payStatusOf(asStr(p.status)) : orderPay;
+  if (orderPay === "paid") status = "paid";
+  else if (closed && status !== "paid" && status !== "refunded") status = orderStatus.startsWith("refund") ? "refunded" : "cancelled";
+  return {
+    id: paymentId,
+    status,
+    amount: own ? asNum(p.amount) : 0,
+    currency: (own ? asStr(p.currency) : "") || asStr(d.currency, "UZS") || "UZS",
+    method: asStr(p.provider).toLowerCase(),
+    kind: "marketplace",
+    description: "",
+    orderId: asStr(d.id, orderId) || orderId,
+    receiptUrl: own ? asStr(p.receipt_url) : "",
+    orderClosed: closed,
+    message: asStr(details.client_status_message ?? d.client_status_message).trim(),
+  };
+}
+export async function getOrderPayment(orderId: string, paymentId: string, signal?: AbortSignal): Promise<PaymentInfo> {
+  return orderPaymentInfoOf(await http(`/marketplace/me/orders/${encodeURIComponent(orderId)}`, { signal }), orderId, paymentId);
 }
 
 // §13: a fresh checkout for the same payment. Already paid → no URL, and the
@@ -89,6 +132,38 @@ export type RenewedCheckout = { status: PayStatus; url: string; idempotent: bool
 export async function renewClickCheckout(id: string): Promise<RenewedCheckout> {
   const d = asDict(await http(`/payments/${encodeURIComponent(id)}/click/checkout`, { method: "POST" }));
   return { status: payStatusOf(asStr(d.status)), url: checkoutUrlOf(d.payment_url), idempotent: d.idempotent === true };
+}
+
+// Click web contract 2026-11-17 §6: the checkout link works once. A link
+// handed to the browser is spent — every later open asks the backend for a
+// new one (never the same URL twice), and so does one past its lifetime.
+export type CheckoutLink = { url: string; at: number; used: boolean };
+export function checkoutLinkUsable(link: CheckoutLink, now = Date.now()): boolean {
+  return !!link.url && !link.used && (!link.at || now - link.at < CHECKOUT_TTL_MS);
+}
+
+// §4: into Click from the user's own click. The tab opens inside that click
+// (a tab opened after an await is blocked), cut from this page, and is sent
+// to the backend's page as given; with no tab allowed, this tab goes.
+export function openCheckoutTab(): Window | null {
+  const tab = window.open("", "_blank");
+  if (tab) {
+    try {
+      tab.opener = null;
+    } catch {
+      /* already cut */
+    }
+  }
+  return tab;
+}
+export function sendCheckoutTab(tab: Window | null, url: string, sameTab: () => void): "tab" | "same" {
+  if (tab && !tab.closed) {
+    tab.location.replace(url);
+    return "tab";
+  }
+  sameTab();
+  window.location.assign(url);
+  return "same";
 }
 
 // §11 polling: every 3 s for the first minute, then every 10 s, and no more
@@ -109,6 +184,12 @@ export function eventPaymentId(e: UserEvent): string {
   const n = asDict(e.notification);
   const data = { ...asDict(n.data), ...asDict(e.data) };
   return asStr(e.payment_id ?? data.payment_id).trim();
+}
+// The order a frame is about (marketplace.full_payment_paid carries it).
+export function eventOrderId(e: UserEvent): string {
+  const n = asDict(e.notification);
+  const data = { ...asDict(n.data), ...asDict(e.data) };
+  return asStr(e.order_id ?? data.order_id).trim();
 }
 
 // ── Errors (§14) ────────────────────────────────────────────────────
@@ -150,6 +231,8 @@ export function clickErrorOf(e: unknown): ClickError {
     return { key: "activeOrder", message: "", orderId: asStr(asDict(e.data.detail).order_id) };
   if (code === "payment_provider_mismatch") return { key: "mismatch", ...none };
   if (code === "payment_not_payable") return { key: "notPayable", ...none };
+  // Click web contract §8: not retried; the order is read again instead.
+  if (code === "payment_not_found") return { key: "notFound", ...none };
   if (code === "click_checkout_expired" || e.status === 410) return { key: "expired", ...none };
   if (code === "marketplace_payment_provider_invalid") return { key: "providerInvalid", ...none };
   if (code === "payment_currency_not_supported" || code === "marketplace_currency_not_supported") return { key: "currency", ...none };

@@ -12,6 +12,8 @@ import {
   PRICE_OPTION_ERRORS,
   CONTACT_SPEEDS,
   activePurchaseOf,
+  findLostMarketPurchase,
+  purchaseAnswerLost,
   marketChatHref,
   marketErrorCode,
   phaseOfStatus,
@@ -44,7 +46,8 @@ import { IconCard, IconExternal, IconChat, IconCheck, IconClock, IconClose, Icon
 import { Banner, Btn, Check, Dialog, Field, Input, Seg, Spinner, TextArea } from "../../kit/kit";
 import type { NativeProps } from "../../native";
 import { useGuardedField } from "@/components/ui/ContactGuardNote";
-import { goToPaymentPage } from "@/lib/services/paymentProviders";
+import { goToPaymentPage, rememberPendingPayment } from "@/lib/services/paymentProviders";
+import { checkoutLinkUsable, clickErrorOf, openCheckoutTab, renewClickCheckout, sendCheckoutTab, type CheckoutLink } from "@/lib/services/clickCheckout";
 import { useCheckoutProviders } from "@/lib/useCheckoutProviders";
 
 // Ordering a service as a desktop sheet — the Mac's sheet that drops from
@@ -107,6 +110,15 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
   const [attaching, setAttaching] = useState(false);
   const onAttachBusy = useCallback((b: boolean) => setAttaching(b), []);
   const [busy, setBusy] = useState(false);
+  // Click web contract 2026-11-17 §9: one request per press, set before any
+  // render; §8: a request lost on the way is looked for before a new one.
+  const sending = useRef(false);
+  const lostAt = useRef(0);
+  // The Click checkout link works once (§6): kept here with whether it was used.
+  const clickLink = useRef<CheckoutLink | null>(null);
+  const [payBusy, setPayBusy] = useState(false);
+  const [payErr, setPayErr] = useState("");
+  const tc = useTranslations("clickPay");
   const [err, setErr] = useState("");
   const [done, setDone] = useState<MarketPurchase | null>(null);
   const [active, setActive] = useState<ActivePurchase | null>(null);
@@ -136,22 +148,38 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
   const quick = [t("quick.today"), t("quick.evening"), t("quick.tomorrow"), t("quick.week")];
   const go = (route: string) => (onClose(), openLink({ appId: "", route }));
 
+  // An order already open for this (§8): straight to it.
+  const toExisting = (act: ActivePurchase) => {
+    setActive(act);
+    if (act.orderId) go(`${CLIENT_ORDERS_HREF}/${encodeURIComponent(act.orderId)}`);
+  };
+
   async function submit(via: PurchaseProvider = provider) {
-    if (busy || done || price.pending || price.failed || attaching) return;
+    if (sending.current || busy || done || price.pending || price.failed || attaching) return;
     if (note.length > NOTE_MAX) return setErr(t("noteTooLong"));
+    sending.current = true;
     setBusy(true);
     setErr("");
     setProvErr("");
     try {
+      if (lostAt.current) {
+        const lost = await findLostMarketPurchase({ serviceId: service.id, sellerUserId, since: lostAt.current });
+        lostAt.current = 0;
+        if (lost) return toExisting(lost);
+      }
       const input = { paymentProvider: via, note, preferredChannel: channel, preferredTime: time, contactSpeed: speed, selectedOptionIds: price.ids, urgency: speed ? URGENCY_OF[speed] : ("" as const), attachments: files, voiceMessages: voices.map(({ fileId, seconds }) => ({ fileId, seconds })), region };
       const r = pkg ? await requestPackagePurchase(pkg.purchaseUrl, input, { packageId: pkg.id, lawyerUserId: sellerUserId }) : await requestMarketplacePurchase(sellerUserId, service.id, input);
+      clickLink.current = r.payment?.url ? { url: r.payment.url, at: Date.now(), used: false } : null;
       setDone(r);
       trackPromoContact(sellerUserId, "purchase");
     } catch (e) {
       const act = activePurchaseOf(e);
       const code = marketErrorCode(e);
-      if (act) setActive(act);
-      else if (PAYMENT_PROVIDER_ERRORS.includes(code) && via !== fallback) setProvErr(via);
+      if (act) toExisting(act);
+      else if (purchaseAnswerLost(e)) {
+        lostAt.current = lostAt.current || Date.now();
+        setErr(t("networkLost"));
+      } else if (PAYMENT_PROVIDER_ERRORS.includes(code) && via !== fallback) setProvErr(via);
       else if (code) {
         setErr(marketErr(e, t("error")));
         if (PRICE_OPTION_ERRORS.includes(code)) setOptReload((n) => n + 1);
@@ -166,7 +194,40 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
       } else if (e instanceof ApiError && e.status === 422) setErr(Object.values(e.fieldErrors)[0] || errDetail(e) || t("error"));
       else setErr(errDetail(e) || t("error"));
     } finally {
+      sending.current = false;
       setBusy(false);
+    }
+  }
+
+  // Click (§4, §6): a new tab inside the press, the backend's page as given;
+  // a link already used is never opened again — the backend gives a new one.
+  // The order's own reads (the tracker above) say when it is paid.
+  async function payWithClick() {
+    const p = done?.payment;
+    if (!p || payBusy) return;
+    setPayErr("");
+    const link = clickLink.current;
+    const tab = openCheckoutTab();
+    const send = (url: string, at: number) => {
+      clickLink.current = { url, at, used: true };
+      sendCheckoutTab(tab, url, () => rememberPendingPayment({ id: p.id, amount: p.amount }));
+      track?.recheck();
+    };
+    if (link && checkoutLinkUsable(link)) return send(link.url, link.at);
+    setPayBusy(true);
+    try {
+      const r = await renewClickCheckout(p.id);
+      if (r.url) send(r.url, Date.now());
+      else {
+        tab?.close();
+        track?.recheck();
+      }
+    } catch (e) {
+      tab?.close();
+      setPayErr(tc(`errors.${clickErrorOf(e).key}`));
+      track?.recheck();
+    } finally {
+      setPayBusy(false);
     }
   }
 
@@ -190,7 +251,7 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
     resolution: t("resolveLead"),
     chat: t("chatLead"),
     completed: "",
-    cancelled: t("rejectedLead"),
+    cancelled: track?.message || t("rejectedLead"),
   };
 
   const toOrders = (primary: boolean) => (
@@ -229,6 +290,8 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
         ? [close, <Btn key="retry" kind="primary" icon={<IconSend />} onClick={() => (setDone(null), setActive(null), setErr(""))}>{t("retry")}</Btn>]
         : ended
           ? [toOrders(true)]
+          : phase === "pending" && paidVia === "click" && done?.payment && done.payment.status !== "paid"
+            ? [toOrders(false), <Btn key="pay" kind="primary" icon={<IconExternal />} busy={payBusy} onClick={() => void payWithClick()}>{tc("open")}</Btn>]
           : phase === "pending" && payUrl && done?.payment
             ? [toOrders(false), <Btn key="pay" kind="primary" icon={<IconExternal />} onClick={() => goToPaymentPage(payUrl, done.payment?.id, done.payment?.amount)}>{t("payProceed", { provider: providerName(paidVia) })}</Btn>]
             : phase === "pending" && slow
@@ -300,6 +363,7 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
               {t("offline")}
             </Banner>
           ) : null}
+          {payErr && phase === "pending" ? <Banner tone="err">{payErr}</Banner> : null}
         </div>
       ) : (
         <>

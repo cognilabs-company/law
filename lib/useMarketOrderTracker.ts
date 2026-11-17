@@ -7,6 +7,7 @@ import {
   findMarketOrder,
   holdMarketOrder,
   listMarketplaceOrders,
+  loadMarketplaceOrder,
   marketSignalOf,
   phaseOfStatus,
   trackPhaseOf,
@@ -30,13 +31,16 @@ const FAILS_TO_OFFLINE = 3;
 // deadlineAt: the seller's acceptance deadline from the latest order (it is
 // set only once the full payment is confirmed, so the purchase response
 // itself never carries it).
-type Snap = { key: string; phase: MarketTrackPhase; roomId: string; deadlineAt: string; paid: boolean; slow: boolean; offline: boolean; ended: boolean; known: boolean };
+// message: the backend's own words for the client (client_status_message),
+// shown when the order is cancelled (Click web contract 2026-11-17 §7).
+type Snap = { key: string; phase: MarketTrackPhase; roomId: string; deadlineAt: string; paid: boolean; message: string; slow: boolean; offline: boolean; ended: boolean; known: boolean };
 
 export type MarketOrderTrack = {
   phase: MarketTrackPhase;
   roomId: string;
   deadlineAt: string;
   paid: boolean;
+  message: string;
   slow: boolean;
   offline: boolean;
   ended: boolean;
@@ -52,22 +56,28 @@ const ACCEPT_BUDGET_MS = 35 * 60 * 1000;
 const isFinal = (p: MarketTrackPhase) => p === "completed" || p === "cancelled";
 
 function seedSnap(key: string, status: string, accepting: boolean): Snap {
-  return { key, phase: accepting ? "accepting" : phaseOfStatus(status), roomId: "", deadlineAt: "", paid: false, slow: false, offline: false, ended: false, known: false };
+  return { key, phase: accepting ? "accepting" : phaseOfStatus(status), roomId: "", deadlineAt: "", paid: false, message: "", slow: false, offline: false, ended: false, known: false };
 }
 
-function mergeSnap(s: Snap, next: { phase: MarketTrackPhase; roomId: string; deadlineAt?: string; paid?: boolean } | null): Snap {
+function mergeSnap(s: Snap, next: { phase: MarketTrackPhase; roomId: string; deadlineAt?: string; paid?: boolean; message?: string } | null): Snap {
   if (!next || isFinal(s.phase)) return s;
   const deadlineAt = next.deadlineAt ?? s.deadlineAt;
   const paid = s.paid || !!next.paid;
-  if (!s.known) return { ...s, phase: next.phase, roomId: next.roomId || s.roomId, deadlineAt, paid, slow: false, known: true };
+  const message = next.message ?? s.message;
+  if (!s.known) return { ...s, phase: next.phase, roomId: next.roomId || s.roomId, deadlineAt, paid, message, slow: false, known: true };
   const phase = next.phase === "cancelled" || RANK[next.phase] > RANK[s.phase] ? next.phase : s.phase;
   const roomId = next.roomId || s.roomId;
-  if (phase === s.phase && roomId === s.roomId && deadlineAt === s.deadlineAt && paid === s.paid) return s;
-  return { ...s, phase, roomId, deadlineAt, paid, slow: phase === s.phase ? s.slow : false };
+  if (phase === s.phase && roomId === s.roomId && deadlineAt === s.deadlineAt && paid === s.paid && message === s.message) return s;
+  return { ...s, phase, roomId, deadlineAt, paid, message, slow: phase === s.phase ? s.slow : false };
 }
 
 // accepting: the purchase response said the seller has yet to accept.
-export function useMarketOrderTracker(orderId: string, workId: string, initialStatus: string, accepting = false): MarketOrderTrack | null {
+// paused: something else on screen already watches this order (the Click
+// panel reads it while the payment is open), so this one does not poll too;
+// it starts with a read the moment it is let go.
+// The order is read from GET /marketplace/me/orders/{order_id} (Click web
+// contract 2026-11-17 §5); the list is only a fallback with no id yet.
+export function useMarketOrderTracker(orderId: string, workId: string, initialStatus: string, accepting = false, paused = false): MarketOrderTrack | null {
   const key = orderId || workId ? `${orderId}|${workId}` : "";
   const [state, setState] = useState<Snap | null>(null);
   const [nudge, setNudge] = useState({ key: "", n: 0 });
@@ -80,7 +90,7 @@ export function useMarketOrderTracker(orderId: string, workId: string, initialSt
   useEffect(() => holdMarketOrder(orderId), [orderId]);
 
   useEffect(() => {
-    if (!key || ended || phase === "chat" || isFinal(phase)) return;
+    if (!key || paused || ended || phase === "chat" || isFinal(phase)) return;
     const seed = seedSnap(key, initialStatus, accepting);
     const apply = (f: (s: Snap) => Snap) => setState((cur) => f(cur && cur.key === key ? cur : seed));
     const ctrl = new AbortController();
@@ -113,13 +123,13 @@ export function useMarketOrderTracker(orderId: string, workId: string, initialSt
         return;
       }
       inFlight = true;
-      listMarketplaceOrders("client", { signal: ctrl.signal })
-        .then((list) => {
+      const read = orderId ? loadMarketplaceOrder(orderId, "client", { signal: ctrl.signal }) : listMarketplaceOrders("client", { signal: ctrl.signal }).then((list) => findMarketOrder(list, orderId, workId));
+      read
+        .then((o) => {
           if (!alive) return;
           failures = 0;
           delay = Math.min(Math.round(delay * 1.5), cap);
-          const o = findMarketOrder(list, orderId, workId);
-          const next = o ? { phase: trackPhaseOf(o), roomId: o.canStartChat ? o.roomId : "", deadlineAt: o.assignment?.deadlineAt ?? "", paid: o.paymentStatus === "paid" } : null;
+          const next = o ? { phase: trackPhaseOf(o), roomId: o.canStartChat ? o.roomId : "", deadlineAt: o.assignment?.deadlineAt ?? "", paid: o.paymentStatus === "paid", message: o.clientMessage } : null;
           apply((s) => {
             const m = mergeSnap(s, next);
             return m.offline ? { ...m, offline: false } : m;
@@ -187,7 +197,7 @@ export function useMarketOrderTracker(orderId: string, workId: string, initialSt
       window.removeEventListener("focus", kick);
       window.removeEventListener("online", kick);
     };
-  }, [key, orderId, workId, initialStatus, accepting, phase, ended, known, bumps]);
+  }, [key, orderId, workId, initialStatus, accepting, paused, phase, ended, known, bumps]);
 
   if (!snap) return null;
 
@@ -199,5 +209,5 @@ export function useMarketOrderTracker(orderId: string, workId: string, initialSt
     setNudge((cur) => ({ key, n: (cur.key === key ? cur.n : 0) + 1 }));
   };
 
-  return { phase: snap.phase, roomId: snap.roomId, deadlineAt: snap.deadlineAt, paid: snap.paid, slow: snap.slow, offline: snap.offline, ended: snap.ended, recheck };
+  return { phase: snap.phase, roomId: snap.roomId, deadlineAt: snap.deadlineAt, paid: snap.paid, message: snap.message, slow: snap.slow, offline: snap.offline, ended: snap.ended, recheck };
 }

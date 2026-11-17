@@ -13,6 +13,7 @@ export type OrderSectionProps = {
 };
 
 export const SECTION_ID = {
+  pay: "mod-pay",
   checklist: "mod-checklist",
   negotiation: "mod-negotiation",
   documents: "mod-documents",
