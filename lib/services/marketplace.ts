@@ -662,6 +662,10 @@ export type MarketOrder = {
   clientStatus: string;
   clientMessage: string;
   advance: { status: string; amount: number; currency: string } | null;
+  // The order's full payment (Click web contract 2026-11-17 §5–§6): its id
+  // renews the checkout, its provider and status are the backend's. No
+  // checkout URL is kept from here — a link may already be spent.
+  fullPayment: { id: string; status: string; provider: string; amount: number; currency: string } | null;
   // Contract 2026-10-26 §9–10: the call center handed the paid order to
   // another seller, who has not accepted yet (no seller shown, no chat, no
   // second payment), and every such change with its client-visible reason.
@@ -1106,6 +1110,27 @@ function assignmentOf(d: Dict, details: Dict): Pick<MarketOrder, "assignment" | 
   };
 }
 
+function fullPaymentOf(d: Dict, payment: Dict): MarketOrder["fullPayment"] {
+  const id = asStr(payment.id ?? d.payment_id).trim();
+  if (!id) return null;
+  return {
+    id,
+    status: asStr(payment.status ?? d.payment_status, "pending").toLowerCase(),
+    provider: asStr(payment.provider ?? d.payment_provider).toLowerCase(),
+    amount: uzs(payment, "amount") || uzs(d, "price"),
+    currency: asStr(payment.currency ?? d.currency, "UZS") || "UZS",
+  };
+}
+
+// The order still waits for its Click payment (Click web contract §7: "Pay
+// with Click"): unpaid, not closed, not with a seller yet.
+export function clickPaymentDue(o: Pick<MarketOrder, "status" | "paymentStatus" | "fullPayment">): boolean {
+  const p = o.fullPayment;
+  if (!p || p.provider !== "click") return false;
+  if (o.paymentStatus === "paid" || p.status === "paid" || p.status === "refunded") return false;
+  return !MARKET_STOPPED.has(o.status) && !MARKET_DONE.has(o.status);
+}
+
 export function normMarketOrder(v: unknown): MarketOrder {
   const hideSeller = (asDict(v).waiting_replacement_acceptance ?? asDict(asDict(v).details).waiting_replacement_acceptance) === true;
   const d = asDict(v);
@@ -1203,6 +1228,7 @@ export function normMarketOrder(v: unknown): MarketOrder {
     warranty: warrantyOf(d, details),
     resolution: resolutionOf(d.resolution ?? details.resolution),
     ...assignmentOf(d, details),
+    fullPayment: fullPaymentOf(d, payment),
     waitingReplacement: (d.waiting_replacement_acceptance ?? details.waiting_replacement_acceptance) === true,
     reassignments: asArr(d.reassignment_history ?? details.reassignment_history).map(reassignmentOf),
     supplemental,
@@ -1309,6 +1335,28 @@ export async function listMarketplaceOrdersPage(roleView: "client" | "seller", o
   const d: Dict = Array.isArray(res) ? { items: res } : asDict(res);
   const items = asArr(d.items).map(normMarketOrder).filter((o) => o.id);
   return { items, count: asNum(d.count, items.length), raw: d };
+}
+
+// No answer came for a purchase (the network dropped, or the gateway gave up
+// waiting): the backend may still have made the order.
+export function purchaseAnswerLost(e: unknown): boolean {
+  return e instanceof ApiError && ((e.status === 0 && e.detail === "network_error") || (e.status === 504 && !e.code));
+}
+
+// Click web contract 2026-11-17 §8: a purchase whose answer was lost on the
+// way may still have made an order. Before another one is made, the client's
+// latest orders are read: an open one for this service (and seller) placed
+// since then is that order.
+export async function findLostMarketPurchase(target: { serviceId: string; sellerUserId?: string; since: number }, signal?: AbortSignal): Promise<ActivePurchase | null> {
+  const page = await listMarketplaceOrdersPage("client", { limit: 20, signal });
+  const hit = page.items.find((o) => {
+    if (!target.serviceId || (o.serviceId !== target.serviceId && o.packageId !== target.serviceId)) return false;
+    if (target.sellerUserId && o.lawyerUserId && o.lawyerUserId !== target.sellerUserId) return false;
+    if (MARKET_STOPPED.has(o.status) || MARKET_DONE.has(o.status)) return false;
+    const at = Date.parse(o.createdAt);
+    return !Number.isFinite(at) || at >= target.since - 5 * 60_000;
+  });
+  return hit ? { orderId: hit.id, workId: hit.workId, status: hit.status } : null;
 }
 
 const orderMemo = new Map<string, { owner: string; order: MarketOrder; at: number }>();

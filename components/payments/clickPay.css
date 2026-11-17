@@ -91,6 +91,7 @@ html[data-theme="dark"] .ckp{ --click-blue:#2F84FF; --click-blue-h:#4A94FF; --cl
 .ckp__err{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0; padding:10px 12px; border-radius:12px; background:var(--dk-tint-err,#FDECEC); color:var(--dk-ink,#912018); font-size:.9rem; line-height:1.4; }
 .ckp__err svg{ width:18px; height:18px; flex:none; }
 .ckp__err span{ flex:1 1 180px; min-width:0; }
+.ckp__err .ckp__err-acts{ flex:0 1 auto; display:inline-flex; flex-wrap:wrap; gap:6px 14px; }
 
 .ckp__secure{ display:flex; align-items:center; justify-content:center; gap:6px; margin:0; font-size:.8rem; line-height:1.4; color:var(--click-gray); text-align:center; }
 .ckp__secure svg{ width:14px; height:14px; flex:none; }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getPayment, eventPaymentId, isTerminal, pollDelayMs, type PayStatus, type PaymentInfo } from "@/lib/services/clickCheckout";
+import { getOrderPayment, getPayment, eventOrderId, eventPaymentId, isTerminal, pollDelayMs, type PayStatus, type PaymentInfo } from "@/lib/services/clickCheckout";
 import { subscribeUserEvents, onUserSocketResync } from "@/lib/userSocket";
 
 // Watches one payment until the backend settles it (Click §11, §12):
@@ -9,7 +9,10 @@ import { subscribeUserEvents, onUserSocketResync } from "@/lib/userSocket";
 //   • nothing while the page is hidden, one read the moment it is shown;
 //   • a realtime frame about this payment only triggers a REST read;
 //   • after 20 minutes it stops ("late") until the client asks again.
-// Nothing is ever marked paid here — only GET /payments/{id} says so.
+// Nothing is ever marked paid here — only GET /payments/{id} says so, or,
+// for a marketplace order (Click web contract 2026-11-17 §5), the order's
+// own GET /marketplace/me/orders/{order_id}: then a frame about that order
+// (marketplace.full_payment_paid) and the window regaining focus read it too.
 
 export type PaymentWatch = {
   info: PaymentInfo | null;
@@ -20,7 +23,8 @@ export type PaymentWatch = {
   check: () => void;
 };
 
-export function usePaymentWatch(paymentId: string, opts: { onSettled?: (info: PaymentInfo) => void } = {}): PaymentWatch {
+export function usePaymentWatch(paymentId: string, opts: { onSettled?: (info: PaymentInfo) => void; orderId?: string } = {}): PaymentWatch {
+  const orderId = opts.orderId ?? "";
   const [info, setInfo] = useState<PaymentInfo | null>(null);
   const [lateFor, setLateFor] = useState("");
   const [checking, setChecking] = useState(false);
@@ -39,6 +43,8 @@ export function usePaymentWatch(paymentId: string, opts: { onSettled?: (info: Pa
     let inFlight = false;
     let again = false;
     let stopped = false;
+    let lastReadAt = 0;
+    const fetchOnce = () => (orderId ? getOrderPayment(orderId, paymentId) : getPayment(paymentId));
 
     const schedule = () => {
       window.clearTimeout(timer);
@@ -63,7 +69,8 @@ export function usePaymentWatch(paymentId: string, opts: { onSettled?: (info: Pa
       inFlight = true;
       setChecking(true);
       try {
-        const p = await getPayment(paymentId);
+        const p = await fetchOnce();
+        lastReadAt = Date.now();
         if (!alive) return;
         setInfo(p);
         if (isTerminal(p.status)) {
@@ -103,10 +110,13 @@ export function usePaymentWatch(paymentId: string, opts: { onSettled?: (info: Pa
 
     const onVisible = () => {
       if (document.visibilityState !== "visible" || done) return;
+      // Coming back fires both "visible" and "focus": one read is enough.
+      if (inFlight || Date.now() - lastReadAt < 1000) return;
       // Always one read on return (§11); polling resumes only inside its window.
       window.clearTimeout(timer);
       if (stopped) {
-        void getPayment(paymentId)
+        lastReadAt = Date.now();
+        void fetchOnce()
           .then((p) => {
             if (!alive) return;
             setInfo(p);
@@ -122,10 +132,11 @@ export function usePaymentWatch(paymentId: string, opts: { onSettled?: (info: Pa
       void read();
     };
     const offEvents = subscribeUserEvents((e) => {
-      if (eventPaymentId(e) === paymentId) kick();
+      if (eventPaymentId(e) === paymentId || (!!orderId && eventOrderId(e) === orderId)) kick();
     });
     const offResync = onUserSocketResync(kick);
     document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
     void read();
     return () => {
       alive = false;
@@ -134,8 +145,9 @@ export function usePaymentWatch(paymentId: string, opts: { onSettled?: (info: Pa
       offEvents();
       offResync();
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
     };
-  }, [paymentId]);
+  }, [paymentId, orderId]);
 
   const check = useCallback(() => ctl.current?.restart(), []);
   // Only this payment's own answer counts; the creation response never says paid.

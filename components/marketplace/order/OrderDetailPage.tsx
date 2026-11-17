@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { SxEmpty } from "@/components/admin/studio/sx/layout/Empty";
 import { SxNote } from "@/components/admin/studio/sx/layout/Note";
 import { SxButton, SxLinkButton } from "@/components/admin/studio/sx/Button";
-import { awaitingSeller, normMarketOrder, type MarketOrder, type MarketPhase } from "@/lib/services/marketplace";
+import { awaitingSeller, clickPaymentDue, normMarketOrder, type MarketOrder, type MarketPhase } from "@/lib/services/marketplace";
 import { normOrderChecklist, type OrderStart } from "@/lib/services/marketRuntime";
 import { ComplaintPanel, RatingPanel, ResultBlock, SupplementalPanel } from "../OrderExtras";
 import CancellationRequest from "./CancellationRequest";
@@ -22,6 +22,7 @@ import SellerAssignment from "./SellerAssignment";
 import ResolutionPanel from "./ResolutionPanel";
 import ReworkNotice from "./ReworkNotice";
 import NegotiationPanel from "./NegotiationPanel";
+import OrderClickPay from "./OrderClickPay";
 import { useNotedNegotiation } from "./negotiationStore";
 import OrderActions from "./OrderActions";
 import OrderChecklist from "./OrderChecklist";
@@ -140,9 +141,14 @@ function Sections({ d, o, phase, view, aiBase, listHref, preview, payouts }: { d
       documents,
     ];
   } else if (phase === "pending") {
+    // Paid with Click: "Pay with Click" on the order itself until the backend
+    // says paid (Click web contract 2026-11-17 §7). The Telegram note is for
+    // orders paid that way only.
+    const clickOrder = o.fullPayment?.provider === "click";
     parts = [
+      client && !preview && clickPaymentDue(o) ? <OrderClickPay key="click" o={o} aiBase={aiBase} onChanged={() => d.refresh("order")} /> : null,
       <NegotiationPanel key="negotiation" {...section} />,
-      client ? (
+      client && !clickOrder ? (
         <SxNote key="wait" tone="info">
           {to("waitNote")}
         </SxNote>
@@ -193,7 +199,8 @@ function Sections({ d, o, phase, view, aiBase, listHref, preview, payouts }: { d
         <div key="find" className="mod-find odx-empty">
           <span className="odx-empty__art odx-art" style={artStyle("Boshqa_mutaxassis")} aria-hidden="true" />
           <b className="odx-empty__t">{tl("cancelled.title")}</b>
-          <p className="odx-empty__p">{tl("cancelled.text")}</p>
+          {/* The backend's own words about why, when it gives them (Click web contract §7). */}
+          <p className="odx-empty__p">{o.clientMessage || tl("cancelled.text")}</p>
           <SxLinkButton variant="primary" icon={SearchIcon} href="/portal/client/lawyers" aiId={`${aiBase}.find-other`}>
             {t("cancelledFind")}
           </SxLinkButton>

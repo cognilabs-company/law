@@ -3,7 +3,7 @@
 import "./clickPay.css";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import { Link, usePathname } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
 import { IconAlert, IconCheck, IconClock, IconClose, IconDownload, IconLock, IconRefresh } from "@/components/icons";
 import { fmtUzs } from "@/lib/money";
@@ -14,15 +14,20 @@ import { track } from "@/lib/productAnalytics";
 import { refreshCheckoutProviders } from "@/lib/useCheckoutProviders";
 import { usePaymentWatch } from "@/lib/usePaymentWatch";
 import {
-  CHECKOUT_TTL_MS,
   PROVIDER_LIST_STALE,
+  POLL_GIVE_UP_MS,
+  checkoutLinkUsable,
   clickErrorOf,
   holdPaymentOnScreen,
   isTerminal,
+  openCheckoutTab,
   renewClickCheckout,
+  sendCheckoutTab,
+  type CheckoutLink,
   type ClickError,
   type ClickPayment,
   type PaymentInfo,
+  type RenewedCheckout,
 } from "@/lib/services/clickCheckout";
 
 // Click's mark and wordmark, drawn from its own logo (docs.click.uz): the
@@ -58,24 +63,43 @@ export function ClickLogo({ className }: { className?: string }) {
 }
 
 type Tone = "wait" | "ok" | "bad" | "off";
-const TONE: Record<string, Tone> = { pending: "wait", prepared: "wait", late: "wait", paid: "ok", cancelled: "bad", failed: "bad", refunded: "off" };
+const TONE: Record<string, Tone> = { pending: "wait", prepared: "wait", confirming: "wait", late: "wait", paid: "ok", cancelled: "bad", failed: "bad", refunded: "off" };
+// A second press this soon after opening Click is the same press (a double
+// click), not a wish for a second checkout.
+const REOPEN_GUARD_MS = 1500;
+// Errors after which the Click button rests until the client asks again
+// (Click web contract 2026-11-17 §8).
+const RESTING: readonly ClickError["key"][] = ["notConfigured", "unavailable"];
+// Support in the cabinet the client is in (a lawyer buying a plan has their own).
+const supportHref = (path: string) => `/portal/${/^\/portal\/(lawyer|advocate)(\/|$)/.exec(path)?.[1] ?? "client"}/support`;
 
 // One payment, the Click way (§16): what is bought, the backend's amount in
 // UZS, the Click button, the Click Up instruction, the live status, a renewal
 // through the backend only, and the receipt once paid. Nothing here says
-// "paid" until GET /payments/{id} does.
+// "paid" until GET /payments/{id} does — or, for a marketplace order
+// (`orderId`), until GET /marketplace/me/orders/{order_id} does.
 export function ClickPayPanel({
   payment,
+  orderId,
   title,
   onPaid,
+  onSettled,
+  onStale,
   paidActions,
   compactPaid,
   urlIssuedAt,
   aiId = "click-pay",
 }: {
   payment: ClickPayment;
+  // The marketplace order this payment pays: its state is read from there.
+  orderId?: string;
   title?: string;
   onPaid?: (info: PaymentInfo) => void;
+  // Any final answer (paid, cancelled, failed, refunded).
+  onSettled?: (info: PaymentInfo) => void;
+  // The backend no longer knows this payment or will not take it: whatever
+  // shows it should be read again (§8).
+  onStale?: () => void;
   paidActions?: ReactNode;
   // Once paid, one slim line (status + receipt) — the page goes on below it.
   compactPaid?: boolean;
@@ -85,17 +109,25 @@ export function ClickPayPanel({
   aiId?: string;
 }) {
   const t = useTranslations("clickPay");
+  const path = usePathname();
   const watch = usePaymentWatch(payment.id, {
+    orderId,
     onSettled: (p) => {
       if (p.status === "paid") {
         track("payment_succeeded", { properties: { payment_id: p.id, provider: "click", amount: p.amount } });
         onPaid?.(p);
       }
+      onSettled?.(p);
     },
   });
-  // The opaque checkout lives only here, in memory, with the time it came.
-  const checkout = useRef<{ url: string; at: number }>({ url: payment.url, at: 0 });
+  // The opaque checkout lives only here, in memory, with the time it came
+  // and whether the browser has been sent to it (it works once, §6).
+  const checkout = useRef<CheckoutLink>({ url: payment.url, at: 0, used: false });
+  const busyRef = useRef(false);
+  const lastOpen = useRef(0);
   const [busy, setBusy] = useState<"" | "open" | "renew">("");
+  // Click was opened and its answer has not come yet (§7).
+  const [opened, setOpened] = useState(false);
   const [err, setErr] = useState<ClickError | null>(null);
   const [receiptErr, setReceiptErr] = useState(false);
   const [receiptBusy, setReceiptBusy] = useState(false);
@@ -120,43 +152,83 @@ export function ClickPayPanel({
     });
   }, [payment.id, payment.amount]);
 
+  // §5: the Click tab closed → read the state now (the client may have paid
+  // and come straight back). Watched only while that tab is ours to see.
+  const tabRef = useRef<Window | null>(null);
+  const tabTimer = useRef(0);
+  const check = watch.check;
+  const watchTab = (tab: Window) => {
+    window.clearInterval(tabTimer.current);
+    tabRef.current = tab;
+    const since = Date.now();
+    tabTimer.current = window.setInterval(() => {
+      const w = tabRef.current;
+      if (!w || Date.now() - since > POLL_GIVE_UP_MS) {
+        window.clearInterval(tabTimer.current);
+        return;
+      }
+      if (w.closed) {
+        window.clearInterval(tabTimer.current);
+        tabRef.current = null;
+        check();
+      }
+    }, 1000);
+  };
+  useEffect(() => () => window.clearInterval(tabTimer.current), []);
+  useEffect(() => {
+    if (settled) window.clearInterval(tabTimer.current);
+  }, [settled]);
+
   function fail(e: unknown) {
     const ce = clickErrorOf(e);
     if (PROVIDER_LIST_STALE.includes(ce.key)) refreshCheckoutProviders();
-    if (ce.key === "mismatch" || ce.key === "notPayable") watch.check();
+    // §8: not payable / not found → the state is read again, never retried.
+    if (ce.key === "mismatch" || ce.key === "notPayable" || ce.key === "notFound") {
+      watch.check();
+      onStale?.();
+    }
     setErr(ce);
   }
 
   // Into Click: a tab opened inside the click itself (so no popup blocker),
-  // pointed at the backend's page as given. When the link is old or spent,
-  // the backend gives a new one first.
+  // pointed at the backend's page as given. A link already used, or too old,
+  // is never opened again: the backend gives a new one first (§6).
   async function open(forceNew = false) {
-    if (busy) return;
+    if (busyRef.current) return;
+    if (!forceNew && Date.now() - lastOpen.current < REOPEN_GUARD_MS) return;
     setErr(null);
     const c = checkout.current;
-    const fresh = !forceNew && !!c.url && (!c.at || Date.now() - c.at < CHECKOUT_TTL_MS);
-    const tab = window.open("", "_blank");
-    if (tab) tab.opener = null;
+    const fresh = !forceNew && checkoutLinkUsable(c);
+    const tab = openCheckoutTab();
     const go = (url: string) => {
       track("payment_page_opened", { properties: { payment_id: payment.id, provider: "click" } });
-      if (tab && !tab.closed) {
-        tab.location.replace(url);
-      } else {
+      checkout.current = { ...checkout.current, url, used: true };
+      lastOpen.current = Date.now();
+      const where = sendCheckoutTab(tab, url, () => {
         // No new tab allowed: the same tab goes, and the return is watched.
         rememberPendingPayment({ id: payment.id, amount: payment.amount });
-        window.location.assign(url);
-      }
+      });
+      if (where === "tab" && tab) watchTab(tab);
+      setOpened(true);
       watch.check();
     };
     if (fresh) {
       go(c.url);
       return;
     }
+    busyRef.current = true;
     setBusy(forceNew ? "renew" : "open");
     try {
-      const r = await renewClickCheckout(payment.id);
+      let r: RenewedCheckout;
+      try {
+        r = await renewClickCheckout(payment.id);
+      } catch (e) {
+        // §8: 410 click_checkout_expired → one more new link, then give up.
+        if (clickErrorOf(e).key !== "expired") throw e;
+        r = await renewClickCheckout(payment.id);
+      }
       if (r.url) {
-        checkout.current = { url: r.url, at: Date.now() };
+        checkout.current = { url: r.url, at: Date.now(), used: false };
         go(r.url);
       } else {
         // Already paid (idempotent) or nothing to open: read the status.
@@ -167,6 +239,7 @@ export function ClickPayPanel({
       tab?.close();
       fail(e);
     } finally {
+      busyRef.current = false;
       setBusy("");
     }
   }
@@ -186,9 +259,18 @@ export function ClickPayPanel({
 
   const amount = watch.info?.amount || payment.amount;
   const currency = watch.info?.currency || payment.currency || "UZS";
-  const shown = watch.late && !settled ? "late" : status;
+  // Opened and not answered yet: waiting for Click's confirmation, never
+  // "paid" (§7).
+  const shown = watch.late && !settled ? "late" : opened && status === "pending" ? "confirming" : status;
   const tone = TONE[shown] ?? "wait";
   const waiting = !settled;
+  // The order itself closed (cancelled by the backend): nothing to pay, and
+  // the backend's own words say why (§7).
+  const closed = !!orderId && !!watch.info?.orderClosed && status !== "paid";
+  // Click rests after "not configured"/"unavailable" until the client tries
+  // again; a payment the backend does not know is not offered again (§8).
+  const resting = !!err && RESTING.includes(err.key);
+  const gone = err?.key === "notFound";
 
   if (compactPaid && status === "paid") {
     return (
@@ -196,7 +278,7 @@ export function ClickPayPanel({
         <ClickLogo className="ckp__logo" />
         <span className="ckp__pill ckp__pill--ok" role="status">
           <i aria-hidden="true" />
-          {t("status.paid")}
+          {t("paidTitle")}
         </span>
         <button type="button" className="ckp__ghost" onClick={() => void receipt()} disabled={receiptBusy} data-ai-id={`${aiId}.receipt`}>
           <IconDownload aria-hidden="true" />
@@ -242,6 +324,16 @@ export function ClickPayPanel({
           </div>
           {receiptErr ? <p className="ckp__err" role="alert">{t("receiptError")}</p> : null}
         </div>
+      ) : closed ? (
+        <div className="ckp__done">
+          <span className={`ckp__stamp ckp__stamp--${status === "refunded" ? "off" : "bad"}`} aria-hidden="true">
+            {status === "refunded" ? <IconRefresh /> : <IconClose />}
+          </span>
+          <div className="ckp__done-t">
+            <b>{status === "refunded" ? t("refundedTitle") : t("orderClosedTitle")}</b>
+            <p>{watch.info?.message || (status === "refunded" ? t("refundedText") : t("orderClosedText"))}</p>
+          </div>
+        </div>
       ) : status === "cancelled" || status === "failed" || status === "refunded" ? (
         <div className="ckp__done">
           <span className={`ckp__stamp ckp__stamp--${status === "refunded" ? "off" : "bad"}`} aria-hidden="true">
@@ -251,8 +343,8 @@ export function ClickPayPanel({
             <b>{t(`${status}Title`)}</b>
             <p>{t(`${status}Text`)}</p>
           </div>
-          {status === "refunded" ? null : (
-            <button type="button" className="ckp__btn" onClick={() => void open(true)} disabled={!!busy} data-ai-id={`${aiId}.retry`}>
+          {status === "refunded" || gone ? null : (
+            <button type="button" className="ckp__btn" onClick={() => void open(true)} disabled={!!busy || resting} data-ai-id={`${aiId}.retry`}>
               <ClickMark mono className="ckp__btn-mark" />
               {busy ? t("opening") : t("retry")}
             </button>
@@ -278,22 +370,26 @@ export function ClickPayPanel({
               </button>
             </div>
           ) : null}
-          <button type="button" className="ckp__btn" onClick={() => void open()} disabled={!!busy} data-ai-id={`${aiId}.open`}>
-            <ClickMark mono className="ckp__btn-mark" />
-            {busy ? t("opening") : t("open")}
-          </button>
+          {gone ? null : (
+            <button type="button" className="ckp__btn" onClick={() => void open()} disabled={!!busy || resting} data-ai-id={`${aiId}.open`}>
+              <ClickMark mono className="ckp__btn-mark" />
+              {busy ? t("opening") : t("open")}
+            </button>
+          )}
           {waiting && !watch.late ? (
             <p className="ckp__live">
               <i aria-hidden="true" />
-              {t("live")}
+              {opened ? t("liveOpened") : t("live")}
             </p>
           ) : null}
-          <p className="ckp__renew">
-            {t("renewHint")}{" "}
-            <button type="button" className="ckp__link" onClick={() => void open(true)} disabled={!!busy} data-ai-id={`${aiId}.renew`}>
-              {t("renew")}
-            </button>
-          </p>
+          {gone || resting ? null : (
+            <p className="ckp__renew">
+              {t("renewHint")}{" "}
+              <button type="button" className="ckp__link" onClick={() => void open(true)} disabled={!!busy} data-ai-id={`${aiId}.renew`}>
+                {t("renew")}
+              </button>
+            </p>
+          )}
         </>
       )}
 
@@ -305,6 +401,24 @@ export function ClickPayPanel({
             <Link href="/login" className="ckp__link">
               {t("signIn")}
             </Link>
+          ) : null}
+          {resting ? (
+            <span className="ckp__err-acts">
+              <button
+                type="button"
+                className="ckp__link"
+                onClick={() => {
+                  refreshCheckoutProviders();
+                  setErr(null);
+                }}
+                data-ai-id={`${aiId}.try-again`}
+              >
+                {t("tryAgain")}
+              </button>
+              <Link href={supportHref(path)} className="ckp__link" data-ai-id={`${aiId}.support`}>
+                {t("support")}
+              </Link>
+            </span>
           ) : null}
         </div>
       ) : null}

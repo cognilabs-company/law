@@ -7,7 +7,7 @@ import CopilotLauncher from "@/components/copilot/CopilotLauncher";
 import type { SxIcon } from "@/components/admin/studio/sx/types";
 import { fmtUzs } from "@/lib/money";
 import { shortDateTime } from "@/lib/date";
-import { awaitingSeller, type MarketOrder, type MarketPhase } from "@/lib/services/marketplace";
+import { awaitingSeller, clickPaymentDue, type MarketOrder, type MarketPhase } from "@/lib/services/marketplace";
 import type { RuntimeConfig } from "@/lib/services/marketRuntime";
 import { RatingCountdown, useTick } from "../OrderExtras";
 import { deadlineOf } from "./deadline";
@@ -210,6 +210,8 @@ export default function OrderHeader({
   onRefresh: () => void;
 }): ReactElement {
   const accepting = phase === "pending" && awaitingSeller(o);
+  // Waiting for a Click payment, not a Telegram confirmation (Click web contract §7).
+  const clickDue = view === "client" && phase === "pending" && !accepting && clickPaymentDue(o);
   const t = useTranslations("marketplace.orderDetail");
   const te = useTranslations("enums");
   const title = o.serviceTitle || o.packageTitle || "—";
@@ -263,7 +265,7 @@ export default function OrderHeader({
             ) : null}
           </div>
         </div>
-        <p className="mod-head__lead">{replacing ? (view === "client" ? o.clientMessage || t("lead.client.replacing") : t("lead.seller.replacing")) : t(`lead.${view}.${accepting ? "accepting" : phase === "cancelled" && refundState ? refundState : phase}`)}</p>
+        <p className="mod-head__lead">{replacing ? (view === "client" ? o.clientMessage || t("lead.client.replacing") : t("lead.seller.replacing")) : t(`lead.${view}.${accepting ? "accepting" : clickDue ? "pendingClick" : phase === "cancelled" && refundState ? refundState : phase}`)}</p>
       </div>
       {/* The stages, the deadline and the chat lock: one card on the client's
           page (orderDetail1920.css); on the seller's it lays out as before. */}
