@@ -21,6 +21,7 @@ import {
   marketChatHref,
   marketErrorCode,
   phaseOfStatus,
+  listMarketplaceOrders,
   requestMarketplaceMatch,
   requestMarketplacePurchase,
   requestPackagePurchase,
@@ -55,8 +56,19 @@ import ContactAdvocate from "./order/ContactAdvocate";
 import ContactGuardNote, { useContactStrip } from "@/components/ui/ContactGuardNote";
 import { findContacts } from "@/lib/contactGuard";
 import { goToPaymentPage } from "@/lib/services/paymentProviders";
-import { useCheckoutProviders } from "@/lib/useCheckoutProviders";
+import { refreshCheckoutProviders, useCheckoutProviders } from "@/lib/useCheckoutProviders";
 import { ClickMark, ClickPayPanel } from "@/components/payments/ClickPay";
+import { AtmosPayPanel, SUPPORT_HREF } from "@/components/payments/AtmosPay";
+import {
+  ATMOS_ERROR_CODES,
+  ATMOS_LIST_STALE,
+  ATMOS_MAYBE_CREATED,
+  ATMOS_RETRYABLE,
+  ATMOS_SUPPORT,
+  atmosErrorOf,
+  recentPendingOrder,
+  type AtmosError,
+} from "@/lib/services/atmosCheckout";
 
 export type PackagePurchaseTarget = { id: string; purchaseUrl: string; duration: string };
 
@@ -67,7 +79,7 @@ const NOTE_MAX = 1000;
 // advance any more.
 const STEPS = ["request", "pay", "accept", "chat"] as const;
 const STEP_OF: Record<MarketTrackPhase, number> = { pending: 1, accepting: 2, paid: 3, resolution: 2, chat: 3, completed: 4, cancelled: 1 };
-const PROVIDER_ICON = { telegram_manual: IconSend, payme: IconCard, click: IconCard } as const;
+const PROVIDER_ICON = { telegram_manual: IconSend, payme: IconCard, click: IconCard, atmos: IconCard } as const;
 const URGENCY_OF: Record<ContactSpeed, PurchaseUrgency> = { within_15_min: "today", within_1_hour: "today", today: "today", tomorrow: "tomorrow" };
 export const CLIENT_ORDERS_HREF = "/portal/client/marketplace-orders";
 // The order's picture, as the dashboard draws its services (image-catalog.md):
@@ -101,6 +113,7 @@ export default function PurchaseDialog({
   region?: string;
 }) {
   const t = useTranslations("marketplace.purchase");
+  const ta = useTranslations("atmosPay");
   const tm = useTranslations("marketplace");
   const te = useTranslations("enums");
   const router = useRouter();
@@ -115,12 +128,19 @@ export default function PurchaseDialog({
   const [picked, setProvider] = useState<PurchaseProvider | "">("");
   // Only what the backend has switched on, under its own labels.
   const pays = useCheckoutProviders();
-  const offered = PURCHASE_PROVIDERS.filter((pv) => pays.options.some((o) => o.provider === pv));
+  // ATMOS is wired to the service and package purchase only (ATMOS
+  // contract), not to the backend's own seller matching.
+  const offered = PURCHASE_PROVIDERS.filter((pv) => pays.options.some((o) => o.provider === pv) && !(auto && pv === "atmos"));
   const fallback = (PURCHASE_PROVIDERS as readonly string[]).includes(pays.fallback) ? (pays.fallback as PurchaseProvider) : "telegram_manual";
   const provider: PurchaseProvider = picked && offered.includes(picked) ? picked : offered.includes("click") ? "click" : (offered[0] ?? fallback);
   const providerName = (pv: string) => pays.labelOf(pv) || (t.has(`providers.${pv}.name`) ? t(`providers.${pv}.name`) : pv);
   // The chosen online provider cannot take the payment right now.
   const [provErr, setProvErr] = useState("");
+  // ATMOS refused or did not answer: what to say, and whether a retry
+  // (after the duplicate check) or support is offered.
+  const [atmosErr, setAtmosErr] = useState<AtmosError | null>(null);
+  const [guarding, setGuarding] = useState(false);
+  const triedAt = useRef(0);
   const [files, setFiles] = useState<PurchaseAttachment[]>([]);
   const [voices, setVoices] = useState<(PurchaseVoice & { url: string })[]>([]);
   const [attaching, setAttaching] = useState(false);
@@ -141,8 +161,8 @@ export default function PurchaseDialog({
   const formId = useId();
   const alertRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (err || provErr) alertRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [err, provErr]);
+    if (err || provErr || atmosErr) alertRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [err, provErr, atmosErr]);
 
   const key = service ? `${pkg ? "pkg" : "svc"}:${service.id}:${sellerUserId}` : "";
   const [prevKey, setPrevKey] = useState(key);
@@ -154,6 +174,7 @@ export default function PurchaseDialog({
     setSpeed("");
     setProvider("");
     setProvErr("");
+    setAtmosErr(null);
     setFiles([]);
     setVoices([]);
     setErr("");
@@ -209,6 +230,51 @@ export default function PurchaseDialog({
     setDone(null);
     setActive(null);
     setErr("");
+    setAtmosErr(null);
+  }
+
+  // The order a failed or timed-out ATMOS request may already have made
+  // (ATMOS contract: load the client's orders before retrying).
+  async function findCreated(): Promise<ActivePurchase | null> {
+    if (!service) return null;
+    try {
+      const list = await listMarketplaceOrders("client");
+      const o = recentPendingOrder(list, { serviceId: service.id, packageId: pkg?.id, sellerUserId }, triedAt.current || Date.now());
+      return o ? { orderId: o.id, workId: o.workId, status: o.status } : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function atmosFailed(e: unknown) {
+    const ae = atmosErrorOf(e);
+    if (ATMOS_LIST_STALE.includes(ae.key)) {
+      // ATMOS goes from the list; the Telegram way stays on offer.
+      refreshCheckoutProviders();
+      setProvErr("atmos");
+      return;
+    }
+    if (ATMOS_MAYBE_CREATED.includes(ae.key)) {
+      const found = await findCreated();
+      if (found) {
+        setActive(found);
+        return;
+      }
+    }
+    setAtmosErr(ae);
+  }
+
+  async function retryAtmos() {
+    if (busy || guarding) return;
+    setGuarding(true);
+    const found = await findCreated();
+    setGuarding(false);
+    if (found) {
+      setAtmosErr(null);
+      setActive(found);
+      return;
+    }
+    void submit("atmos");
   }
 
   async function submit(via: PurchaseProvider = provider) {
@@ -221,6 +287,8 @@ export default function PurchaseDialog({
     setBusy(true);
     setErr("");
     setProvErr("");
+    setAtmosErr(null);
+    if (via === "atmos" && !triedAt.current) triedAt.current = Date.now();
     try {
       const input = { paymentProvider: via, note, preferredChannel: channel, contactSpeed: speed, preferredTime: speed ? t(`speeds.${speed}`) : "", selectedOptionIds: price.ids, urgency: speed ? URGENCY_OF[speed] : ("" as const), attachments: files, voiceMessages: voices.map(({ fileId, seconds }) => ({ fileId, seconds })), region };
       const r = auto
@@ -240,6 +308,8 @@ export default function PurchaseDialog({
       } else if (e instanceof ApiError && e.status === 401) {
         setReturnTo(returnPath);
         router.push("/login");
+      } else if (via === "atmos" && (ATMOS_ERROR_CODES.includes(marketErrorCode(e)) || !(e instanceof ApiError) || e.status === 0 || e.status >= 500 || marketErrorCode(e) === "payment_not_payable")) {
+        await atmosFailed(e);
       } else if (PAYMENT_PROVIDER_ERRORS.includes(marketErrorCode(e)) && via !== fallback) {
         // §5: a controlled message and the Telegram way instead of a dead end.
         setProvErr(via);
@@ -280,13 +350,15 @@ export default function PurchaseDialog({
   const chatHref = track?.roomId && tracked ? marketChatHref({ roomId: track.roomId, workId: tracked.workId, serviceTitle: service.title }) : "";
 
   const paidVia = (done?.payment?.provider || provider) as string;
-  const online = paidVia === "payme" || paidVia === "click";
+  const online = paidVia === "payme" || paidVia === "click" || paidVia === "atmos";
   const payUrl = done?.payment?.url && online && done.payment.status !== "paid" ? done.payment.url : "";
   const paidSure = !!track?.paid || done?.payment?.status === "paid";
   // Click (integration §4): the payment is approved in Click Up and watched
   // here; the order moves on only when the backend says it is paid.
   const clickPay = paidVia === "click" && done?.payment && (phase === "pending" || phase === "accepting" || phase === "paid" || phase === "chat") ? done.payment : null;
-  const clickPending = !!clickPay && phase === "pending";
+  // ATMOS (its contract): the same, watched through the order itself.
+  const atmosPay = paidVia === "atmos" && done?.payment && done.orderId && (phase === "pending" || phase === "accepting" || phase === "paid" || phase === "chat") ? done.payment : null;
+  const clickPending = (!!clickPay || !!atmosPay) && phase === "pending";
   const titles: Record<MarketTrackPhase, string> = {
     accepting: isActive ? t("active") : paidSure ? t("acceptTitle") : t("sentTitle"),
     pending: isActive ? t("active") : t("payTitle"),
@@ -532,6 +604,17 @@ export default function PurchaseDialog({
                 aiId="marketplace.purchase.click"
               />
             ) : null}
+            {atmosPay && done ? (
+              <AtmosPayPanel
+                key={atmosPay.id}
+                orderId={done.orderId}
+                payment={atmosPay}
+                title={service.title}
+                compactPaid={phase !== "pending"}
+                onSettled={() => track?.recheck()}
+                aiId="marketplace.purchase.atmos"
+              />
+            ) : null}
             <div className="mk-buy__acts">{actions}</div>
           </div>
         ) : (
@@ -627,6 +710,7 @@ export default function PurchaseDialog({
                       onClick={() => {
                         setProvider(pv);
                         setProvErr("");
+                        setAtmosErr(null);
                       }}
                       data-ai-id={`marketplace.purchase.provider.${pv}`}
                     >
@@ -667,6 +751,25 @@ export default function PurchaseDialog({
                   <IconSend />
                   {t("providerUseTelegram")}
                 </button>
+              </div>
+            ) : null}
+            {atmosErr && !refused ? (
+              <div className="mk-pay__fallback" role="alert" data-ai-id="marketplace.purchase.atmos-error">
+                <IconAlert aria-hidden="true" />
+                <span>
+                  <b>{atmosErr.key === "rejected" && atmosErr.message ? `${ta("errors.rejected")} ${atmosErr.message}` : ta(`errors.${atmosErr.key}`)}</b>
+                </span>
+                {ATMOS_RETRYABLE.includes(atmosErr.key) ? (
+                  <button type="button" className="btn btn--grad btn--sm" disabled={busy || guarding} onClick={() => void retryAtmos()} data-ai-id="marketplace.purchase.atmos-retry">
+                    <IconRefresh />
+                    {guarding ? ta("checking") : ta("retry")}
+                  </button>
+                ) : null}
+                {ATMOS_SUPPORT.includes(atmosErr.key) ? (
+                  <Link href={SUPPORT_HREF} className="btn btn--line btn--sm" data-ai-id="marketplace.purchase.atmos-support">
+                    {ta("support")}
+                  </Link>
+                ) : null}
               </div>
             ) : null}
             {err ? <Notice ok={false} msg={err} /> : null}

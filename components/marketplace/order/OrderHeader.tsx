@@ -263,7 +263,7 @@ export default function OrderHeader({
             ) : null}
           </div>
         </div>
-        <p className="mod-head__lead">{replacing ? (view === "client" ? o.clientMessage || t("lead.client.replacing") : t("lead.seller.replacing")) : t(`lead.${view}.${accepting ? "accepting" : phase === "cancelled" && refundState ? refundState : phase}`)}</p>
+        <p className="mod-head__lead">{replacing ? (view === "client" ? o.clientMessage || t("lead.client.replacing") : t("lead.seller.replacing")) : t(`lead.${view}.${accepting ? "accepting" : phase === "cancelled" && refundState ? refundState : phase === "pending" && view === "client" && o.payment?.provider === "atmos" && o.paymentStatus !== "paid" ? "pendingAtmos" : phase}`)}</p>
       </div>
       {/* The stages, the deadline and the chat lock: one card on the client's
           page (orderDetail1920.css); on the seller's it lays out as before. */}
