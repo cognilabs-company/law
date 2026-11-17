@@ -62,7 +62,7 @@ const NOTE_MAX = 1000;
 const STEPS = ["request", "pay", "accept", "chat"] as const;
 const STEP_OF: Record<MarketTrackPhase, number> = { pending: 1, accepting: 2, paid: 3, resolution: 2, chat: 3, completed: 4, cancelled: 1 };
 const URGENCY_OF: Record<ContactSpeed, PurchaseUrgency> = { within_15_min: "today", within_1_hour: "today", today: "today", tomorrow: "tomorrow" };
-const PROVIDER_ICON = { telegram_manual: IconSend, payme: IconCard, click: IconCard } as const;
+const PROVIDER_ICON = { telegram_manual: IconSend, payme: IconCard, click: IconCard, atmos: IconCard } as const;
 
 type Props = {
   sellerUserId: string;
