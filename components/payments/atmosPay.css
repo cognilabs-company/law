@@ -1,0 +1,24 @@
+/* ATMOS checkout panel (components/payments/AtmosPay.tsx).
+   The Click panel's card (clickPay.css) in the cabinet's own blue: ATMOS has
+   no logo supplied here, so its name is written, never drawn. */
+.ckp--atmos{
+  --click-blue:var(--b600,#1668F0); --click-blue-h:var(--b700,#154CB0); --click-blue-a:var(--b700,#154CB0);
+  --click-tint:color-mix(in srgb,var(--b600,#1668F0) 9%,var(--dk-surface,#fff));
+}
+.ckp--atmos .ckp__btn{ background:var(--grad,var(--click-blue)); box-shadow:var(--sblue,0 10px 24px -12px rgba(22,104,240,.55)); }
+.ckp--atmos .ckp__btn:hover{ background:var(--click-blue-h); }
+.ckp--atmos .ckp__btn:disabled{ background:var(--dk-surface-2,#EEF2F7); color:var(--click-gray); box-shadow:none; cursor:not-allowed; }
+.ckp--atmos .ckp__btn svg{ width:20px; height:20px; }
+
+.atp-mark{ display:inline-flex; align-items:center; gap:8px; min-width:0; color:var(--click-ink); }
+.atp-mark svg{ width:22px; height:22px; flex:none; color:var(--click-blue); }
+.atp-mark b{ font:800 1.15rem/1 var(--fd); letter-spacing:.06em; overflow-wrap:anywhere; }
+
+.atp-note,.atp-off{ margin:0; padding:12px 14px; border-radius:14px; font-size:.92rem; line-height:1.45; overflow-wrap:anywhere; }
+.atp-note{ background:var(--click-tint); color:var(--click-ink); }
+.atp-off{ background:var(--dk-surface-2,#EEF2F7); color:var(--click-gray); }
+.atp-clock{ white-space:normal; text-align:center; }
+.atp-clock svg{ width:16px; height:16px; flex:none; }
+
+/* A payment option card in the purchase forms showing ATMOS. */
+.atp-opt-mark{ width:22px; height:22px; }
