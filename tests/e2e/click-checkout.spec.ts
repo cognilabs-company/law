@@ -125,13 +125,14 @@ test("marketplace: Click by default, the opaque link in a new tab, paid only whe
   state.order = sentToSeller();
   await mock.push({ event: "marketplace.full_payment_paid", order_id: ORDER_ID, payment_id: "pay-1", assignment_status: "waiting_seller_response", acceptance_deadline_at: deadline() });
   await expect(dialog.locator(".ckp--slim")).toBeVisible({ timeout: 15_000 });
-  await expect(dialog.locator(".ckp--slim").getByRole("status")).toHaveText("To'landi");
+  // Click web contract 2026-11-17 §7: "Payment confirmed".
+  await expect(dialog.locator(".ckp--slim").getByRole("status")).toHaveText("To'lov tasdiqlandi");
   await expect(dialog.locator(".mk-steps li[aria-current=step]")).toHaveText(/Mutaxassis qabuli/, { timeout: 15_000 });
   await expect(dialog.getByRole("button", { name: "Chekni yuklab olish" })).toBeVisible();
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/click-paid${sfx}.png` });
 });
 
-test("marketplace: a duplicate active order leads to that order (§14)", async ({ page }) => {
+test("marketplace: a duplicate active order goes straight to that order (§14; web contract 2026-11-17 §8)", async ({ page }) => {
   const state: State = { order: unpaid(), pay: "pending", placed: false };
   await mockBackend(
     page,
@@ -145,7 +146,7 @@ test("marketplace: a duplicate active order leads to that order (§14)", async (
   );
   const dialog = await openDialog(page);
   await dialog.getByRole("button", { name: "Sotib olish" }).click();
-  await expect(dialog.getByRole("link", { name: /buyurtma/i }).first()).toHaveAttribute("href", new RegExp(`/portal/client/marketplace-orders/${ORDER_ID}$`));
+  await page.waitForURL(new RegExp(`/portal/client/marketplace-orders/${ORDER_ID}$`));
 });
 
 test("Click switched off: it is not offered at all (§1)", async ({ page }) => {

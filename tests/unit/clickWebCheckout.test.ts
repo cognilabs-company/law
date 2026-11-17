@@ -8,7 +8,7 @@ vi.mock("@/lib/http", async (orig) => ({ ...(await orig<typeof import("@/lib/htt
 
 import { ApiError } from "@/lib/http";
 import { CHECKOUT_TTL_MS, checkoutLinkUsable, clickErrorOf, eventOrderId, eventPaymentId, orderPaymentInfoOf } from "@/lib/services/clickCheckout";
-import { clickPaymentDue, findLostMarketPurchase, normMarketOrder } from "@/lib/services/marketplace";
+import { clickPaymentDue, findLostMarketPurchase, normMarketOrder, purchaseAnswerLost } from "@/lib/services/marketplace";
 
 const ORDER = "order-1";
 const err = (status: number, code: string) => new ApiError(status, code, undefined, { code, data: { detail: { code } } });
@@ -99,6 +99,13 @@ describe("a purchase lost on the way (§8)", () => {
     http.mockResolvedValue({ items: [row({ id: "o-other", service_id: "svc-2" }), row({ id: "o-1", work_id: "ADV-1" })], count: 2 });
     await expect(findLostMarketPurchase({ serviceId: "svc-1", sellerUserId: "u-adv", since })).resolves.toEqual({ orderId: "o-1", workId: "ADV-1", status: "pending_payment" });
     expect(http.mock.calls[0][0]).toMatch(/^\/marketplace\/me\/orders\?role_view=client/);
+  });
+  it("is only a request with no answer: the network dropped or the gateway gave up", () => {
+    expect(purchaseAnswerLost(new ApiError(0, "network_error"))).toBe(true);
+    expect(purchaseAnswerLost(new ApiError(504, "Gateway Timeout"))).toBe(true);
+    expect(purchaseAnswerLost(new ApiError(0, "aborted"))).toBe(false);
+    expect(purchaseAnswerLost(err(409, "marketplace_order_already_active"))).toBe(false);
+    expect(purchaseAnswerLost(new ApiError(500, "Internal error"))).toBe(false);
   });
   it("leaves closed, other sellers' and old orders alone", async () => {
     http.mockResolvedValue({ items: [row({ status: "cancelled" }), row({ lawyer_user_id: "u-other" }), row({ created_at: "2026-11-16T10:00:00Z" })] });
