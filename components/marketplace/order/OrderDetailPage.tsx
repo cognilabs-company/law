@@ -156,7 +156,8 @@ function Sections({ d, o, phase, view, aiBase, listHref, preview, payouts }: { d
         />
       ) : null,
       <NegotiationPanel key="negotiation" {...section} />,
-      client ? (
+      // The Telegram note is not true of an ATMOS payment.
+      client && !atmos ? (
         <SxNote key="wait" tone="info">
           {to("waitNote")}
         </SxNote>

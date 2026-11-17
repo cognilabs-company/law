@@ -210,6 +210,9 @@ test("order page after a refresh: the unpaid ATMOS order renews its checkout and
   const panel = page.locator(".ckp--atmos");
   await expect(panel).toContainText("1 000");
   await expect(panel.getByRole("status").first()).toHaveText("To'lov kutilmoqda");
+  // The page speaks of ATMOS, not of a Telegram confirmation.
+  await expect(page.locator(".mod-head__lead")).toContainText("ATMOS");
+  await expect(page.locator(".mod-head__lead")).not.toContainText("Telegram");
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/atmos-order-page${sfx}.png` });
   // No link kept anywhere: the backend gives a fresh one.
   const [tab] = await Promise.all([context.waitForEvent("page"), panel.getByRole("button", { name: "ATMOS orqali to'lash" }).click()]);

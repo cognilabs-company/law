@@ -22,3 +22,9 @@
 
 /* A payment option card in the purchase forms showing ATMOS. */
 .atp-opt-mark{ width:22px; height:22px; }
+
+/* The narrowest phones: the button's words keep to one line. */
+@media (max-width:360px){
+  .ckp--atmos .ckp__btn{ padding:12px 14px; font-size:.95rem; }
+  .ckp--atmos .ckp__btn svg{ display:none; }
+}
