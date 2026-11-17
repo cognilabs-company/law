@@ -35,6 +35,7 @@ import OrderHeader from "./OrderHeader";
 import SecondOpinion from "./SecondOpinion";
 import StartWork from "./StartWork";
 import StayInLexGo from "./StayInLexGo";
+import { AtmosPayPanel } from "@/components/payments/AtmosPay";
 import { ArrowLeftIcon, RefreshCwIcon, ClipboardListIcon, SearchIcon, SxIconScope, CircleAlertIcon, artStyle } from "./icons";
 import { SECTION_ID, orderAiBase, type OrderSectionProps, type OrderView } from "./types";
 import { useOrderDetail, type OrderDetail } from "./useOrderDetail";
@@ -140,7 +141,20 @@ function Sections({ d, o, phase, view, aiBase, listHref, preview, payouts }: { d
       documents,
     ];
   } else if (phase === "pending") {
+    // An order bought with ATMOS and not paid yet: pay, reopen or renew the
+    // checkout right here, after a refresh or a new sign-in too.
+    const atmos = client && !preview && o.payment && o.payment.provider === "atmos" && o.paymentStatus !== "paid" ? o.payment : null;
     parts = [
+      atmos ? (
+        <AtmosPayPanel
+          key={`atmos-${atmos.id}`}
+          orderId={o.id}
+          payment={{ id: atmos.id, amount: atmos.amount, currency: atmos.currency }}
+          title={o.serviceTitle || o.packageTitle}
+          onSettled={() => d.refresh("order")}
+          aiId={`${aiBase}.atmos`}
+        />
+      ) : null,
       <NegotiationPanel key="negotiation" {...section} />,
       client ? (
         <SxNote key="wait" tone="info">

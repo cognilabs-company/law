@@ -12,6 +12,7 @@ import {
   PRICE_OPTION_ERRORS,
   CONTACT_SPEEDS,
   activePurchaseOf,
+  listMarketplaceOrders,
   marketChatHref,
   marketErrorCode,
   phaseOfStatus,
@@ -45,7 +46,9 @@ import { Banner, Btn, Check, Dialog, Field, Input, Seg, Spinner, TextArea } from
 import type { NativeProps } from "../../native";
 import { useGuardedField } from "@/components/ui/ContactGuardNote";
 import { goToPaymentPage } from "@/lib/services/paymentProviders";
-import { useCheckoutProviders } from "@/lib/useCheckoutProviders";
+import { refreshCheckoutProviders, useCheckoutProviders } from "@/lib/useCheckoutProviders";
+import { AtmosPayPanel } from "@/components/payments/AtmosPay";
+import { ATMOS_ERROR_CODES, ATMOS_LIST_STALE, ATMOS_MAYBE_CREATED, atmosErrorOf, recentPendingOrder } from "@/lib/services/atmosCheckout";
 
 // Ordering a service as a desktop sheet — the Mac's sheet that drops from
 // the toolbar, Windows' content dialog: the three steps on top, the
@@ -84,6 +87,7 @@ export default function PurchaseSheet(props: Props) {
 
 function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onStale, onBack, region }: Props) {
   const t = useTranslations("marketplace.purchase");
+  const ta = useTranslations("atmosPay");
   const tm = useTranslations("marketplace");
   const te = useTranslations("enums");
   const marketErr = useMarketError();
@@ -142,6 +146,7 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
     setBusy(true);
     setErr("");
     setProvErr("");
+    const sentAt = Date.now();
     try {
       const input = { paymentProvider: via, note, preferredChannel: channel, preferredTime: time, contactSpeed: speed, selectedOptionIds: price.ids, urgency: speed ? URGENCY_OF[speed] : ("" as const), attachments: files, voiceMessages: voices.map(({ fileId, seconds }) => ({ fileId, seconds })), region };
       const r = pkg ? await requestPackagePurchase(pkg.purchaseUrl, input, { packageId: pkg.id, lawyerUserId: sellerUserId }) : await requestMarketplacePurchase(sellerUserId, service.id, input);
@@ -151,7 +156,20 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
       const act = activePurchaseOf(e);
       const code = marketErrorCode(e);
       if (act) setActive(act);
-      else if (PAYMENT_PROVIDER_ERRORS.includes(code) && via !== fallback) setProvErr(via);
+      else if (via === "atmos" && (ATMOS_ERROR_CODES.includes(code) || !(e instanceof ApiError) || e.status === 0 || e.status >= 500)) {
+        // ATMOS contract: a provider that is off leaves the list; an order
+        // the request may have made is found before anything is resent.
+        const ae = atmosErrorOf(e);
+        if (ATMOS_LIST_STALE.includes(ae.key)) {
+          refreshCheckoutProviders();
+          setProvErr(via);
+        } else {
+          const list = ATMOS_MAYBE_CREATED.includes(ae.key) ? await listMarketplaceOrders("client").catch(() => []) : [];
+          const o = recentPendingOrder(list, { serviceId: service.id, packageId: pkg?.id, sellerUserId }, sentAt);
+          if (o) setActive({ orderId: o.id, workId: o.workId, status: o.status });
+          else setErr(ae.key === "rejected" && ae.message ? `${ta("errors.rejected")} ${ae.message}` : ta(`errors.${ae.key}`));
+        }
+      } else if (PAYMENT_PROVIDER_ERRORS.includes(code) && via !== fallback) setProvErr(via);
       else if (code) {
         setErr(marketErr(e, t("error")));
         if (PRICE_OPTION_ERRORS.includes(code)) setOptReload((n) => n + 1);
@@ -171,7 +189,9 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
   }
 
   const paidVia = (done?.payment?.provider || provider) as string;
-  const online = paidVia === "payme" || paidVia === "click";
+  const online = paidVia === "payme" || paidVia === "click" || paidVia === "atmos";
+  // ATMOS: paid in its own panel, watched through the order (ATMOS contract).
+  const atmosPay = paidVia === "atmos" && done?.payment && done.orderId && (phase === "pending" || phase === "accepting" || phase === "paid" || phase === "chat") ? done.payment : null;
   const payUrl = done?.payment?.url && online && done.payment.status !== "paid" ? done.payment.url : "";
   const paidSure = !!track?.paid || done?.payment?.status === "paid";
   const titles: Record<MarketTrackPhase, string> = {
@@ -229,6 +249,8 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
         ? [close, <Btn key="retry" kind="primary" icon={<IconSend />} onClick={() => (setDone(null), setActive(null), setErr(""))}>{t("retry")}</Btn>]
         : ended
           ? [toOrders(true)]
+          : phase === "pending" && atmosPay
+            ? [close, toOrders(true)]
           : phase === "pending" && payUrl && done?.payment
             ? [toOrders(false), <Btn key="pay" kind="primary" icon={<IconExternal />} onClick={() => goToPaymentPage(payUrl, done.payment?.id, done.payment?.amount)}>{t("payProceed", { provider: providerName(paidVia) })}</Btn>]
             : phase === "pending" && slow
@@ -279,6 +301,7 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
       ) : null}
 
       {phase ? (
+        <>
         <div className={`dxcp-receipt is-${phase}`} role="status">
           <span className="dxcp-stamp" aria-hidden>
             {phase === "pending" || phase === "accepting" || phase === "resolution" ? <IconHourglass /> : phase === "cancelled" ? <IconClose /> : <IconCheck />}
@@ -301,6 +324,10 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
             </Banner>
           ) : null}
         </div>
+        {atmosPay && done ? (
+          <AtmosPayPanel key={atmosPay.id} orderId={done.orderId} payment={atmosPay} title={service.title} compactPaid={phase !== "pending"} onSettled={() => track?.recheck()} aiId="desk.purchase.atmos" />
+        ) : null}
+        </>
       ) : (
         <>
           <Options m={opts} />
