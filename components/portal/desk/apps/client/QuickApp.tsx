@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
-  cancelUrgentRequest,
+  cancelMyUrgentRequest,
+  urgentCancelRefusal,
   createUrgentRequest,
   getUrgentCatalog,
   isMissingRoute,
@@ -763,11 +764,14 @@ function Detail({ req, openLink, onCancelled, onError }: { req: UrgentRequest; o
     if (busy || !once()) return;
     setBusy("cancel");
     try {
-      await cancelUrgentRequest(req.id, reason.trim() || t("cancelDefaultReason"));
+      await cancelMyUrgentRequest(req.id, reason.trim() || t("cancelDefaultReason"));
       onCancelled(t("cancelledTitle"));
     } catch (e) {
       logApiError("urgent cancel", e);
-      onError(t("cancelError"));
+      const no = urgentCancelRefusal(e);
+      if (no?.kind === "tooLate") onCancelled(t("cancelTooLate", { status: statusLabel(tc, no.status || req.status) }));
+      else if (no?.kind === "notFound") onCancelled(t("cancelNotFound"));
+      else onError(no?.kind === "forbidden" ? t("cancelForbidden") : t("cancelError"));
     } finally {
       setBusy("");
     }

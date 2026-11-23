@@ -449,7 +449,10 @@ export default function DocumentEditorWorkspace({
 
   // ── Save status (MD2 top bar: Saqlanmoqda… / Saqlangan / Saqlashda xatolik)
   const [saveState, setSaveState] = useState<SaveState>("");
-  const [savedAt, setSavedAt] = useState("");
+  const [liveSavedAt, setSavedAt] = useState("");
+  // Until a save happens on this screen, the editor's own last_saved_at says
+  // when the draft was last saved (BACKEND_FIXES_LIVE_2026-11-23).
+  const savedAt = liveSavedAt || editor?.lastSavedAt || "";
 
   // Realtime. Only claim/finalize refetch the record; `editor_saved` must
   // NOT — it fires on every OnlyOffice autosave (seconds apart while this

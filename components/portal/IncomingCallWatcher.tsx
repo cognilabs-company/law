@@ -246,7 +246,9 @@ export default function IncomingCallWatcher() {
       if (document.visibilityState === "hidden" || inMeetRef.current) return;
       try {
         const invited = await listInvitedCalls();
-        const inv = invited.find((c) => c.callStatus === "active" && c.status === "invited" && !dismissed.current.has(c.callId));
+        // A row whose 60-second ring is over (`ringing` false) is never rung
+        // again: re-ringing it on every poll was a phone that never stopped.
+        const inv = invited.find((c) => c.callStatus === "active" && c.status === "invited" && c.ringing && !dismissed.current.has(c.callId));
         if (!alive || !inv) return;
         if (incRef.current && incRef.current.callId === inv.callId) return;
         const kind = await inviteKind(inv.roomId, inv.callId);

@@ -175,6 +175,21 @@ html[data-theme="dark"] .portal.lx .sos2__call.sosi-hot{background:#0B1830;box-s
 .sosi-hot__t > span{font-size:.8rem;color:#C9D4E3}
 .portal.lx .sosi-hot__t b{font-family:var(--fd);font-size:1.15rem;font-weight:700;color:#fff;white-space:nowrap}
 
+/* an open SOS (GET /sos/me): its facts as the duty row's chip box, and the
+   cancel that asks once more */
+.portal.lx .sosi-facts{
+  display:grid;width:100%;max-width:380px;margin:8px 0 0;padding:4px 16px;border-radius:16px;background:var(--lx-chip);text-align:left;
+}
+.portal.lx .sosi-facts > div{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--lx-line);min-width:0}
+.portal.lx .sosi-facts > div:first-child{border-top:0}
+.portal.lx .sosi-facts dt{flex:none;font-size:.84rem;color:var(--lx-gray)}
+.portal.lx .sosi-facts dd{margin:0;min-width:0;font-size:.92rem;font-weight:600;color:var(--lx-ink);text-align:right;overflow-wrap:anywhere}
+.portal.lx .sosi-facts__st{display:inline-block;padding:3px 10px;border-radius:999px;background:var(--lx-blue-tint);color:var(--lx-link);font-size:.82rem;font-weight:600}
+.portal.lx .btn.sosi-cancel__go{color:var(--lx-gray)}
+.portal.lx .sosi-cancel{display:grid;justify-items:center;gap:10px;width:100%;max-width:380px;margin-top:10px;padding:14px 16px;border-radius:16px;border:1px solid var(--lx-line)}
+.portal.lx .sosi-cancel__q{font-size:.95rem;font-weight:600;color:var(--lx-ink)}
+.portal.lx .sosi-cancel__row{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+
 @container sosi (max-width:900px){
   .portal.lx .sos2__grid.sosi-grid{grid-template-columns:minmax(0,1fr)}
 }

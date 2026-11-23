@@ -7,6 +7,7 @@ import {
   listAssignedUrgentRequests,
   listMyUrgentRequests,
   mergeSecureRoom,
+  messageSenderId,
   normSecureRoom,
   type SecureRoom,
   type UrgentRequest,
@@ -117,7 +118,7 @@ export function noteRoomMessage(roomId: string, message: Raw, room?: Raw | null)
     : { id: roomId, updated_at: message.created_at, last_message_at: message.created_at, last_message: message };
   const next = cur ? mergeSecureRoom(cur, patch) : normSecureRoom(patch);
   if (!next.id) return;
-  const sender = String(message.sender_user_id ?? message.sender_id ?? "");
+  const sender = messageSenderId(message);
   const isMine = (!!me && sender === me) || message.is_mine === true;
   const id = String(message.id ?? "");
   let updated = next;
@@ -179,7 +180,9 @@ function start() {
     if (e.event !== "secure_chat.message_created") return;
     const msg = dict(d.message);
     const room = dict(d.room);
-    if (msg || room) noteRoomMessage(roomId, msg ?? {}, room);
+    // The frame's sender travels with the message when the message lacks it.
+    const sender = messageSenderId(msg ?? {}, d);
+    if (msg || room) noteRoomMessage(roomId, { ...(msg ?? {}), ...(sender && !msg?.sender_user_id ? { sender_user_id: sender } : {}) }, room);
   });
   const offSync = onUserSocketResync(() => scheduleReload(0));
   offEvents = () => {

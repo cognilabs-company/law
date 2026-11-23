@@ -37,6 +37,7 @@ import {
   requestCallRecording,
   setCallRecordingPermission,
   startCallRecordingServer,
+  stopCallRecordingServer,
   freeExtendCall,
   requestCallExtensionPayment,
   pauseCall,
@@ -1925,6 +1926,9 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     setRecOn(false);
     playRecTone(false);
     r.localParticipant.publishData(enc({ t: "rec", on: false, at: stamp() }), { reliable: true }).catch(() => {});
+    // The server's recording state ends with the capture (best-effort, as
+    // the start above).
+    stopCallRecordingServer(roomId, callId).catch(() => {});
     const file = rec ? await rec.stop() : null;
     if (file) {
       setRecFile(file);

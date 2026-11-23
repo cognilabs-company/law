@@ -380,8 +380,19 @@ export async function loginVerify2fa(verificationId: string, code: string): Prom
 export async function forgotPassword(phone: string): Promise<OtpChallenge> {
   return normOtp(await http("/auth/password/forgot", { method: "POST", body: JSON.stringify({ phone }) }));
 }
-export async function resetPassword(verificationId: string, code: string, password: string): Promise<void> {
-  await http("/auth/password/reset", { method: "POST", body: JSON.stringify({ verification_id: verificationId, code, password }) });
+// BACKEND_FIXES_LIVE_2026-11-23: the code is checked on its own first
+// (without being used up) and traded for a reset token that lasts 10 min;
+// the new password is then set with that token. The old {code} body still
+// works and is what `proof.code` sends.
+export type ResetProof = { code: string } | { resetToken: string };
+export async function resetPassword(verificationId: string, proof: ResetProof, password: string): Promise<void> {
+  const body = "resetToken" in proof ? { verification_id: verificationId, reset_token: proof.resetToken, password } : { verification_id: verificationId, code: proof.code, password };
+  await http("/auth/password/reset", { method: "POST", body: JSON.stringify(body) });
+}
+export type ResetCodeCheck = { valid: boolean; resetToken: string; expiresAt: string };
+export async function verifyPasswordResetCode(verificationId: string, code: string): Promise<ResetCodeCheck> {
+  const d = asDict(await http("/auth/password/verify", { method: "POST", body: JSON.stringify({ verification_id: verificationId, code }) }));
+  return { valid: d.valid === true, resetToken: asStr(d.reset_token), expiresAt: asStr(d.expires_at) };
 }
 
 // ── OTP delivery channel (per user) ───────────────────────────────
@@ -2518,6 +2529,10 @@ export type DocumentRequestEditorSession = {
   editorFileDownloadUrl: string;
   draftUrl: string;
   finalizeUrl: string;
+  // BACKEND_FIXES_LIVE_2026-11-23: the saved draft and when it was last
+  // saved ("" when never), so a reopened editor knows its own state.
+  draft: { contentHtml: string; contentText: string; documentJson: unknown; savedAt: string } | null;
+  lastSavedAt: string;
 };
 function normEditorSession(v: unknown, fallbackRecordId = ""): DocumentRequestEditorSession {
   const d = asDict(v);
@@ -2544,6 +2559,13 @@ function normEditorSession(v: unknown, fallbackRecordId = ""): DocumentRequestEd
     editorFileDownloadUrl: asStr(file.download_url) || (base ? `${base}/file` : ""),
     draftUrl: asStr(d.draft_url) || (base ? `${base}/draft` : ""),
     finalizeUrl: asStr(d.finalize_url) || (base ? `${base}/finalize` : ""),
+    draft: d.draft && typeof d.draft === "object"
+      ? (() => {
+          const x = asDict(d.draft);
+          return { contentHtml: asStr(x.content_html), contentText: asStr(x.content_text), documentJson: x.document_json ?? null, savedAt: asStr(x.saved_at) };
+        })()
+      : null,
+    lastSavedAt: asStr(d.last_saved_at ?? asDict(d.draft).saved_at),
   };
 }
 export async function getDocumentRequestEditor(editorUrl: string): Promise<DocumentRequestEditorSession> {
@@ -2947,11 +2969,13 @@ export async function createDocumentRequest(input: {
   title: string;
   questionnaire?: TemplateQuestion[];
   answers?: Record<string, unknown>;
-  price?: number; // whole so'm (legacy UZS)
+  price?: number; // ignored: always sent as 0
   currency?: string;
 }): Promise<DocumentRequest> {
+  // BACKEND_FIXES_LIVE_2026-11-23: the server ignores a client price and
+  // charges its own; 0 is sent so nothing computed here looks authoritative.
   return normDocRequest(
-    await http("/document-requests", { method: "POST", body: JSON.stringify({ currency: "UZS", ...input }) }),
+    await http("/document-requests", { method: "POST", body: JSON.stringify({ currency: "UZS", ...input, price: 0 }) }),
   );
 }
 export async function updateDocumentAnswers(
@@ -2962,15 +2986,16 @@ export async function updateDocumentAnswers(
     await http(`/document-requests/${requestId}/answers`, { method: "PUT", body: JSON.stringify({ answers }) }),
   );
 }
-export async function payDocumentRequest(
-  requestId: string,
-  provider: "payme" | "click",
-  amount: number, // whole so'm, as read by normDocRequest (legacy UZS, not tiyin)
-): Promise<DocumentRequest> {
+// BACKEND_FIXES_LIVE_2026-11-23: a document is paid with Click or ATMOS only
+// ("" lets the backend pick its default); anything else is a 422
+// payment_provider_not_allowed. The amount is always 0 — the server charges
+// the stored price.
+export type DocPayProvider = "" | "click" | "atmos";
+export async function payDocumentRequest(requestId: string, provider: DocPayProvider = ""): Promise<DocumentRequest> {
   return normDocRequest(
-    await http(`/document-requests/${requestId}/payments`, {
+    await http(`/document-requests/${encodeURIComponent(requestId)}/payments`, {
       method: "POST",
-      body: JSON.stringify({ provider, amount: Math.round(amount), currency: "UZS", provider_payload: {} }),
+      body: JSON.stringify({ provider, amount: 0, currency: "UZS", provider_payload: {} }),
     }),
   );
 }
@@ -4478,7 +4503,21 @@ export type SellerCabinet = {
   verification: { status: string; verified: boolean };
   stats: SellerStats;
   newOrders: BackendOrder[];
+  // BACKEND_FIXES_LIVE_2026-11-23: the seller's own "taking new orders"
+  // switch (null when the backend does not send it) and the count of
+  // sent_to_seller orders whose answer deadline is still ahead.
+  acceptingOrders: boolean | null;
+  newOrdersCount: number | null;
 };
+// `accepting_orders` and `new_orders_count` as the cabinet sends them.
+export function cabinetOrderFlags(d: Dict): { acceptingOrders: boolean | null; newOrdersCount: number | null } {
+  const a = d.accepting_orders;
+  const n = d.new_orders_count;
+  return {
+    acceptingOrders: typeof a === "boolean" ? a : typeof asDict(a).enabled === "boolean" ? (asDict(a).enabled as boolean) : null,
+    newOrdersCount: n == null || n === "" ? null : asNum(n),
+  };
+}
 export async function getSellerCabinet(): Promise<SellerCabinet> {
   const d = asDict(await http("/lawyers/me/cabinet"));
   const limitedAccess = Boolean(d.limited_access);
@@ -4500,13 +4539,40 @@ export async function getSellerCabinet(): Promise<SellerCabinet> {
     },
     stats: normStats(d.stats),
     newOrders: listFrom(d.new_orders, "orders", "items", "data").map(normOrder),
+    ...cabinetOrderFlags(d),
   };
+}
+// GET / PUT /lawyers/me/accepting-orders {enabled}. While it is off the seller
+// gets no new auto-assigned orders and no urgent requests, and the cabinet's
+// available_actions.accept_orders turns false with it.
+export async function getAcceptingOrders(): Promise<boolean> {
+  return asDict(await http("/lawyers/me/accepting-orders")).enabled !== false;
+}
+export async function setAcceptingOrders(enabled: boolean): Promise<boolean> {
+  const d = asDict(await http("/lawyers/me/accepting-orders", { method: "PUT", body: JSON.stringify({ enabled }) }));
+  return typeof d.enabled === "boolean" ? d.enabled : enabled;
 }
 
 // Seller onboarding checklist (GET /seller-onboarding/progress), the same shape
 // for advocates and lawyers: profile, identity, documents, services, pricing.
 export type OnboardingStep = { key: string; title: string; required: boolean; completed: boolean };
-export type OnboardingProgress = { status: string; completedCount: number; totalCount: number; steps: OnboardingStep[] };
+// BACKEND_FIXES_LIVE_2026-11-23: reviewStatus is "none" before the first
+// submit, then "submitted" / … as the moderator works on it.
+export type OnboardingProgress = {
+  status: string;
+  completedCount: number;
+  totalCount: number;
+  steps: OnboardingStep[];
+  reviewStatus: string;
+  reviewSubmissionId: string;
+  verificationStatus: string;
+};
+// Sent and not yet answered (or already approved): nothing to send again.
+const REVIEW_OPEN = new Set(["submitted", "pending", "in_review", "under_review", "reviewing", "approved", "accepted", "verified"]);
+export const reviewInFlight = (s: string): boolean => REVIEW_OPEN.has(s.trim().toLowerCase());
+// The moderator sent it back: fix and send again.
+const REVIEW_RETURNED = new Set(["rejected", "changes_requested", "needs_changes", "returned", "revision_required"]);
+export const reviewReturned = (s: string): boolean => REVIEW_RETURNED.has(s.trim().toLowerCase());
 // PDF/JPG/PNG up to 15 MB (POST /seller-onboarding/documents, multipart).
 // T1B-09 template constructor: DOCX → fields; ZIP → many templates (draft, inactive); preview.
 export type TemplateField = { key: string; label: string; type: string; required: boolean };
@@ -4560,6 +4626,9 @@ export async function getSellerOnboardingProgress(): Promise<OnboardingProgress>
     completedCount: d.completed_count == null ? steps.filter((x) => x.completed).length : asNum(d.completed_count),
     totalCount: d.total_count == null ? steps.length : asNum(d.total_count),
     steps,
+    reviewStatus: asStr(d.review_status).toLowerCase(),
+    reviewSubmissionId: asStr(d.review_submission_id),
+    verificationStatus: asStr(d.verification_status).toLowerCase(),
   };
 }
 
@@ -5247,20 +5316,27 @@ export type SosRequest = {
   id: string;
   status: string;
   category: string;
+  description?: string;
   dutyName?: string;
   roomId?: string;
+  // The operator's call, when one was opened for this SOS.
+  operatorCallId?: string;
   createdAt: string;
+  updatedAt?: string;
 };
-function normSos(v: unknown): SosRequest {
+export function normSos(v: unknown): SosRequest {
   const d = asDict(v);
-  const duty = asDict(d.duty_lawyer ?? d.assigned_to);
+  const duty = asDict(d.operator ?? d.duty_lawyer ?? d.assigned_to);
   return {
     id: asStr(d.id),
-    status: asStr(d.status, "pending"),
+    status: asStr(d.status, "pending").toLowerCase(),
     category: asStr(d.category),
-    dutyName: (asStr(duty.name) || asStr(d.duty_name)) || undefined,
+    description: asStr(d.description) || undefined,
+    dutyName: (asStr(duty.name ?? duty.full_name) || asStr(d.operator_name ?? d.duty_name)) || undefined,
     roomId: asStr(d.chat_room_id ?? d.room_id) || undefined,
+    operatorCallId: asStr(d.operator_call_id) || undefined,
     createdAt: asStr(d.created_at ?? d.createdAt),
+    updatedAt: asStr(d.updated_at) || undefined,
   };
 }
 export async function createSosRequest(input: {
@@ -5269,6 +5345,27 @@ export async function createSosRequest(input: {
   phone?: string;
 }): Promise<SosRequest> {
   return normSos(await http("/sos", { method: "POST", body: JSON.stringify(input) }));
+}
+// BACKEND_FIXES_LIVE_2026-11-23: the client's own SOS requests, newest first
+// ({items, total, limit, offset, has_more}), and one of them in full.
+export async function listMySosRequests(limit = 10): Promise<SosRequest[]> {
+  return listFrom(await http(`/sos/me?limit=${limit}&offset=0`), "items", "data").map(normSos).filter((r) => !!r.id);
+}
+export async function getSosRequest(id: string): Promise<SosRequest> {
+  return normSos(await http(`/sos/${encodeURIComponent(id)}`));
+}
+// A finished SOS: nothing left to wait for or to cancel. Anything else
+// (pending, assigned, in progress, waiting for payment…) is still open.
+const SOS_DONE = new Set(["resolved", "completed", "closed", "done", "cancelled", "canceled", "rejected", "expired", "failed"]);
+export const isSosOpen = (r: Pick<SosRequest, "status">): boolean => !SOS_DONE.has(r.status.trim().toLowerCase());
+// The client may only cancel (PATCH {status: "cancelled"}); any other status
+// is a 403 sos_status_forbidden, and a finished SOS is a 409 sos_not_cancellable.
+export async function cancelSosRequest(id: string): Promise<SosRequest> {
+  return normSos(await http(`/sos/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ status: "cancelled" }) }));
+}
+export function isSosNotCancellable(e: unknown): boolean {
+  if (!(e instanceof ApiError)) return false;
+  return e.status === 409 || (e.code || asStr(asDict(e.data.detail).code)) === "sos_not_cancellable";
 }
 
 // ── Referral program ──────────────────────────────────────────────
@@ -7087,6 +7184,12 @@ export async function setCallRecordingPermission(roomId: string, callId: string,
 export async function startCallRecordingServer(roomId: string, callId: string): Promise<CallRecordingState> {
   return normRecordingState(await http(`/secure-chats/${roomId}/calls/${callId}/recording/start`, { method: "POST", body: "{}" }));
 }
+// BACKEND_FIXES_LIVE_2026-11-23: whoever started the recording may now stop
+// it, so the room's recording_status stops saying "recording" once the
+// local capture ends.
+export async function stopCallRecordingServer(roomId: string, callId: string): Promise<CallRecordingState> {
+  return normRecordingState(await http(`/secure-chats/${roomId}/calls/${callId}/recording/stop`, { method: "POST", body: "{}" }));
+}
 
 // ── Meeting time limits and extensions ────────────────────────────
 // LEXGO_MEETING_EXTENSION_FRONTEND_UPDATE.md. A document meeting starts at
@@ -7132,21 +7235,30 @@ export type InvitedCall = {
   status: string; // participant status: invited | joined | …
   callStatus: string; // call state: active | ended | …
   autoEndAt: string;
+  // BACKEND_FIXES_LIVE_2026-11-23: the ring lasts 60 s from ring_started_at
+  // (ring_expires_at). `ringing` false = the window is over: no ring card,
+  // the invite is still joinable from its own page. Older rows without the
+  // flag read as ringing.
+  ringing: boolean;
+  ringExpiresAt: string;
 };
+export function normInvitedCall(v: unknown): InvitedCall {
+  const d = asDict(v);
+  return {
+    roomId: asStr(d.room_id),
+    callId: asStr(d.call_id ?? d.id),
+    callType: asStr(d.call_type) === "audio" ? "audio" : "video",
+    title: asStr(d.title),
+    callerName: asStr(d.caller_name),
+    status: asStr(d.status),
+    callStatus: asStr(d.call_status ?? d.status),
+    autoEndAt: asStr(d.auto_end_at),
+    ringing: d.ringing !== false,
+    ringExpiresAt: asStr(d.ring_expires_at),
+  };
+}
 export async function listInvitedCalls(): Promise<InvitedCall[]> {
-  return listFrom(await http("/calls/invited"), "items", "data", "calls").map((v) => {
-    const d = asDict(v);
-    return {
-      roomId: asStr(d.room_id),
-      callId: asStr(d.call_id ?? d.id),
-      callType: asStr(d.call_type) === "audio" ? "audio" : "video",
-      title: asStr(d.title),
-      callerName: asStr(d.caller_name),
-      status: asStr(d.status),
-      callStatus: asStr(d.call_status ?? d.status),
-      autoEndAt: asStr(d.auto_end_at),
-    };
-  });
+  return listFrom(await http("/calls/invited"), "items", "data", "calls").map(normInvitedCall);
 }
 
 // Search any platform user (staff/callcenter) to invite to a meeting, or for
@@ -7771,6 +7883,11 @@ export type ConsentDoc = {
   bodyI18n: Record<string, string>;
   active: boolean;
   createdAt: string;
+  // BACKEND_FIXES_LIVE_2026-11-23: who must see it (backend role names —
+  // client, yurist, advokat, advokat_tashkiloti; empty = not said) and
+  // whether accepting it is required (null = not said).
+  audience: string[];
+  acceptanceRequired: boolean | null;
 };
 const legalCode = (k: string): string => {
   const l = k.toLowerCase();
@@ -7829,6 +7946,8 @@ export function normConsentDoc(v: unknown, lang: LegalLang = "uz"): ConsentDoc {
     bodyI18n,
     active: !(d.is_active === false || d.is_active === "false" || d.is_active === 0 || d.active === false),
     createdAt: asStr(d.created_at ?? d.published_at ?? d.updated_at),
+    audience: (Array.isArray(d.audience) ? d.audience : typeof d.audience === "string" ? d.audience.split(/[\s,]+/) : []).map((x) => asStr(x).trim().toLowerCase()).filter(Boolean),
+    acceptanceRequired: typeof d.acceptance_required === "boolean" ? d.acceptance_required : null,
   };
 }
 // The document a public path names: its canonical slug or one of its aliases.
@@ -7883,15 +8002,35 @@ export function currentConsents(docs: ConsentDoc[]): ConsentDoc[] {
   };
   return [...best.values()].sort((a, b) => rank(a.slug) - rank(b.slug) || a.slug.localeCompare(b.slug));
 }
-// Who a consent document is for. The backend sends `audience` and
-// `acceptance_required` but leaves them empty for every document (checked
-// 2026-11-15), so role-specific documents are recognised by slug; any other
-// slug applies to everyone. The canonical slugs (backend eecebb9) are listed
-// with the older names an older backend still sends — the map knew only the
-// old ones, so a client was asked to sign the lawyer partnership offer and the
-// per-order contract template. The client–advocate contract is signed per
-// order (T1A-04), never at sign-up or re-consent.
+// Who a consent document is for. Since BACKEND_FIXES_LIVE_2026-11-23 the
+// backend fills `audience` (its role names) and `acceptance_required` on every
+// document, and those decide. The slug map below is only the fallback for a
+// document that still comes without an audience (it was empty for all of them
+// until then): the canonical slugs (backend eecebb9) with the older names an
+// older backend still sends. The client–advocate contract is signed per order
+// (T1A-04), never at sign-up or re-consent, whatever its audience says.
 export type ConsentAudience = "client" | "lawyer" | "advocate" | "staff";
+const NEVER_AT_SIGNUP = new Set(["client_advocate_contract_template", "client_provider_contract"]);
+// The backend role names an audience may list for each of ours. An
+// organisation's owner is an advocate here, but only they sign the
+// organisation agreement: pass their exact role (`advokat_tashkiloti`).
+const AUDIENCE_ROLES: Record<ConsentAudience, string[]> = {
+  client: ["client", "mijoz"],
+  lawyer: ["yurist", "lawyer"],
+  advocate: ["advokat", "advocate"],
+  staff: [],
+};
+const ALL_ROLES = new Set(["all", "*", "any", "everyone", "all_roles"]);
+function audienceMatches(list: string[], audience: ConsentAudience, backendRole: string): boolean {
+  if (list.some((x) => ALL_ROLES.has(x))) return true;
+  const role = backendRole.trim().toLowerCase();
+  if (role && list.includes(role)) return true;
+  if (audience === "staff") {
+    // Staff sign in with the client role: they get what every role gets.
+    return ["client", "yurist", "advokat"].every((r) => list.includes(r));
+  }
+  return AUDIENCE_ROLES[audience].some((r) => list.includes(r));
+}
 const CONSENT_AUDIENCE: Record<string, ConsentAudience[]> = {
   lawyer_partnership_offer: ["lawyer", "advocate"],
   advocate_partnership: ["lawyer", "advocate"],
@@ -7901,8 +8040,21 @@ const CONSENT_AUDIENCE: Record<string, ConsentAudience[]> = {
   payment_refund_warranty: ["client", "lawyer", "advocate"],
   age_18: ["client", "lawyer", "advocate"],
 };
-export function consentsFor(docs: ConsentDoc[], audience: ConsentAudience): ConsentDoc[] {
+// The documents this person has to accept: for their audience and, when the
+// backend says so, required (an optional one — cookie, remote assistance — is
+// never forced). `backendRole` is the exact backend role when known
+// (advokat_tashkiloti, admin…).
+export function consentsFor(docs: ConsentDoc[], audience: ConsentAudience, backendRole = ""): ConsentDoc[] {
   return docs.filter((d) => {
+    if (NEVER_AT_SIGNUP.has(d.slug)) return false;
+    if (d.acceptanceRequired === false) return false;
+    if (d.audience.length) {
+      // advokat_tashkiloti documents go to that role only, even though the
+      // owner signs in as an advocate.
+      const orgOnly = d.audience.every((x) => x === "advokat_tashkiloti");
+      if (orgOnly) return backendRole.trim().toLowerCase() === "advokat_tashkiloti";
+      return audienceMatches(d.audience, audience, backendRole);
+    }
     const who = CONSENT_AUDIENCE[d.slug];
     return !who || who.includes(audience);
   });
@@ -8891,6 +9043,26 @@ export async function setUrgentStatus(id: string, status: string, note?: string)
 export async function cancelUrgentRequest(id: string, reason: string): Promise<UrgentRequest> {
   return normUrgentRequest(await http(ccUrgent(id, "/cancel"), { method: "POST", body: JSON.stringify({ reason }) }));
 }
+// BACKEND_FIXES_LIVE_2026-11-23: the client's own cancel. The call-center
+// route above answers 403 to a client; this one is for the client who owns
+// the request, and it also ends a call that is still ringing.
+export async function cancelMyUrgentRequest(id: string, reason: string): Promise<void> {
+  const why = reason.trim();
+  await http(`/urgent-advokat/requests/${encodeURIComponent(id)}/cancel`, { method: "POST", body: JSON.stringify(why ? { reason: why } : {}) });
+}
+// Why the backend refused a client cancel: 404 urgent_request_not_found,
+// 403 urgent_request_forbidden, 409 urgent_request_not_cancellable {status}.
+export type UrgentCancelRefusal = { kind: "notFound" | "forbidden" | "tooLate"; status: string } | null;
+export function urgentCancelRefusal(e: unknown): UrgentCancelRefusal {
+  if (!(e instanceof ApiError)) return null;
+  const d = asDict(e.data.detail);
+  const code = e.code || asStr(d.code) || asStr(e.data.code);
+  const status = asStr(d.status ?? e.data.status);
+  if (e.status === 409 || code === "urgent_request_not_cancellable") return { kind: "tooLate", status };
+  if (e.status === 404 || code === "urgent_request_not_found") return { kind: "notFound", status };
+  if (e.status === 403 || code === "urgent_request_forbidden") return { kind: "forbidden", status };
+  return null;
+}
 
 // ── Realtime ──────────────────────────────────────────────────────
 // What /ws/users/me delivers for this module. The MD is explicit that these
@@ -8901,6 +9073,15 @@ export function isUrgentEvent(event: string): boolean {
 }
 // record_id / status / the whole record, when the event carries it.
 export type UrgentEventInfo = { recordId: string; status: string; request: UrgentRequest | null };
+// Who sent a secure-chat message: the message's own sender field, its nested
+// `sender`, or the frame's top-level `sender_user_id`. Since
+// BACKEND_FIXES_LIVE_2026-11-23 secure_chat.message_created also reaches the
+// sender, so their own message must be recognised however the frame spells it
+// (and never counted as unread).
+export function messageSenderId(message: Record<string, unknown>, frame?: Record<string, unknown> | null): string {
+  const sender = asDict(message.sender);
+  return asStr(message.sender_user_id ?? message.sender_id ?? sender.id ?? sender.user_id ?? frame?.sender_user_id);
+}
 export function urgentEventInfo(e: Record<string, unknown>): UrgentEventInfo {
   const req = e.urgent_request;
   return {
@@ -8908,6 +9089,26 @@ export function urgentEventInfo(e: Record<string, unknown>): UrgentEventInfo {
     status: asStr(e.status),
     request: req && typeof req === "object" ? normUrgentRequest(req) : null,
   };
+}
+// BACKEND_FIXES_LIVE_2026-11-23: an express call that was missed, declined,
+// busy or unavailable — or that the client hung up before the advokat joined —
+// sends the request back to open_pool with no advokat, and the client gets the
+// notification urgent_advokat.express_call_unanswered ("Advokat javob
+// bermadi", or "Qo'ng'iroq bekor qilindi" when the client hung up). Nobody is
+// called automatically yet. Read from the notification frame (or the bare
+// event, should it ever come as one); null for anything else.
+export const EXPRESS_UNANSWERED = "urgent_advokat.express_call_unanswered";
+export type ExpressUnanswered = { recordId: string; hungUp: boolean };
+export function expressUnansweredOf(e: Record<string, unknown>): ExpressUnanswered | null {
+  const ev = asStr(e.event);
+  const n = ev === EXPRESS_UNANSWERED ? e : ev === "notification.created" ? asDict(e.notification ?? e) : null;
+  if (!n) return null;
+  const data = { ...asDict(n.payload), ...asDict(n.data) };
+  const kind = ev === EXPRESS_UNANSWERED ? ev : asStr(data.event ?? n.event_type ?? n.kind ?? n.type);
+  if (kind !== EXPRESS_UNANSWERED) return null;
+  const recordId = asStr(n.record_id ?? data.record_id ?? data.urgent_request_id ?? data.request_id ?? n.ref_id ?? data.target_id);
+  const why = [data.reason, data.call_status, data.outcome, n.title].map((x) => asStr(x).toLowerCase()).join(" ");
+  return { recordId, hungUp: /client_(hung|left|ended|cancel)|hung_up|hangup|bekor/.test(why) };
 }
 
 // ── helpers ───────────────────────────────────────────────────────

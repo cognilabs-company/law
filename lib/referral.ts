@@ -1,4 +1,5 @@
 import { hasConsent } from "./consent";
+import { ApiError } from "./http";
 
 // Referral attribution (T1A-08): the first ?ref= code a visitor arrives with is
 // kept for 90 days (first touch) and sent as referral_code at registration.
@@ -39,4 +40,21 @@ export function readReferral(): string {
   if (typeof window === "undefined") return "";
   const cur = read();
   return cur && Date.now() - cur.at < TTL_MS ? cur.code : "";
+}
+
+// Drop the stored code (its referrer is no longer active).
+export function clearReferral(): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    /* storage blocked */
+  }
+}
+
+// 422 referral_code_invalid from register/start or /referrals/{code}/validate.
+export function isReferralInvalid(e: unknown): boolean {
+  if (!(e instanceof ApiError) || e.status !== 422) return false;
+  const d = e.data.detail && typeof e.data.detail === "object" && !Array.isArray(e.data.detail) ? (e.data.detail as Record<string, unknown>) : {};
+  return [e.code, d.code, e.data.code, e.detail].some((c) => c === "referral_code_invalid");
 }

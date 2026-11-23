@@ -4178,6 +4178,11 @@ a.lsrc__i:hover{border-color:var(--b300)}
 .onbp__t small{font-size:.76rem;color:var(--gray)}
 .onbp__s.on .onbp__t b{color:var(--gray)}
 .onbp .ppanel{margin:14px 0 0;box-shadow:none}
+/* sent to the moderator (review_status): a note instead of a second submit */
+.onbp__review{display:grid;gap:3px;margin-top:12px;padding:12px 14px;border-radius:12px;background:color-mix(in srgb,var(--b500,#3b82f6) 9%,var(--dk-surface,#fff));border:1px solid color-mix(in srgb,var(--b500,#3b82f6) 28%,var(--line))}
+.onbp__review b{font-size:.92rem;color:var(--ink)}
+.onbp__review span{font-size:.84rem;line-height:1.5;color:var(--gray)}
+.onbp__again{margin:12px 0 0;color:var(--dk-txt-warn, #9A5B00)}
 
 /* ── Admin E2E readiness (T1-18) ── */
 .e2e__sum{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:14px;background:var(--dk-tint-warn, #fff7ed);margin-bottom:6px}

@@ -58,6 +58,7 @@ import { regionLabel } from "@/lib/labels";
 import { LEGAL_AREAS, inArea } from "@/lib/legalAreas";
 import { useRoleNav } from "../../RoleNavHost";
 import { useSellerCabinet } from "../SellerCabinet";
+import AcceptingOrdersBar from "./AcceptingOrdersBar";
 import SellerDashboard from "../SellerDashboard";
 import OrderActions from "../OrderActions";
 import LicenseNudge from "../LicenseNudge";
@@ -168,6 +169,8 @@ export default function SellerHome({ role }: { role: "advocate" | "lawyer" }) {
     <div className="lxs">
       {/* Shown only while the advocate's license still needs to be sent. */}
       {role === "advocate" ? <LicenseNudge /> : null}
+      {/* Only when the cabinet reports the switch (the real one, not demo). */}
+      {cabinet.real && typeof cabinet.real.acceptingOrders === "boolean" ? <AcceptingOrdersBar value={cabinet.real.acceptingOrders} /> : null}
       {/* KPI row */}
       <div className="lxs-kpis">
         {/* No right to answer orders (cabinet available_actions.accept_orders

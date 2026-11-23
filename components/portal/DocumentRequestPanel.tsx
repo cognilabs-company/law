@@ -474,7 +474,9 @@ export default function DocumentRequestPanel({
         setClickPay(c.payment);
         return;
       }
-      let r = await payDocumentRequest(req.id, "payme", req.price);
+      // Never Payme any more (a 422 payment_provider_not_allowed): Click when
+      // it is on offer, otherwise the backend's own default (Click or ATMOS).
+      let r = await payDocumentRequest(req.id, pays.has("click") ? "click" : "");
       if (r.paymentUrl) {
         // A desktop window opens the payment beside itself and keeps polling.
         if (chrome?.openUrl) {

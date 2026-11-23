@@ -50,6 +50,9 @@ export default function ConsentGate() {
   const serverAccepted = JSON.stringify(session?.acceptedConsents ?? []);
   // Staff (admin, sales, call-center…) sign in with the client primary role.
   const audience = session?.role === "lawyer" || session?.role === "advocate" ? session.role : hasAdminAccess(session) ? "staff" : "client";
+  // The exact backend role: an organisation owner (advokat_tashkiloti) signs
+  // its own agreement, which a plain advokat does not.
+  const backendRole = session?.backendRole ?? "";
   // The documents in the page's language; a language change reloads them.
   const lang = legalLang(useLocale());
   const [gate, setGate] = useState<{ key: string; docs: ConsentDoc[]; updated: boolean } | null>(null);
@@ -73,7 +76,7 @@ export default function ConsentGate() {
         const mine = await listMyConsents(lang).catch(() => [] as AcceptedConsentRef[]);
         if (!alive) return;
         if (mine.length) recordAccepted(id, phone, mine, { synced: true });
-        const docs = consentsFor(currentConsents(await listLegalConsents(lang)), audience);
+        const docs = consentsFor(currentConsents(await listLegalConsents(lang)), audience, backendRole);
         if (!alive) return;
         const s = consentStatus(docs, id, phone);
         setGate(s.missing.length ? { key: id || phone, docs: s.missing, updated: s.updated } : null);
@@ -110,7 +113,7 @@ export default function ConsentGate() {
       window.removeEventListener("online", onWake);
       window.removeEventListener("storage", onStorage);
     };
-  }, [ready, token, id, phone, serverAccepted, audience, lang]);
+  }, [ready, token, id, phone, serverAccepted, audience, backendRole, lang]);
 
   // Only observe the DOM while a gate is pending.
   const callUi = useSyncExternalStore(gate ? watchCallUi : watchNothing, gate ? hasCallUi : noCallUi, noCallUi);
