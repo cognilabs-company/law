@@ -4492,7 +4492,21 @@ export type SellerCabinet = {
   verification: { status: string; verified: boolean };
   stats: SellerStats;
   newOrders: BackendOrder[];
+  // BACKEND_FIXES_LIVE_2026-11-23: the seller's own "taking new orders"
+  // switch (null when the backend does not send it) and the count of
+  // sent_to_seller orders whose answer deadline is still ahead.
+  acceptingOrders: boolean | null;
+  newOrdersCount: number | null;
 };
+// `accepting_orders` and `new_orders_count` as the cabinet sends them.
+export function cabinetOrderFlags(d: Dict): { acceptingOrders: boolean | null; newOrdersCount: number | null } {
+  const a = d.accepting_orders;
+  const n = d.new_orders_count;
+  return {
+    acceptingOrders: typeof a === "boolean" ? a : typeof asDict(a).enabled === "boolean" ? (asDict(a).enabled as boolean) : null,
+    newOrdersCount: n == null || n === "" ? null : asNum(n),
+  };
+}
 export async function getSellerCabinet(): Promise<SellerCabinet> {
   const d = asDict(await http("/lawyers/me/cabinet"));
   const limitedAccess = Boolean(d.limited_access);
@@ -4514,13 +4528,40 @@ export async function getSellerCabinet(): Promise<SellerCabinet> {
     },
     stats: normStats(d.stats),
     newOrders: listFrom(d.new_orders, "orders", "items", "data").map(normOrder),
+    ...cabinetOrderFlags(d),
   };
+}
+// GET / PUT /lawyers/me/accepting-orders {enabled}. While it is off the seller
+// gets no new auto-assigned orders and no urgent requests, and the cabinet's
+// available_actions.accept_orders turns false with it.
+export async function getAcceptingOrders(): Promise<boolean> {
+  return asDict(await http("/lawyers/me/accepting-orders")).enabled !== false;
+}
+export async function setAcceptingOrders(enabled: boolean): Promise<boolean> {
+  const d = asDict(await http("/lawyers/me/accepting-orders", { method: "PUT", body: JSON.stringify({ enabled }) }));
+  return typeof d.enabled === "boolean" ? d.enabled : enabled;
 }
 
 // Seller onboarding checklist (GET /seller-onboarding/progress), the same shape
 // for advocates and lawyers: profile, identity, documents, services, pricing.
 export type OnboardingStep = { key: string; title: string; required: boolean; completed: boolean };
-export type OnboardingProgress = { status: string; completedCount: number; totalCount: number; steps: OnboardingStep[] };
+// BACKEND_FIXES_LIVE_2026-11-23: reviewStatus is "none" before the first
+// submit, then "submitted" / … as the moderator works on it.
+export type OnboardingProgress = {
+  status: string;
+  completedCount: number;
+  totalCount: number;
+  steps: OnboardingStep[];
+  reviewStatus: string;
+  reviewSubmissionId: string;
+  verificationStatus: string;
+};
+// Sent and not yet answered (or already approved): nothing to send again.
+const REVIEW_OPEN = new Set(["submitted", "pending", "in_review", "under_review", "reviewing", "approved", "accepted", "verified"]);
+export const reviewInFlight = (s: string): boolean => REVIEW_OPEN.has(s.trim().toLowerCase());
+// The moderator sent it back: fix and send again.
+const REVIEW_RETURNED = new Set(["rejected", "changes_requested", "needs_changes", "returned", "revision_required"]);
+export const reviewReturned = (s: string): boolean => REVIEW_RETURNED.has(s.trim().toLowerCase());
 // PDF/JPG/PNG up to 15 MB (POST /seller-onboarding/documents, multipart).
 // T1B-09 template constructor: DOCX → fields; ZIP → many templates (draft, inactive); preview.
 export type TemplateField = { key: string; label: string; type: string; required: boolean };
@@ -4574,6 +4615,9 @@ export async function getSellerOnboardingProgress(): Promise<OnboardingProgress>
     completedCount: d.completed_count == null ? steps.filter((x) => x.completed).length : asNum(d.completed_count),
     totalCount: d.total_count == null ? steps.length : asNum(d.total_count),
     steps,
+    reviewStatus: asStr(d.review_status).toLowerCase(),
+    reviewSubmissionId: asStr(d.review_submission_id),
+    verificationStatus: asStr(d.verification_status).toLowerCase(),
   };
 }
 

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { getSellerOnboardingProgress, submitOnboarding, uploadOnboardingDocument, type OnboardingProgress as Progress } from "@/lib/services/backend";
+import { getSellerOnboardingProgress, reviewInFlight, reviewReturned, submitOnboarding, uploadOnboardingDocument, type OnboardingProgress as Progress } from "@/lib/services/backend";
 import { ApiError } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { useResourceOne } from "@/lib/useResource";
@@ -64,6 +64,8 @@ export default function OnboardingProgress({ role, limited }: { role: Role; limi
     try {
       await submitOnboarding();
       notify.success(t("submitted"), { id: "onb-submit" });
+      // Re-read: review_status now says it is with the moderator.
+      setReloadKey((k) => k + 1);
     } catch (e) {
       notify.error(t("submitError"), { id: "onb-submit", error: e, map: { 422: t("submitIncomplete") } });
     } finally {
@@ -116,10 +118,20 @@ export default function OnboardingProgress({ role, limited }: { role: Role; limi
           );
         })}
       </ol>
-      {done ? (
-        <button type="button" className="btn btn--pri btn--sm" style={{ marginTop: 12 }} disabled={!!busy} onClick={submit}>
-          {busy === "submit" ? t("submitting") : t("submit")}
-        </button>
+      {done && reviewInFlight(p.reviewStatus) ? (
+        // Already with the moderator (BACKEND_FIXES_LIVE_2026-11-23
+        // review_status): a second submit would only queue it twice.
+        <div className="onbp__review" role="status">
+          <b>{t("reviewWaiting")}</b>
+          <span>{t("reviewWaitingText")}</span>
+        </div>
+      ) : done ? (
+        <>
+          {reviewReturned(p.reviewStatus) ? <p className="ppanel__note onbp__again">{t("reviewAgain")}</p> : null}
+          <button type="button" className="btn btn--pri btn--sm" style={{ marginTop: 12 }} disabled={!!busy} onClick={submit}>
+            {busy === "submit" ? t("submitting") : t("submit")}
+          </button>
+        </>
       ) : null}
       {idOpen ? <IdentityVerify /> : null}
     </div>

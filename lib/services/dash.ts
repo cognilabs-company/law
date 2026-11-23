@@ -24,7 +24,7 @@ import type {
   SellerCabinet,
   SellerStats,
 } from "@/lib/services/backend";
-import { trustFields } from "@/lib/services/backend";
+import { cabinetOrderFlags, trustFields } from "@/lib/services/backend";
 
 // ── Filter ────────────────────────────────────────────────────────
 export type DashFilter = {
@@ -449,6 +449,7 @@ export async function getSellerCabinetFull(): Promise<SellerCabinetFull> {
     },
     stats: normStats(d.stats),
     newOrders: listOf(d.new_orders, "orders", "items", "data").map(normOrder).filter((o) => !(o.source === "marketplace" && o.status.toLowerCase() === "pending_payment")),
+    ...cabinetOrderFlags(d),
     activeCases: listOf(d.active_cases, "items", "data").map(normCabinetCase),
     secureChats: listOf(d.secure_chats, "rooms", "items", "data").map(normCabinetRoom),
     notifications: listOf(d.notifications, "items", "data").map(normCabinetNotification),
