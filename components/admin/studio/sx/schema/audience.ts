@@ -286,7 +286,6 @@ const K02_FIELDS: Readonly<Record<string, Entry>> = {
   K02__category_id: ["client", "catTitle"],
   K02__intake_questions: ["client", "intakeQ"],
   K02__base_price: ["client", "svcTitle"],
-  K02__max_price: ["performer", "staffText"],
   K02__seller_requirements: ["performer", "staffText"],
   K02__review_duration_value: ["both", "duration"],
   K02__review_duration_unit: ["both", "duration"],

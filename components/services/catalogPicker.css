@@ -99,6 +99,17 @@ html[data-theme="dark"] .svrc__o.is-on .svform__box{background:#3B82F6}
 .svrc__err{display:flex;align-items:flex-start;gap:7px;margin:6px 0 0;padding:8px 10px;border-radius:10px;background:var(--dk-tint-err,#FDECEC);color:var(--dk-txt-err,#B42318);font-size:.78rem;line-height:1.4}
 .svrc__err>svg{flex:none;width:14px;height:14px;margin-top:2px}
 .svtree__lim{display:block;margin-top:2px;font-size:.7rem;font-weight:600;color:var(--gray);white-space:nowrap}
+.svtree__sys{display:flex;flex-direction:column;align-items:flex-end;line-height:1.25}
+.svtree__lbl{display:block;font-size:.66rem;font-weight:600;color:var(--gray);white-space:nowrap}
+/* A phone: the system price and its floor go under the service name, so the
+   name keeps the row's width. */
+@media (max-width:520px){
+  .svtree__row--priced{flex-wrap:wrap;row-gap:4px}
+  .svtree__row--priced .svpick__om{flex:1 1 calc(100% - 46px)}
+  .svtree__row--priced .svpick__or{flex:1 1 100%;padding-left:44px;text-align:left}
+  .svtree__row--priced .svtree__sys{flex-direction:row;flex-wrap:wrap;align-items:baseline;column-gap:6px}
+  .svtree__row--priced .svtree__lim{margin-top:0}
+}
 .svcfg-negnote{display:flex;align-items:flex-start;gap:7px;margin:8px 0 0;font-size:.76rem;line-height:1.4;color:var(--gray)}
 .svcfg-negnote>svg{flex:none;width:14px;height:14px;margin-top:1px;color:var(--dk-acc,var(--b600))}
 @media (max-width:420px){.svrc__body{margin-left:0}}

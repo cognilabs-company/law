@@ -94,7 +94,10 @@ export default function ServiceCard({
   const runtimeRec = pricing && pricing.recommendedPrice > 0 ? pricing.recommendedPrice : 0;
   const legacyRec = band && !isZeroBand(band) ? bandRecommended(band) : 0;
   const rec = runtimeRec || legacyRec;
-  const cap = pricing ? priceCapOf(pricing) : null;
+  // The seller's own system price (pricing_limits.max_allowed) is the
+  // ceiling; the service-wide figure is only a fallback.
+  const sysCap = band && !isZeroBand(band) && band.max > 0 && band.exact !== false ? band.max : 0;
+  const cap = sysCap || (pricing ? priceCapOf(pricing) : null);
   const off = cap !== null && item.selectedPrice > cap;
   const bandText =
     runtime.state === "loading" || runtime.state === "idle"
@@ -105,7 +108,9 @@ export default function ServiceCard({
           ? t("config.cardAboveMax", { max: som(cap) })
           : runtime.state === "ready" && rec > 0
             ? cap
-              ? t("config.cardRecMax", { rec: som(rec), max: som(cap) })
+              ? rec === cap
+                ? t("config.cardSys", { max: som(cap) })
+                : t("config.cardRecMax", { rec: som(rec), max: som(cap) })
               : t("config.cardRec", { rec: som(rec) })
             : rec > 0
               ? t("config.cardRec", { rec: som(rec) })

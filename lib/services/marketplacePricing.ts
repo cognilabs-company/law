@@ -496,6 +496,9 @@ function modifierOf(v: unknown, locale: string, hint: string): PriceModifier | n
     return m;
   }
   if (!isPlain(v)) return null;
+  // A price coefficient the seller does not meet ({…, met: false}) adds
+  // nothing to the price, so it is not one of the price's factors.
+  if (v.met === false) return null;
   const typeRaw = asStr(pick(v, ["type", "code", "kind", "modifier"])).trim();
   const keyRaw = asStr(pick(v, ["key", "region", "region_key", "tier"])).trim();
   let code = codeOf(typeRaw || hint || keyRaw || asStr(v.name));

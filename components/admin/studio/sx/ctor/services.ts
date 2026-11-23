@@ -240,8 +240,19 @@ function withRuleSides(p: SxPayload): SxPayload {
   return { ...p, inline_rules: p.inline_rules.map((r) => (r && typeof r === "object" && !str((r as SxValues).audience) ? { ...(r as SxValues), audience: "executor" } : r)) };
 }
 
+// A service has no manual maximum price any more (legal_services.max_price
+// was dropped, 2026-11-22): the system works the price out from the base
+// price and the coefficients, and the backend ignores max_price, so it is
+// neither shown nor sent.
+function withoutMaxPrice(p: SxPayload): SxPayload {
+  if (!("max_price" in p)) return p;
+  const out: SxPayload = { ...p };
+  delete out.max_price;
+  return out;
+}
+
 export function k02Transform(next: SxPayload, prev: SxValues = {}, ctx?: SxTransformCtx): SxPayload {
-  const pruned = withRuleSides(intakeTidy(k02Prune(next, prev), prev, ctx?.code || "K02"));
+  const pruned = withRuleSides(intakeTidy(k02Prune(withoutMaxPrice(next), prev), prev, ctx?.code || "K02"));
   const types = executorTypesOf(pruned);
   if (types === null) return pruned;
   const out: SxPayload = { ...pruned, executor_types: types };
@@ -265,7 +276,7 @@ export const K02_LAYOUT: SxCtorLayout = {
   code: "K02",
   sections: [
     { id: "asosiy", titleKey: "sx.section.asosiy", fields: ["title", "category_id", "description", "client_value", "executor_types"] },
-    { id: "K02__price", titleKey: "sx.section.K02__price", fields: ["base_price", "max_price", "price_factor_ids", "price_factor_overrides", "pricing_coefficient_ids", "negotiation_allowed"] },
+    { id: "K02__price", titleKey: "sx.section.K02__price", fields: ["base_price", "price_factor_ids", "price_factor_overrides", "pricing_coefficient_ids", "negotiation_allowed"] },
     { id: "K02__requirements", titleKey: "sx.section.K02__requirements", fields: ["seller_requirements"] },
     { id: "K02__intake", titleKey: "sx.section.K02__intake", fields: [INTAKE] },
     { id: "K02__delivery", titleKey: "sx.section.K02__delivery", fields: ["duration_value", "duration_unit", "duration_calendar"] },
@@ -280,6 +291,7 @@ export const K02_LAYOUT: SxCtorLayout = {
     { path: "service_id", hidden: true },
     { path: "title", placeholder: "sx.ph.K02__title" },
     { path: "slug", hidden: true },
+    { path: "max_price", hidden: true },
     { path: "category_id", help: false },
     { path: "description", help: false },
     { path: "executor_type", hidden: true },

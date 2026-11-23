@@ -136,13 +136,23 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
     const info = marketErrorInfo(e);
     const key = negotiationErrorKey(info?.code ?? "");
     if (key) {
-      const serverMax = cap === null && info ? Number(info.detail.maximum_price ?? info.detail.max_price) : Number.NaN;
-      const maxText = cap !== null ? cur(cap) : Number.isFinite(serverMax) && serverMax > 0 ? cur(serverMax) : "";
-      const msg = key === "aboveMax" && !maxText ? t("negotiation.err.aboveMaxNoValue") : t(`negotiation.err.${key}`, { ...errParams, max: maxText || "—" });
+      const serverMax = info ? Number(info.detail.maximum_price ?? info.detail.max_price) : Number.NaN;
+      const serverMin = info ? Number(info.detail.minimum_price) : Number.NaN;
+      // The bounds a refused counter-offer names are the newest: the system price may have changed.
+      const maxText = key === "counterRange" && Number.isFinite(serverMax) && serverMax > 0 ? cur(serverMax) : cap !== null ? cur(cap) : Number.isFinite(serverMax) && serverMax > 0 ? cur(serverMax) : "";
+      const minText = Number.isFinite(serverMin) && serverMin > 0 ? cur(serverMin) : "";
+      const msg =
+        key === "counterRange"
+          ? minText && maxText
+            ? t("negotiation.err.counterRange", { min: minText, max: maxText })
+            : t("negotiation.err.counterRangeNoValue")
+          : key === "aboveMax" && !maxText
+            ? t("negotiation.err.aboveMaxNoValue")
+            : t(`negotiation.err.${key}`, { ...errParams, max: maxText || "—" });
       if (key === "notLower" && place === "amount") {
         setAmountErr(msg);
         focusById(amountId);
-      } else if (key === "aboveMax" && place === "counter") {
+      } else if ((key === "aboveMax" || key === "counterRange") && place === "counter") {
         setCounterErr(msg);
         focusById(counterId);
       } else setErr(msg);

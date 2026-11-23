@@ -57,7 +57,6 @@ export default function CatalogPicker({
 }) {
   const t = useTranslations("sellerServices.catalog");
   const tf = useTranslations("sellerServices.form");
-  const tl = useTranslations("sellerServices.limits");
   const locale = useLocale();
   const uid = useId();
   const headRef = useRef<HTMLHeadingElement>(null);
@@ -348,13 +347,16 @@ export default function CatalogPicker({
                   const sid = it.service.id;
                   const why = b === "locked" ? it.lockReason || t("locked") : b === "advocate" ? tf("advocateOnlyHint") : "";
                   const sub = [it.service.categoryTitle, it.service.subcategory].filter(Boolean).join(" · ");
+                  // pricing_limits: the seller's system price (max_allowed, the
+                  // ceiling) and its 50% floor (min_allowed).
+                  const sys = it.pricing && it.pricing.maximum > 0 ? it.pricing.maximum : 0;
+                  const floor = sys && it.pricing && it.pricing.minimum > 0 && it.pricing.minimum <= sys ? it.pricing.minimum : 0;
                   const price = it.pricing && it.pricing.recommended > 0 ? it.pricing.recommended : (it.service.price ?? 0);
-                  const lim = it.pricing && it.pricing.minimum > 0 && it.pricing.maximum >= it.pricing.minimum ? it.pricing : null;
                   return (
                     <li key={sid}>
                       <button
                         type="button"
-                        className={`svtree__row${b ? " is-off" : ""}`}
+                        className={`svtree__row${b ? " is-off" : sys ? " svtree__row--priced" : ""}`}
                         aria-disabled={b ? true : undefined}
                         aria-describedby={why ? `${uid}-w-${sid}` : undefined}
                         onClick={() => {
@@ -377,11 +379,14 @@ export default function CatalogPicker({
                             <em className="svpick__tag svpick__tag--lock">{tf("advocateOnly")}</em>
                           ) : b === "locked" ? (
                             <em className="svpick__tag svpick__tag--lock">{t("lockedTag")}</em>
-                          ) : price ? (
-                            <span className="svpick__price">
-                              {tf("fromPrice", { price: som(price) })}
-                              {lim ? <small className="svtree__lim">{tl("rangeValue", { min: som(lim.minimum), max: som(lim.maximum) })}</small> : null}
+                          ) : sys ? (
+                            <span className="svpick__price svtree__sys">
+                              <small className="svtree__lbl">{t("sysPrice")}</small>
+                              {som(sys)} {tf("som")}
+                              {floor ? <small className="svtree__lim">{t("floor", { price: som(floor) })}</small> : null}
                             </span>
+                          ) : price ? (
+                            <span className="svpick__price">{tf("fromPrice", { price: som(price) })}</span>
                           ) : (
                             <em className="svpick__tag svpick__tag--none">{tf("noPriceTag")}</em>
                           )}
