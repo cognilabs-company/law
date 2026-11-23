@@ -9,6 +9,7 @@ import { listExperienceQueue } from "@/lib/services/experience";
 import { listAchievementQueue } from "@/lib/services/achievements";
 import { listLicenseQueue } from "@/lib/services/advocatePractice";
 import { listCcPayouts, listPayoutRecoveries, payoutActionable } from "@/lib/services/payouts";
+import { listRefundRequests } from "@/lib/services/refunds";
 import { isAborted, isForbidden, logApiError } from "@/lib/http";
 import { withQueuePeople } from "@/lib/ccx/queuePeople";
 import { useClock, useLiveRefresh } from "../useLive";
@@ -141,6 +142,14 @@ const LOADERS: Record<Exclude<QKey, "queue" | "urgent">, Loader> = {
     return {
       total: open.length,
       jobs: open.map((x) => ({ ...base, raw: x, key: `r:${x.id}`, queue: "recoveries", id: x.id, code: x.workId || shortId(x.orderId || x.id), title: x.serviceTitle, amount: x.amount, detail: x.reason, who: x.seller?.name ?? "", whoId: x.seller?.id ?? "", at: x.createdAt })),
+    };
+  },
+  // Refunds Click or ATMOS could not make on their own (2026-11-21 §2).
+  refunds: async (signal) => {
+    const r = await listRefundRequests({ limit: 50 }, signal);
+    return {
+      total: r.total,
+      jobs: r.items.map((x) => ({ ...base, raw: x, key: `f:${x.id}`, queue: "refunds", id: x.id, code: x.orderWorkId || x.workId || shortId(x.orderId || x.id), title: x.serviceTitle, amount: x.amount, detail: x.providerError || x.reason, who: x.clientName, whoId: x.clientUserId, at: x.createdAt })),
     };
   },
 };

@@ -29,6 +29,7 @@ const MODULES: Partial<Record<QKey, AnyDecide>> = {
   licenses: dynamic(() => import("./decide/VerifyDecide"), { ssr: false, loading: wait }) as AnyDecide,
   payouts: dynamic(() => import("./decide/PayoutDecide"), { ssr: false, loading: wait }) as AnyDecide,
   recoveries: dynamic(() => import("./decide/PayoutDecide"), { ssr: false, loading: wait }) as AnyDecide,
+  refunds: dynamic(() => import("./decide/RefundDecide"), { ssr: false, loading: wait }) as AnyDecide,
 };
 
 export const hasPanel = (q: QKey) => Boolean(MODULES[q]);

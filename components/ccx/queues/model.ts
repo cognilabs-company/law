@@ -1,6 +1,6 @@
 import { parseServerTime } from "@/lib/http";
 
-export type QKey = "queue" | "urgent" | "escalations" | "complaints" | "mpComplaints" | "warranty" | "cancellations" | "experience" | "achievements" | "licenses" | "payouts" | "recoveries";
+export type QKey = "queue" | "urgent" | "escalations" | "complaints" | "mpComplaints" | "warranty" | "cancellations" | "experience" | "achievements" | "licenses" | "payouts" | "recoveries" | "refunds";
 export type FamKey = "work" | "disputes" | "verify" | "money" | "people";
 export type QFilter = "all" | "mine" | "late";
 export type QTone = "hot" | "warn" | "ok";
@@ -9,7 +9,7 @@ export const FAMILIES: { key: FamKey; queues: QKey[] }[] = [
   { key: "work", queues: ["queue", "urgent"] },
   { key: "disputes", queues: ["escalations", "complaints", "mpComplaints", "warranty", "cancellations"] },
   { key: "verify", queues: ["experience", "achievements", "licenses"] },
-  { key: "money", queues: ["payouts", "recoveries"] },
+  { key: "money", queues: ["payouts", "recoveries", "refunds"] },
   { key: "people", queues: [] },
 ];
 
@@ -25,6 +25,7 @@ export const QUEUE_OF_TAB: Record<string, QKey> = {
   achievements: "achievements",
   licenses: "licenses",
   payouts: "payouts",
+  refunds: "refunds",
 };
 
 const TAB: Record<QKey, string> = {
@@ -40,6 +41,7 @@ const TAB: Record<QKey, string> = {
   licenses: "licenses",
   payouts: "payouts",
   recoveries: "payouts",
+  refunds: "refunds",
 };
 
 export type QJob = {
@@ -89,7 +91,7 @@ export function viewOf(j: QJob, fetchedAt: number, now: number): QView {
   return { ...j, ageMin: age, late, tone: late ? "hot" : age >= WARN ? "warn" : "ok" };
 }
 
-export const PANEL_QUEUES: QKey[] = ["escalations", "complaints", "mpComplaints", "warranty", "cancellations", "experience", "achievements", "licenses", "payouts", "recoveries"];
+export const PANEL_QUEUES: QKey[] = ["escalations", "complaints", "mpComplaints", "warranty", "cancellations", "experience", "achievements", "licenses", "payouts", "recoveries", "refunds"];
 
 export const opensPanel = (j: QJob) => PANEL_QUEUES.includes(j.queue);
 
