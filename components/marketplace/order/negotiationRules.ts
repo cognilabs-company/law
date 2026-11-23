@@ -3,7 +3,7 @@ import type { MarketOrder, MarketPhase } from "@/lib/services/marketplace";
 import { negotiationSideOf, type Negotiation, type NegotiationAction, type RuntimeConfig } from "@/lib/services/marketRuntime";
 
 export type NegotiationState = "none" | "proposed" | "countered" | "accepted" | "rejected" | "expired";
-export type NegotiationErrorKey = "notLower" | "aboveMax" | "expired" | "notAvailable" | "alreadyOpen" | "alreadyResolved";
+export type NegotiationErrorKey = "notLower" | "aboveMax" | "counterRange" | "expired" | "notAvailable" | "alreadyOpen" | "alreadyResolved";
 
 const dictOf = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 
@@ -120,6 +120,9 @@ export function counterProblem(amount: number | undefined, maxPrice: number | nu
 export function negotiationErrorKey(code: string): NegotiationErrorKey | null {
   const c = code.trim().toLowerCase();
   if (!c) return null;
+  // A counter-offer outside the order's bounds: [50% of the system price,
+  // the system price] (detail.minimum_price / maximum_price).
+  if (/^counter_price_(invalid|out_of_range)$/.test(c)) return "counterRange";
   if (/lower|below|less|must_decrease/.test(c)) return "notLower";
   if (/max/.test(c)) return "aboveMax";
   if (/expir/.test(c)) return "expired";
