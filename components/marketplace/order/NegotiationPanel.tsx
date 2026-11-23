@@ -138,11 +138,22 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
     if (key) {
       const serverMax = cap === null && info ? Number(info.detail.maximum_price ?? info.detail.max_price) : Number.NaN;
       const maxText = cap !== null ? cur(cap) : Number.isFinite(serverMax) && serverMax > 0 ? cur(serverMax) : "";
-      const msg = key === "aboveMax" && !maxText ? t("negotiation.err.aboveMaxNoValue") : t(`negotiation.err.${key}`, { ...errParams, max: maxText || "—" });
-      if (key === "notLower" && place === "amount") {
+      const serverMin = info ? Number(info.detail.minimum_price ?? info.detail.min_price) : Number.NaN;
+      const minText = Number.isFinite(serverMin) && serverMin > 0 ? cur(serverMin) : "";
+      const rangeMax = info ? Number(info.detail.maximum_price) : Number.NaN;
+      const rangeMaxText = Number.isFinite(rangeMax) && rangeMax > 0 ? cur(rangeMax) : maxText;
+      const msg =
+        key === "aboveMax" && !maxText
+          ? t("negotiation.err.aboveMaxNoValue")
+          : key === "belowMin"
+            ? minText ? t("negotiation.err.belowMin", { min: minText }) : t("negotiation.err.belowMinNoValue")
+            : key === "outOfRange"
+              ? minText && rangeMaxText ? t("negotiation.err.outOfRange", { min: minText, max: rangeMaxText }) : t("negotiation.err.outOfRangeNoValue")
+              : t(`negotiation.err.${key}`, { ...errParams, max: maxText || "—" });
+      if ((key === "notLower" || key === "belowMin") && place === "amount") {
         setAmountErr(msg);
         focusById(amountId);
-      } else if (key === "aboveMax" && place === "counter") {
+      } else if ((key === "aboveMax" || key === "outOfRange") && place === "counter") {
         setCounterErr(msg);
         focusById(counterId);
       } else setErr(msg);

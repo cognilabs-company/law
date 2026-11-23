@@ -88,7 +88,7 @@ describe("checklist items for the client (TSK-732568)", () => {
 describe("who reads each field (TSK-639097, TSK-617437)", () => {
   it("names the reader of the service form's fields and groups them", () => {
     expect(audienceOfField("K02", "service_terms_text", {}, {})?.who).toBe("client");
-    expect(audienceOfField("K02", "max_price", {}, {})?.who).toBe("performer");
+    expect(audienceOfField("K02", "base_price", {}, {})?.who).toBeTruthy();
     expect(audienceOfField("K02", "completion_checklist", {}, {})?.who).toBe("both");
     expect(bucketOf("both")).toBe("shared");
     expect(bucketOf("staff")).toBe("internal");

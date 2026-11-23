@@ -312,7 +312,8 @@ async function fetchPriceBand(serviceId: string, sellerId: string, region: strin
   const backendMin = uzsOpt(limits, "min_allowed", "min_price") ?? uzsOpt(q, "min_allowed", "min_price");
   const backendMax = uzsOpt(limits, "max_allowed", "max_price");
   const custom = policy && policy.minPercent > 0 && policy.minPercent <= policy.maxPercent;
-  const lo = custom ? policy.minPercent : 70;
+  // 2026-11-21 contract §3: the seller may go down to half the calculated price.
+  const lo = custom ? policy.minPercent : 50;
   const hi = custom ? policy.maxPercent : 100;
   return {
     recommended,

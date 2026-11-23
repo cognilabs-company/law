@@ -39,7 +39,7 @@ export function draftRuntime(p: SxValues, reader: Reader): RuntimeConfig {
     service_id: str(p.service_id) || "draft",
     duration: { value: p.duration_value, unit: p.duration_unit, calendar, starts_on: "seller_acceptance", business_weekdays: /business/.test(calendar) ? [1, 2, 3, 4, 5] : [] },
     template: { mode: p.template_mode, source: p.template_source, document_template_id: p.document_template_id },
-    pricing: { recommended_price: p.base_price, maximum_price: p.max_price, currency: "UZS" },
+    pricing: { recommended_price: p.base_price, currency: "UZS" },
     negotiation_available: p.negotiation_allowed === true,
     minimum_requirements: isDict(p.seller_requirements) ? p.seller_requirements : {},
     usage_steps: Array.isArray(p.usage_steps) ? p.usage_steps : [],

@@ -1,10 +1,5 @@
 import type { SxValues, SxWarning } from "../contract";
 
-const numOf = (v: unknown): number | null => {
-  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() ? Number(v) : NaN;
-  return Number.isFinite(n) ? n : null;
-};
-
 const upper = (code: string): string => String(code ?? "").trim().toUpperCase();
 
 export function ctorWarnings(code: string, next: SxValues, prev: SxValues | null, ctx: { descendants?: number; isNew: boolean }): SxWarning[] {
@@ -20,12 +15,8 @@ export function ctorWarnings(code: string, next: SxValues, prev: SxValues | null
       if (cur.is_active === true && (ctx?.isNew === true || !prev || cur.version !== prev.version || cur.body !== prev.body)) out.push({ key: "sx.warn.K31__reaccept", tone: "warn", path: "version" });
       break;
     }
-    case "K02": {
-      const max = numOf(cur.max_price);
-      const base = numOf(cur.base_price);
-      if (max !== null && base !== null && max > 0 && base > 0 && max < base) out.push({ key: "sx.warn.K02__maxBelowBase", tone: "warn", path: "max_price" });
-      break;
-    }
+    // K02 has no max_price any more (2026-11-21 contract §3): the price is
+    // the base × verified coefficients, with no upper cap.
   }
   return out;
 }

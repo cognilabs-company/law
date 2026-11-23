@@ -265,7 +265,7 @@ export const K02_LAYOUT: SxCtorLayout = {
   code: "K02",
   sections: [
     { id: "asosiy", titleKey: "sx.section.asosiy", fields: ["title", "category_id", "description", "client_value", "executor_types"] },
-    { id: "K02__price", titleKey: "sx.section.K02__price", fields: ["base_price", "max_price", "price_factor_ids", "price_factor_overrides", "pricing_coefficient_ids", "negotiation_allowed"] },
+    { id: "K02__price", titleKey: "sx.section.K02__price", fields: ["base_price", "price_factor_ids", "price_factor_overrides", "pricing_coefficient_ids", "negotiation_allowed"] },
     { id: "K02__requirements", titleKey: "sx.section.K02__requirements", fields: ["seller_requirements"] },
     { id: "K02__intake", titleKey: "sx.section.K02__intake", fields: [INTAKE] },
     { id: "K02__delivery", titleKey: "sx.section.K02__delivery", fields: ["duration_value", "duration_unit", "duration_calendar"] },

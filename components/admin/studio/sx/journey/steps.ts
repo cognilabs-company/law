@@ -14,7 +14,7 @@ export const FALLBACK_STEP_KEYS: Readonly<Record<StudioJourneyType, readonly str
 const FIELD_HINTS: Readonly<Record<StudioJourneyType, Readonly<Record<string, readonly string[]>>>> = {
   service: {
     category: ["title", "category_id"],
-    pricing: ["base_price", "max_price", "price_factor_ids", "price_factor_overrides", "negotiation_allowed"],
+    pricing: ["base_price", "price_factor_ids", "price_factor_overrides", "negotiation_allowed"],
     requirements: ["seller_requirements", "intake_questions"],
     duration: ["duration_value", "duration_unit", "duration_calendar"],
     delivery: ["duration_value", "duration_unit", "duration_calendar"],
