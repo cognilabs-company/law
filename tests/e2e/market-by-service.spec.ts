@@ -27,6 +27,8 @@ test("by service: the full purchase form goes to the backend's matcher, without 
     "/marketplace/services/v1/price-options": { items: [] },
     "POST /marketplace/services/v1/quote": { base_price: 250000, total_price: 250000, currency: "UZS", breakdown: [] },
     "/marketplace/me/orders": { items: [] },
+    // 2026-11-21 contract §1: Click and ATMOS only (the matcher takes Click).
+    "/payments/providers": { items: [{ provider: "click", enabled: true, label: "Click", status: "configured" }, { provider: "atmos", enabled: true, label: "ATMOS", status: "configured" }], fallback_provider: "click", currency: "UZS" },
     "POST /orders": (b: unknown) => (
       (sent = b as Record<string, unknown>),
       // Contract 2026-10-27 §4: the full payment first, no seller yet.
@@ -36,7 +38,7 @@ test("by service: the full purchase form goes to the backend's matcher, without 
         status: "pending_payment",
         payment_status: "pending",
         price: 250000,
-        payment: { id: "pay-9", status: "pending", amount: 250000, currency: "UZS", provider: "telegram_manual", payment_url: "" },
+        payment: { id: "pay-9", status: "pending", amount: 250000, currency: "UZS", provider: "click", payment_url: "" },
         details: { assignment_status: "payment_pending" },
       }
     ),
@@ -61,7 +63,7 @@ test("by service: the full purchase form goes to the backend's matcher, without 
   await dialog.getByRole("button", { name: "Tezkor Himoya mutaxassis tanlasin" }).click();
   await expect(dialog.getByText("To'lov kutilmoqda")).toBeVisible();
   await expect(dialog).not.toContainText("10%");
-  expect(sent).toMatchObject({ service_id: "v1", source: "marketplace", payment_provider: "telegram_manual", currency: "UZS", details: { problem: "Ajrashish bo'yicha maslahat kerak, bolalar masalasi bor", note: "Ajrashish bo'yicha maslahat kerak, bolalar masalasi bor", contact_speed: "within_1_hour", preferred_channel: "chat", selected_option_ids: [] } });
+  expect(sent).toMatchObject({ service_id: "v1", source: "marketplace", payment_provider: "click", currency: "UZS", details: { problem: "Ajrashish bo'yicha maslahat kerak, bolalar masalasi bor", note: "Ajrashish bo'yicha maslahat kerak, bolalar masalasi bor", contact_speed: "within_1_hour", preferred_channel: "chat", selected_option_ids: [] } });
   expect(sent).not.toHaveProperty("lawyer_user_id");
   expect((sent as unknown as { details: Record<string, unknown> }).details).not.toHaveProperty("region");
 });

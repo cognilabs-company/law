@@ -18,8 +18,9 @@ test.use({ viewport: process.env.ATMOS_NARROW ? { width: 375, height: 812 } : { 
 const sfx = process.env.ATMOS_NARROW ? "-phone" : "";
 const deadline = () => new Date(Date.now() + 29 * 60_000).toISOString();
 
-const ATMOS_ON = { items: [{ provider: "telegram_manual", enabled: true, label: "Telegram", status: "ready" }, { provider: "atmos", enabled: true, label: "ATMOS", status: "configured" }], fallback_provider: "telegram_manual", currency: "UZS" };
-const ATMOS_OFF = { items: [{ provider: "telegram_manual", enabled: true, label: "Telegram", status: "ready" }, { provider: "atmos", enabled: false, label: "ATMOS", status: "disabled" }], fallback_provider: "telegram_manual", currency: "UZS" };
+// 2026-11-21 contract §1: Click and ATMOS only.
+const ATMOS_ON = { items: [{ provider: "click", enabled: true, label: "Click", status: "configured" }, { provider: "atmos", enabled: true, label: "ATMOS", status: "configured" }], fallback_provider: "click", currency: "UZS" };
+const ATMOS_OFF = { items: [{ provider: "click", enabled: true, label: "Click", status: "configured" }, { provider: "atmos", enabled: false, label: "ATMOS", status: "disabled" }], fallback_provider: "click", currency: "UZS" };
 
 const unpaid = (payStatus = "pending", withUrl = true) =>
   order({
@@ -77,7 +78,7 @@ test("ATMOS switched off: it is not offered at all", async ({ page }) => {
   const state: State = { order: unpaid(), placed: false };
   await mockBackend(page, await signIn(page, CLIENT, routes(state, [], { "/payments/providers": ATMOS_OFF })));
   const dialog = await openDialog(page);
-  await expect(dialog.getByRole("button", { name: /^Telegram/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(dialog.getByRole("button", { name: /^Click/ })).toHaveAttribute("aria-pressed", "true");
   await expect(dialog.getByRole("button", { name: /^ATMOS/ })).toHaveCount(0);
 });
 

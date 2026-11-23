@@ -46,7 +46,7 @@ const routes = (state: { order: Record<string, unknown> }, extra: Routes = {}): 
   [`/marketplace/me/orders/${ORDER_ID}`]: () => state.order,
   [`/marketplace/me/orders/${ORDER_ID}/financials`]: () => financials([{ stage: "full_payment", status: "pending", amount: PRICE }]),
   [`/marketplace/me/orders/${ORDER_ID}/timeline`]: { items: [] },
-  "/payments/providers": { items: [{ provider: "click", enabled: true, label: "Click", status: "configured" }], fallback_provider: "telegram_manual", currency: "UZS" },
+  "/payments/providers": { items: [{ provider: "click", enabled: true, label: "Click", status: "configured" }], fallback_provider: "click", currency: "UZS" },
   "POST /payments/pay-1/click/checkout": { payment_id: "pay-1", status: "pending", provider: "click", payment_url: URL },
   ...extra,
 });

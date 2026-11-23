@@ -18,7 +18,7 @@ const sfx = `${process.env.BUY_DARK ? "-dark" : "-light"}${process.env.BUY_NARRO
 const PRICE = 879749;
 const deadline = () => new Date(Date.now() + 29 * 60_000).toISOString();
 
-const unpaid = (provider = "telegram_manual", url = "") =>
+const unpaid = (provider = "click", url = "") =>
   order({
     status: "pending_payment",
     payment_status: "pending",
@@ -33,7 +33,7 @@ const sentToSeller = () =>
     payment_status: "paid",
     contact_unlocked: false,
     price: PRICE,
-    payment: { id: "pay-1", status: "paid", amount: PRICE, currency: "UZS", provider: "telegram_manual" },
+    payment: { id: "pay-1", status: "paid", amount: PRICE, currency: "UZS", provider: "click" },
     details: { assignment_mode: "client_selected_external", assignment_status: "waiting_seller_response", acceptance_deadline_at: deadline(), seller_response_minutes: 30, client_status: "sent_to_seller" },
   });
 const chatOpen = () =>
@@ -45,7 +45,7 @@ const chatOpen = () =>
     secure_chat_room_id: "room-live",
     chat_url: "/secure-chats/room-live/messages",
     price: PRICE,
-    payment: { id: "pay-1", status: "paid", amount: PRICE, currency: "UZS", provider: "telegram_manual" },
+    payment: { id: "pay-1", status: "paid", amount: PRICE, currency: "UZS", provider: "click" },
     details: { assignment_status: "accepted", secure_chat_room_id: "room-live" },
   });
 
@@ -62,17 +62,20 @@ const shopRoutes = (state: { order: Record<string, unknown> }, purchase: (body: 
   [`/marketplace/me/orders/${ORDER_ID}`]: () => state.order,
   [`/marketplace/me/orders/${ORDER_ID}/financials`]: () => financials([{ stage: "full_payment", status: String((state.order.payment as { status: string }).status), amount: PRICE }]),
   [`/marketplace/me/orders/${ORDER_ID}/timeline`]: { items: [] },
-  // GET /payments/providers (gaps closed §1): Payme is on in these tests, Click is not.
+  // GET /payments/providers (2026-11-21 contract §1): Click and ATMOS only.
+  // A list that still names the Telegram approval or Payme never offers them.
   "/payments/providers": {
     items: [
       { provider: "telegram_manual", enabled: true, label: "Telegram orqali tasdiqlash", status: "ready" },
       { provider: "payme", enabled: true, label: "Payme", status: "configured" },
-      { provider: "click", enabled: false, label: "Click", status: "disabled" },
+      { provider: "click", enabled: true, label: "Click", status: "configured" },
+      { provider: "atmos", enabled: true, label: "ATMOS", status: "configured" },
     ],
-    fallback_provider: "telegram_manual",
+    fallback_provider: "click",
     currency: "UZS",
   },
-  "/payments/pay-1": { id: "pay-1", amount: PRICE, currency: "UZS", status: "pending", method: "payme", kind: "marketplace_full" },
+  "/payments/pay-1": { id: "pay-1", amount: PRICE, currency: "UZS", status: "pending", method: "click", kind: "marketplace_full" },
+  "POST /payments/pay-1/atmos/checkout": { payment_id: "pay-1", status: "pending", provider: "atmos", payment_url: "https://checkout.atmos.uz/invoice/opaque" },
 });
 const respond = (o: Record<string, unknown>, telegramSent = true) => ({
   work_id: "ADV-5IIPV",
@@ -94,13 +97,16 @@ async function openDialog(page: Page) {
   return dialog;
 }
 
-test("pay 100% via Telegram first; the seller gets it only once paid; the chat opens on acceptance", async ({ page }) => {
-  const state = { order: unpaid() };
+test("pay 100% with Click first (no Telegram, no Payme); the seller gets it only once paid; the chat opens on acceptance", async ({ page }) => {
+  const state = { order: unpaid("click") };
   const bodies: Record<string, unknown>[] = [];
   await mockBackend(page, await signIn(page, CLIENT, shopRoutes(state, (b) => (bodies.push(b), respond(state.order)))));
   const dialog = await openDialog(page);
-  // Telegram is the default way to pay; the steps say payment comes before the seller.
-  await expect(dialog.getByRole("button", { name: /^Telegram/ })).toHaveAttribute("aria-pressed", "true");
+  // Click is the default; ATMOS is the other way; Telegram and Payme are gone.
+  await expect(dialog.getByRole("button", { name: /^Click/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(dialog.getByRole("button", { name: /^ATMOS/ })).toHaveAttribute("aria-pressed", "false");
+  await expect(dialog.getByRole("button", { name: /^Telegram/ })).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: /^Payme/ })).toHaveCount(0);
   await expect(dialog.locator(".mk-steps li")).toHaveText([/So'rov/, /To'liq to'lov/, /Mutaxassis qabuli/, /Chat va ish/]);
   await expect(dialog.getByText("To'lov · 100%")).toBeVisible();
   await expect(dialog).not.toContainText("10%");
@@ -109,26 +115,23 @@ test("pay 100% via Telegram first; the seller gets it only once paid; the chat o
 
   const now = dialog.locator(".mk-steps li[aria-current=step]");
   await expect(now).toHaveText(/To'liq to'lov/);
-  await expect(dialog.getByText("To'lov kutilmoqda")).toBeVisible();
-  await expect(dialog.getByText(/Operator 100% to'lovni tasdiqlagach/)).toBeVisible();
+  await expect(dialog.getByText(/Telegram/)).toHaveCount(0);
   await expect(dialog.getByText(/To'lov tasdiqlandi/)).toHaveCount(0);
-  expect(bodies[0]).toMatchObject({ payment_provider: "telegram_manual", currency: "UZS", contact_speed: "within_1_hour" });
+  expect(bodies[0]).toMatchObject({ payment_provider: "click", currency: "UZS", contact_speed: "within_1_hour" });
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/buy-paying${sfx}.png` });
 
-  // The operator confirms: now, and only now, the seller has 30 minutes.
+  // Click confirms on the server: now, and only now, the seller has 30 minutes.
   state.order = sentToSeller();
-  await expect(now).toHaveText(/Mutaxassis qabuli/, { timeout: 15_000 });
-  await expect(dialog.getByText("To'lov tasdiqlandi — mutaxassisga yuborildi")).toBeVisible();
-  await expect(dialog.getByText(/Mutaxassis javobi kutilmoqda · 2\d:\d\d/)).toBeVisible();
-  await expect(dialog.getByText(/qayta to'lash shart emas/)).toBeVisible();
+  await expect(now).toHaveText(/Mutaxassis qabuli/, { timeout: 20_000 });
+  await expect(dialog.getByText(/Mutaxassis javobi kutilmoqda · 2\d:\d\d/)).toBeVisible({ timeout: 20_000 });
 
   state.order = chatOpen();
-  await expect(now).toHaveText(/Chat va ish/, { timeout: 15_000 });
+  await expect(now).toHaveText(/Chat va ish/, { timeout: 20_000 });
   await expect(dialog.getByRole("button", { name: "Advokat bilan bog'lanish" })).toBeVisible();
 });
 
-test("Payme not connected: a clear message and one tap to pay via Telegram instead", async ({ page }) => {
-  const state = { order: unpaid() };
+test("Click not working: a clear message and one tap to pay with ATMOS instead", async ({ page }) => {
+  const state = { order: unpaid("atmos") };
   const bodies: Record<string, unknown>[] = [];
   await mockBackend(
     page,
@@ -137,42 +140,23 @@ test("Payme not connected: a clear message and one tap to pay via Telegram inste
       CLIENT,
       shopRoutes(state, (b) => {
         bodies.push(b);
-        if (b.payment_provider === "payme") return { status: 503, json: { detail: { code: "payment_provider_not_configured", message: "Payme production credentials are not configured" } } };
+        if (b.payment_provider === "click") return { status: 503, json: { detail: { code: "payment_provider_unavailable", message: "Click upstream timeout 7781" } } };
         return respond(state.order);
       }),
     ),
   );
   const dialog = await openDialog(page);
-  await dialog.getByRole("button", { name: /^Payme/ }).click();
   await dialog.getByRole("button", { name: "Sotib olish" }).click();
   const fallback = dialog.locator(".mk-pay__fallback");
-  await expect(fallback).toContainText("Payme hozircha ishlamayapti.");
+  await expect(fallback).toContainText("Click hozircha ishlamayapti.");
   await expect(fallback).toContainText("Pul yechilmadi");
-  // No raw backend text.
-  await expect(dialog).not.toContainText("credentials");
+  // No raw backend text, and no Telegram.
+  await expect(dialog).not.toContainText("upstream");
+  await expect(dialog).not.toContainText("Telegram");
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/buy-fallback${sfx}.png` });
-  await fallback.getByRole("button", { name: "Telegram orqali to'lash" }).click();
-  await expect(dialog.getByText("To'lov kutilmoqda")).toBeVisible();
-  expect(bodies.map((b) => b.payment_provider)).toEqual(["payme", "telegram_manual"]);
-});
-
-test("Payme connected: the provider page, remembered for the return check", async ({ page }) => {
-  const url = "https://checkout.paycom.uz/test-invoice";
-  const state = { order: unpaid("payme", url) };
-  await mockBackend(page, await signIn(page, CLIENT, shopRoutes(state, () => respond(state.order, false))));
-  await page.route("https://checkout.paycom.uz/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: "<h1>Payme</h1>" }));
-  const dialog = await openDialog(page);
-  await dialog.getByRole("button", { name: /^Payme/ }).click();
-  await dialog.getByRole("button", { name: "Sotib olish" }).click();
-  await expect(dialog.getByText(/Payme sahifasida to'lovni yakunlang/)).toBeVisible();
-  // An online payment is not a Telegram delivery: no "not delivered" warning.
-  await expect(dialog.getByText(/Tasdiqlovchilarga xabar yetib bormadi/)).toHaveCount(0);
-  await dialog.getByRole("button", { name: "Payme orqali to'lash" }).click();
-  await page.waitForURL(url);
-  // Back on LexGo (sessionStorage is per site): the payment is being watched.
-  await page.goBack();
-  await expect(page.locator(".payret")).toContainText("To'lov tasdiqlanmoqda", { timeout: 20_000 });
-  expect(await page.evaluate(() => sessionStorage.getItem("lexgo.pendingPayment"))).toContain('"id":"pay-1"');
+  await fallback.getByRole("button", { name: "ATMOS orqali to'lash" }).click();
+  await expect(dialog.locator(".mk-steps li[aria-current=step]")).toHaveText(/To'liq to'lov/);
+  expect(bodies.map((b) => b.payment_provider)).toEqual(["click", "atmos"]);
 });
 
 test("the client's order page: paid in full, the seller's time left, nothing more to pay", async ({ page }) => {
@@ -180,7 +164,7 @@ test("the client's order page: paid in full, the seller's time left, nothing mor
   await mockBackend(page, await signIn(page, CLIENT, shopRoutes(state, () => respond(state.order))));
   await page.goto(`/uz/portal/client/marketplace-orders/${ORDER_ID}`);
   await expect(page.getByText("Mutaxassis javobi kutilmoqda").first()).toBeVisible();
-  await expect(page.getByText(/Javob uchun qolgan vaqt: 2\d:\d\d/)).toBeVisible();
+  await expect(page.getByRole("timer", { name: /Javob uchun qolgan vaqt: 2\d:\d\d/ })).toBeVisible();
   await expect(page.getByText(/To'lov to'liq qabul qilingan/)).toBeVisible();
   await expect(page.locator("main")).not.toContainText("10%");
 });

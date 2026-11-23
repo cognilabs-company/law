@@ -63,7 +63,7 @@ const routes = (state: State, extra: Routes = {}): Routes => ({
   [`/marketplace/me/orders/${ORDER_ID}`]: () => state.order,
   [`/marketplace/me/orders/${ORDER_ID}/financials`]: () => financials([{ stage: "full_payment", status: String((state.order.payment as { status: string }).status), amount: PRICE }]),
   [`/marketplace/me/orders/${ORDER_ID}/timeline`]: { items: [] },
-  "/payments/providers": { items: [{ provider: "click", enabled: true, label: "Click", status: "configured" }], fallback_provider: "telegram_manual", currency: "UZS" },
+  "/payments/providers": { items: [{ provider: "click", enabled: true, label: "Click", status: "configured" }], fallback_provider: "click", currency: "UZS" },
   // §6: each renewal is a new one-time link.
   "POST /payments/pay-1/click/checkout": () => {
     state.links += 1;

@@ -57,7 +57,7 @@ const routes = (state: State, bodies: Record<string, unknown>[], extra: Routes =
   [`/marketplace/me/orders/${ORDER_ID}/financials`]: () => financials([{ stage: "full_payment", status: state.pay, amount: PRICE }]),
   [`/marketplace/me/orders/${ORDER_ID}/timeline`]: { items: [] },
   // The production answer (§1): Click only, Telegram as the fallback.
-  "/payments/providers": { items: [{ provider: "click", enabled: true, label: "Click", status: "configured" }], fallback_provider: "telegram_manual", currency: "UZS" },
+  "/payments/providers": { items: [{ provider: "click", enabled: true, label: "Click", status: "configured" }], fallback_provider: "click", currency: "UZS" },
   "/payments/pay-1": () => ({ id: "pay-1", amount: PRICE, currency: "UZS", status: state.pay, method: "click", kind: "marketplace_full", order_id: ORDER_ID, receipt_url: state.pay === "paid" ? "/payments/pay-1/receipt" : null }),
   "POST /payments/pay-1/click/checkout": { payment_id: "pay-1", status: "pending", provider: "click", payment_url: URL2, provider_payment_id: "c-1" },
   ...extra,
@@ -149,7 +149,7 @@ test("marketplace: a duplicate active order goes straight to that order (§14; w
   await page.waitForURL(new RegExp(`/portal/client/marketplace-orders/${ORDER_ID}$`));
 });
 
-test("Click switched off: it is not offered at all (§1)", async ({ page }) => {
+test("Click switched off: it is not offered at all (§1); ATMOS is, and Telegram never (2026-11-21 §1)", async ({ page }) => {
   const state: State = { order: unpaid(), pay: "pending", placed: false };
   await mockBackend(
     page,
@@ -157,18 +157,19 @@ test("Click switched off: it is not offered at all (§1)", async ({ page }) => {
       page,
       CLIENT,
       routes(state, [], {
-        "/payments/providers": { items: [{ provider: "telegram_manual", enabled: true, label: "Telegram", status: "ready" }, { provider: "click", enabled: false, label: "Click", status: "disabled" }], fallback_provider: "telegram_manual", currency: "UZS" },
+        "/payments/providers": { items: [{ provider: "telegram_manual", enabled: true, label: "Telegram", status: "ready" }, { provider: "click", enabled: false, label: "Click", status: "disabled" }, { provider: "atmos", enabled: true, label: "ATMOS", status: "configured" }], fallback_provider: "click", currency: "UZS" },
       }),
     ),
   );
   const dialog = await openDialog(page);
-  await expect(dialog.getByRole("button", { name: /^Telegram/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(dialog.getByRole("button", { name: /^ATMOS/ })).toHaveAttribute("aria-pressed", "true");
   await expect(dialog.getByRole("button", { name: /^Click/ })).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: /^Telegram/ })).toHaveCount(0);
 });
 
 const PRO = { id: "p-pro", slug: "lexgo-ai-pro", name: "Pro", price: 99000, monthly_price: 99000, six_month_price: 564300, yearly_price: 1000000, is_active: true, audiences: ["client"], entitlements: { ai_requests: 1000 } };
 const FREE = { id: "p-free", slug: "lexgo-ai-free", name: "Free", price: 0, monthly_price: 0, is_active: true, audiences: ["client"], entitlements: { ai_requests: 5 } };
-const CLICK_ONLY = { items: [{ provider: "click", enabled: true, label: "Click", status: "configured" }], fallback_provider: "telegram_manual", currency: "UZS" };
+const CLICK_ONLY = { items: [{ provider: "click", enabled: true, label: "Click", status: "configured" }], fallback_provider: "click", currency: "UZS" };
 
 test("plan: the server prices it, Click pays it, the subscription is re-read once paid (§6)", async ({ page, context }) => {
   let pay = "pending";
