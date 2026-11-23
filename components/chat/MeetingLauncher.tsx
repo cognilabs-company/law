@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { useAuth, canMakeCalls } from "@/lib/auth";
+import { useAuth, canMakeCalls, isExternalSeller } from "@/lib/auth";
+import { Link } from "@/i18n/navigation";
 import { createSecureChat, startCall, listAdminCalls, getAdminCallDetail, type AdminCallDetail, type AdminCallRow, type LiveKitJoin } from "@/lib/services/backend";
 import { http, asArr, asDict, asNum, asStr, ApiError, isForbidden, parseServerTime } from "@/lib/http";
 import { notify } from "@/lib/toast";
@@ -616,7 +617,19 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
     );
   }
 
-  const canHost = canMakeCalls(session) && !hostRefused;
+  // §6 (2026-11-21): a marketplace advokat or yurist starts a call only in
+  // the chat of a paid, active order — no "new meeting", no people search.
+  const external = isExternalSeller(session);
+  const ordersHref = session?.role === "advocate" || session?.role === "lawyer" ? `/portal/${session.role}/marketplace-orders` : "/portal";
+  const canHost = canMakeCalls(session) && !hostRefused && !external;
+  const externalNote = external ? (
+    <p className="mext-note" role="note" data-ai-id="meetings.external-seller-note">
+      {t("externalNote")}{" "}
+      <Link href={ordersHref} className="mext-note__a">
+        {t("externalOrders")}
+      </Link>
+    </p>
+  ) : null;
   const canDetail = canSeeAllHistory;
   const statusOf = (s: string) => statusSpecOf(callMap, s)?.label ?? "";
   const thisYear = localDayKey(new Date()).slice(0, 4);
@@ -969,7 +982,10 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
         </section>
         ) : (
           // No hosting right: no create form, no "how to" — only what is live now.
-          <div className="ppanel">{liveBlock}</div>
+          <div className="ppanel">
+            {externalNote}
+            {liveBlock}
+          </div>
         )}
         <div className="ppanel mhist">
           <div className="ppanel__h mhist__h">
@@ -1203,6 +1219,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
         </div>
       ) : null}
 
+      {externalNote ? <div className="ppanel mext">{externalNote}</div> : null}
       <div className={canHost ? "mgrid3" : "pgrid2"} style={canHost ? undefined : { marginBottom: 16, alignItems: "start" }}>
         {canHost ? createForm : null}
 

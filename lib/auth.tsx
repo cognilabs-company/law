@@ -626,6 +626,18 @@ export function canMakeCalls(s: Session | null): boolean {
   return can(s, "meetings.manage") || sessionRoles(s).some((r) => r.includes("call_center"));
 }
 
+// A marketplace (external) advokat, yurist or advokat tashkiloti account —
+// not a call-center lawyer, operator or admin (2026-11-21 contract §6). They
+// may not search users, and may start a call only in the chat of a paid,
+// active order, with that order's client: the people search and "new
+// meeting" are not shown to them.
+const EXTERNAL_SELLER_ROLES = ["yurist", "advokat", "advokat_tashkiloti", "lawyer", "advocate", "organization"];
+export function isExternalSeller(s: Session | null): boolean {
+  if (!s) return false;
+  if (isCallCenterUser(s) || hasAdminAccess(s)) return false;
+  return EXTERNAL_SELLER_ROLES.includes(s.role) || sessionRoles(s).some((r) => EXTERNAL_SELLER_ROLES.includes(r));
+}
+
 // Admin access = an admin/superadmin role, or a permission that unlocks at
 // least one admin page (so AdminShell never admits someone with an empty nav).
 export function hasAdminAccess(s: Session | null): boolean {

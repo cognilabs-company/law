@@ -968,7 +968,11 @@ export default function SecureChat({
     } catch (e) {
       if (isForbidden(e)) {
         refuse("call");
-        notify.error(t("callFailed"), { id: `schat-call-${roomId}`, error: e });
+        // 2026-11-21 §6: an external seller calls only within a paid, active
+        // order, and only its client — say which rule stopped the call.
+        const code = e instanceof ApiError ? e.code ?? "" : "";
+        const why = code === "external_seller_call_requires_paid_order" ? t("callNeedsPaidOrder") : code === "external_seller_invite_forbidden" ? t("callOnlyOrderClient") : "";
+        notify.error(why || t("callFailed"), { id: `schat-call-${roomId}`, error: why ? undefined : e });
       } else notify.error(t("callFailed"), { id: `schat-call-${roomId}`, error: e, action: { label: tn("retry"), onClick: () => again.current.call(kind) } });
     } finally {
       setCallBusy(false);

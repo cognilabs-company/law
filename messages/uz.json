@@ -6633,7 +6633,8 @@
       "awaitingClient": "Mutaxassis javobi kutilmoqda",
       "newTitle": "Yangi buyurtmalar — javob bering",
       "newOver": "Muddat tugadi",
-      "rework": "Qayta bajarishda"
+      "rework": "Qayta bajarishda",
+      "phoneClosed": "Xizmat yakunlangan — yashirildi"
     },
     "toast": {
       "started": "Ish boshlandi",
@@ -12864,7 +12865,8 @@
         "pinfl_match": "JShShIR mijozlar bazasida",
         "opponent_match": "qarshi tomon mijozlar bazasida"
       },
-      "pinflPh": "14 ta raqam"
+      "pinflPh": "14 ta raqam",
+      "phoneClosed": "Xizmat yakunlangan — telefon yashirildi"
     },
     "caseAi": {
       "title": "AI vositalari",
@@ -16378,7 +16380,9 @@
         "audio": "Audio"
       },
       "durationHour": "{n} soat",
-      "durationMin": "{n} daq"
+      "durationMin": "{n} daq",
+      "externalNote": "Advokat va yuristlar audio yoki video qo'ng'iroqni faqat to'langan, faol buyurtma chatidan va o'sha buyurtma mijozi bilan boshlaydi.",
+      "externalOrders": "Buyurtmalarni ochish"
     },
     "callHistory": {
       "searchPh": "Nomi yoki yaratuvchisi bo'yicha qidiring",
@@ -18800,7 +18804,7 @@
       "forbidden": "Bu amalga ruxsatingiz yo'q.",
       "conflict": "So'rovni o'zingiz tasdiqlay olmaysiz yoki holat allaqachon o'zgargan.",
       "error": "Bajarib bo'lmadi"
-    }, "cancellationDiscussion": "Bekor qilish muhokamasi", "chatReadOnly": "Bu chat yopilgan — tarixni o'qish mumkin, yangi xabar, fayl va qo'ng'iroq yo'q", "privateRoom": "Bu chat sizga ochiq emas"
+    }, "cancellationDiscussion": "Bekor qilish muhokamasi", "chatReadOnly": "Bu chat yopilgan — tarixni o'qish mumkin, yangi xabar, fayl va qo'ng'iroq yo'q", "privateRoom": "Bu chat sizga ochiq emas", "callNeedsPaidOrder": "Qo'ng'iroq faqat to'langan, faol buyurtma chatida mumkin.", "callOnlyOrderClient": "Qo'ng'iroqqa faqat shu buyurtma mijozini taklif qilish mumkin."
   },
   "academy": {
     "kicker": "Tezkor Himoya Akademiya",

@@ -65,7 +65,7 @@ export default function ClientDetailModal({ id, onClose }: { id: string | null; 
                 <span>
                   <em className="pclient__lock" data-ai-id="advocate.clients.detail-modal.phone-locked">
                     <IconLock aria-hidden="true" />
-                    {tt("phoneLocked")}
+                    {d.client.phoneHiddenReason === "service_closed" ? tt("phoneClosed") : tt("phoneLocked")}
                   </em>
                   {[regionLabel(te, d.client.region), d.client.company].filter(Boolean).map((x) => ` · ${x}`).join("")}
                 </span>

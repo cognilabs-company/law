@@ -79,7 +79,7 @@ export default function ClientsPanel({ ns }: { ns: string }) {
                       <>
                         <em className="pclient__lock" data-ai-id={c.id ? `${aiId("advocate.clients.item", c.id)}.phone-locked` : undefined}>
                           <IconLock aria-hidden="true" />
-                          {tc("phoneLocked")}
+                          {c.phoneHiddenReason === "service_closed" ? tc("phoneClosed") : tc("phoneLocked")}
                         </em>
                         {" · "}
                       </>

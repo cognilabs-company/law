@@ -58,7 +58,7 @@ import { emitRoomCallEvent, isCallEvent, subscribeRoomCallEvents } from "@/lib/c
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { CaptureShield, MeetingWatermark, useCaptureGuard, type GuardTrip } from "./MeetingGuard";
 import { backoffMs, refreshAccessToken } from "@/lib/http";
-import { useAuth, canMakeCalls } from "@/lib/auth";
+import { useAuth, canMakeCalls, isExternalSeller } from "@/lib/auth";
 import { initials } from "@/lib/lawyers";
 import { makeInviteSearch, type InviteSearch } from "@/lib/inviteSearch";
 import SearchSelect, { type SearchOption } from "@/components/SearchSelect";
@@ -497,6 +497,10 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const [declined, setDeclined] = useState<string[]>([]);
   const declinedRef = useRef<Set<string>>(new Set());
   const [perms, setPerms] = useState<CallPermissions | null>(null);
+  const externalSellerRef = useRef(false);
+  useEffect(() => {
+    externalSellerRef.current = isExternalSeller(session);
+  }, [session]);
   const [panel, setPanel] = useState<"" | "chat" | "people" | "ai">("");
   // The realtime call assistant (2026-11-13 §9): internal operators and duty
   // lawyers with realtime_ai.use. External marketplace lawyers never hold it.
@@ -1267,7 +1271,9 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
           }
           setCallWorkId(c.workId);
           setRoster(c.participants);
-          setPerms(c.permissions);
+          // §6: an external seller invites nobody but the order's client,
+          // who is already in the call — no people search for them.
+          setPerms(c.permissions && externalSellerRef.current ? { ...c.permissions, canInvite: false } : c.permissions);
           setLimits(callLimitsOf(c));
           // The quality policy and the transport hints are fixed for the life
           // of a call ("once per call"), so they are taken the first time they

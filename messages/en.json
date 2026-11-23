@@ -6633,7 +6633,8 @@
       "awaitingClient": "Waiting for the specialist",
       "newTitle": "New orders — answer them",
       "newOver": "Time's up",
-      "rework": "Being redone"
+      "rework": "Being redone",
+      "phoneClosed": "Service closed — hidden"
     },
     "toast": {
       "started": "Work started",
@@ -12858,7 +12859,8 @@
         "pinfl_match": "PINFL is in your client base",
         "opponent_match": "counterparty is in your client base"
       },
-      "pinflPh": "14 digits"
+      "pinflPh": "14 digits",
+      "phoneClosed": "Service closed — phone hidden"
     },
     "caseAi": {
       "title": "AI tools",
@@ -16372,7 +16374,9 @@
         "audio": "Audio"
       },
       "durationHour": "{n}h",
-      "durationMin": "{n} min"
+      "durationMin": "{n} min",
+      "externalNote": "Advocates and lawyers start an audio or video call only from the chat of a paid, active order, and only with that order's client.",
+      "externalOrders": "Open orders"
     },
     "callHistory": {
       "searchPh": "Search by title or creator",
@@ -18794,7 +18798,7 @@
       "forbidden": "You may not do this.",
       "conflict": "You cannot approve your own request, or the state has changed.",
       "error": "Could not complete"
-    }, "cancellationDiscussion": "Cancellation discussion", "chatReadOnly": "This chat is closed — you can read the history, but no new messages, files or calls", "privateRoom": "This chat isn't open to you"
+    }, "cancellationDiscussion": "Cancellation discussion", "chatReadOnly": "This chat is closed — you can read the history, but no new messages, files or calls", "privateRoom": "This chat isn't open to you", "callNeedsPaidOrder": "A call is only possible in the chat of a paid, active order.", "callOnlyOrderClient": "Only this order's client can be invited to the call."
   },
   "academy": {
     "kicker": "Tezkor Himoya Academy",

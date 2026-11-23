@@ -71,10 +71,10 @@ export default function OrderFacts({ o, view, aiBase, runtime, onRefresh }: { o:
       ) : null}
       <dl className="mod-facts__list">
         {view === "seller" ? (
-          <Row label={to("phone")}>{phoneShow === "show" ? <a className="sx-link" href={telHref(o.clientPhone)}>{o.clientPhone}</a> : <span className="mod-muted">{phoneShow === "none" ? "—" : phoneShow === "hidden" ? to("phoneConcealed") : to("phoneHidden")}</span>}</Row>
+          <Row label={to("phone")}>{phoneShow === "show" ? <a className="sx-link" href={telHref(o.clientPhone)}>{o.clientPhone}</a> : <span className="mod-muted">{phoneShow === "none" ? "—" : o.clientPhoneHiddenReason === "service_closed" ? to("phoneClosed") : phoneShow === "hidden" ? to("phoneConcealed") : to("phoneHidden")}</span>}</Row>
         ) : o.lawyerName ? (
           // Point 8: the advocate's phone, once the client has paid.
-          <Row label={t("facts.sellerPhone")}>{sellerPhone === "show" ? <a className="sx-link" href={telHref(o.lawyerPhone)}>{o.lawyerPhone}</a> : <span className="mod-muted">{sellerPhone === "none" ? "—" : sellerPhone === "hidden" ? to("phoneConcealed") : to("phoneHidden")}</span>}</Row>
+          <Row label={t("facts.sellerPhone")}>{sellerPhone === "show" ? <a className="sx-link" href={telHref(o.lawyerPhone)}>{o.lawyerPhone}</a> : <span className="mod-muted">{sellerPhone === "none" ? "—" : o.lawyerPhoneHiddenReason === "service_closed" ? to("phoneClosed") : sellerPhone === "hidden" ? to("phoneConcealed") : to("phoneHidden")}</span>}</Row>
         ) : null}
         <Row label={t("facts.price")}>
           <span>
