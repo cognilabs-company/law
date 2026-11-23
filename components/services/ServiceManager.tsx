@@ -664,7 +664,7 @@ export default function ServiceManager({
             setDialog(null);
           }}
           onSent={(req) => {
-            if (req.telegramSent) toast(t("toast.promoSent"), { tone: "ok" });
+            if (req.awaitingPayment) toast(t("toast.promoSent"), { tone: "ok" });
           }}
         />
       ) : null}

@@ -7,9 +7,10 @@ import { useAuth } from "@/lib/auth";
 import { fmtUzs } from "@/lib/money";
 import { pendingPromoKey, savePendingPromo, serviceErrorOf, type ManagedService, type PromotionRequest, type ServiceScope } from "@/lib/services/sellerServices";
 import { BANNER_REFERENCES, bannerReferenceUrl, checkoutMarketplacePromotion, listPromotionPackages, promotionErrorCode, promotionErrorRetryable, uploadPromotionBanner, type BannerAsset, type PromotionPackage, type PromotionPlacement } from "@/lib/services/promotions";
+import { gateProviderName, useGatePay } from "@/components/payments/useGatePay";
 import { newIdempotencyKey } from "@/lib/services/promoEvents";
 import { usePackageName } from "@/components/services/bits";
-import { IconCheck, IconClock, IconCrown, IconGem, IconImage, IconRocket, IconUpload } from "@/components/icons";
+import { IconCheck, IconClock, IconCrown, IconExternal, IconGem, IconImage, IconRocket, IconUpload } from "@/components/icons";
 import { Banner, Btn, Dialog, Field, Input, Loading, Select, Seg } from "../../kit/kit";
 import "./promote.css";
 
@@ -110,7 +111,7 @@ export default function PromoteDialog({ open, start, services, onClose, onSent, 
         SCOPE,
         uid,
       );
-      if (req.telegramSent) savePendingPromo(uid, needsService && service ? pendingPromoKey(SCOPE, service.id) : pendingPromoKey("profile"), { requestId: req.requestId, packageTitle: packName(chosen.title, chosen.placement), amount: req.amount, currency: req.currency, telegramSent: req.telegramSent });
+      if (req.awaitingPayment) savePendingPromo(uid, needsService && service ? pendingPromoKey(SCOPE, service.id) : pendingPromoKey("profile"), { requestId: req.requestId, packageTitle: packName(chosen.title, chosen.placement), amount: req.amount, currency: req.currency, awaitingPayment: req.awaitingPayment });
       attempt.current = "";
       setDone(req);
       onSent(req);
@@ -156,9 +157,10 @@ export default function PromoteDialog({ open, start, services, onClose, onSent, 
     >
       {done ? (
         <>
-          <Banner tone={done.telegramSent || done.activated ? "ok" : "err"} title={done.telegramSent || done.activated ? t("telegramOk") : t("failTitle")}>
-            {done.telegramSent || done.activated ? t("doneText") : t("failText")}
+          <Banner tone={done.awaitingPayment || done.activated ? "ok" : "err"} title={done.activated ? t("activeTitle") : done.awaitingPayment ? t("doneTitle") : t("failTitle")}>
+            {done.awaitingPayment || done.activated ? (done.activated ? t("activeText") : t("payLead")) : t("failText")}
           </Banner>
+          {done.awaitingPayment && !done.activated ? <DeskPromoPay done={done} /> : null}
           <dl className="dxp-sum">
             <div>
               <dt>{t("request")}</dt>
@@ -264,5 +266,21 @@ export default function PromoteDialog({ open, start, services, onClose, onSent, 
         </>
       )}
     </Dialog>
+  );
+}
+
+// Paid through Click or ATMOS on the checkout's own page (2026-11-21 §1.3).
+function DeskPromoPay({ done }: { done: PromotionRequest }) {
+  const t = useTranslations("sellerServices.promote");
+  const g = useGatePay({ paymentId: done.paymentId ?? "", amount: done.amount, provider: done.provider ?? "", paymentUrl: done.paymentUrl ?? "" });
+  if (!g.can) return null;
+  const name = gateProviderName(done.provider ?? "");
+  return (
+    <>
+      <Btn kind="primary" icon={<IconExternal />} busy={g.busy} onClick={() => void g.pay()}>
+        {name ? t("pay", { provider: name }) : t("payAny")}
+      </Btn>
+      {g.failed ? <Banner tone="warn">{t("payFailed")}</Banner> : null}
+    </>
   );
 }

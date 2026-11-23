@@ -42,6 +42,8 @@ export type PromotionCheckoutInput = {
   bannerFileUrl?: string;
   previewContext?: Dict;
   idempotencyKey?: string;
+  // "click" | "atmos"; "" or absent lets the backend pick.
+  provider?: string;
 };
 
 export type PromotionCampaignSnapshot = {
@@ -80,6 +82,11 @@ export function promotionErrorCode(error: unknown): PromotionErrorCode | "" {
   return (PROMOTION_ERROR_CODES as readonly string[]).includes(raw) ? (raw as PromotionErrorCode) : "";
 }
 
+// A provider page the browser may open: absolute https only, as given.
+const httpsOnly = (v: unknown): string => {
+  const u = typeof v === "string" ? v.trim() : "";
+  return /^https:\/\/\S+$/i.test(u) ? u : "";
+};
 const CAMPAIGN_LAPSE = /campaign|aksiya|chegirma/i;
 const LAPSE_WORDS = /expired|exhausted|ended|limit|unavailable|inactive|sold_out|used_up|not_active|tugadi|tugagan/i;
 
@@ -381,7 +388,8 @@ export async function checkoutMarketplacePromotion(input: PromotionCheckoutInput
   const body: Dict = {
     package_id: input.packageId,
     days: input.days,
-    provider: "telegram_manual",
+    // "" = automatic: the backend picks Click, or ATMOS (2026-11-21 §1.3).
+    provider: input.provider ?? "",
     placement: input.placement,
     target_user_id: input.targetUserId || (scope.kind === "org" ? scope.memberId : currentUserId),
     language: uiLanguage(),
@@ -409,15 +417,12 @@ export async function checkoutMarketplacePromotion(input: PromotionCheckoutInput
     // The documented answer carries the package, not an amount of its own.
     amount: breakdown ? breakdown.amount : uzs(gate, "amount") || uzs(raw, "amount") || uzs(pack, "price"),
     currency: asStr(gate.currency ?? raw.currency ?? pack.currency, "UZS") || "UZS",
-    // The 10-09 answer has no telegram_sent: a request that is waiting for the
-    // Telegram approval says so with promotion_status and a checkout_request_id.
-    // Reading only the older flag showed every successful checkout as failed.
-    telegramSent:
-      !activated &&
-      (gate.telegram_sent === true ||
-      raw.telegram_sent === true ||
-      status.startsWith("pending") ||
-      ((raw.payment_required === true || gateStatus.startsWith("pending")) && !!(requestId || paymentId) && gate.telegram_sent !== false && raw.telegram_sent !== false)),
+    // 2026-11-21 contract §1.3: promotion_status "pending_payment" (or
+    // "active" when a discount makes it free); the payment is Click or ATMOS,
+    // through payment_gate.payment_url.
+    awaitingPayment: !activated && (status.startsWith("pending") || raw.payment_required === true || gateStatus.startsWith("pending")) && !!(requestId || paymentId),
+    provider: asStr(gate.provider ?? raw.provider).toLowerCase(),
+    paymentUrl: httpsOnly(gate.payment_url ?? raw.payment_url),
   };
 }
 

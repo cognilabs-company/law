@@ -346,7 +346,6 @@ export default function AssistMarket({ ticketId, client, clientName, ctx, onDone
   const basePhase: AssistPayPhase = sent ? sent.gate?.phase || orderPayPhase(sent.orderStatus, sent.paymentStatus) || payPhaseOf(sent.status) : "";
   const ctxPhase: AssistPayPhase = ctxOrder ? orderPayPhase(ctxOrder.status, ctxOrder.paymentStatus) : "";
   const phase: AssistPayPhase = sent ? pickPayPhase(live?.phase ?? "", ctxPhase, basePhase) : "";
-  const telegramSent = live?.telegramSent ?? sent?.telegramSent ?? false;
 
   const sentRows: InfoRow[] = sent
     ? [
@@ -355,7 +354,6 @@ export default function AssistMarket({ ticketId, client, clientName, ctx, onDone
         ...(sent.lawyerName ? [{ key: "seller", label: t("market.seller"), value: sent.lawyerName }] : []),
         ...(!phase && sent.amount > 0 ? [{ key: "amount", label: t("result.amount"), value: sumText(t, sent.amount, sent.currency) }] : []),
         ...(!phase ? [{ key: "status", label: t("result.status"), value: <StatusChip status={sent.status} /> }] : []),
-        { key: "tg", label: t("result.telegram"), value: telegramSent ? t("result.telegramSent") : t("result.telegramFailed") },
         ...(sent.nextStatus && phase !== "paid" && phase !== "rejected"
           ? [{ key: "next", label: t("result.next"), value: t.has(`market.nextStatus.${sent.nextStatus}`) ? t(`market.nextStatus.${sent.nextStatus}`) : humanize(sent.nextStatus) }]
           : []),
@@ -371,7 +369,7 @@ export default function AssistMarket({ ticketId, client, clientName, ctx, onDone
           title={t("market.sentTitle")}
           rows={sentRows}
           note={phase === "paid" ? t("pay.marketPaid") : phase === "rejected" ? t("pay.rejectedNote") : sent.sellerAfterPayment ? t("market.afterPayment") : undefined}
-          warn={!telegramSent || phase === "rejected"}
+          warn={phase === "rejected"}
           onDismiss={() => setSent(null)}
         >
           <PayState phase={phase} amount={sent.gate?.amount || sent.amount} currency={sent.gate?.currency || sent.currency} />

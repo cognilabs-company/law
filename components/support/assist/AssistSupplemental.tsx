@@ -147,7 +147,6 @@ export default function AssistSupplemental({ ticketId, ctx, onDone, onBlock }: A
             { key: "req", label: t("request"), value: sent.sup.workId ? <span className="sasst__wid">{sent.sup.workId}</span> : sent.sup.id },
             { key: "status", label: ta("result.status"), value: <StatusChip status={sent.phase || sent.result.status} /> },
             ...(sent.result.amount ? [{ key: "amount", label: t("amount"), value: sumText(ta, sent.result.amount) }] : []),
-            { key: "tg", label: ta("result.telegram"), value: sent.result.telegramSent ? ta("result.telegramSent") : t("telegramWait") },
           ]}
           note={sent.phase === "approved" ? t("approvedNote") : sent.phase === "rejected" ? t("rejectedNote") : t("waitNote")}
           warn={sent.phase === "rejected"}

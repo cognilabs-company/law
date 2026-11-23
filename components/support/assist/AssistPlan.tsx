@@ -123,7 +123,6 @@ export default function AssistPlan({ ticketId, client, clientName, ctx, ctxAt, o
   const settled = pickPayPhase(live?.phase ?? "", ctxPhase, basePhase);
   const reviewed = Boolean(sent && known && settled === "pending" && ctxAt > sent.at && !known.pending);
   const phase: AssistPayPhase = sent && !reviewed ? settled : "";
-  const telegramSent = live?.telegramSent ?? sent?.data.telegramSent ?? false;
 
   const sentRows: InfoRow[] = sent
     ? [
@@ -132,7 +131,6 @@ export default function AssistPlan({ ticketId, client, clientName, ctx, ctxAt, o
         { key: "period", label: t("plan.period"), value: t(`period.${sent.period}`) },
         ...(!phase ? [{ key: "amount", label: t("result.amount"), value: sumText(t, sent.data.amount, sent.data.currency) }] : []),
         ...(!phase && !reviewed ? [{ key: "status", label: t("result.status"), value: <StatusChip status={sent.data.status} /> }] : []),
-        { key: "tg", label: t("result.telegram"), value: telegramSent ? t("result.telegramSent") : t("result.telegramFailed") },
       ]
     : [];
 
@@ -145,7 +143,7 @@ export default function AssistPlan({ ticketId, client, clientName, ctx, ctxAt, o
           title={t("plan.sentTitle")}
           rows={sentRows}
           note={reviewed ? t("pay.planReviewed") : phase === "paid" ? t("pay.planPaid") : phase === "rejected" ? t("pay.rejectedNote") : undefined}
-          warn={!telegramSent || phase === "rejected"}
+          warn={phase === "rejected"}
           onDismiss={() => setSent(null)}
         >
           <PayState phase={phase} amount={sent.data.amount} currency={sent.data.currency} />

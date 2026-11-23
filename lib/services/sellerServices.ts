@@ -74,7 +74,10 @@ export type AdPackage = { id: string; title: string; price: number; currency: st
 
 // activated: the backend switched the promotion on at once (no payment step),
 // so there is nothing to wait for.
-export type PromotionRequest = { requestId: string; amount: number; currency: string; telegramSent: boolean; activated?: boolean };
+// awaitingPayment: the request exists and waits for its Click or ATMOS
+// payment (2026-11-21 contract §1.3: promotion_status "pending_payment");
+// paymentUrl / provider / paymentId: where it is paid.
+export type PromotionRequest = { requestId: string; amount: number; currency: string; awaitingPayment: boolean; activated?: boolean; paymentId?: string; provider?: string; paymentUrl?: string };
 
 export const NOTE_MAX = 2000;
 
@@ -235,15 +238,23 @@ export async function promoteManagedService(scope: ServiceScope, serviceId: stri
   const d = asDict(
     await http(`${scopeBase(scope)}/${enc(serviceId)}/promotion-checkout`, {
       method: "POST",
-      body: JSON.stringify({ package_id: pkg.id, days: pkg.days, provider: "telegram_manual" }),
+      // No provider named: the backend picks Click, or ATMOS (§1.1).
+      body: JSON.stringify({ package_id: pkg.id, days: pkg.days }),
     }),
   );
   const gate = asDict(d.payment_gate);
+  const status = asStr(d.promotion_status ?? d.status ?? gate.status).toLowerCase();
+  const link = asStr(gate.payment_url ?? d.payment_url).trim();
+  const activated = d.payment_required === false || /^(active|activated|approved|paid)$/.test(status);
   return {
     requestId: asStr(d.checkout_request_id) || asStr(gate.id),
     amount: uzs(gate, "amount") || pkg.price,
     currency: asStr(gate.currency) || pkg.currency || "UZS",
-    telegramSent: gate.telegram_sent === true,
+    activated,
+    awaitingPayment: !activated && !!(asStr(d.checkout_request_id) || asStr(gate.id) || asStr(gate.payment_id)),
+    paymentId: asStr(gate.payment_id ?? d.payment_id),
+    provider: asStr(gate.provider ?? d.provider).toLowerCase(),
+    paymentUrl: /^https:\/\/\S+$/i.test(link) ? link : "",
   };
 }
 
@@ -582,7 +593,7 @@ export function serviceErrorOf(e: unknown, locale = "uz"): ServiceError {
   return out("unknown", { detail: text });
 }
 
-export type PendingPromo = { requestId: string; packageTitle: string; amount: number; currency: string; telegramSent: boolean; at: number };
+export type PendingPromo = { requestId: string; packageTitle: string; amount: number; currency: string; awaitingPayment: boolean; at: number };
 
 const PENDING_TTL = 72 * 3600 * 1000;
 const PENDING_EVENT = "lexgo:promo-pending";
@@ -613,7 +624,8 @@ export function parsePendingPromos(raw: string): Record<string, PendingPromo> {
         packageTitle: asStr(d.packageTitle),
         amount: asNum(d.amount),
         currency: asStr(d.currency) || "UZS",
-        telegramSent: d.telegramSent === true,
+        // Entries saved before 2026-11-21 still say telegramSent.
+        awaitingPayment: d.awaitingPayment === true || d.telegramSent === true,
         at,
       };
     }

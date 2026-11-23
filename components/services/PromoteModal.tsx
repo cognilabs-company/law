@@ -37,7 +37,8 @@ import {
   type PromotionPlacement,
   type PromotionPlacementOption,
 } from "@/lib/services/promotions";
-import { IconAlert, IconArrowRight, IconCheck, IconCircleCheck, IconClock, IconCrown, IconEye, IconGem, IconInfo, IconMegaphone, IconRefresh, IconRocket, IconTrendingUp, IconUpload, IconUser } from "@/components/icons";
+import { IconAlert, IconArrowRight, IconCheck, IconCircleCheck, IconClock, IconCrown, IconExternal, IconEye, IconGem, IconInfo, IconMegaphone, IconRefresh, IconRocket, IconTrendingUp, IconUpload, IconUser } from "@/components/icons";
+import { gateProviderName, useGatePay } from "@/components/payments/useGatePay";
 import { CameraIcon, ImageIcon, ScanFaceIcon, ShirtIcon, Trash2Icon, TrendingUpIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { subscribeUserEvents } from "@/lib/userSocket";
@@ -244,7 +245,7 @@ export default function PromoteModal({
 
   useEffect(() => () => { if (bannerLocal) URL.revokeObjectURL(bannerLocal); }, [bannerLocal]);
 
-  const waitIds = done && !done.activated && done.telegramSent && !outcome ? [done.requestId, done.paymentId].filter(Boolean).join("|") : "";
+  const waitIds = done && !done.activated && done.awaitingPayment && !outcome ? [done.requestId, done.paymentId].filter(Boolean).join("|") : "";
   useEffect(() => {
     if (!waitIds) return;
     const ids = waitIds.split("|");
@@ -300,13 +301,13 @@ export default function PromoteModal({
         scope,
         uid,
       );
-      if (req.telegramSent) {
+      if (req.awaitingPayment) {
         savePendingPromo(uid, needsService && svc ? pendingPromoKey(scope, svc.id) : pendingPromoKey("profile"), {
           requestId: req.requestId,
           packageTitle: packName(chosen.title, chosen.placement),
           amount: req.amount,
           currency: req.currency,
-          telegramSent: req.telegramSent,
+          awaitingPayment: req.awaitingPayment,
         });
       }
       attemptKey.current = "";
@@ -355,7 +356,7 @@ export default function PromoteModal({
   useEffect(() => {
     if (activated) window.dispatchEvent(new Event(PROMOTIONS_CHANGED));
   }, [activated]);
-  const sent = (Boolean(done?.telegramSent) || activated) && !closedOut;
+  const sent = (Boolean(done?.awaitingPayment) || activated) && !closedOut;
   const priced = done?.breakdown ?? null;
   const discounted = !!priced && (priced.discountAmount > 0 || !!priced.campaign);
   const campaign = priced?.campaign ?? null;
@@ -497,12 +498,7 @@ export default function PromoteModal({
             ) : null}
             {sent ? (
               <>
-                {activated ? null : (
-                  <p className="svpdone__tg is-ok">
-                    <IconCheck aria-hidden="true" />
-                    {t("telegramOk")}
-                  </p>
-                )}
+                {activated || !done ? null : <PromoPay done={done} />}
                 <button type="button" className="btn btn--pri btn--full" onClick={onClose}>
                   {t("close")}
                 </button>
@@ -795,5 +791,27 @@ export default function PromoteModal({
         />
       ) : null}
     </InBody>
+  );
+}
+
+// The promotion is paid through Click or ATMOS on the page the checkout
+// gave (2026-11-21 contract §1.3); it switches on when the provider confirms.
+function PromoPay({ done }: { done: PromotionCheckout }) {
+  const t = useTranslations("sellerServices.promote");
+  const g = useGatePay({ paymentId: done.paymentId, amount: done.amount, provider: done.provider ?? "", paymentUrl: done.paymentUrl ?? "" });
+  const name = gateProviderName(done.provider ?? "");
+  return (
+    <>
+      {g.can ? (
+        <button type="button" className="btn btn--grad btn--full" onClick={() => void g.pay()} disabled={g.busy} data-ai-id="services.promote.pay">
+          <IconExternal aria-hidden="true" />
+          {name ? t("pay", { provider: name }) : t("payAny")}
+        </button>
+      ) : null}
+      <p className={`svpdone__tg${g.failed ? "" : " is-ok"}`} role={g.failed ? "alert" : undefined}>
+        {g.failed ? <IconAlert aria-hidden="true" /> : <IconCheck aria-hidden="true" />}
+        {g.failed ? t("payFailed") : t("payLead")}
+      </p>
+    </>
   );
 }

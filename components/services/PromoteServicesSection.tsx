@@ -203,7 +203,7 @@ export default function PromoteServicesSection({ role, onData }: { role: "lawyer
             toast(msg, { tone: "err" });
           }}
           onSent={(req) => {
-            if (req.telegramSent) toast(t("toast.promoSent"), { tone: "ok" });
+            if (req.awaitingPayment) toast(t("toast.promoSent"), { tone: "ok" });
           }}
         />
       ) : null}

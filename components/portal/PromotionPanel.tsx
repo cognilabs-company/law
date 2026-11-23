@@ -214,10 +214,8 @@ export default function PromotionPanel() {
           <b>{t("placesTitle")}</b>
         </div>
 
-        {/* S1. The checkout no longer hands back a payment URL — an admin
-            approves it in Telegram — so this is the only thing standing
-            between the seller and silence. telegramSent false is worth saying
-            out loud: it means they are waiting on a message nobody received. */}
+        {/* A checkout waiting for its Click or ATMOS payment (2026-11-21
+            contract §1.3): it switches on when the provider confirms. */}
         {denied ? (
           <div className="promo__lapse" role="alert">
             <b>
@@ -261,9 +259,7 @@ export default function PromotionPanel() {
             <p>{t("pendingText")}</p>
             {pending.packageTitle ? <span className="wid">{pending.packageTitle}</span> : null}
             {pending.amount ? <span className="promo__pendamt">{fmtUzs(pending.amount)} {pending.currency}</span> : null}
-            <small className={pending.telegramSent ? "promo__tgok" : "promo__tgbad"}>
-              {pending.telegramSent ? t("pendingTelegramOk") : t("pendingTelegramFail")}
-            </small>
+            <small className="promo__tgok">{t("pendingPayment")}</small>
           </div>
         ) : null}
 
@@ -314,7 +310,7 @@ export default function PromotionPanel() {
             setDenied(msg);
           }}
           onSent={(req) => {
-            if (req.telegramSent) toast(ts("toast.promoSent"), { tone: "ok" });
+            if (req.awaitingPayment) toast(ts("toast.promoSent"), { tone: "ok" });
             setLapse(null);
             setReloadKey((n) => n + 1);
           }}

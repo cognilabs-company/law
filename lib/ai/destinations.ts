@@ -43,7 +43,6 @@ const DESTS: Dest[] = [
   { id: "urgent_advokat.service.second-opinion-single", type: "card", route: URGENT, key: "urgentSingle" },
   { id: "urgent_advokat.service.second-opinion-group", type: "card", route: URGENT, key: "urgentGroup" },
   { id: "works.list", type: "list", route: WORKS, key: "works" },
-  { id: "pricing.telegram-request-modal", type: "modal", route: SUB, key: "telegramModal", sellers: true },
 ];
 
 const ID_TYPES: [RegExp, string][] = [
