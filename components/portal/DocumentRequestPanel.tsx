@@ -486,7 +486,10 @@ export default function DocumentRequestPanel({
         setClickPay(c.payment);
         return;
       }
-      let r = await payDocumentRequest(req.id, "payme", req.price);
+      // Click in a desktop window (it opens the page beside itself), else
+      // ATMOS when it is on, else Click (2026-11-21 §1: Payme is gone).
+      const via = chrome?.openUrl && pays.has("click") ? "click" : pays.has("atmos") ? "atmos" : "click";
+      let r = await payDocumentRequest(req.id, via, req.price);
       if (r.paymentUrl) {
         // A desktop window opens the payment beside itself and keeps polling.
         if (chrome?.openUrl) {

@@ -2923,7 +2923,8 @@ export async function updateDocumentAnswers(
 }
 export async function payDocumentRequest(
   requestId: string,
-  provider: "payme" | "click",
+  // Click or ATMOS only (2026-11-21 contract §1).
+  provider: "click" | "atmos",
   amount: number, // whole so'm, as read by normDocRequest (legacy UZS, not tiyin)
 ): Promise<DocumentRequest> {
   return normDocRequest(
