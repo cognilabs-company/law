@@ -1,11 +1,13 @@
 "use client";
 
 import "@/components/portal/sosIntake1920.css";
-import { useState, type CSSProperties } from "react";
-import { useTranslations } from "next-intl";
+import { useEffect, useState, type CSSProperties } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { Check, CircleCheck, Clock, MessageSquareText, Phone, ShieldCheck, Siren, Zap } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
-import { createSosRequest, type SosRequest } from "@/lib/services/backend";
+import { createSosRequest, getClientProfile, type SosRequest, type SosUsage } from "@/lib/services/backend";
+import { ApiError } from "@/lib/http";
+import { fmtDate } from "@/lib/date";
 import { HOTLINE, HOTLINE_TEL } from "@/lib/contact";
 import { initials } from "@/lib/lawyers";
 
@@ -28,9 +30,24 @@ export default function ClientSos() {
   const router = useRouter();
   const [cat, setCat] = useState("");
   const [desc, setDesc] = useState("");
-  const [stage, setStage] = useState<"idle" | "connecting" | "connected" | "sent">("idle");
+  const [stage, setStage] = useState<"idle" | "connecting" | "connected" | "sent" | "limit">("idle");
   const [req, setReq] = useState<SosRequest | null>(null);
   const [busy, setBusy] = useState(false);
+  const locale = useLocale();
+  // 2026-11-21 contract §9: the plan's SOS call minutes (30 per 30 days from
+  // the plan start; chat does not count), from GET /clients/me.
+  const [usage, setUsage] = useState<SosUsage | null>(null);
+  const [resetAt, setResetAt] = useState("");
+  useEffect(() => {
+    let alive = true;
+    getClientProfile()
+      .then((p) => alive && setUsage(p.subscription?.sosUsage ?? null))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const mins = (sec: number) => Math.max(0, Math.floor(sec / 60));
 
   async function trigger() {
     if (busy) return;
@@ -40,7 +57,14 @@ export default function ClientSos() {
       const r = await createSosRequest({ category: cat || "other", description: desc.trim() });
       setReq(r);
       setStage(r.roomId ? "connected" : "sent");
-    } catch {
+    } catch (e) {
+      // §9: no SOS minutes left this period — say so, and when they return.
+      if (e instanceof ApiError && e.status === 402 && (e.code === "feature_limit_exhausted" || !e.code)) {
+        const d = e.data && typeof e.data.detail === "object" && e.data.detail ? (e.data.detail as Record<string, unknown>) : {};
+        setResetAt(typeof d.reset_at === "string" ? d.reset_at : usage?.resetAt ?? "");
+        setStage("limit");
+        return;
+      }
       // Fail-soft: the emergency is logged locally; an operator calls back.
       setStage("sent");
     } finally {
@@ -140,6 +164,20 @@ export default function ClientSos() {
           </div>
         ) : null}
 
+        {stage === "limit" ? (
+          <div className="sos2__panel lx-card sosi-state" role="alert" data-ai-id="sos.limit">
+            <b className="sosi-state__t">{t("limitTitle")}</b>
+            <span className="sos2__psub sosi-state__s">{resetAt ? t("limitText", { date: fmtDate(resetAt, locale) }) : t("limitTextNoDate")}</span>
+            <a className="sos2__call sosi-hot" href={HOTLINE_TEL}>
+              <span className="sosi-hot__i"><Phone /></span>
+              <span className="sosi-hot__t">
+                <span>{t("callNow")}</span>
+                <b>{HOTLINE}</b>
+              </span>
+            </a>
+          </div>
+        ) : null}
+
         {stage === "sent" ? (
           <div className="sos2__panel lx-card sosi-state" role="status">
             <span className="sos2__ok sosi-state__ok"><CircleCheck /></span>
@@ -159,6 +197,18 @@ export default function ClientSos() {
         ) : null}
 
         <aside className="sos2__side sosi-side" data-ai-target="sos:how">
+          {usage?.active && usage.limitSeconds > 0 ? (
+            <div className="sos2__how lx-card sosi-how sosi-mins" data-ai-id="sos.minutes">
+              <h3 className="sos2__h3 cx-h3">{t("minutesTitle")}</h3>
+              <p className="sosi-mins__v">
+                <b>{t("minutesLeft", { left: mins(usage.remainingSeconds), total: mins(usage.limitSeconds) })}</b>
+              </p>
+              <span className="sosi-mins__bar" aria-hidden>
+                <i style={{ width: `${Math.min(100, Math.round((usage.remainingSeconds / usage.limitSeconds) * 100))}%` }} />
+              </span>
+              <p className="sosi-mins__s">{usage.resetAt ? t("minutesReset", { date: fmtDate(usage.resetAt, locale) }) : t("minutesNote")}</p>
+            </div>
+          ) : null}
           <div className="sos2__how lx-card sosi-how">
             <h3 className="sos2__h3 cx-h3">{t("howTitle")}</h3>
             <ol className="sos2__steps sosi-steps">

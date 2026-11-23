@@ -4985,7 +4985,24 @@ export type MySubscription = {
   // undefined = /clients/me reported no auto-renew flag for this subscription.
   autoRenew?: boolean;
   provider: string; // "" when the backend does not say
+  // 2026-11-21 contract §9: in-app SOS call time, 30 minutes per 30 days
+  // from the plan start (chat does not count). null when not sent.
+  sosUsage: SosUsage | null;
 };
+export type SosUsage = { active: boolean; limitSeconds: number; usedSeconds: number; remainingSeconds: number; resetAt: string };
+export function sosUsageOf(v: unknown): SosUsage | null {
+  if (!v || typeof v !== "object") return null;
+  const d = asDict(v);
+  const limitSeconds = asNum(d.limit_seconds);
+  const usedSeconds = asNum(d.used_seconds);
+  return {
+    active: d.active === true,
+    limitSeconds,
+    usedSeconds,
+    remainingSeconds: d.remaining_seconds != null ? Math.max(0, asNum(d.remaining_seconds)) : Math.max(0, limitSeconds - usedSeconds),
+    resetAt: asStr(d.reset_at),
+  };
+}
 function normMySubscription(v: unknown): MySubscription | null {
   const d = asDict(v);
   const planName = asStr(d.plan_name ?? d.plan_title ?? asDict(d.plan).title ?? asDict(d.plan).name);
@@ -5001,6 +5018,7 @@ function normMySubscription(v: unknown): MySubscription | null {
     renewsAt: asStr(d.renews_at ?? d.ends_at ?? d.next_charge_at) || undefined,
     autoRenew: typeof ar === "boolean" ? ar : undefined,
     provider: asStr(d.provider ?? d.payment_provider),
+    sosUsage: sosUsageOf(d.sos_usage),
   };
 }
 export async function getMySubscription(): Promise<MySubscription | null> {

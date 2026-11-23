@@ -3,7 +3,7 @@
 import "./plans1920.css";
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { getSubscriptionPlans, demoPlanPurchase, isProviderUnsupported, type BackendPlan } from "@/lib/services/backend";
+import { getSubscriptionPlans, demoPlanPurchase, isGiftOnlyPlan, isProviderUnsupported, type BackendPlan } from "@/lib/services/backend";
 import { purchasePlanVia } from "@/lib/services/planCheckout";
 import { PAYMENT_PROVIDER_ERRORS, PROVIDER_LIST_ERRORS, marketErrorCode } from "@/lib/services/marketplace";
 import PayProviderPicker from "@/components/payments/PayProviderPicker";
@@ -81,7 +81,8 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
   const tcta = useTranslations("cta");
   const locale = useLocale();
   const plans = useResource<BackendPlan>(() => getSubscriptionPlans(locale), [locale]);
-  const qualifying = plans.data.filter((p) => p.isActive !== false && AI_UPGRADE_SLUG.test(p.slug));
+  // Gift-only plans (billing_type "gift", 2026-11-21 §9) are bought in the gift flow only.
+  const qualifying = plans.data.filter((p) => p.isActive !== false && !isGiftOnlyPlan(p) && AI_UPGRADE_SLUG.test(p.slug));
   const [planId, setPlanId] = useState("");
   const [period, setPeriod] = useState<Period>("monthly");
   const [busy, setBusy] = useState(false);

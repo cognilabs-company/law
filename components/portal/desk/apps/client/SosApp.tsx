@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { ApiError } from "@/lib/http";
+import { fmtDate } from "@/lib/date";
 import { createSosRequest, type SosRequest } from "@/lib/services/backend";
 import { HOTLINE, HOTLINE_TEL } from "@/lib/contact";
 import { IconAlert, IconChat, IconClock, IconFileText, IconPhone, IconScale, IconSearch, IconShield, IconShieldCheck } from "@/components/icons";
@@ -26,7 +28,7 @@ const CATS = [
   { key: "other", Icon: IconChat },
 ] as const;
 
-type Stage = "idle" | "connecting" | "connected" | "sent";
+type Stage = "idle" | "connecting" | "connected" | "sent" | "limit";
 
 export default function SosApp({ openLink }: NativeProps) {
   const t = useTranslations("portal.client.sos");
@@ -34,6 +36,8 @@ export default function SosApp({ openLink }: NativeProps) {
   const [desc, setDesc] = useState("");
   const [stage, setStage] = useState<Stage>("idle");
   const [req, setReq] = useState<SosRequest | null>(null);
+  const [resetAt, setResetAt] = useState("");
+  const locale = useLocale();
 
   async function trigger() {
     if (stage === "connecting") return;
@@ -42,7 +46,14 @@ export default function SosApp({ openLink }: NativeProps) {
       const r = await createSosRequest({ category: cat || "other", description: desc.trim() });
       setReq(r);
       setStage(r.roomId ? "connected" : "sent");
-    } catch {
+    } catch (e) {
+      // 2026-11-21 §9: no SOS minutes left this period.
+      if (e instanceof ApiError && e.status === 402) {
+        const d = e.data && typeof e.data.detail === "object" && e.data.detail ? (e.data.detail as Record<string, unknown>) : {};
+        setResetAt(typeof d.reset_at === "string" ? d.reset_at : "");
+        setStage("limit");
+        return;
+      }
       // Fail-soft, as on the web: the emergency is logged and an operator calls back.
       setStage("sent");
     }
@@ -153,6 +164,12 @@ export default function SosApp({ openLink }: NativeProps) {
                 <Btn kind="primary" icon={<IconChat />} onClick={() => req.roomId && openLink({ appId: "", route: `/portal/chat/${req.roomId}` })}>
                   {t("openChat")}
                 </Btn>
+              </>
+            ) : stage === "limit" ? (
+              <>
+                <b>{t("limitTitle")}</b>
+                <p>{resetAt ? t("limitText", { date: fmtDate(resetAt, locale) }) : t("limitTextNoDate")}</p>
+                {call}
               </>
             ) : (
               <>

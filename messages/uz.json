@@ -10758,7 +10758,14 @@
         "step1": "Vaziyat turini tanlang va qisqacha yozing.",
         "step2": "Navbatchi advokatga so'rov darhol yuboriladi.",
         "step3": "Advokat maxfiy chat yoki qo'ng'iroq orqali bog'lanadi.",
-        "whyTitle": "Nega Tezkor Himoya SOS?"
+        "whyTitle": "Nega Tezkor Himoya SOS?",
+        "minutesTitle": "SOS qo'ng'iroq daqiqalari",
+        "minutesLeft": "{total} daqiqadan {left} daqiqa qoldi",
+        "minutesReset": "{date} da yangilanadi. Faqat ilovadagi SOS qo'ng'iroqlari hisoblanadi, chat emas.",
+        "minutesNote": "Faqat ilovadagi SOS qo'ng'iroqlari hisoblanadi, chat emas.",
+        "limitTitle": "Bu davr uchun SOS daqiqalari tugadi",
+        "limitText": "Daqiqalar {date} da yangilanadi. Shoshilinch holatda ishonch telefoniga qo'ng'iroq qiling.",
+        "limitTextNoDate": "Shoshilinch holatda ishonch telefoniga qo'ng'iroq qiling."
       },
       "referrals": {
         "title": "Do'stni taklif qiling",

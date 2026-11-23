@@ -10752,7 +10752,14 @@
         "step1": "Pick the situation type and describe it briefly.",
         "step2": "The request goes to the on-duty lawyer instantly.",
         "step3": "The lawyer reaches you via private chat or a call.",
-        "whyTitle": "Why Tezkor Himoya SOS?"
+        "whyTitle": "Why Tezkor Himoya SOS?",
+        "minutesTitle": "SOS call minutes",
+        "minutesLeft": "{left} of {total} min left",
+        "minutesReset": "Renews on {date}. Only in-app SOS calls count, not chat.",
+        "minutesNote": "Only in-app SOS calls count, not chat.",
+        "limitTitle": "Your SOS minutes for this period are used up",
+        "limitText": "The minutes renew on {date}. In an emergency, call the hotline.",
+        "limitTextNoDate": "In an emergency, call the hotline."
       },
       "referrals": {
         "title": "Refer a friend",
