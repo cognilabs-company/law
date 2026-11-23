@@ -7872,6 +7872,11 @@ export type ConsentDoc = {
   bodyI18n: Record<string, string>;
   active: boolean;
   createdAt: string;
+  // BACKEND_FIXES_LIVE_2026-11-23: who must see it (backend role names —
+  // client, yurist, advokat, advokat_tashkiloti; empty = not said) and
+  // whether accepting it is required (null = not said).
+  audience: string[];
+  acceptanceRequired: boolean | null;
 };
 const legalCode = (k: string): string => {
   const l = k.toLowerCase();
@@ -7930,6 +7935,8 @@ export function normConsentDoc(v: unknown, lang: LegalLang = "uz"): ConsentDoc {
     bodyI18n,
     active: !(d.is_active === false || d.is_active === "false" || d.is_active === 0 || d.active === false),
     createdAt: asStr(d.created_at ?? d.published_at ?? d.updated_at),
+    audience: (Array.isArray(d.audience) ? d.audience : typeof d.audience === "string" ? d.audience.split(/[\s,]+/) : []).map((x) => asStr(x).trim().toLowerCase()).filter(Boolean),
+    acceptanceRequired: typeof d.acceptance_required === "boolean" ? d.acceptance_required : null,
   };
 }
 // The document a public path names: its canonical slug or one of its aliases.
@@ -7984,15 +7991,35 @@ export function currentConsents(docs: ConsentDoc[]): ConsentDoc[] {
   };
   return [...best.values()].sort((a, b) => rank(a.slug) - rank(b.slug) || a.slug.localeCompare(b.slug));
 }
-// Who a consent document is for. The backend sends `audience` and
-// `acceptance_required` but leaves them empty for every document (checked
-// 2026-11-15), so role-specific documents are recognised by slug; any other
-// slug applies to everyone. The canonical slugs (backend eecebb9) are listed
-// with the older names an older backend still sends — the map knew only the
-// old ones, so a client was asked to sign the lawyer partnership offer and the
-// per-order contract template. The client–advocate contract is signed per
-// order (T1A-04), never at sign-up or re-consent.
+// Who a consent document is for. Since BACKEND_FIXES_LIVE_2026-11-23 the
+// backend fills `audience` (its role names) and `acceptance_required` on every
+// document, and those decide. The slug map below is only the fallback for a
+// document that still comes without an audience (it was empty for all of them
+// until then): the canonical slugs (backend eecebb9) with the older names an
+// older backend still sends. The client–advocate contract is signed per order
+// (T1A-04), never at sign-up or re-consent, whatever its audience says.
 export type ConsentAudience = "client" | "lawyer" | "advocate" | "staff";
+const NEVER_AT_SIGNUP = new Set(["client_advocate_contract_template", "client_provider_contract"]);
+// The backend role names an audience may list for each of ours. An
+// organisation's owner is an advocate here, but only they sign the
+// organisation agreement: pass their exact role (`advokat_tashkiloti`).
+const AUDIENCE_ROLES: Record<ConsentAudience, string[]> = {
+  client: ["client", "mijoz"],
+  lawyer: ["yurist", "lawyer"],
+  advocate: ["advokat", "advocate"],
+  staff: [],
+};
+const ALL_ROLES = new Set(["all", "*", "any", "everyone", "all_roles"]);
+function audienceMatches(list: string[], audience: ConsentAudience, backendRole: string): boolean {
+  if (list.some((x) => ALL_ROLES.has(x))) return true;
+  const role = backendRole.trim().toLowerCase();
+  if (role && list.includes(role)) return true;
+  if (audience === "staff") {
+    // Staff sign in with the client role: they get what every role gets.
+    return ["client", "yurist", "advokat"].every((r) => list.includes(r));
+  }
+  return AUDIENCE_ROLES[audience].some((r) => list.includes(r));
+}
 const CONSENT_AUDIENCE: Record<string, ConsentAudience[]> = {
   lawyer_partnership_offer: ["lawyer", "advocate"],
   advocate_partnership: ["lawyer", "advocate"],
@@ -8002,8 +8029,21 @@ const CONSENT_AUDIENCE: Record<string, ConsentAudience[]> = {
   payment_refund_warranty: ["client", "lawyer", "advocate"],
   age_18: ["client", "lawyer", "advocate"],
 };
-export function consentsFor(docs: ConsentDoc[], audience: ConsentAudience): ConsentDoc[] {
+// The documents this person has to accept: for their audience and, when the
+// backend says so, required (an optional one — cookie, remote assistance — is
+// never forced). `backendRole` is the exact backend role when known
+// (advokat_tashkiloti, admin…).
+export function consentsFor(docs: ConsentDoc[], audience: ConsentAudience, backendRole = ""): ConsentDoc[] {
   return docs.filter((d) => {
+    if (NEVER_AT_SIGNUP.has(d.slug)) return false;
+    if (d.acceptanceRequired === false) return false;
+    if (d.audience.length) {
+      // advokat_tashkiloti documents go to that role only, even though the
+      // owner signs in as an advocate.
+      const orgOnly = d.audience.every((x) => x === "advokat_tashkiloti");
+      if (orgOnly) return backendRole.trim().toLowerCase() === "advokat_tashkiloti";
+      return audienceMatches(d.audience, audience, backendRole);
+    }
     const who = CONSENT_AUDIENCE[d.slug];
     return !who || who.includes(audience);
   });

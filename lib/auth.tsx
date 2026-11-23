@@ -20,7 +20,7 @@ import { normUzPhone } from "./phone";
 import { can, hasRole, permissionsOf, rolesOf, samePermissions } from "./permissions";
 import type { PlanTier, ProfessionalProfile, RegistrationDraft } from "./types";
 import { scoreCompleteness } from "./services/registration";
-import { readReferral } from "./referral";
+import { clearReferral, isReferralInvalid, readReferral } from "./referral";
 import {
   apiLogin,
   loginVerify2fa,
@@ -455,18 +455,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // never in the response; 409/429/offline errors reach the caller.
   const startRegistration = useCallback(async (draft: RegistrationDraft) => {
     const role = (draft.accountType ?? "client") as Role;
-    return registerStart({
-      role: toBackendRole(role),
-      name: draft.profile.name,
-      firstName: draft.profile.firstName,
-      lastName: draft.profile.lastName,
-      middleName: draft.profile.middleName,
-      region: draft.profile.region,
-      referralCode: readReferral(),
-      phone: normUzPhone(draft.phone),
-      password: draft.password,
-      otpDeliveryMethod: draft.otpDeliveryMethod,
-    });
+    const start = (referralCode: string) =>
+      registerStart({
+        role: toBackendRole(role),
+        name: draft.profile.name,
+        firstName: draft.profile.firstName,
+        lastName: draft.profile.lastName,
+        middleName: draft.profile.middleName,
+        region: draft.profile.region,
+        referralCode,
+        phone: normUzPhone(draft.phone),
+        password: draft.password,
+        otpDeliveryMethod: draft.otpDeliveryMethod,
+      });
+    const ref = readReferral();
+    try {
+      return await start(ref);
+    } catch (e) {
+      // BACKEND_FIXES_LIVE_2026-11-23: register/start refuses the code of a
+      // referrer who is no longer active (422 referral_code_invalid). The
+      // code came from an old ?ref= link, not from the person signing up, so
+      // it is forgotten and the sign-up goes on without it.
+      if (!ref || !isReferralInvalid(e)) throw e;
+      clearReferral();
+      return start("");
+    }
   }, []);
 
   // Step 2: verify the OTP, create the session, then upsert the seller profile.
