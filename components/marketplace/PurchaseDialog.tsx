@@ -14,6 +14,7 @@ import {
   CONTACT_SPEEDS,
   PACKAGE_SELLER_ERRORS,
   PAYMENT_PROVIDER_ERRORS,
+  PROVIDER_LIST_ERRORS,
   PURCHASE_PROVIDERS,
   PREFERRED_CHANNELS,
   PRICE_OPTION_ERRORS,
@@ -81,7 +82,7 @@ const NOTE_MAX = 1000;
 // advance any more.
 const STEPS = ["request", "pay", "accept", "chat"] as const;
 const STEP_OF: Record<MarketTrackPhase, number> = { pending: 1, accepting: 2, paid: 3, resolution: 2, chat: 3, completed: 4, cancelled: 1 };
-const PROVIDER_ICON = { telegram_manual: IconSend, payme: IconCard, click: IconCard, atmos: IconCard } as const;
+const PROVIDER_ICON = { click: IconCard, atmos: IconCard } as const;
 const URGENCY_OF: Record<ContactSpeed, PurchaseUrgency> = { within_15_min: "today", within_1_hour: "today", today: "today", tomorrow: "tomorrow" };
 export const CLIENT_ORDERS_HREF = "/portal/client/marketplace-orders";
 // The order's picture, as the dashboard draws its services (image-catalog.md):
@@ -133,8 +134,12 @@ export default function PurchaseDialog({
   // ATMOS is wired to the service and package purchase only (ATMOS
   // contract), not to the backend's own seller matching.
   const offered = PURCHASE_PROVIDERS.filter((pv) => pays.options.some((o) => o.provider === pv) && !(auto && pv === "atmos"));
-  const fallback = (PURCHASE_PROVIDERS as readonly string[]).includes(pays.fallback) ? (pays.fallback as PurchaseProvider) : "telegram_manual";
-  const provider: PurchaseProvider = picked && offered.includes(picked) ? picked : offered.includes("click") ? "click" : (offered[0] ?? fallback);
+  // Nothing offered (the list is still loading or failed): no provider is
+  // named and the backend picks Click, or ATMOS when Click is off (§1.1).
+  const provider: PurchaseProvider | "" = picked && offered.includes(picked) ? picked : offered.includes("click") ? "click" : (offered[0] ?? "");
+  // The other method on offer, for when the chosen one cannot take the payment.
+  const altOf = (pv: string): PurchaseProvider | "" => offered.find((o) => o !== pv) ?? "";
+  const bothOn = offered.length > 1;
   const providerName = (pv: string) => pays.labelOf(pv) || (t.has(`providers.${pv}.name`) ? t(`providers.${pv}.name`) : pv);
   // The chosen online provider cannot take the payment right now.
   const [provErr, setProvErr] = useState("");
@@ -270,7 +275,7 @@ export default function PurchaseDialog({
   async function atmosFailed(e: unknown) {
     const ae = atmosErrorOf(e);
     if (ATMOS_LIST_STALE.includes(ae.key)) {
-      // ATMOS goes from the list; the Telegram way stays on offer.
+      // ATMOS goes from the list; Click stays on offer when it is on.
       refreshCheckoutProviders();
       setProvErr("atmos");
       return;
@@ -298,7 +303,7 @@ export default function PurchaseDialog({
     void submit("atmos");
   }
 
-  async function submit(via: PurchaseProvider = provider) {
+  async function submit(via: PurchaseProvider | "" = provider) {
     if (sending.current || busy || done || refused || !service || price.pending || price.failed || attaching) return;
     if (findContacts(note).length) return;
     if (note.length > NOTE_MAX) {
@@ -320,7 +325,7 @@ export default function PurchaseDialog({
           return;
         }
       }
-      const input = { paymentProvider: via, note, preferredChannel: channel, contactSpeed: speed, preferredTime: speed ? t(`speeds.${speed}`) : "", selectedOptionIds: price.ids, urgency: speed ? URGENCY_OF[speed] : ("" as const), attachments: files, voiceMessages: voices.map(({ fileId, seconds }) => ({ fileId, seconds })), region };
+      const input = { paymentProvider: via || undefined, note, preferredChannel: channel, contactSpeed: speed, preferredTime: speed ? t(`speeds.${speed}`) : "", selectedOptionIds: price.ids, urgency: speed ? URGENCY_OF[speed] : ("" as const), attachments: files, voiceMessages: voices.map(({ fileId, seconds }) => ({ fileId, seconds })), region };
       const r = auto
         ? await requestMarketplaceMatch(service.id, input)
         : pkg
@@ -346,8 +351,10 @@ export default function PurchaseDialog({
         // before the client's orders are checked for it.
         lostAt.current = lostAt.current || Date.now();
         setErr(t("networkLost"));
-      } else if (PAYMENT_PROVIDER_ERRORS.includes(marketErrorCode(e)) && via !== fallback) {
-        // §5: a controlled message and the Telegram way instead of a dead end.
+      } else if (PAYMENT_PROVIDER_ERRORS.includes(marketErrorCode(e)) && via && bothOn) {
+        // A controlled message and the other provider instead of a dead end
+        // (2026-11-21 contract §1: Click and ATMOS only).
+        if (PROVIDER_LIST_ERRORS.includes(marketErrorCode(e))) refreshCheckoutProviders();
         setProvErr(via);
       } else if (marketErrorCode(e)) {
         const code = marketErrorCode(e);
@@ -386,9 +393,10 @@ export default function PurchaseDialog({
   const basePrice = price.quote?.basePrice || service.price;
   const chatHref = track?.roomId && tracked ? marketChatHref({ roomId: track.roomId, workId: tracked.workId, serviceTitle: service.title }) : "";
 
-  const paidVia = (done?.payment?.provider || provider) as string;
-  const online = paidVia === "payme" || paidVia === "click" || paidVia === "atmos";
-  const payUrl = done?.payment?.url && online && done.payment.status !== "paid" ? done.payment.url : "";
+  // The chosen provider is off: the other one, when it is on.
+  const altPay = provErr ? altOf(provErr) : "";
+  const paidVia = (done?.payment?.provider || provider || pays.fallback) as string;
+  const payUrl = done?.payment?.url && done.payment.status !== "paid" ? done.payment.url : "";
   const paidSure = !!track?.paid || done?.payment?.status === "paid";
   // Click (integration §4): the payment is approved in Click Up and watched
   // here; the order moves on only when the backend says it is paid.
@@ -408,7 +416,7 @@ export default function PurchaseDialog({
   const leads: Record<MarketTrackPhase, string> = {
     // The backend's own words for the client come first.
     accepting: done?.message || t("acceptLead"),
-    pending: track?.slow ? t("slow") : online ? t("payLeadOnline", { provider: providerName(paidVia) }) : t("payLeadTelegram"),
+    pending: track?.slow ? t("slow") : t("payLeadOnline", { provider: providerName(paidVia) }),
     paid: track?.slow ? t("paidNoRoom") : "",
     resolution: t("resolveLead"),
     chat: t("chatLead"),
@@ -614,7 +622,6 @@ export default function PurchaseDialog({
                 ) : null}
                 {receiptLead && !clickPending ? <p>{receiptLead}</p> : null}
                 {phase === "accepting" ? <p className="mk-receipt__note">{t("acceptNote")}</p> : null}
-                {phase === "pending" && done && !online && !done.telegramSent ? <Notice ok={false} msg={t("notDelivered")} /> : null}
               </div>
               {live && !clickPending ? (
                 <div className="mk-live">
@@ -774,25 +781,27 @@ export default function PurchaseDialog({
             <p className="mk-buy__note">{auto ? t("autoNote") : t("totalNote")}</p>
             <div ref={alertRef} className="mk-buy__alerts">
             {provErr && !refused ? (
-              <div className="mk-pay__fallback" role="alert">
+              <div className="mk-pay__fallback" role="alert" data-ai-id="marketplace.purchase.provider-off">
                 <IconAlert aria-hidden="true" />
                 <span>
                   <b>{t("providerOff", { provider: providerName(provErr) })}</b>
-                  {t("providerOffText")}
+                  {altPay ? t("providerOffText", { provider: providerName(altPay) }) : t("providerOffLater")}
                 </span>
-                <button
-                  type="button"
-                  className="btn btn--grad btn--sm"
-                  disabled={busy}
-                  onClick={() => {
-                    setProvider(fallback);
-                    void submit(fallback);
-                  }}
-                  data-ai-id="marketplace.purchase.provider-fallback"
-                >
-                  <IconSend />
-                  {t("providerUseTelegram")}
-                </button>
+                {altPay ? (
+                  <button
+                    type="button"
+                    className="btn btn--grad btn--sm"
+                    disabled={busy}
+                    onClick={() => {
+                      setProvider(altPay);
+                      void submit(altPay);
+                    }}
+                    data-ai-id="marketplace.purchase.provider-fallback"
+                  >
+                    <IconCard />
+                    {t("payProceed", { provider: providerName(altPay) })}
+                  </button>
+                ) : null}
               </div>
             ) : null}
             {atmosErr && !refused ? (

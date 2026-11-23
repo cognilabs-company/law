@@ -5,13 +5,13 @@ import { logApiError } from "@/lib/http";
 import { getCheckoutProviders, type CheckoutProvider, type CheckoutProviders } from "@/lib/services/paymentProviders";
 
 // The checkout's payment options (GET /payments/providers): only the enabled
-// ones, under the backend's own labels, asked once per page load. Until the
-// answer comes — or when it fails — only the backend's usual fallback,
-// Telegram confirmation, is offered. Click is never assumed: it shows only
-// while the backend says enabled=true (Click integration §1), and a refusal
-// that says it is not configured asks the list again (§14).
+// ones (Click, ATMOS), under the backend's own labels, asked once per page
+// load. Until the answer comes — or when it fails — nothing is offered and
+// the request names no provider: the backend then picks Click, or ATMOS when
+// Click is off (2026-11-21 contract §1.1). A refusal that says a provider is
+// not configured asks the list again (Click integration §14).
 
-const START: CheckoutProviders = { items: [{ provider: "telegram_manual", enabled: true, label: "", status: "ready" }], fallback: "telegram_manual" };
+const START: CheckoutProviders = { items: [], fallback: "click" };
 let shared: Promise<CheckoutProviders> | null = null;
 let version = 0;
 const listeners = new Set<() => void>();
@@ -52,9 +52,8 @@ export function useCheckoutProviders(): { options: CheckoutProvider[]; fallback:
     };
   }, [ver]);
   const enabled = got.v.items.filter((p) => p.enabled);
-  const options = enabled.length ? enabled : START.items;
   return {
-    options,
+    options: enabled,
     fallback: got.v.fallback,
     labelOf: (p) => got.v.items.find((x) => x.provider === p)?.label ?? "",
     ready: got.ready,

@@ -138,8 +138,12 @@ export async function getReconciliationV2(provider = "", signal?: AbortSignal): 
 
 // ── Checkout return: "paid" only after the provider's confirmed callback ──
 // ── Checkout providers (gaps closed §1): GET /payments/providers, public.
-// Only enabled ones are offered, under the backend's own label; when the
-// picked one fails, the backend's fallback takes over.
+// Only enabled ones are offered, under the backend's own label. Since the
+// 2026-11-21 contract (§1) every payment is Click or ATMOS: anything else the
+// list may still name (telegram_manual, payme) is never offered.
+export const PAY_PROVIDERS = ["click", "atmos"] as const;
+export type PayProvider = (typeof PAY_PROVIDERS)[number];
+export const isPayProvider = (p: string): p is PayProvider => (PAY_PROVIDERS as readonly string[]).includes(p);
 export type CheckoutProvider = { provider: string; enabled: boolean; label: string; status: string };
 export type CheckoutProviders = { items: CheckoutProvider[]; fallback: string };
 export function checkoutProvidersOf(raw: unknown): CheckoutProviders {
@@ -151,8 +155,9 @@ export function checkoutProvidersOf(raw: unknown): CheckoutProviders {
       // ready (§1.8).
       return { provider: asStr(r.provider), enabled: r.enabled === true && !notReady(r), label: asStr(r.label), status: asStr(r.status) };
     })
-    .filter((p) => p.provider);
-  return { items, fallback: asStr(d.fallback_provider) || "telegram_manual" };
+    .filter((p) => isPayProvider(p.provider));
+  const fallback = asStr(d.fallback_provider).toLowerCase();
+  return { items, fallback: isPayProvider(fallback) ? fallback : "click" };
 }
 export async function getCheckoutProviders(signal?: AbortSignal): Promise<CheckoutProviders> {
   return checkoutProvidersOf(await http("/payments/providers", { signal }));

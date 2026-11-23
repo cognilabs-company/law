@@ -6475,7 +6475,6 @@
       "sentTitle": "So'rovingiz qabul qilindi",
       "sentLead": "To'lov tasdiqlanishi bilan mutaxassisga ish tushadi va xavfsiz chat ochiladi.",
       "pending": "To'lov tasdiqlanishi kutilmoqda",
-      "notDelivered": "Tasdiqlovchilarga xabar yetib bormadi. So'rov saqlandi — biz uni qo'lda tekshiramiz.",
       "toOrders": "Buyurtmalarimga o'tish",
       "close": "Yopish",
       "active": "Bu mutaxassis va xizmat bo'yicha faol so'rovingiz bor.",
@@ -6529,21 +6528,12 @@
       "autoSubmit": "Tezkor Himoya mutaxassis tanlasin",
       "chooseMyself": "Mutaxassisni o'zim tanlayman",
       "payTitle": "To'lov kutilmoqda",
-      "payLeadTelegram": "So'rov Telegram orqali Tezkor Himoyaga yuborildi. Operator 100% to'lovni tasdiqlagach, so'rov mutaxassisga yuboriladi.",
       "payLeadOnline": "{provider} sahifasida to'lovni yakunlang. Provayder tasdiqlagach, so'rov mutaxassisga yuboriladi.",
       "payProceed": "{provider} orqali to'lash",
       "acceptNote": "Javob bermasa yoki rad etsa, Tezkor Himoya ishni davom ettiradi — qayta to'lash shart emas.",
       "totalFull": "To'lov · 100%",
       "providerTitle": "To'lov usuli",
       "providers": {
-        "telegram_manual": {
-          "name": "Telegram",
-          "hint": "Operator tasdiqlaydi"
-        },
-        "payme": {
-          "name": "Payme",
-          "hint": "Karta bilan onlayn"
-        },
         "click": {
           "name": "Click",
           "hint": "Karta bilan onlayn"
@@ -6554,8 +6544,8 @@
         }
       },
       "providerOff": "{provider} hozircha ishlamayapti.",
-      "providerOffText": "Pul yechilmadi. Telegram orqali to'lasangiz, operator tasdiqlaydi va so'rov darhol davom etadi.",
-      "providerUseTelegram": "Telegram orqali to'lash"
+      "providerOffText": "Pul yechilmadi. {provider} orqali to'lashingiz mumkin.",
+      "providerOffLater": "Pul yechilmadi. Birozdan so'ng qayta urinib ko'ring."
     },
     "orders": {
       "phoneConcealed": "Yashirilgan",

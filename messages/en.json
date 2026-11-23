@@ -6475,7 +6475,6 @@
       "sentTitle": "Your request is in",
       "sentLead": "Once the payment is confirmed, the specialist gets the order and a secure chat opens.",
       "pending": "Waiting for payment confirmation",
-      "notDelivered": "The approvers were not notified. The request is saved — we will check it by hand.",
       "toOrders": "Go to my orders",
       "close": "Close",
       "active": "You already have an active request for this specialist and service.",
@@ -6529,21 +6528,12 @@
       "autoSubmit": "Let Tezkor Himoya pick a specialist",
       "chooseMyself": "I'll pick the specialist myself",
       "payTitle": "Waiting for payment",
-      "payLeadTelegram": "Your request went to Tezkor Himoya via Telegram. Once an operator confirms the 100% payment, it goes to the specialist.",
       "payLeadOnline": "Finish paying on the {provider} page. Once the provider confirms, the request goes to the specialist.",
       "payProceed": "Pay with {provider}",
       "acceptNote": "If they don't answer or decline, Tezkor Himoya carries on — you don't pay again.",
       "totalFull": "Payment · 100%",
       "providerTitle": "Payment method",
       "providers": {
-        "telegram_manual": {
-          "name": "Telegram",
-          "hint": "An operator confirms"
-        },
-        "payme": {
-          "name": "Payme",
-          "hint": "Card, online"
-        },
         "click": {
           "name": "Click",
           "hint": "Card, online"
@@ -6554,8 +6544,8 @@
         }
       },
       "providerOff": "{provider} isn't working right now.",
-      "providerOffText": "No money was taken. Pay via Telegram — an operator confirms and the request carries on right away.",
-      "providerUseTelegram": "Pay via Telegram"
+      "providerOffText": "No money was taken. You can pay with {provider} instead.",
+      "providerOffLater": "No money was taken. Please try again in a little while."
     },
     "orders": {
       "phoneConcealed": "Hidden",

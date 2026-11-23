@@ -89,10 +89,25 @@ describe("return from the provider", () => {
 
 describe("checkout providers (gaps closed §1)", () => {
   it("keeps the backend's label, enabled flag and fallback", () => {
-    const r = checkoutProvidersOf({ items: [{ provider: "telegram_manual", enabled: true, label: "Telegram orqali tasdiqlash", status: "ready" }, { provider: "payme", enabled: false, label: "Payme", status: "disabled" }], fallback_provider: "telegram_manual" });
-    expect(r.items.filter((p) => p.enabled).map((p) => p.label)).toEqual(["Telegram orqali tasdiqlash"]);
-    expect(r.fallback).toBe("telegram_manual");
-    expect(checkoutProvidersOf({}).fallback).toBe("telegram_manual");
+    const r = checkoutProvidersOf({ items: [{ provider: "click", enabled: true, label: "Click", status: "configured" }, { provider: "atmos", enabled: false, label: "ATMOS", status: "disabled" }], fallback_provider: "atmos" });
+    expect(r.items.filter((p) => p.enabled).map((p) => p.label)).toEqual(["Click"]);
+    expect(r.fallback).toBe("atmos");
+    expect(checkoutProvidersOf({}).fallback).toBe("click");
+  });
+  // 2026-11-21 contract §1: Click and ATMOS only. A list that still names
+  // the Telegram approval or Payme never offers them, nor falls back to them.
+  it("offers Click and ATMOS only", () => {
+    const r = checkoutProvidersOf({
+      items: [
+        { provider: "telegram_manual", enabled: true, label: "Telegram", status: "ready" },
+        { provider: "payme", enabled: true, label: "Payme", status: "configured" },
+        { provider: "click", enabled: true, label: "Click", status: "configured" },
+        { provider: "atmos", enabled: true, label: "ATMOS", status: "configured" },
+      ],
+      fallback_provider: "telegram_manual",
+    });
+    expect(r.items.map((p) => p.provider)).toEqual(["click", "atmos"]);
+    expect(r.fallback).toBe("click");
   });
   // Backend answers 2026-10-31 §1.8: provider_enabled=false or a false
   // readiness never leaves a provider offered, whatever `enabled` says.
@@ -102,10 +117,10 @@ describe("checkout providers (gaps closed §1)", () => {
         { provider: "payme", enabled: true, provider_enabled: false, label: "Payme", status: "ready" },
         { provider: "click", enabled: true, readiness: false, label: "Click", status: "ready" },
         { provider: "atmos", enabled: true, readiness: { ready: false }, label: "ATMOS", status: "ready" },
-        { provider: "telegram_manual", enabled: true, ready: true, label: "Telegram", status: "ready" },
+        { provider: "click", enabled: true, ready: true, label: "Click", status: "configured" },
       ],
     });
-    expect(r.items.filter((p) => p.enabled).map((p) => p.provider)).toEqual(["telegram_manual"]);
+    expect(r.items.filter((p) => p.enabled).map((p) => p.provider)).toEqual(["click"]);
   });
 });
 

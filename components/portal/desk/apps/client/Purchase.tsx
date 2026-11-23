@@ -7,6 +7,7 @@ import { fmtUzs } from "@/lib/money";
 import {
   PACKAGE_SELLER_ERRORS,
   PAYMENT_PROVIDER_ERRORS,
+  PROVIDER_LIST_ERRORS,
   PREFERRED_CHANNELS,
   PURCHASE_PROVIDERS,
   PRICE_OPTION_ERRORS,
@@ -68,7 +69,7 @@ const NOTE_MAX = 1000;
 const STEPS = ["request", "pay", "accept", "chat"] as const;
 const STEP_OF: Record<MarketTrackPhase, number> = { pending: 1, accepting: 2, paid: 3, resolution: 2, chat: 3, completed: 4, cancelled: 1 };
 const URGENCY_OF: Record<ContactSpeed, PurchaseUrgency> = { within_15_min: "today", within_1_hour: "today", today: "today", tomorrow: "tomorrow" };
-const PROVIDER_ICON = { telegram_manual: IconSend, payme: IconCard, click: IconCard, atmos: IconCard } as const;
+const PROVIDER_ICON = { click: IconCard, atmos: IconCard } as const;
 
 type Props = {
   sellerUserId: string;
@@ -104,11 +105,15 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
   // Only what the backend has switched on, under its own labels.
   const pays = useCheckoutProviders();
   const offered = PURCHASE_PROVIDERS.filter((pv) => pays.options.some((o) => o.provider === pv));
-  const fallback = (PURCHASE_PROVIDERS as readonly string[]).includes(pays.fallback) ? (pays.fallback as PurchaseProvider) : "telegram_manual";
-  // Click first when the backend has it on (Click integration §1).
-  const provider: PurchaseProvider = picked && offered.includes(picked) ? picked : offered.includes("click") ? "click" : (offered[0] ?? fallback);
-  const providerName = (pv: string) => pays.labelOf(pv) || (t.has(`providers.${pv}.name`) ? t(`providers.${pv}.name`) : pv);
+  // Click first when the backend has it on (Click integration §1); nothing
+  // offered yet → no provider named, the backend picks (2026-11-21 §1.1).
+  const provider: PurchaseProvider | "" = picked && offered.includes(picked) ? picked : offered.includes("click") ? "click" : (offered[0] ?? "");
+  // The other method on offer, for when the chosen one cannot take the payment.
+  const altOf = (pv: string): PurchaseProvider | "" => offered.find((o) => o !== pv) ?? "";
+  const bothOn = offered.length > 1;
   const [provErr, setProvErr] = useState("");
+  const altPay = provErr ? altOf(provErr) : "";
+  const providerName = (pv: string) => pays.labelOf(pv) || (t.has(`providers.${pv}.name`) ? t(`providers.${pv}.name`) : pv);
   const [files, setFiles] = useState<PurchaseAttachment[]>([]);
   const [voices, setVoices] = useState<Voice[]>([]);
   const [attaching, setAttaching] = useState(false);
@@ -158,7 +163,7 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
     if (act.orderId) go(`${CLIENT_ORDERS_HREF}/${encodeURIComponent(act.orderId)}`);
   };
 
-  async function submit(via: PurchaseProvider = provider) {
+  async function submit(via: PurchaseProvider | "" = provider) {
     if (sending.current || busy || done || price.pending || price.failed || attaching) return;
     if (note.length > NOTE_MAX) return setErr(t("noteTooLong"));
     sending.current = true;
@@ -172,7 +177,7 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
         lostAt.current = 0;
         if (lost) return toExisting(lost);
       }
-      const input = { paymentProvider: via, note, preferredChannel: channel, preferredTime: time, contactSpeed: speed, selectedOptionIds: price.ids, urgency: speed ? URGENCY_OF[speed] : ("" as const), attachments: files, voiceMessages: voices.map(({ fileId, seconds }) => ({ fileId, seconds })), region };
+      const input = { paymentProvider: via || undefined, note, preferredChannel: channel, preferredTime: time, contactSpeed: speed, selectedOptionIds: price.ids, urgency: speed ? URGENCY_OF[speed] : ("" as const), attachments: files, voiceMessages: voices.map(({ fileId, seconds }) => ({ fileId, seconds })), region };
       const r = pkg ? await requestPackagePurchase(pkg.purchaseUrl, input, { packageId: pkg.id, lawyerUserId: sellerUserId }) : await requestMarketplacePurchase(sellerUserId, service.id, input);
       clickLink.current = r.payment?.url ? { url: r.payment.url, at: Date.now(), used: false } : null;
       setDone(r);
@@ -197,7 +202,10 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
       } else if (purchaseAnswerLost(e)) {
         lostAt.current = lostAt.current || Date.now();
         setErr(t("networkLost"));
-      } else if (PAYMENT_PROVIDER_ERRORS.includes(code) && via !== fallback) setProvErr(via);
+      } else if (PAYMENT_PROVIDER_ERRORS.includes(code) && via && bothOn) {
+        if (PROVIDER_LIST_ERRORS.includes(code)) refreshCheckoutProviders();
+        setProvErr(via);
+      }
       else if (code) {
         setErr(marketErr(e, t("error")));
         if (PRICE_OPTION_ERRORS.includes(code)) setOptReload((n) => n + 1);
@@ -249,11 +257,10 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
     }
   }
 
-  const paidVia = (done?.payment?.provider || provider) as string;
-  const online = paidVia === "payme" || paidVia === "click" || paidVia === "atmos";
+  const paidVia = (done?.payment?.provider || provider || pays.fallback) as string;
   // ATMOS: paid in its own panel, watched through the order (ATMOS contract).
   const atmosPay = paidVia === "atmos" && done?.payment && done.orderId && (phase === "pending" || phase === "accepting" || phase === "paid" || phase === "chat") ? done.payment : null;
-  const payUrl = done?.payment?.url && online && done.payment.status !== "paid" ? done.payment.url : "";
+  const payUrl = done?.payment?.url && done.payment.status !== "paid" ? done.payment.url : "";
   const paidSure = !!track?.paid || done?.payment?.status === "paid";
   const titles: Record<MarketTrackPhase, string> = {
     accepting: isActive ? t("active") : paidSure ? t("acceptTitle") : t("sentTitle"),
@@ -266,7 +273,7 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
   };
   const leads: Record<MarketTrackPhase, string> = {
     accepting: done?.message || t("acceptLead"),
-    pending: track?.slow ? t("slow") : online ? t("payLeadOnline", { provider: providerName(paidVia) }) : t("payLeadTelegram"),
+    pending: track?.slow ? t("slow") : t("payLeadOnline", { provider: providerName(paidVia) }),
     paid: track?.slow ? t("paidNoRoom") : "",
     resolution: t("resolveLead"),
     chat: t("chatLead"),
@@ -380,7 +387,6 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
           {leads[phase] ? <p>{leads[phase]}</p> : null}
           {phase === "accepting" ? <p>{t("acceptNote")}</p> : null}
           {live ? <small>{t("liveNote")}</small> : null}
-          {phase === "pending" && done && !online && !done.telegramSent ? <Banner tone="warn">{t("notDelivered")}</Banner> : null}
           {track?.offline && !ended && (phase === "pending" || phase === "paid") ? (
             <Banner tone="warn">
               {t("offline")}
@@ -426,24 +432,28 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
               </button>
             ))}
           </span>
-          <Field label={t("providerTitle")}>
-            <Seg<PurchaseProvider>
-              label={t("providerTitle")}
-              value={provider}
-              onChange={(v) => (setProvider(v), setProvErr(""))}
-              items={offered.map((pv) => {
-                const Icon = PROVIDER_ICON[pv];
-                return { id: pv, label: providerName(pv), icon: <Icon /> };
-              })}
-            />
-          </Field>
+          {provider ? (
+            <Field label={t("providerTitle")}>
+              <Seg<PurchaseProvider>
+                label={t("providerTitle")}
+                value={provider}
+                onChange={(v) => (setProvider(v), setProvErr(""))}
+                items={offered.map((pv) => {
+                  const Icon = PROVIDER_ICON[pv];
+                  return { id: pv, label: providerName(pv), icon: <Icon /> };
+                })}
+              />
+            </Field>
+          ) : null}
           <p className="dx-dlg__text dxcp-note">{t("totalNote")}</p>
           {provErr ? (
             <Banner tone="warn">
-              <b>{t("providerOff", { provider: providerName(provErr) })}</b> {t("providerOffText")}{" "}
-              <Btn kind="primary" icon={<IconSend />} busy={busy} onClick={() => (setProvider(fallback), void submit(fallback))}>
-                {t("providerUseTelegram")}
-              </Btn>
+              <b>{t("providerOff", { provider: providerName(provErr) })}</b> {altPay ? t("providerOffText", { provider: providerName(altPay) }) : t("providerOffLater")}{" "}
+              {altPay ? (
+                <Btn kind="primary" icon={<IconCard />} busy={busy} onClick={() => (setProvider(altPay), void submit(altPay))}>
+                  {t("payProceed", { provider: providerName(altPay) })}
+                </Btn>
+              ) : null}
             </Banner>
           ) : null}
           {err ? <Banner tone="err">{err}</Banner> : null}

@@ -391,7 +391,6 @@ export type MarketPurchase = {
   status: string;
   amount: number;
   currency: string;
-  telegramSent: boolean;
   // Enterprise contract 2026-10-27 §4: the order is paid in full first
   // (`payment`, 100% of the price); only then does the seller get it and
   // have until `deadlineAt` to accept. `message` is the backend's own
@@ -419,13 +418,24 @@ export const MAX_PURCHASE_FILES = 20;
 export const MAX_PURCHASE_VOICES = 10;
 export type PurchaseAttachment = { fileId: string; title: string };
 export type PurchaseVoice = { fileId: string; seconds: number };
-// How the client pays the 100% (§3, §5). Telegram: an operator confirms the
-// transfer; Payme / Click / ATMOS: the provider page, offered only while
-// GET /payments/providers says enabled.
-export const PURCHASE_PROVIDERS = ["telegram_manual", "payme", "click", "atmos"] as const;
+// How the client pays the 100% (§3, §5): Click or ATMOS, each offered only
+// while GET /payments/providers says enabled (2026-11-21 contract §1; the
+// Telegram approval is gone).
+export const PURCHASE_PROVIDERS = ["click", "atmos"] as const;
 export type PurchaseProvider = (typeof PURCHASE_PROVIDERS)[number];
-// A provider the backend cannot use right now; the client is offered Telegram.
-export const PAYMENT_PROVIDER_ERRORS: readonly string[] = ["payment_provider_not_configured", "payment_provider_unavailable", "marketplace_payment_provider_invalid", "payment_invoice_rejected"];
+// A provider the backend cannot use right now; the client is offered the
+// other one when it is switched on.
+export const PAYMENT_PROVIDER_ERRORS: readonly string[] = [
+  "payment_provider_not_configured",
+  "payment_provider_unavailable",
+  "marketplace_payment_provider_invalid",
+  "payment_invoice_rejected",
+  // 2026-11-21 contract §1.1, §1.4: a provider outside Click and ATMOS.
+  "payment_provider_not_allowed",
+  "payment_provider_removed",
+];
+// After these the provider list itself is stale: it is asked again.
+export const PROVIDER_LIST_ERRORS: readonly string[] = ["payment_provider_not_configured", "marketplace_payment_provider_invalid", "payment_provider_not_allowed", "payment_provider_removed"];
 export type PurchaseInput = {
   paymentProvider?: PurchaseProvider;
   note: string;
@@ -512,7 +522,6 @@ export function purchaseOf(raw: unknown): MarketPurchase {
   const order = asDict(d.order);
   const payment = asDict(d.payment);
   const req = asDict(d.purchase_request);
-  const gate = asDict(d.payment_gate);
   const od = asDict(order.details);
   const a = assignmentOf({ ...order, payment: Object.keys(payment).length ? payment : order.payment }, od);
   const status = asStr(order.status ?? d.status);
@@ -539,8 +548,6 @@ export function purchaseOf(raw: unknown): MarketPurchase {
         }
       : null,
     currency: asStr(payment.currency ?? order.currency, "UZS") || "UZS",
-    // Omitted delivery metadata is unknown, not proof that Telegram sent it.
-    telegramSent: d.telegram_sent === true || payment.telegram_sent === true || gate.telegram_sent === true,
   };
 }
 

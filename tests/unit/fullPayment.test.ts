@@ -5,8 +5,8 @@ import { awaitingSeller, marketSignalOf, phaseOfStatus, purchaseBodyOf, purchase
 // the seller's 30-minute acceptance → chat. No 10% advance.
 describe("full payment first", () => {
   it("the request names the provider and the currency", () => {
-    const b = purchaseBodyOf({ paymentProvider: "telegram_manual", note: "Ish", preferredChannel: "chat", contactSpeed: "within_1_hour" });
-    expect(b.payment_provider).toBe("telegram_manual");
+    const b = purchaseBodyOf({ paymentProvider: "atmos", note: "Ish", preferredChannel: "chat", contactSpeed: "within_1_hour" });
+    expect(b.payment_provider).toBe("atmos");
     expect(b.currency).toBe("UZS");
     expect(b.contact_speed).toBe("within_1_hour");
     expect(purchaseBodyOf({ note: "x", preferredChannel: "chat" }).payment_provider).toBeUndefined();
@@ -22,7 +22,6 @@ describe("full payment first", () => {
       work_id: "ADV-1",
       order: { id: "o1", status: "pending_payment", payment_status: "pending", price: 100000 },
       payment: { id: "p1", status: "pending", amount: 100000, currency: "UZS", provider: "payme", payment_url: "https://checkout.paycom.uz/abc" },
-      telegram_sent: false,
       status: "payment_pending",
       assignment_status: "payment_pending",
       acceptance_deadline_at: null,
