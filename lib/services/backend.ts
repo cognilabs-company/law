@@ -5250,20 +5250,27 @@ export type SosRequest = {
   id: string;
   status: string;
   category: string;
+  description?: string;
   dutyName?: string;
   roomId?: string;
+  // The operator's call, when one was opened for this SOS.
+  operatorCallId?: string;
   createdAt: string;
+  updatedAt?: string;
 };
-function normSos(v: unknown): SosRequest {
+export function normSos(v: unknown): SosRequest {
   const d = asDict(v);
-  const duty = asDict(d.duty_lawyer ?? d.assigned_to);
+  const duty = asDict(d.operator ?? d.duty_lawyer ?? d.assigned_to);
   return {
     id: asStr(d.id),
-    status: asStr(d.status, "pending"),
+    status: asStr(d.status, "pending").toLowerCase(),
     category: asStr(d.category),
-    dutyName: (asStr(duty.name) || asStr(d.duty_name)) || undefined,
+    description: asStr(d.description) || undefined,
+    dutyName: (asStr(duty.name ?? duty.full_name) || asStr(d.operator_name ?? d.duty_name)) || undefined,
     roomId: asStr(d.chat_room_id ?? d.room_id) || undefined,
+    operatorCallId: asStr(d.operator_call_id) || undefined,
     createdAt: asStr(d.created_at ?? d.createdAt),
+    updatedAt: asStr(d.updated_at) || undefined,
   };
 }
 export async function createSosRequest(input: {
@@ -5272,6 +5279,27 @@ export async function createSosRequest(input: {
   phone?: string;
 }): Promise<SosRequest> {
   return normSos(await http("/sos", { method: "POST", body: JSON.stringify(input) }));
+}
+// BACKEND_FIXES_LIVE_2026-11-23: the client's own SOS requests, newest first
+// ({items, total, limit, offset, has_more}), and one of them in full.
+export async function listMySosRequests(limit = 10): Promise<SosRequest[]> {
+  return listFrom(await http(`/sos/me?limit=${limit}&offset=0`), "items", "data").map(normSos).filter((r) => !!r.id);
+}
+export async function getSosRequest(id: string): Promise<SosRequest> {
+  return normSos(await http(`/sos/${encodeURIComponent(id)}`));
+}
+// A finished SOS: nothing left to wait for or to cancel. Anything else
+// (pending, assigned, in progress, waiting for payment…) is still open.
+const SOS_DONE = new Set(["resolved", "completed", "closed", "done", "cancelled", "canceled", "rejected", "expired", "failed"]);
+export const isSosOpen = (r: Pick<SosRequest, "status">): boolean => !SOS_DONE.has(r.status.trim().toLowerCase());
+// The client may only cancel (PATCH {status: "cancelled"}); any other status
+// is a 403 sos_status_forbidden, and a finished SOS is a 409 sos_not_cancellable.
+export async function cancelSosRequest(id: string): Promise<SosRequest> {
+  return normSos(await http(`/sos/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ status: "cancelled" }) }));
+}
+export function isSosNotCancellable(e: unknown): boolean {
+  if (!(e instanceof ApiError)) return false;
+  return e.status === 409 || (e.code || asStr(asDict(e.data.detail).code)) === "sos_not_cancellable";
 }
 
 // ── Referral program ──────────────────────────────────────────────

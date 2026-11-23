@@ -1,13 +1,17 @@
 "use client";
 
 import "@/components/portal/sosIntake1920.css";
-import { useState, type CSSProperties } from "react";
-import { useTranslations } from "next-intl";
-import { Check, CircleCheck, Clock, MessageSquareText, Phone, ShieldCheck, Siren, Zap } from "lucide-react";
+import { useEffect, useState, type CSSProperties } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { Check, CircleCheck, Clock, MessageSquareText, Phone, ShieldCheck, Siren, X, Zap } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
-import { createSosRequest, type SosRequest } from "@/lib/services/backend";
+import { cancelSosRequest, createSosRequest, getSosRequest, isSosNotCancellable, isSosOpen, listMySosRequests, type SosRequest } from "@/lib/services/backend";
 import { HOTLINE, HOTLINE_TEL } from "@/lib/contact";
 import { initials } from "@/lib/lawyers";
+import { statusLabel } from "@/lib/labels";
+import { fmtDateTime } from "@/lib/date";
+import { notify } from "@/lib/toast";
+import { logApiError } from "@/lib/http";
 
 // The six situations, each with its black line drawing (public/img/sos), shown
 // in a white circle as the dashboard shows its service pictures.
@@ -21,16 +25,130 @@ const CATS = [
 ] as const;
 const HERO_ART = "/img/xizmatlar/Shoshilinch_yordam.webp";
 const artStyle = (src: string) => ({ "--art": `url(${src})` }) as CSSProperties;
+const catArt = (key: string) => {
+  const c = CATS.find((x) => x.key === key);
+  return c ? `/img/sos/${c.art}.webp` : HERO_ART;
+};
+// An open SOS is re-read this often while the page is visible.
+const SOS_REFRESH_MS = 20_000;
+
+// BACKEND_FIXES_LIVE_2026-11-23: the client may cancel their own SOS (PATCH
+// {status: "cancelled"}). Asked once more before it goes out; a finished SOS
+// (409 sos_not_cancellable) is simply re-read.
+function SosCancel({ req, onDone }: { req: SosRequest; onDone: (next: SosRequest | null) => void }) {
+  const t = useTranslations("portal.client.sos");
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  async function cancel() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await cancelSosRequest(req.id);
+      notify.success(t("cancelled"), { id: `sos-cancel-${req.id}` });
+      onDone(null);
+    } catch (e) {
+      if (isSosNotCancellable(e)) {
+        notify.info(t("notCancellable"), { id: `sos-cancel-${req.id}` });
+        onDone(await getSosRequest(req.id).catch(() => null));
+      } else {
+        logApiError("sos cancel", e);
+        notify.error(t("cancelFailed"), { id: `sos-cancel-${req.id}`, error: e });
+      }
+    } finally {
+      setBusy(false);
+      setAsking(false);
+    }
+  }
+  if (!asking) {
+    return (
+      <button className="btn btn--line sosi-state__btn sosi-cancel__go" type="button" onClick={() => setAsking(true)} data-ai-target="button:sos-cancel">
+        <X />
+        {t("cancel")}
+      </button>
+    );
+  }
+  return (
+    <div className="sosi-cancel" role="group" aria-label={t("cancelAsk")}>
+      <b className="sosi-cancel__q">{t("cancelAsk")}</b>
+      <div className="sosi-cancel__row">
+        <button className="btn btn--line btn--sm" type="button" onClick={() => setAsking(false)} disabled={busy}>
+          {t("cancelNo")}
+        </button>
+        <button className="btn btn--danger btn--sm" type="button" onClick={() => void cancel()} disabled={busy} aria-busy={busy || undefined} data-ai-target="button:sos-cancel-confirm">
+          {busy ? t("cancelling") : t("cancelYes")}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function ClientSos() {
   const t = useTranslations("portal.client.sos");
   const tx = useTranslations("lxSos");
+  const tcm = useTranslations("portal.common");
+  const locale = useLocale();
   const router = useRouter();
   const [cat, setCat] = useState("");
   const [desc, setDesc] = useState("");
-  const [stage, setStage] = useState<"idle" | "connecting" | "connected" | "sent">("idle");
+  const [stage, setStage] = useState<"idle" | "connecting" | "connected" | "sent" | "active">("idle");
   const [req, setReq] = useState<SosRequest | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // An SOS sent earlier (another visit, another device) that is still open
+  // is shown instead of an empty form (GET /sos/me, newest first).
+  useEffect(() => {
+    let alive = true;
+    listMySosRequests(5)
+      .then((rows) => {
+        const open = rows.find(isSosOpen);
+        if (!alive || !open) return;
+        setStage((cur) => (cur === "idle" ? "active" : cur));
+        setReq((cur) => cur ?? open);
+      })
+      .catch(() => {
+        /* no list (older backend, offline): the form stays */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // While it is open, its status (and the operator's chat) is re-read.
+  const watchId = stage === "active" && req ? req.id : "";
+  useEffect(() => {
+    if (!watchId) return;
+    let alive = true;
+    const tick = () => {
+      if (document.visibilityState !== "visible") return;
+      getSosRequest(watchId)
+        .then((r) => {
+          if (!alive) return;
+          if (isSosOpen(r)) setReq(r);
+          else {
+            setReq(null);
+            setStage("idle");
+          }
+        })
+        .catch(() => {});
+    };
+    const iv = window.setInterval(tick, SOS_REFRESH_MS);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      alive = false;
+      window.clearInterval(iv);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [watchId]);
+
+  // After a cancel: back to the form, or the record as it now stands.
+  const afterCancel = (next: SosRequest | null) => {
+    if (next && isSosOpen(next)) {
+      setReq(next);
+      return;
+    }
+    setReq(null);
+    setStage("idle");
+  };
 
   async function trigger() {
     if (busy) return;
@@ -137,6 +255,49 @@ export default function ClientSos() {
               <MessageSquareText />
               {t("openChat")}
             </button>
+            {req.id ? <SosCancel req={req} onDone={afterCancel} /> : null}
+          </div>
+        ) : null}
+
+        {stage === "active" && req ? (
+          <div className="sos2__panel lx-card sosi-state sosi-open" role="status">
+            <span className="sosi-state__art" style={artStyle(catArt(req.category))} aria-hidden />
+            <b className="sosi-state__t">{t("activeTitle")}</b>
+            <span className="sos2__psub sosi-state__s">{t("activeSub")}</span>
+            <dl className="sosi-facts">
+              <div>
+                <dt>{t("activeStatus")}</dt>
+                <dd><span className="sosi-facts__st">{t.has(`statusOf.${req.status}`) ? t(`statusOf.${req.status}`) : statusLabel(tcm, req.status)}</span></dd>
+              </div>
+              {req.category ? (
+                <div>
+                  <dt>{t("catLabel")}</dt>
+                  <dd>{t.has(`cat.${req.category}`) ? t(`cat.${req.category}`) : req.category}</dd>
+                </div>
+              ) : null}
+              {req.createdAt ? (
+                <div>
+                  <dt>{t("activeSent")}</dt>
+                  <dd>{fmtDateTime(req.createdAt, locale, false)}</dd>
+                </div>
+              ) : null}
+            </dl>
+            {req.dutyName ? (
+              <div className="sos2__duty sosi-duty">
+                <span className="sos2__av cx-av sosi-duty__av">{initials(req.dutyName)}</span>
+                <span className="sosi-duty__m">
+                  <span className="sosi-duty__n">{req.dutyName}</span>
+                  <span className="sosi-duty__r">{t("dutyRole")}</span>
+                </span>
+              </div>
+            ) : null}
+            {req.roomId ? (
+              <button className="btn btn--pri sosi-state__btn" type="button" onClick={() => req.roomId && router.push(`/portal/chat/${req.roomId}`)}>
+                <MessageSquareText />
+                {t("openChat")}
+              </button>
+            ) : null}
+            <SosCancel req={req} onDone={afterCancel} />
           </div>
         ) : null}
 
@@ -152,6 +313,7 @@ export default function ClientSos() {
                 <b>{HOTLINE}</b>
               </span>
             </a>
+            {req?.id ? <SosCancel req={req} onDone={afterCancel} /> : null}
             <button className="btn btn--line sosi-state__btn" type="button" onClick={() => setStage("idle")}>
               {t("again")}
             </button>
