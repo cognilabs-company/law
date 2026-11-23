@@ -1,7 +1,9 @@
 "use client";
 
 import RatingBreakdown from "@/components/marketplace/RatingBreakdown";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { subscribeUserEvents } from "@/lib/userSocket";
+import { marketSignalOf } from "@/lib/services/marketplace";
 import { useTranslations, useLocale } from "next-intl";
 import { shortDateTime } from "@/lib/date";
 import { Link } from "@/i18n/navigation";
@@ -79,6 +81,17 @@ export default function SellerDashboard({ role, compact = false }: { role: Role;
   // Stats + new orders come from the cabinet bootstrap loaded by the shell.
   const cabinet = useSellerCabinet();
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  // §8 (2026-11-21): an order the call center gave to another lawyer leaves
+  // the new orders here at once.
+  useEffect(
+    () =>
+      subscribeUserEvents((ev) => {
+        const sig = marketSignalOf(ev);
+        if (!sig || sig.kind !== "reassigned" || sig.sub !== "revoked" || !sig.orderId) return;
+        setDismissed((d) => new Set(d).add(sig.orderId));
+      }),
+    [],
+  );
   const td = useTranslations("admin.dash");
   const { filter, setFilter, demoForced, setDemoForced } = useDashFilter();
   const [drill, setDrill] = useState<Drill | null>(null);

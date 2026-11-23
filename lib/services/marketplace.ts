@@ -1527,6 +1527,9 @@ function specialKind(name: string): Pick<MarketSignal, "kind" | "sub"> | null {
   if (/complaint_resolved$/.test(name)) return { kind: "complaint", sub: "resolved" };
   if (/complaint_created$/.test(name)) return { kind: "complaint", sub: "created" };
   if (/assignment_deadline_soon$/.test(name)) return { kind: "assigned", sub: "soon" };
+  // 2026-11-21 contract §8: the call center moved the order to another
+  // lawyer — it leaves this one's new orders at once.
+  if (/assignment_revoked$/.test(name)) return { kind: "reassigned", sub: "revoked" };
   // The contact SLA (§1.3): the seller first contacted the client, or the
   // chosen contact time passed without it. Both re-read the order.
   const contact = /contact_(started|sla_breached)$/.exec(name);

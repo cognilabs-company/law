@@ -119,6 +119,8 @@ export default function MarketWatcher({ role, staff = false }: { role: Role; sta
       } else if (sig.kind === "reassigned" && sig.sub === "started") {
         // The client never sees who the candidate is (contract §9).
         toast = { kind: "reassigned", look: "swap", title: tt(role === "client" ? "reassign.started" : "reassign.startedSeller"), text: tt(role === "client" ? "reassign.startedText" : "reassign.startedSellerText"), href: orderHref };
+      } else if (sig.kind === "reassigned" && sig.sub === "revoked" && role !== "client") {
+        toast = { kind: "reassigned", look: "swap", title: tt("reassign.revoked"), text: tt("reassign.revokedText"), href: ordersHref };
       } else if (sig.kind === "reassigned" && sig.sub === "accepted" && role === "client") {
         toast = { kind: "reassigned", look: "swap", title: tt("reassign.accepted"), text: tt("reassign.acceptedText"), href: orderHref };
       } else if (sig.kind === "review" && sig.sub === "chat_created") {
