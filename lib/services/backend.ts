@@ -7173,6 +7173,12 @@ export async function setCallRecordingPermission(roomId: string, callId: string,
 export async function startCallRecordingServer(roomId: string, callId: string): Promise<CallRecordingState> {
   return normRecordingState(await http(`/secure-chats/${roomId}/calls/${callId}/recording/start`, { method: "POST", body: "{}" }));
 }
+// BACKEND_FIXES_LIVE_2026-11-23: whoever started the recording may now stop
+// it, so the room's recording_status stops saying "recording" once the
+// local capture ends.
+export async function stopCallRecordingServer(roomId: string, callId: string): Promise<CallRecordingState> {
+  return normRecordingState(await http(`/secure-chats/${roomId}/calls/${callId}/recording/stop`, { method: "POST", body: "{}" }));
+}
 
 // ── Meeting time limits and extensions ────────────────────────────
 // LEXGO_MEETING_EXTENSION_FRONTEND_UPDATE.md. A document meeting starts at
@@ -7218,21 +7224,30 @@ export type InvitedCall = {
   status: string; // participant status: invited | joined | …
   callStatus: string; // call state: active | ended | …
   autoEndAt: string;
+  // BACKEND_FIXES_LIVE_2026-11-23: the ring lasts 60 s from ring_started_at
+  // (ring_expires_at). `ringing` false = the window is over: no ring card,
+  // the invite is still joinable from its own page. Older rows without the
+  // flag read as ringing.
+  ringing: boolean;
+  ringExpiresAt: string;
 };
+export function normInvitedCall(v: unknown): InvitedCall {
+  const d = asDict(v);
+  return {
+    roomId: asStr(d.room_id),
+    callId: asStr(d.call_id ?? d.id),
+    callType: asStr(d.call_type) === "audio" ? "audio" : "video",
+    title: asStr(d.title),
+    callerName: asStr(d.caller_name),
+    status: asStr(d.status),
+    callStatus: asStr(d.call_status ?? d.status),
+    autoEndAt: asStr(d.auto_end_at),
+    ringing: d.ringing !== false,
+    ringExpiresAt: asStr(d.ring_expires_at),
+  };
+}
 export async function listInvitedCalls(): Promise<InvitedCall[]> {
-  return listFrom(await http("/calls/invited"), "items", "data", "calls").map((v) => {
-    const d = asDict(v);
-    return {
-      roomId: asStr(d.room_id),
-      callId: asStr(d.call_id ?? d.id),
-      callType: asStr(d.call_type) === "audio" ? "audio" : "video",
-      title: asStr(d.title),
-      callerName: asStr(d.caller_name),
-      status: asStr(d.status),
-      callStatus: asStr(d.call_status ?? d.status),
-      autoEndAt: asStr(d.auto_end_at),
-    };
-  });
+  return listFrom(await http("/calls/invited"), "items", "data", "calls").map(normInvitedCall);
 }
 
 // Search any platform user (staff/callcenter) to invite to a meeting, or for
@@ -9007,6 +9022,15 @@ export function isUrgentEvent(event: string): boolean {
 }
 // record_id / status / the whole record, when the event carries it.
 export type UrgentEventInfo = { recordId: string; status: string; request: UrgentRequest | null };
+// Who sent a secure-chat message: the message's own sender field, its nested
+// `sender`, or the frame's top-level `sender_user_id`. Since
+// BACKEND_FIXES_LIVE_2026-11-23 secure_chat.message_created also reaches the
+// sender, so their own message must be recognised however the frame spells it
+// (and never counted as unread).
+export function messageSenderId(message: Record<string, unknown>, frame?: Record<string, unknown> | null): string {
+  const sender = asDict(message.sender);
+  return asStr(message.sender_user_id ?? message.sender_id ?? sender.id ?? sender.user_id ?? frame?.sender_user_id);
+}
 export function urgentEventInfo(e: Record<string, unknown>): UrgentEventInfo {
   const req = e.urgent_request;
   return {

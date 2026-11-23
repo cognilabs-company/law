@@ -10,7 +10,7 @@ import { canRecordVoice } from "@/lib/voiceRecorder";
 import { roomOrderLock, subscribeOrderLock } from "@/components/marketplace/order/lock";
 import CallRoom from "@/components/chat/CallRoom";
 import DeskCall from "../call/DeskCall";
-import { getLawyerClients, getUrgentRequest, isLegacyReaction, listAssignedUrgentRequests, listLawyers, listMyUrgentRequests, listSecureChats, mergeSecureRoom, normSecureRoom, type SecureRoom, type UrgentRequest } from "@/lib/services/backend";
+import { getLawyerClients, getUrgentRequest, isLegacyReaction, messageSenderId, listAssignedUrgentRequests, listLawyers, listMyUrgentRequests, listSecureChats, mergeSecureRoom, normSecureRoom, type SecureRoom, type UrgentRequest } from "@/lib/services/backend";
 import { IconAlert, IconChat, IconCheck, IconClock, IconClose, IconCopy, IconLock, IconMic, IconMoreHorizontal, IconPaperclip, IconPhone, IconReply, IconSend, IconShieldCheck, IconSparkle, IconTag, IconTrash, IconUsers, IconVideo } from "@/components/icons";
 import { Avatar, Btn, Dialog, Empty, Loading, Search, Spinner, TextArea, useConfirm, useHost, useOs, useToast } from "../../kit/kit";
 import type { NativeProps } from "../../native";
@@ -140,7 +140,7 @@ export default function MessagesApp({ base, route, onRoute, openApp, tell, pip }
           if (!patch) return cur;
           const next = was ? mergeSecureRoom(was, patch) : normSecureRoom(patch);
           if (!next.id) return cur;
-          const mine = msg ? String(msg.sender_user_id ?? msg.sender_id ?? "") === me || msg.is_mine === true : false;
+          const mine = msg ? messageSenderId(msg, x) === me || msg.is_mine === true : false;
           const open = selRef.current === id;
           const row = open ? { ...next, unreadCount: 0, hasUnread: false } : raw || mine ? next : { ...next, unreadCount: (was?.unreadCount ?? 0) + 1, hasUnread: true };
           return sortRooms([row, ...cur.filter((r) => r.id !== id)]);
