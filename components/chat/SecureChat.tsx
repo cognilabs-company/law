@@ -88,6 +88,7 @@ import { notify } from "@/lib/toast";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { ErrorState } from "@/components/portal/DataState";
 import { openInstructor } from "@/lib/guide/panel";
+import { isPong, keepAlive } from "@/lib/socketKeepalive";
 
 // `localUrl` is the picked file itself, so a photo shows while it uploads.
 type LocalMsg = SecureMessage & { pending?: boolean; failed?: boolean; localUrl?: string };
@@ -1200,6 +1201,7 @@ export default function SecureChat({
         scheduleReconnect();
         return;
       }
+      const ka = keepAlive(ws);
       ws.onopen = () => {
         if (!alive) return;
         retry = 0;
@@ -1210,6 +1212,11 @@ export default function SecureChat({
       ws.onmessage = (e) => {
         try {
           const o = JSON.parse(e.data);
+          // The keepalive's answer (2026-11-21 §7.1), not a message.
+          if (isPong(o)) {
+            ka.pong();
+            return;
+          }
           if (o && isCallEvent(o.event)) {
             emitRoomCallEvent(roomId, o);
             return;
@@ -1269,6 +1276,7 @@ export default function SecureChat({
       };
       const sock = ws;
       ws.onclose = () => {
+        ka.stop();
         // A socket replaced after a token refresh must not schedule another reconnect.
         if (!alive || wsRef.current !== sock) return;
         setConn("offline");

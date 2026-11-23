@@ -9,6 +9,7 @@ import { playRingtone, primeCallAudio } from "@/lib/callSounds";
 import { VoiceRecorder } from "@/lib/voiceRecorder";
 import { completeUrgentChat, deleteSecureChat, getSecureMessages, isLegacyReaction, listCalls, normSecureMsgCore, normSecureMsgFile, secureSocketUrl, sendSecureMessage, setChatAutoDelete, startCall, uploadSecureMessage, type CallSession, type LiveKitJoin, type SecureMessage } from "@/lib/services/backend";
 import { secureUploadRefusal, type SecureUploadProblem } from "@/lib/secureUpload";
+import { isPong, keepAlive } from "@/lib/socketKeepalive";
 
 // One secure chat room for the desktop's Messages app: the history, the
 // room's socket (reconnecting with a back-off, re-reading the history after
@@ -130,6 +131,7 @@ export function useChat(roomId: string, opts: { joinCallId?: string; onError: (e
         return again();
       }
       const mine = sock;
+      const ka = keepAlive(sock);
       sock.onopen = () => {
         if (!alive) return;
         retry = 0;
@@ -144,6 +146,8 @@ export function useChat(roomId: string, opts: { joinCallId?: string; onError: (e
         } catch {
           return;
         }
+        // The keepalive's answer (2026-11-21 §7.1), not a message.
+        if (isPong(o)) return ka.pong();
         if (isCallEvent(String(o.event ?? ""))) return emitRoomCallEvent(roomId, o as { event: string });
         if (o.event === "error") {
           const code = Number(o.status_code) || 0;
@@ -173,6 +177,7 @@ export function useChat(roomId: string, opts: { joinCallId?: string; onError: (e
         } else push([m]);
       };
       sock.onclose = () => {
+        ka.stop();
         if (!alive || ws.current !== mine) return;
         setConn("offline");
         again();

@@ -12559,9 +12559,12 @@
         "seller_register_rejected": {
           "title": "Ariza rad etildi",
           "body": "Arizangiz rad etildi. Sabab: {reason}"
-        }
+        },
+        "call_missed": {"title": "O'tkazib yuborilgan qo'ng'iroq", "body": "{caller} sizga qo'ng'iroq qildi."},
+        "meeting_in_progress": {"title": "Uchrashuv davom etmoqda — qo'shilish", "body": "{caller} sizni kutmoqda. Qo'shilish uchun bosing."}
       },
-      "aria": "Bildirishnomalar"
+      "aria": "Bildirishnomalar",
+      "join": "Qo'shilish"
     },
     "caseManage": {
       "saveFailed": "Ish saqlanmadi",
@@ -19076,7 +19079,8 @@
     "chatContacts": "Aloqa ma'lumotlarini (telefon, e-pochta, havola, Telegram) yuborib bo'lmaydi — aloqa faqat Tezkor Himoya ichida.",
     "pip": "Kichik oyna",
     "pipHint": "Qo'ng'iroqni boshqa tab yoki dasturlar ustida kichik oynada ko'rsatish",
-    "extAnsError": "Javobni yuborib bo'lmadi. Qayta urinib ko'ring."
+    "extAnsError": "Javobni yuborib bo'lmadi. Qayta urinib ko'ring.",
+    "recConsentWaiting": "Mijoz roziligi kutilmoqda — ilovadagi mijoz yozib olishga rozilik berishi kerak."
   },
   "theme": {
     "label": "Mavzu",

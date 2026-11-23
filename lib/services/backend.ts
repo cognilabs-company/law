@@ -6839,10 +6839,13 @@ function normCallLimits(d: Dict): Pick<
     clientCallUsage: usage ? { used: asNum(usage.used), limit: asNum(usage.limit), remaining: asNum(usage.remaining) } : null,
   };
 }
+// 2026-11-21 contract §7.5: a web client joining a call says so; it is not
+// asked for recording consent (app clients are).
+const WEB_CLIENT = { "X-Client-Platform": "web" } as const;
 // Client/seller fetch their own LiveKit token to join an existing call.
 export type LiveKitJoin = { url: string; room: string; token: string; hints: CallConnectionHints | null; quality: CallQualityPolicy | null };
 export async function getCallJoinToken(roomId: string, callId: string): Promise<LiveKitJoin> {
-  const d = asDict(await http(`/secure-chats/${roomId}/calls/${callId}/join-token`));
+  const d = asDict(await http(`/secure-chats/${roomId}/calls/${callId}/join-token`, { headers: WEB_CLIENT }));
   return {
     url: livekitUrl(d.livekit_url ?? d.url),
     room: asStr(d.livekit_room ?? d.room),
@@ -6885,7 +6888,7 @@ export async function inviteCallParticipant(roomId: string, callId: string, user
 }
 // Join an existing meeting (POST) — returns LiveKit creds like /join-token.
 export async function joinCall(roomId: string, callId: string): Promise<LiveKitJoin> {
-  const d = asDict(await http(`/secure-chats/${roomId}/calls/${callId}/join`, { method: "POST", body: "{}" }));
+  const d = asDict(await http(`/secure-chats/${roomId}/calls/${callId}/join`, { method: "POST", body: "{}", headers: WEB_CLIENT }));
   return {
     url: livekitUrl(d.livekit_url ?? d.url),
     room: asStr(d.livekit_room ?? d.room),

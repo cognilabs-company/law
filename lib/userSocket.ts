@@ -3,6 +3,7 @@
 // exists, with exponential reconnect. Events (e.g. `call.incoming`) fan out to
 // subscribers; call/meeting invites no longer need per-second polling.
 import { backendOrigin } from "./http";
+import { keepAlive, type KeepAlive } from "./socketKeepalive";
 
 export type UserEvent = { event: string } & Record<string, unknown>;
 type Handler = (e: UserEvent) => void;
@@ -41,14 +42,11 @@ function backoffMs(n: number): number {
 // The socket is idle most of the time and anything in the path (a proxy, a
 // phone radio) will drop a silent connection. The documented keepalive is a
 // plain {"event":"ping"} answered with {"event":"pong"}.
-const PING_MS = 25_000;
-let ping: ReturnType<typeof setInterval> | undefined;
+// No pong within 10 s → the socket is closed and reconnects (2026-11-21 §7.1).
+let ping: KeepAlive | null = null;
 function startPing(sock: WebSocket) {
-  clearInterval(ping);
-  ping = setInterval(() => {
-    if (sock.readyState !== WebSocket.OPEN) return;
-    try { sock.send(JSON.stringify({ event: "ping" })); } catch { /* onclose reconnects */ }
-  }, PING_MS);
+  ping?.stop();
+  ping = keepAlive(sock);
 }
 
 function open() {
@@ -84,7 +82,11 @@ function open() {
     if (!o || typeof o !== "object") return;
     const ev = o as UserEvent;
     if (typeof ev.event !== "string") return;
-    if (ev.event === "pong") return; // keepalive answer, not an app event
+    if (ev.event === "pong") {
+      // keepalive answer, not an app event
+      if (ws === sock) ping?.pong();
+      return;
+    }
     if (mine) seenOn.set(ev.event, mine);
     for (const h of handlers) {
       try { h(ev); } catch { /* one bad handler must not break the rest */ }
@@ -93,7 +95,8 @@ function open() {
   sock.onclose = () => {
     if (ws !== sock) return;
     ws = null;
-    clearInterval(ping);
+    ping?.stop();
+    ping = null;
     setState("offline");
     if (token) schedule();
   };
@@ -117,7 +120,8 @@ export function connectUserSocket(tok: string): void {
 export function disconnectUserSocket(): void {
   token = "";
   clearTimeout(timer);
-  clearInterval(ping);
+  ping?.stop();
+  ping = null;
   everConnected = false;
   seenOn.clear();
   if (ws) { const old = ws; ws = null; old.close(); }

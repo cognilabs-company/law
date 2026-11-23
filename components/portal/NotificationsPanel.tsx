@@ -443,7 +443,7 @@ export default function NotificationsPanel({ internal = false }: { internal?: bo
                   </button>
                 ) : link ? (
                   <Link href={link} className="cx-link ntitem__go" onClick={() => readOne(n)}>
-                    {t("open")}
+                    {n.event === "meeting_in_progress" ? t("join") : t("open")}
                     <IconArrowRight aria-hidden />
                   </Link>
                 ) : null}

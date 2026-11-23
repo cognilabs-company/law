@@ -1899,7 +1899,11 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       // Registers who started it server-side (recording_status, the who-
       // started-it field, and the call.recording_started broadcast to the
       // rest of the room) — best-effort, local capture doesn't wait on it.
-      startCallRecordingServer(roomId, callId).catch(() => {});
+      // 2026-11-21 §7.5: an app client has to consent first — until they do
+      // the server answers 409 recording_consent_required; the host is told.
+      startCallRecordingServer(roomId, callId).catch((e: unknown) => {
+        if (e instanceof ApiError && e.code === "recording_consent_required") say("info", t("recConsentWaiting"), { id: "call-rec-consent" });
+      });
       say("success", t("recStarted"), { id: "call-rec" });
     } catch (e) {
       notify.error(t("recError"), { id: "call-rec", body: e instanceof Error ? e.message : undefined });

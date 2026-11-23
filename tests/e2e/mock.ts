@@ -65,7 +65,10 @@ export async function mockBackend(page: Page, routes: Routes, opts: { cookieChoi
   await page.routeWebSocket(/\/ws\//, (ws) => {
     mock.sockets.push({ url: ws.url(), ws });
     ws.onMessage((m) => {
-      mock.sent.push(typeof m === "string" ? m : m.toString("utf8"));
+      const text = typeof m === "string" ? m : m.toString("utf8");
+      mock.sent.push(text);
+      // The backend's keepalive answer (2026-11-21 §7.1).
+      if (text === '{"event":"ping"}') ws.send(JSON.stringify({ event: "pong" }));
     });
   });
   await page.route(API, async (route: Route) => {

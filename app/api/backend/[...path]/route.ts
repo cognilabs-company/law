@@ -28,6 +28,9 @@ async function proxy(
   if (ua) headers["user-agent"] = ua;
   const idem = req.headers.get("idempotency-key");
   if (idem && /^[\w:.-]{1,200}$/.test(idem)) headers["idempotency-key"] = idem;
+  // 2026-11-21 contract §7.5: the web client names itself when it joins a call.
+  const platform = req.headers.get("x-client-platform");
+  if (platform && /^(web|ios|android)$/.test(platform)) headers["x-client-platform"] = platform;
   // Client IP for per-user rate limits and the session / user_consents IP.
   // Controlled by the server env BACKEND_FORWARD_CLIENT_IP. Off by default
   // (unset or anything but "1"): no x-forwarded-for / x-real-ip is sent and

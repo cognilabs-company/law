@@ -206,10 +206,18 @@ export function notifLink(
 
 function rawNotifLink(event: string, category: NotifCategory, data: Dict, role: string, staff: boolean, callCenter: boolean): string {
   const roomId = asStr(data.room_id).trim();
-  if (roomId && (event === "secure_chat_message" || event === "meeting_invite" || category === "chat")) {
+  // 2026-11-21 contract §7.4: a meeting still running that this user did not
+  // answer ("Uchrashuv davom etmoqda — qo'shilish") opens it to join; a missed
+  // 1:1 call opens the chat it was in.
+  const joinable = event === "meeting_invite" || event === "meeting_in_progress";
+  if (roomId && (event === "secure_chat_message" || joinable || event === "call_missed" || category === "chat")) {
     const callId = asStr(data.call_id).trim();
-    return `/portal/chat/${roomId}${event === "meeting_invite" && callId ? `?join=${encodeURIComponent(callId)}` : ""}`;
+    return `/portal/chat/${roomId}${joinable && callId ? `?join=${encodeURIComponent(callId)}` : ""}`;
   }
+  // §2.3: a refund only the call center can finish now.
+  if (event === "marketplace.refund_operator_required") return staff && callCenter ? "/admin/call-center?tab=refunds" : "";
+  // §8: the order went to another lawyer — it is no longer this one's.
+  if (event === "marketplace.assignment_revoked" && role !== "client") return `/portal/${role}/marketplace-orders`;
   if (!role) return "";
   if (event.startsWith("support.")) {
     const ticket = encodeURIComponent(asStr(data.ticket_id).trim());

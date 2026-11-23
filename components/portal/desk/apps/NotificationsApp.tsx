@@ -125,7 +125,7 @@ export default function NotificationsApp({ openLink }: NativeProps) {
   };
   const rowMenu = (e: MouseEvent, n: RichNotification, title: string) =>
     menu?.(e, title, [
-      ...(linkOf(n) ? [{ id: "open", label: t("open"), icon: <IconArrowRight />, onSelect: () => open(n) }] : []),
+      ...(linkOf(n) ? [{ id: "open", label: n.event === "meeting_in_progress" ? t("join") : t("open"), icon: <IconArrowRight />, onSelect: () => open(n) }] : []),
       n.read ? { id: "u", label: d("markUnread"), icon: <IconBell />, onSelect: () => void unread(n) } : { id: "r", label: d("markRead"), icon: <IconCheckDouble />, onSelect: () => void read(n) },
     ]);
 
@@ -230,7 +230,7 @@ export default function NotificationsApp({ openLink }: NativeProps) {
               <footer>
                 {linkOf(current.n) ? (
                   <Btn kind="primary" icon={<IconArrowRight />} onClick={() => open(current.n)}>
-                    {t("open")}
+                    {current.n.event === "meeting_in_progress" ? t("join") : t("open")}
                   </Btn>
                 ) : null}
                 <Btn onClick={() => void (current.n.read ? unread(current.n) : read(current.n))}>{current.n.read ? d("markUnread") : d("markRead")}</Btn>
