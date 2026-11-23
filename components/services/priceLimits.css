@@ -56,6 +56,7 @@ html[data-theme="dark"] .svcap {
 .svcap__tile {
   position: relative;
   display: grid;
+  align-content: space-between;
   gap: 2px;
   padding: 11px 12px;
   border-radius: 14px;
@@ -243,9 +244,15 @@ html[data-theme="dark"] .svcap {
   font-weight: 800;
 }
 .svcap__sub svg {
+  flex: none;
   width: 16px;
   height: 16px;
   color: var(--cap-acc);
+}
+/* A long heading wraps beside its icon, not under it. */
+.svcap__subt {
+  flex: 1 1 0;
+  min-width: 0;
 }
 .svcap__count {
   margin-inline-start: auto;
@@ -354,8 +361,10 @@ html[data-theme="dark"] .svcap {
 }
 .svcap__rs {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 4px;
+  white-space: nowrap;
   color: var(--st);
   font-size: 0.72rem;
   font-weight: 800;
@@ -391,6 +400,18 @@ html[data-theme="dark"] .svcap {
   }
   .svcap__tile[data-k="service"] {
     grid-column: 1 / -1;
+  }
+}
+/* The narrowest phones: a tile's amount and "so'm" on lines of their own, and
+   only the system price under the bar (the floor is in its tile). */
+@media (max-width: 420px) {
+  .svcap__marks span:not([data-strong]) {
+    display: none;
+  }
+}
+@media (max-width: 360px) {
+  .svcap__tile dd small {
+    display: block;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -442,6 +463,23 @@ html[data-theme="dark"] .svcap {
 .svcap__val {
   font-size: 0.82rem;
   font-variant-numeric: tabular-nums;
+}
+/* What meeting a coefficient adds to the system price, and how its
+   threshold compares (≥, ≤, =). */
+.svcap__add {
+  margin-left: 4px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cap-ok) 14%, transparent);
+  color: var(--cap-ok);
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.svcap__op {
+  color: var(--gray);
+  font-size: 0.82rem;
 }
 .svcap__pairs {
   display: flex;

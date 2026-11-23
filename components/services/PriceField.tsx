@@ -200,8 +200,11 @@ export default function PriceField({
         </div>
       ) : null}
 
+      {/* The price is always sent: the system price (the ceiling), its 50%
+          floor, or anything between. An empty price would quietly fall back
+          to the catalog base price, so there is no "catalog price" chip. */}
       <div className="svprice2__chips">
-        {rec > 0 ? (
+        {rec > 0 && rec !== cap ? (
           <button type="button" className={`svchip svcfg-chip${n === rec ? " is-on" : ""}`} onClick={() => onChange(String(rec))}>
             {t("useRecommended", { price: som(rec) })}
           </button>
@@ -211,7 +214,12 @@ export default function PriceField({
             {tc("useMax", { price: som(cap) })}
           </button>
         ) : null}
-        {value ? (
+        {cap && minimum > 0 && minimum < cap ? (
+          <button type="button" className={`svchip svcfg-chip${n === minimum ? " is-on" : ""}`} onClick={() => onChange(String(minimum))}>
+            {tc("useMin", { price: som(minimum) })}
+          </button>
+        ) : null}
+        {value && !cap ? (
           <button type="button" className="svchip svchip--ghost svcfg-chip" onClick={() => onChange("")}>
             {t("useCatalog")}
           </button>

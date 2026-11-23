@@ -80,6 +80,15 @@ function pricingWithConfig(p: RuntimePricing | null, cfg: SellerServiceConfig | 
   };
 }
 
+// The system price from pricing_limits (max_allowed) is the ceiling. Limits
+// a 422 sent back are the newest and win; otherwise the band only fills in
+// when neither the configuration nor the catalog named a ceiling.
+function withBandLimits(p: RuntimePricing | null, band: PriceBand | null, fresh: boolean): RuntimePricing | null {
+  if (!band || band.max <= 0 || (!fresh && p && p.maximumPrice > 0)) return p;
+  const base: RuntimePricing = p ?? { recommendedPrice: 0, maximumPrice: 0, currency: band.currency || "UZS", sellerCanPriceBelowRecommended: true, factors: [], formula: "" };
+  return { ...base, maximumPrice: band.max, recommendedPrice: fresh || !(base.recommendedPrice > 0) ? (band.recommended > 0 ? band.recommended : band.max) : base.recommendedPrice };
+}
+
 // The lowest listing price as the backend states it (minimum_listing_price);
 // it is never worked out here from the recommended price and the discount.
 export function priceFloor(cfg: SellerServiceConfig | null, catalog: CatalogPricing | null, runtime: RuntimePricing | null): { min: number; pct: number | null } {
@@ -155,6 +164,7 @@ export default function ServiceFormModal({
   const [serverMin, setServerMin] = useState<{ key: string; min: number } | null>(null);
   const [price, setPrice] = useState(item?.selectedPrice ? String(item.selectedPrice) : "");
   const [priceTouched, setPriceTouched] = useState(false);
+  const [prefilled, setPrefilled] = useState(item?.selectedPrice ? item.id : "");
   const [seeded, setSeeded] = useState("");
   const [note, setNote] = useState(item?.experienceNote ?? "");
   // Contact details are refused as they are typed; the backend refuses
@@ -188,7 +198,7 @@ export default function ServiceFormModal({
   const cfgLoad = useSellerConfig(serviceId, uid, self && Boolean(serviceId), `${rulesVersion}|${cfgTick}`);
   const cfg = savedCfg && savedCfg.version === rulesVersion && savedCfg.cfg.serviceId === serviceId ? savedCfg.cfg : cfgLoad.config;
   const catalogPricing = picked && picked.service.id === serviceId ? picked.pricing : null;
-  const pricing = pricingWithConfig(runtime?.pricing ?? null, cfg, catalogPricing);
+  const fromServer = serverBand && serverBand.key === serviceId ? serverBand.band : null;
   if (cfg && seeded !== cfg.serviceId) {
     setSeeded(cfg.serviceId);
     if (cfg.selectedPrice > 0 && !priceTouched) setPrice(String(cfg.selectedPrice));
@@ -211,15 +221,19 @@ export default function ServiceFormModal({
   }, [serviceId, sellerId, region, bandKey, savedComplete]);
 
   const loaded = bandLoad && bandLoad.key === bandKey ? bandLoad : null;
-  const fromServer = serverBand && serverBand.key === serviceId ? serverBand.band : null;
   const band = withDetails(fromServer, withDetails(savedBand, loaded?.band ?? null));
+  // Limits a 422 sent back (pricing_limits) are the newest: the system price
+  // may have changed since the form loaded.
+  const exactBand = band && !isZeroBand(band) && band.exact !== false ? band : null;
+  const pricing = withBandLimits(pricingWithConfig(runtime?.pricing ?? null, cfg, catalogPricing), exactBand, Boolean(fromServer));
   const bandState = !serviceId ? "idle" : band ? "ready" : loaded ? "failed" : "loading";
   const noPrice = isZeroBand(band) && !(pricing && pricing.recommendedPrice > 0);
   const n = noPrice ? 0 : Number(price || "0");
   const off = priceAboveCap(n, pricing);
   const floorRec = pricing && pricing.recommendedPrice > 0 ? pricing.recommendedPrice : band && !isZeroBand(band) ? bandRecommended(band) : 0;
   const floor = priceFloor(cfg, catalogPricing, runtime?.pricing ?? null);
-  const knownMin = Math.max(floor.min, serverMin && serverMin.key === serviceId ? serverMin.min : 0);
+  const bandMin = exactBand ? exactBand.min : 0;
+  const knownMin = fromServer && fromServer.min > 0 && !isZeroBand(fromServer) ? fromServer.min : Math.max(floor.min || bandMin, serverMin && serverMin.key === serviceId ? serverMin.min : 0);
   const minPrice = noPrice ? 0 : knownMin;
   const belowMin = priceVerdict(n, pricing, minPrice) === "belowMin";
   const advocateBlocked = Boolean(loaded?.advocate) || err?.kind === "advocateOnly";
@@ -235,6 +249,14 @@ export default function ServiceFormModal({
   const sendRuleIds = ruleOptions ? ruleIds.filter((id) => ruleOptions.some((r) => r.id === id)) : null;
   const why: PriceExplanation | null = catalogPricing?.explanation ?? configExplanation(cfg) ?? (explanation ? { ...explanation, factors: [] } : null);
   const capNow = !noPrice && pricing ? (priceCapOf(pricing) ?? 0) : 0;
+  // The price starts at the system price (max_allowed) and is always sent:
+  // an empty price would fall back to the catalog base price instead.
+  if (serviceId && prefilled !== serviceId && capNow > 0 && !priceTouched && !(cfg && cfg.serviceId === serviceId && cfg.selectedPrice > 0)) {
+    setPrefilled(serviceId);
+    if (!persisted || !price) setPrice(String(capNow));
+  }
+  const growth = catalogPricing?.growth ?? band?.growth ?? null;
+  const reqs = cfg?.requirements.length ? cfg.requirements : (catalogPricing?.growth?.requirements.length ? catalogPricing.growth.requirements : (band?.growth?.requirements ?? []));
   const shownRuleErr = ruleErr && ruleErr.key === serviceId ? ruleErr : null;
   const runtimeMods = runtime?.pricing.raw && runtime.pricing.raw.modifiers != null ? readPriceModifiers(runtime.pricing.raw.modifiers, locale) : null;
   const whyFacts: PriceWhyFacts = {
@@ -381,7 +403,7 @@ export default function ServiceFormModal({
           return;
         }
         setErr(se);
-        if ((se.kind === "range" || se.kind === "noPrice") && se.limits) setServerBand({ key: service.id, band: se.limits });
+        if ((se.kind === "range" || se.kind === "noPrice" || se.kind === "aboveMax" || se.kind === "belowMin") && se.limits) setServerBand({ key: service.id, band: se.limits });
         if (se.kind === "belowMin" && se.min > 0) setServerMin({ key: service.id, min: se.min });
         if (res.persisted && res.persisted !== persisted) keep(res.persisted);
         if (se.kind === "notFound") onStale?.();
@@ -455,6 +477,10 @@ export default function ServiceFormModal({
                   setService(s);
                   setPicked(it);
                   setErr(null);
+                  if (!priceTouched) {
+                    setPrice("");
+                    setPrefilled("");
+                  }
                 }}
                 taken={taken}
                 lawyer={lawyer}
@@ -484,13 +510,14 @@ export default function ServiceFormModal({
                 minimum={minPrice}
                 recommended={floorRec}
                 sellerMax={capNow}
-                serviceMax={cfg?.serviceMaximumPrice || runtime?.pricing.maximumPrice || 0}
-                increasePct={cfg?.maxIncreasePercent ?? null}
+                serviceMax={cfg?.serviceMaximumPrice || growth?.potential || 0}
+                increasePct={cfg?.maxIncreasePercent ?? growth?.maxPct ?? null}
+                currentPct={cfg?.currentIncreasePercent ?? growth?.currentPct ?? null}
                 price={n}
                 explanation={why}
                 modifiers={whyFacts.modifiers}
-                requirements={cfg?.requirements ?? []}
-                discountPct={cfg?.maxListingDiscountPercent ?? runtime?.pricing.maxListingDiscountPercent ?? null}
+                requirements={reqs}
+                discountPct={cfg?.maxListingDiscountPercent ?? catalogPricing?.discountPercent ?? runtime?.pricing.maxListingDiscountPercent ?? null}
                 belowAllowed={cfg?.belowRecommendedAllowed ?? runtime?.pricing.sellerCanPriceBelowRecommended ?? null}
                 aiId={aiId ? `${aiId}.limits` : undefined}
               />

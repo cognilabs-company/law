@@ -3,6 +3,7 @@ import { uzs, uzsOpt } from "@/lib/money";
 import { firstFieldError } from "@/lib/formErrors";
 import { normService, type BackendService } from "@/lib/services/backend";
 import { getPublicPricingPolicy, readPriceModifiers, type PriceModifier } from "@/lib/services/marketplacePricing";
+import { requirementsOf, type PriceRequirement } from "@/lib/services/marketRuntime";
 import { listNotificationsRich } from "@/lib/services/notify";
 import type { UserEvent } from "@/lib/userSocket";
 import { promotionCheckoutLapse } from "@/lib/services/promotions";
@@ -68,7 +69,32 @@ export type PriceBand = {
   base: number | null;
   currency: string;
   modifiers: PriceModifier[] | null;
+  // pricing_limits' growth facts, when the response carries them: the system
+  // price once every coefficient is met, the increase now and at most, and
+  // the coefficients themselves.
+  growth?: PriceGrowth;
+  // false when min/max were worked out here from a quote that named no
+  // limits (a guide, not the backend's ceiling).
+  exact?: boolean;
 };
+
+export type PriceGrowth = { potential: number; currentPct: number | null; maxPct: number | null; requirements: PriceRequirement[] };
+
+const pctOrNull = (v: unknown): number | null => {
+  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() ? Number(v) : NaN;
+  return Number.isFinite(n) && n >= 0 ? n : null;
+};
+
+// What the seller can grow into (pricing_limits.potential_max_price,
+// current/maximum_increase_percent, coefficients / growth_path), as sent.
+export function priceGrowthOf(d: Record<string, unknown>): PriceGrowth {
+  return {
+    potential: Math.max(0, uzs(d, "potential_max_price")),
+    currentPct: pctOrNull(d.current_increase_percent),
+    maxPct: pctOrNull(d.maximum_increase_percent),
+    requirements: requirementsOf(d.coefficients, d.requirements, d.growth_path),
+  };
+}
 
 export type AdPackage = { id: string; title: string; price: number; currency: string; days: number; reach: number };
 
@@ -131,8 +157,9 @@ export function isZeroBand(band: PriceBand | null): boolean {
 
 function normLimits(v: unknown, locale = "uz"): PriceBand | null {
   const d = asDict(v);
-  const max = uzs(d, "max_allowed", "max_price", "recommended_price");
-  const min = uzs(d, "min_allowed", "min_price");
+  // max_allowed is the system price (the ceiling); min_allowed its 50% floor.
+  const max = uzs(d, "max_allowed", "maximum_price", "max_price", "recommended_price");
+  const min = uzs(d, "min_allowed", "minimum_listing_price", "min_price");
   if (!max && ["max_allowed", "max_price", "recommended_price"].some((k) => k in d)) return zeroBand(asStr(d.currency) || "UZS");
   if (!max || min > max) return null;
   return {
@@ -142,6 +169,7 @@ function normLimits(v: unknown, locale = "uz"): PriceBand | null {
     base: uzsOpt(d, "base_price", "base_amount") ?? null,
     currency: asStr(d.currency) || "UZS",
     modifiers: d.modifiers != null ? readPriceModifiers(d.modifiers, locale) : null,
+    growth: priceGrowthOf(d),
   };
 }
 
@@ -301,7 +329,7 @@ async function fetchPriceBand(serviceId: string, sellerId: string, region: strin
   const backendMin = uzsOpt(limits, "min_allowed", "min_price") ?? uzsOpt(q, "min_allowed", "min_price");
   const backendMax = uzsOpt(limits, "max_allowed", "max_price");
   const custom = policy && policy.minPercent > 0 && policy.minPercent <= policy.maxPercent;
-  const lo = custom ? policy.minPercent : 70;
+  const lo = custom ? policy.minPercent : 50;
   const hi = custom ? policy.maxPercent : 100;
   return {
     recommended,
@@ -314,6 +342,7 @@ async function fetchPriceBand(serviceId: string, sellerId: string, region: strin
       : Array.isArray(q.modifiers)
         ? readPriceModifiers(q.modifiers)
         : null,
+    exact: backendMax !== undefined,
   };
 }
 
@@ -349,7 +378,17 @@ export type CatalogCategory = {
 export type CatalogTree = { items: CatalogCategory[]; count: number };
 export type PriceExplanationFactor = { key: string; label: string; effect: string };
 export type PriceExplanation = { text: string; lines: string[]; factors: PriceExplanationFactor[] };
-export type CatalogPricing = { recommended: number; minimum: number; maximum: number; discountPercent: number | null; explanation: PriceExplanation | null };
+// A catalog row's pricing_limits: maximum is the system price (max_allowed,
+// the ceiling), minimum its floor (min_allowed, 50% of it).
+export type CatalogPricing = {
+  recommended: number;
+  minimum: number;
+  maximum: number;
+  discountPercent: number | null;
+  explanation: PriceExplanation | null;
+  base?: number;
+  growth?: PriceGrowth;
+};
 export type CatalogItem = {
   service: BackendService;
   selected: boolean;
@@ -408,7 +447,12 @@ export async function getSellerCatalogTree(scope: ServiceScope, signal?: AbortSi
 
 function factorOf(v: unknown): PriceExplanationFactor {
   const d = asDict(v);
-  return { key: textOf(d.key ?? d.code), label: textOf(d.label ?? d.title ?? d.name), effect: textOf(d.effect ?? d.value ?? d.delta) };
+  const effect = textOf(d.effect ?? d.value ?? d.delta);
+  // A coefficient's breakdown row ({code, label, percent, amount, met}) says
+  // what it adds as a percent.
+  const pct = effect ? NaN : Number(d.percent ?? NaN);
+  const fromPct = Number.isFinite(pct) ? (pct > 0 ? `+${pct}%` : pct < 0 ? `−${-pct}%` : "0") : "";
+  return { key: textOf(d.key ?? d.code), label: textOf(d.label ?? d.title ?? d.name), effect: effect || fromPct };
 }
 
 export function priceExplanationOf(v: unknown): PriceExplanation | null {
@@ -423,6 +467,8 @@ export function priceExplanationOf(v: unknown): PriceExplanation | null {
         lines.push(String(x).trim());
         continue;
       }
+      // A coefficient the seller does not meet adds nothing to the price.
+      if (asDict(x).met === false) continue;
       const f = factorOf(x);
       // A factor that changes nothing (a ×1 region, no amount) explains nothing.
       const neutral = Number(asDict(x).amount ?? 0) === 0 && (f.effect === "1" || f.effect === "1.0" || f.effect === "0");
@@ -452,11 +498,13 @@ export function catalogPricingOf(v: unknown): CatalogPricing | null {
   const pct = d.maximum_listing_discount_percent;
   const discount = typeof pct === "number" || (typeof pct === "string" && pct.trim()) ? Number(pct) : NaN;
   return {
-    recommended: Math.max(0, uzs(d, "recommended_price")),
-    minimum: Math.max(0, uzs(d, "minimum_listing_price")),
-    maximum: Math.max(0, uzs(d, "maximum_price")),
+    recommended: Math.max(0, uzs(d, "recommended_price", "max_allowed", "maximum_price")),
+    minimum: Math.max(0, uzs(d, "minimum_listing_price", "min_allowed")),
+    maximum: Math.max(0, uzs(d, "maximum_price", "max_allowed")),
     discountPercent: Number.isFinite(discount) && discount >= 0 && discount <= 100 ? discount : null,
-    explanation: priceExplanationOf(d.price_explanation),
+    explanation: priceExplanationOf(d.price_explanation ?? d.modifiers),
+    base: Math.max(0, uzs(d, "base_price")),
+    growth: priceGrowthOf(d),
   };
 }
 
@@ -555,15 +603,22 @@ export function serviceErrorOf(e: unknown, locale = "uz"): ServiceError {
   const detail = asDict(e.data.detail);
   const text = errDetail(e);
   const code = (e.code || asStr(detail.code) || asStr(e.data.code)).trim().toLowerCase();
+  // price_below_minimum / price_above_maximum carry the limits as they are
+  // now (pricing_limits): the form takes them over, since the system price
+  // may have changed since it was loaded.
   if (BELOW_MIN_CODE_RE.test(code)) {
     const ctx = { ...asDict(e.data.context), ...asDict(detail.context) };
-    const min = uzs(detail, "minimum_listing_price", "minimum_price", "min_price") || uzs(ctx, "minimum_listing_price", "minimum_price");
-    return out("belowMin", { min, detail: text });
+    const limits = detail.pricing_limits ? normLimits(detail.pricing_limits, locale) : null;
+    const min = uzs(detail, "minimum_listing_price", "minimum_price", "min_price", "min_allowed") || uzs(ctx, "minimum_listing_price", "minimum_price") || (limits?.min ?? 0);
+    const max = uzs(detail, "maximum_price", "max_allowed") || (limits?.max ?? 0);
+    return out("belowMin", { min, max, detail: text, limits });
   }
   if (ABOVE_MAX_CODE_RE.test(code)) {
     const ctx = { ...asDict(e.data.context), ...asDict(detail.context) };
-    const max = uzs(detail, "maximum_price", "max_price", "max_allowed") || uzs(ctx, "maximum_price", "max_price");
-    return out("aboveMax", { max, detail: text });
+    const limits = detail.pricing_limits ? normLimits(detail.pricing_limits, locale) : null;
+    const max = uzs(detail, "maximum_price", "max_price", "max_allowed") || uzs(ctx, "maximum_price", "max_price") || (limits?.max ?? 0);
+    const min = uzs(detail, "minimum_listing_price", "min_allowed") || (limits?.min ?? 0);
+    return out("aboveMax", { min, max, detail: text, limits });
   }
   // Contact details in the experience note (platform_contact_blocked, or
   // any refusal code about contacts): shown under the note, not as a toast.

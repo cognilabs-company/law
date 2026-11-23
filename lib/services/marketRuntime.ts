@@ -590,6 +590,9 @@ export type SellerServiceConfig = {
   // How far (percent) the seller may raise the price once every requirement
   // below is met; null when the response does not say.
   maxIncreasePercent: number | null;
+  // The increase (percent) the coefficients met today already give
+  // (pricing_limits.current_increase_percent); null when not sent.
+  currentIncreasePercent: number | null;
   // What stands between the seller and that higher ceiling, each with the
   // backend's own current/required values.
   requirements: PriceRequirement[];
@@ -613,11 +616,15 @@ export type PriceRequirement = {
   met: boolean | null;
   progress: number | null;
   note: string;
+  // A price coefficient (pricing_limits.coefficients): what meeting it adds
+  // to the system price, and how its threshold compares ("gte", "lte", "eq").
+  increasePct?: number | null;
+  operator?: string;
 };
 
 function requirementOf(v: unknown): PriceRequirement | null {
   const d = dictOf(v);
-  const key = trimmed(d.key ?? d.code ?? d.criterion ?? d.type);
+  const key = trimmed(d.key ?? d.code ?? d.criterion ?? d.criterion_type ?? d.type);
   const label = trimmed(d.label ?? d.title ?? d.name);
   if (!key && !label) return null;
   const val = (x: unknown): PriceReqValue => {
@@ -626,8 +633,12 @@ function requirementOf(v: unknown): PriceRequirement | null {
     if (typeof x === "string" && x.trim() && !Number.isFinite(Number(x))) return x.trim();
     return numOrNull(x);
   };
-  const required = val(d.required ?? d.required_value ?? d.target ?? d.minimum);
+  const lo = numOrNull(d.range_min);
+  const hi = numOrNull(d.range_max);
+  const range = lo !== null && hi !== null ? `${lo}–${hi}` : null;
+  const required = val(d.required ?? d.required_value ?? d.target ?? d.threshold ?? d.minimum ?? range);
   const alts = required && typeof required === "object" ? (required as Dict).any_of : undefined;
+  const increase = numOrNull(d.increase_percent);
   return {
     key,
     label,
@@ -639,10 +650,12 @@ function requirementOf(v: unknown): PriceRequirement | null {
     // As sent; only the bar that draws it is clamped.
     progress: numOrNull(d.progress_percent ?? d.progress ?? d.percent),
     note: trimmed(d.text ?? d.message ?? d.hint ?? d.description),
+    increasePct: increase !== null && increase > 0 ? increase : null,
+    operator: trimmed(d.operator).toLowerCase(),
   };
 }
 
-function requirementsOf(...sources: unknown[]): PriceRequirement[] {
+export function requirementsOf(...sources: unknown[]): PriceRequirement[] {
   for (const s of sources) {
     const list = Array.isArray(s) ? s : Array.isArray(dictOf(s).items) ? (dictOf(s).items as unknown[]) : null;
     if (!list?.length) continue;
@@ -740,6 +753,7 @@ export function normSellerConfig(v: unknown, serviceId = ""): SellerServiceConfi
   const rulesStatus = trimmed(src.rules_status ?? d.rules_status).toLowerCase();
   const discount = numOrNull(src.maximum_listing_discount_percent ?? d.maximum_listing_discount_percent ?? lim.maximum_listing_discount_percent);
   const increase = numOrNull(src.maximum_increase_percent ?? src.max_increase_percent ?? src.max_price_increase_percent ?? src.price_increase_percent ?? lim.maximum_increase_percent ?? lim.max_increase_percent);
+  const current = numOrNull(src.current_increase_percent ?? lim.current_increase_percent);
   const selectable = src.selectable_rules ?? d.selectable_rules;
   const chosen = src.selected_rule_ids ?? d.selected_rule_ids;
   const selectableRules = Array.isArray(selectable)
@@ -750,9 +764,11 @@ export function normSellerConfig(v: unknown, serviceId = ""): SellerServiceConfi
     serviceId: trimmed(src.service_id ?? d.service_id) || serviceId,
     enabled: boolOrNull(src.enabled ?? src.is_enabled ?? src.is_active),
     selectedPrice: uzs(src, "selected_price", "configured_price", "price"),
-    recommendedPrice: uzs(src, "recommended_price", "recommended_minimum_price") || uzs(lim, "recommended_price", "recommended_minimum_price", "recommended"),
-    maximumPrice: uzs(src, "maximum_price", "max_price", "seller_maximum_price") || uzs(lim, "maximum_price", "max_price", "maximum"),
-    minimumListingPrice: Math.max(0, uzs(src, "minimum_listing_price") || uzs(lim, "minimum_listing_price")),
+    recommendedPrice: uzs(src, "recommended_price", "recommended_minimum_price") || uzs(lim, "recommended_price", "recommended_minimum_price", "recommended", "max_allowed"),
+    // The system price: base × the coefficients the seller meets. It is the
+    // ceiling (pricing_limits.max_allowed); there is no manual maximum.
+    maximumPrice: uzs(src, "maximum_price", "max_price", "seller_maximum_price") || uzs(lim, "maximum_price", "max_allowed", "max_price", "maximum"),
+    minimumListingPrice: Math.max(0, uzs(src, "minimum_listing_price") || uzs(lim, "minimum_listing_price", "min_allowed")),
     belowRecommendedAllowed: boolOrNull(src.below_recommended_allowed ?? d.below_recommended_allowed),
     maxListingDiscountPercent: discount !== null && discount >= 0 ? discount : null,
     negotiationMinimumPrice: Math.max(0, uzs(src, "negotiation_minimum_price") || uzs(d, "negotiation_minimum_price")),
@@ -772,7 +788,10 @@ export function normSellerConfig(v: unknown, serviceId = ""): SellerServiceConfi
     // service can reach once every criterion is met (TSK-640502).
     serviceMaximumPrice: uzs(lim, "potential_max_price") || uzs(src, "potential_max_price", "service_maximum_price", "overall_maximum_price", "absolute_maximum_price", "price_ceiling", "max_price_cap") || uzs(lim, "service_maximum_price", "overall_maximum_price", "price_ceiling", "max_price_cap"),
     maxIncreasePercent: increase !== null && increase >= 0 ? increase : null,
-    requirements: requirementsOf(src.requirements, src.price_requirements, src.unmet_requirements, dictOf(src.eligibility).requirements, d.requirements, d.price_requirements, lim.requirements),
+    currentIncreasePercent: current !== null && current >= 0 ? current : null,
+    // How to raise the price: the service's coefficients (each with what it
+    // adds) first, then the older requirement lists, then the growth path.
+    requirements: requirementsOf(lim.coefficients, src.coefficients, src.requirements, src.price_requirements, src.unmet_requirements, dictOf(src.eligibility).requirements, d.requirements, d.price_requirements, lim.requirements, lim.growth_path),
     raw: d,
   };
 }

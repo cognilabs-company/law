@@ -11,12 +11,13 @@ import { som } from "./bits";
 import "./priceLimits.css";
 
 // The price limits a lawyer works within when switching a service on: the
-// floor, their own ceiling, the service's overall ceiling and how far a
-// lawyer may go once they meet the criteria, the backend's reasons for the
-// current ceiling, and each criterion with the backend's own verdict and
-// progress. Every amount, percentage and met/unmet verdict comes from the
-// backend (GET/PATCH /marketplace/me/services/{id}/configuration); this
-// card only draws them — no pricing or eligibility formula lives here.
+// system price (base × the coefficients they meet — the ceiling; there is no
+// manual maximum), its 50% floor, the system price once every coefficient is
+// met (potential_max_price), the backend's reasons for the current price,
+// and each coefficient with the backend's own verdict and what it adds.
+// Every amount, percentage and met/unmet verdict comes from the backend
+// (pricing_limits of the catalog, the configuration or a 422); this card
+// only draws them — no pricing or eligibility formula lives here.
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -42,6 +43,8 @@ export type PriceLimitsProps = {
   sellerMax: number;
   serviceMax: number;
   increasePct: number | null;
+  // The increase the coefficients met today already give (current_increase_percent).
+  currentPct?: number | null;
   price: number;
   explanation: PriceExplanation | null;
   modifiers: PriceModifier[] | null;
@@ -57,7 +60,9 @@ export type PriceLimitsProps = {
 // cannot draw outside the track. The number shown beside it is the backend's.
 const barOf = (r: PriceRequirement): number | null => (r.progress === null ? null : Math.max(0, Math.min(100, r.progress)));
 
-export default function PriceLimits({ minimum, recommended, sellerMax, serviceMax, increasePct, price, explanation, modifiers, requirements, discountPct = null, belowAllowed = null, aiId }: PriceLimitsProps) {
+const OP_SIGN: Readonly<Record<string, string>> = { gte: "≥", gt: ">", lte: "≤", lt: "<", eq: "=" };
+
+export default function PriceLimits({ minimum, recommended, sellerMax, serviceMax, increasePct, currentPct = null, price, explanation, modifiers, requirements, discountPct = null, belowAllowed = null, aiId }: PriceLimitsProps) {
   const t = useTranslations("sellerServices.caps");
   const tm = useTranslations("marketPricing");
   const locale = useLocale();
@@ -104,7 +109,7 @@ export default function PriceLimits({ minimum, recommended, sellerMax, serviceMa
   // The limits in words, each sentence carrying only numbers the backend sent.
   const unmet = crit.filter((r) => r.met === false);
   const facts: string[] = [];
-  if (recommended > 0) facts.push(t("fact.rec", { price: som(recommended) }));
+  if (recommended > 0 && recommended !== sellerMax) facts.push(t("fact.rec", { price: som(recommended) }));
   if (minimum > 0)
     facts.push(
       belowAllowed === false
@@ -115,6 +120,7 @@ export default function PriceLimits({ minimum, recommended, sellerMax, serviceMa
     );
   if (sellerMax > 0)
     facts.push(over ? t("fact.capLocked", { mine: som(sellerMax), service: som(over) }) : serviceMax > 0 && sellerMax >= serviceMax ? t("fact.capFull", { max: som(sellerMax) }) : t("fact.cap", { max: som(sellerMax) }));
+  if (currentPct !== null && currentPct > 0) facts.push(t("fact.current", { pct: num(currentPct) }));
   if (unmet.length) facts.push(t("fact.unmet", { n: unmet.length, list: unmet.map(reqLabel).join(", ") }));
   else if (crit.length && crit.every((r) => r.met === true)) facts.push(t("fact.allMet"));
   return (
@@ -153,7 +159,7 @@ export default function PriceLimits({ minimum, recommended, sellerMax, serviceMa
           <div className="svcap__track">
             <span className="svcap__ok" style={{ left: at(minimum), width: `calc(${at(sellerMax)} - ${at(minimum)})` }} />
             {over ? <span className="svcap__lock" style={{ left: at(sellerMax), width: `calc(${at(over)} - ${at(sellerMax)})` }} /> : null}
-            {recommended > 0 ? <span className="svcap__rec" style={{ left: at(recommended) }} title={t("rec", { price: som(recommended) })} /> : null}
+            {recommended > 0 && recommended !== sellerMax ? <span className="svcap__rec" style={{ left: at(recommended) }} title={t("rec", { price: som(recommended) })} /> : null}
             {price > 0 ? <span className="svcap__dot" data-ok={inRange ? "" : undefined} style={{ left: at(price) }} /> : null}
           </div>
           <div className="svcap__marks" aria-hidden="true">
@@ -166,18 +172,19 @@ export default function PriceLimits({ minimum, recommended, sellerMax, serviceMa
           <p className="svcap__legend">
             <span data-k="ok">{t("legendOk")}</span>
             {over ? <span data-k="lock">{t("legendLock")}</span> : null}
-            {recommended > 0 ? <span data-k="rec">{t("rec", { price: som(recommended) })}</span> : null}
+            {recommended > 0 && recommended !== sellerMax ? <span data-k="rec">{t("rec", { price: som(recommended) })}</span> : null}
           </p>
         </div>
       ) : null}
 
-      {/* The backend's own figure (maximum_increase_percent): how much
-          further the allowed ceiling can grow once the unmet criteria are
-          met. Not computed, capped or rounded here; nothing at 0. */}
-      {increasePct !== null && increasePct > 0 ? (
+      {/* How to raise the price: the system price once every coefficient is
+          met (potential_max_price) and the backend's own increase over the
+          catalog price (maximum_increase_percent). Not computed, capped or
+          rounded here; nothing when there is nothing left to grow. */}
+      {over || (increasePct !== null && increasePct > 0 && (currentPct === null || increasePct > currentPct)) ? (
         <p className="svcap__unlock">
           <IconTrendingUp aria-hidden="true" />
-          <span>{t("growth", { pct: num(increasePct) })}</span>
+          <span>{over ? (increasePct !== null && increasePct > 0 ? t("unlockPct", { max: som(over), pct: num(increasePct) }) : t("unlock", { max: som(over) })) : t("growth", { pct: num(increasePct ?? 0) })}</span>
         </p>
       ) : null}
 
@@ -185,7 +192,7 @@ export default function PriceLimits({ minimum, recommended, sellerMax, serviceMa
         <div className="svcap__why">
           <p className="svcap__sub">
             <IconInfo aria-hidden="true" />
-            {sellerMax > 0 ? t("whyMax", { max: som(sellerMax) }) : t("why")}
+            <span className="svcap__subt">{sellerMax > 0 ? t("whyMax", { max: som(sellerMax) }) : t("why")}</span>
           </p>
           {reasons?.text && !(reasons.lines.length > 1 && reasons.text === reasons.lines.join(" ")) ? <p className="svcap__txt">{reasons.text}</p> : null}
           {facts.length ? (
@@ -239,6 +246,7 @@ export default function PriceLimits({ minimum, recommended, sellerMax, serviceMa
               const state = r.met === true ? "met" : r.met === false ? "unmet" : "unknown";
               const cur = valueOf(r.current, r.unit);
               const need = r.anyOf ? null : valueOf(r.required, r.unit);
+              const sign = r.operator ? (OP_SIGN[r.operator] ?? "") : "";
               return (
                 <li key={`${r.key}-${i}`} className="svcap__req" data-state={state}>
                   <span className="svcap__ric" aria-hidden="true">
@@ -250,6 +258,7 @@ export default function PriceLimits({ minimum, recommended, sellerMax, serviceMa
                       <span className="svcap__rs">
                         {state === "met" ? <IconCheck aria-hidden="true" /> : state === "unmet" ? <IconAlert aria-hidden="true" /> : null}
                         {t(`state.${state}`)}
+                        {r.increasePct ? <em className="svcap__add">{t("reqAdds", { pct: num(r.increasePct) })}</em> : null}
                       </span>
                     </span>
                     {bar !== null ? (
@@ -275,6 +284,7 @@ export default function PriceLimits({ minimum, recommended, sellerMax, serviceMa
                       {need ? (
                         <span className="svcap__kvr">
                           <small>{t("need")}</small>
+                          {sign ? <b className="svcap__op">{sign}</b> : null}
                           {need}
                         </span>
                       ) : null}

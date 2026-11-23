@@ -395,6 +395,7 @@ function ServiceDialog({ item, data, uid, scope, onClose, onSaved, onRules, onDe
   const [status, setStatus] = useState<ServiceStatus>(item?.status ?? "active");
   const [policy, setPolicy] = useState(!!item);
   const [band, setBand] = useState<PriceBand | null>(item?.limits ?? null);
+  const [prefilled, setPrefilled] = useState(item?.selectedPrice ? item.id : "");
   const [runtime, setRuntime] = useState<RuntimeConfig | null>(null);
   const cfg = useSellerConfig(svc?.id ?? "", uid, !!svc).config;
   const [busy, setBusy] = useState(false);
@@ -419,6 +420,12 @@ function ServiceDialog({ item, data, uid, scope, onClose, onSaved, onRules, onDe
       alive = false;
     };
   }, [svc, data.seller.id, data.profile.region]);
+  // The price starts at the system price (max_allowed) and is always sent:
+  // an empty price would fall back to the catalog base price instead.
+  if (svc && band && band.max > 0 && !price && prefilled !== svc.id) {
+    setPrefilled(svc.id);
+    setPrice(String(band.max));
+  }
   const value = Math.round(Number(price.replace(/[^\d]/g, "")) || 0);
   const out = !!band && !!band.max && value > 0 && (value < band.min || value > band.max);
   async function save() {
@@ -492,7 +499,15 @@ function ServiceDialog({ item, data, uid, scope, onClose, onSaved, onRules, onDe
             {svc.categoryTitle ? <small>{svc.categoryTitle}</small> : null}
           </span>
           {!item ? (
-            <Btn small kind="plain" onClick={() => setSvc(null)}>
+            <Btn
+              small
+              kind="plain"
+              onClick={() => {
+                setSvc(null);
+                setBand(null);
+                setPrice("");
+              }}
+            >
               {tf("change")}
             </Btn>
           ) : null}
@@ -504,12 +519,13 @@ function ServiceDialog({ item, data, uid, scope, onClose, onSaved, onRules, onDe
             minimum={cfg?.minimumListingPrice || band?.min || 0}
             recommended={cfg?.recommendedPrice || band?.recommended || 0}
             sellerMax={cfg?.maximumPrice || band?.max || 0}
-            serviceMax={cfg?.serviceMaximumPrice || runtime?.pricing.maximumPrice || 0}
-            increasePct={cfg?.maxIncreasePercent ?? null}
+            serviceMax={cfg?.serviceMaximumPrice || band?.growth?.potential || 0}
+            increasePct={cfg?.maxIncreasePercent ?? band?.growth?.maxPct ?? null}
+            currentPct={cfg?.currentIncreasePercent ?? band?.growth?.currentPct ?? null}
             price={value}
             explanation={priceExplanationOf(cfg?.raw.price_explanation)}
             modifiers={band?.modifiers ?? null}
-            requirements={cfg?.requirements ?? []}
+            requirements={cfg?.requirements.length ? cfg.requirements : (band?.growth?.requirements ?? [])}
             discountPct={cfg?.maxListingDiscountPercent ?? runtime?.pricing.maxListingDiscountPercent ?? null}
             belowAllowed={cfg?.belowRecommendedAllowed ?? runtime?.pricing.sellerCanPriceBelowRecommended ?? null}
             aiId="portal.desk.services.limits"
@@ -517,10 +533,10 @@ function ServiceDialog({ item, data, uid, scope, onClose, onSaved, onRules, onDe
           <Field label={tf("price")} hint={band && band.max ? tf("bandHint", { min: som(band.min), max: som(band.max) }) : tf("bandLoading")} error={out && band ? tf("priceOut", { min: som(band.min), max: som(band.max) }) : undefined}>
             <Input value={price ? som(value) : ""} onChange={(v) => setPrice(v.replace(/[^\d]/g, ""))} placeholder={tf("pricePh")} />
           </Field>
-          {band && band.recommended ? (
+          {band && band.max ? (
             <div className="dxv-chips">
-              <Btn small onClick={() => setPrice(String(band.recommended))}>
-                {tf("useRecommended", { price: som(band.recommended) })}
+              <Btn small onClick={() => setPrice(String(band.max))}>
+                {t("config.useMax", { price: som(band.max) })}
               </Btn>
               {band.min ? (
                 <Btn small onClick={() => setPrice(String(band.min))}>
