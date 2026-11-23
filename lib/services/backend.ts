@@ -380,8 +380,19 @@ export async function loginVerify2fa(verificationId: string, code: string): Prom
 export async function forgotPassword(phone: string): Promise<OtpChallenge> {
   return normOtp(await http("/auth/password/forgot", { method: "POST", body: JSON.stringify({ phone }) }));
 }
-export async function resetPassword(verificationId: string, code: string, password: string): Promise<void> {
-  await http("/auth/password/reset", { method: "POST", body: JSON.stringify({ verification_id: verificationId, code, password }) });
+// BACKEND_FIXES_LIVE_2026-11-23: the code is checked on its own first
+// (without being used up) and traded for a reset token that lasts 10 min;
+// the new password is then set with that token. The old {code} body still
+// works and is what `proof.code` sends.
+export type ResetProof = { code: string } | { resetToken: string };
+export async function resetPassword(verificationId: string, proof: ResetProof, password: string): Promise<void> {
+  const body = "resetToken" in proof ? { verification_id: verificationId, reset_token: proof.resetToken, password } : { verification_id: verificationId, code: proof.code, password };
+  await http("/auth/password/reset", { method: "POST", body: JSON.stringify(body) });
+}
+export type ResetCodeCheck = { valid: boolean; resetToken: string; expiresAt: string };
+export async function verifyPasswordResetCode(verificationId: string, code: string): Promise<ResetCodeCheck> {
+  const d = asDict(await http("/auth/password/verify", { method: "POST", body: JSON.stringify({ verification_id: verificationId, code }) }));
+  return { valid: d.valid === true, resetToken: asStr(d.reset_token), expiresAt: asStr(d.expires_at) };
 }
 
 // ── OTP delivery channel (per user) ───────────────────────────────
