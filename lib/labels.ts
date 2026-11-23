@@ -73,12 +73,22 @@ export function regionKeyOf(te: T, value?: string | null): string {
   const s = (value || "").trim();
   if (!s) return "";
   if ((REGION_KEYS as readonly string[]).includes(s)) return s;
-  const low = s.toLowerCase();
-  const hit = REGION_KEYS.filter((r) => r !== "all").find((r) => {
-    const l = te.has(`regions.${r}`) ? te(`regions.${r}`).toLowerCase() : r;
-    return l === low || l.startsWith(low) || low.startsWith(l) || low.includes(r);
-  });
-  return hit ?? "";
+  return regionKeyByText(s, (r) => (te.has(`regions.${r}`) ? te(`regions.${r}`) : r));
+}
+// Free text → key: an exact label first, then the longest label it starts
+// with (so "Toshkent viloyati" is tashkent_region, not tashkent), then a key
+// spelled inside it. Common spellings are normalized by the backend too.
+export function regionKeyByText(text: string, labelOf: (key: string) => string): string {
+  const low = text.trim().toLowerCase();
+  if (!low) return "";
+  const keys = REGION_KEYS.filter((r) => r !== "all");
+  const labels = keys.map((r) => [r, labelOf(r).toLowerCase()] as const);
+  const exact = labels.find(([, l]) => l === low);
+  if (exact) return exact[0];
+  const prefix = labels.filter(([, l]) => l && (low.startsWith(l) || l.startsWith(low))).sort((a, b) => b[1].length - a[1].length)[0];
+  if (prefix) return prefix[0];
+  const spelled = [...keys].sort((a, b) => b.length - a.length).find((r) => low.includes(r));
+  return spelled ?? "";
 }
 export function regionLabel(te: T, value?: string | null): string {
   const k = regionKeyOf(te, value);

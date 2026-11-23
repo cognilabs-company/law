@@ -6,7 +6,8 @@ import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
-import { initials, humanizeSlug, AREA_KEYS, REGION_KEYS } from "@/lib/lawyers";
+import { initials, humanizeSlug, AREA_KEYS } from "@/lib/lawyers";
+import { useRegionOptions } from "@/lib/useRegions";
 import { listLawyers, type BackendLawyer } from "@/lib/services/backend";
 import { fmtUzs } from "@/lib/money";
 import Select, { type Option } from "@/components/Select";
@@ -68,9 +69,10 @@ export default function Finder() {
   const cur = te("currency");
 
   const areaOpts: Option[] = AREA_KEYS.map((a) => ({ value: a, label: te(`areas.${a}`) }));
+  const regionList = useRegionOptions();
   const regionOpts: Option[] = [
     { value: "", label: te("regions.all") },
-    ...REGION_KEYS.map((r) => ({ value: r, label: te(`regions.${r}`) })),
+    ...regionList,
   ];
   const stageOpts: Option[] = STAGES.map((s) => ({ value: s, label: te(`stages.${s}.name`) }));
   const docOpts: Option[] = DOC_TYPES.map((d) => ({ value: d, label: tf(`docTypes.${d}`) }));

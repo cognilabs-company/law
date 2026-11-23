@@ -35,17 +35,24 @@ export const AREA_KEYS = [
   "realEstate",
 ];
 
+// The 14 region keys the backend accepts (2026-11-21 contract §5.1), in its
+// order. GET /regions is the source of the labels (lib/useRegions.ts); this
+// list is the fallback and the set every region value is checked against.
 export const REGION_KEYS = [
   "tashkent",
-  "samarkand",
-  "fergana",
-  "bukhara",
-  "namangan",
+  "tashkent_region",
+  "karakalpakstan",
   "andijan",
-  "kashkadarya",
-  "khorezm",
+  "bukhara",
+  "fergana",
   "jizzakh",
+  "namangan",
   "navoi",
+  "kashkadarya",
+  "samarkand",
+  "syrdarya",
+  "surkhandarya",
+  "khorezm",
 ];
 
 export function initials(name: string): string {

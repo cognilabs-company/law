@@ -45,7 +45,7 @@ function toLawyer(b: BackendLawyer): Lawyer {
   return {
     userId: b.userId,
     name: b.name || "—",
-    regionKey: REGION_KEYS.find((k) => r.includes(k)) || "tashkent",
+    regionKey: REGION_KEYS.includes(r) ? r : [...REGION_KEYS].sort((a, b) => b.length - a.length).find((k) => r.includes(k)) || "tashkent",
     areaKey: AREA_KEYS.find((a) => b.specializations.includes(a)) || b.specializations[0] || "civil",
     exp: b.experienceYears,
     rate: b.rating,

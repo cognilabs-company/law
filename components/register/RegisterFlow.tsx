@@ -24,7 +24,7 @@ import {
   type ProfessionalProfile,
   type RegistrationDraft,
 } from "@/lib/types";
-import { REGION_KEYS } from "@/lib/mock/catalog";
+import { useRegionOptions } from "@/lib/useRegions";
 import Select, { type Option } from "@/components/Select";
 import TimePicker from "@/components/TimePicker";
 import { IconLogo, IconLogoText, IconChevronLeft, IconArrowRight, IconCheck, IconShieldCheck, IconBriefcase } from "../icons";
@@ -416,10 +416,8 @@ export default function RegisterFlow() {
     }
   }
 
-  const regionOpts: Option[] = REGION_KEYS.filter((r) => r !== "all").map((r) => ({
-    value: r,
-    label: te(`regions.${r}`),
-  }));
+  // The 14 keys and their labels from GET /regions (2026-11-21 §5.1).
+  const regionOpts: Option[] = useRegionOptions();
   const specOpts: Option[] = (["criminalAdmin", "economicCivil", "both"] as const).map((k) => ({
     value: k,
     label: t(`advocate.specOptions.${k}`),

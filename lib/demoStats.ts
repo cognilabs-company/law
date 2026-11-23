@@ -61,7 +61,8 @@ function series(today: string, days: number, base: number, growth = 0.012): { la
     return { label: dayBefore(today, idx), value: Math.round(v) };
   });
 }
-const REGION_WEIGHTS = [38, 14, 11, 9, 8, 7, 5, 4, 2, 2]; // % share across REGION_KEYS order
+// % share per region (demo data only); 100 in total.
+const REGION_WEIGHTS: Record<string, number> = { tashkent: 36, samarkand: 12, fergana: 10, bukhara: 8, namangan: 7, andijan: 7, tashkent_region: 5, kashkadarya: 4, khorezm: 3, jizzakh: 2, navoi: 2, surkhandarya: 2, karakalpakstan: 1, syrdarya: 1 };
 
 // ── Admin dashboard ───────────────────────────────────────────────
 export const DEMO_ADMIN_TOTALS = {
@@ -73,7 +74,7 @@ export const DEMO_ADMIN_PAYMENTS = { paid_amount: 186_450_000, pending_amount: 2
 export const DEMO_ORDERS_BY_STATUS = { new: 38, waiting_payment: 21, paid: 44, in_progress: 96, delivered: 27, completed: 168, cancelled: 23 };
 export const DEMO_LEADS_BY_SCORE = { hot: 214, warm: 421, cold: 323 };
 export const DEMO_SELLERS_BY_ROLE = { yurist: 96, advokat: 74, advokat_tashkiloti: 6 };
-export const DEMO_LEADS_BY_REGION = (total: number) => REGION_KEYS.map((r, i) => ({ label: r, value: Math.round((total * REGION_WEIGHTS[i]) / 100) }));
+export const DEMO_LEADS_BY_REGION = (total: number) => REGION_KEYS.map((r) => ({ label: r, value: Math.round((total * (REGION_WEIGHTS[r] ?? 0)) / 100) }));
 const entries = (o: Record<string, number>) => Object.entries(o).map(([label, value]) => ({ label, value }));
 
 export function demoAdminDashboard(today: string): AdminDashboardFull {

@@ -18,6 +18,8 @@ import { scoreCompleteness } from "@/lib/services/registration";
 import { useResourceOne } from "@/lib/useResource";
 import { useUrlTab } from "@/lib/useUrlTab";
 import { REGION_KEYS } from "@/lib/mock/catalog";
+import { useRegionOptions } from "@/lib/useRegions";
+import { regionKeyByText } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
 import type { AdvocateStats, ProfessionalProfile, WorkEntry } from "@/lib/types";
 import LegalServicePicker from "@/components/register/LegalServicePicker";
@@ -276,18 +278,16 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
     finally { setVbusy(false); }
   }
 
-  const regionOpts: Option[] = REGION_KEYS.filter((r) => r !== "all").map((r) => ({ value: r, label: te(`regions.${r}`) }));
-  // Backend region may be a key ("tashkent") or plain text ("Toshkent",
-  // "Toshkent shahri"): resolve to a key by label prefix, else keep the text.
+  // The 14 keys and their labels from GET /regions (2026-11-21 §5.1); the
+  // profile's region is a key now, older free text is matched to one.
+  const regionOpts: Option[] = useRegionOptions();
   const regionKeyOf = (v?: string): string => {
     const s = (v ?? "").trim();
     if (!s) return "";
     if ((REGION_KEYS as readonly string[]).includes(s)) return s;
-    const low = s.toLowerCase();
-    const hit = REGION_KEYS.filter((r) => r !== "all").find((r) => { const l = te(`regions.${r}`).toLowerCase(); return l === low || l.startsWith(low) || low.startsWith(l) || low.includes(r); });
-    return hit ?? s;
+    return regionKeyByText(s, (r) => regionOpts.find((o) => o.value === r)?.label ?? (te.has(`regions.${r}`) ? te(`regions.${r}`) : r)) || s;
   };
-  const regionLabel = (v?: string): string => { const k = regionKeyOf(v); return k && te.has(`regions.${k}`) ? te(`regions.${k}`) : (v ?? ""); };
+  const regionLabel = (v?: string): string => { const k = regionKeyOf(v); return regionOpts.find((o) => o.value === k)?.label ?? (k && te.has(`regions.${k}`) ? te(`regions.${k}`) : (v ?? "")); };
   const specOpts: Option[] = (["criminalAdmin", "economicCivil", "both"] as const).map((k) => ({ value: k, label: tr(`advocate.specOptions.${k}`) }));
   const structureOpts: Option[] = (["byuro", "firma", "hayat"] as const).map((k) => ({ value: k, label: tr(`advocate.structureOptions.${k}`) }));
   const genderOpts: Option[] = (["female", "male"] as const).map((k) => ({ value: k, label: tp(`gender.${k}`) }));

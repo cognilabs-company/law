@@ -7140,7 +7140,11 @@
       "kashkadarya": "Кашкадарья",
       "khorezm": "Хорезм",
       "jizzakh": "Джизак",
-      "navoi": "Навои"
+      "navoi": "Навои",
+      "tashkent_region": "Ташкентская область",
+      "karakalpakstan": "Каракалпакстан",
+      "syrdarya": "Сырдарья",
+      "surkhandarya": "Сурхандарья"
     },
     "stages": {
       "unknown": {

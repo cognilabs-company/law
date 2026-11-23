@@ -8,7 +8,7 @@ import { requiresTwoFactor, useAuth } from "@/lib/auth";
 import { contactBlockedOf } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { dateOnly, shortDateTime } from "@/lib/date";
-import { REGION_KEYS } from "@/lib/mock/catalog";
+import { useRegionOptions } from "@/lib/useRegions";
 import { scoreCompleteness } from "@/lib/services/registration";
 import { disable2fa, enableTotp, getClientProfile, getSellerCabinet, getMyLawyer, getNotificationPreferences, listMyActivity, listSecurityEvents, listSessions, NOTIF_KEYS, requestVerification, revokeSession, setupTotp, start2fa, startTelegramLink, updateClientProfile, updateNotificationPreferences, upsertMyLawyer, verify2fa, type ActivityEntry, type NotifPrefs, type TotpSetup, type UserSession } from "@/lib/services/backend";
 import { enabledDays, getMyAvailability, putMyAvailability, weeklyFrom, DEFAULT_DEADLINES, type ResponseDeadlines } from "@/lib/services/availability";
@@ -176,7 +176,7 @@ function Account({ draft, set, pct }: { draft: Draft; set: (p: Partial<Draft>) =
   const t = useTranslations("portal.advocate.profile");
   const tf = useTranslations("portal.advocate.profile.form");
   const tr = useTranslations("register.fields");
-  const te = useTranslations("enums");
+  const regionOpts = useRegionOptions();
   const d = useTranslations("portal.desk.profile");
   const { session } = useAuth();
   const [vbusy, setVbusy] = useState(false);
@@ -241,7 +241,7 @@ function Account({ draft, set, pct }: { draft: Draft; set: (p: Partial<Draft>) =
             <Input value={session?.phone ?? ""} onChange={() => undefined} ariaLabel={tr("phone")} />
           </Field>
           <Field label={tr("region")}>
-            <Select ariaLabel={tr("region")} value={draft.region ?? ""} onChange={(v) => set({ region: v })} options={[{ value: "", label: tr("regionPh") }, ...REGION_KEYS.filter((r) => r !== "all").map((r) => ({ value: r, label: te(`regions.${r}`) }))]} />
+            <Select ariaLabel={tr("region")} value={draft.region ?? ""} onChange={(v) => set({ region: v })} options={[{ value: "", label: tr("regionPh") }, ...regionOpts]} />
           </Field>
           <Field label={tf("district")}>
             <Input value={draft.district ?? ""} onChange={(v) => set({ district: v })} placeholder={tf("districtPh")} />
