@@ -8,15 +8,11 @@ import { Link } from "@/i18n/navigation";
 import {
   getSubscriptionPlans,
   demoPlanPurchase,
-  purchasePlan,
-  isAtmosCheckout,
   listPayments,
   listPaymentMethods,
   addPaymentMethod,
   isProviderUnsupported,
   planForRole,
-  requestPlanTelegramPurchase,
-  refusedBillingPeriods,
   getPlanQuote,
   type PlanQuote,
   BILLING_PERIODS,
@@ -29,7 +25,7 @@ import { useAuth } from "@/lib/auth";
 import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
 import { aiId } from "@/lib/ai/ids";
 import { useAiField, useAiModal, useAiSelection } from "@/lib/ai/registry";
-import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
+import { isProviderUnavailable } from "@/lib/http";
 import { isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
 import { CheckoutIntent } from "./OrderMilestones";
 import { useResource } from "@/lib/useResource";
@@ -40,7 +36,6 @@ import Select from "@/components/Select";
 import CheckBox from "@/components/CheckBox";
 import { humanize } from "@/lib/labels";
 import { notify } from "@/lib/toast";
-import InlineAlert from "@/components/ui/InlineAlert";
 import FieldError from "@/components/ui/FieldError";
 import ScrollCue from "@/components/ui/ScrollCue";
 import {
@@ -51,7 +46,6 @@ import {
   IconRefresh,
   IconInfo,
   IconHeadset,
-  IconTag,
 } from "@/components/icons";
 import { dateOnly } from "@/lib/date";
 // The Tezkor Himoya AI grid below and the upgrade dialog on the services catalog
@@ -66,6 +60,8 @@ import { goToPaymentPage } from "@/lib/services/paymentProviders";
 import ClickPayDialog from "@/components/payments/ClickPay";
 import { PROVIDER_LIST_STALE, clickErrorOf, purchasePlanWithClick, type ClickPayment } from "@/lib/services/clickCheckout";
 import { refreshCheckoutProviders, useCheckoutProviders } from "@/lib/useCheckoutProviders";
+import { purchasePlanVia } from "@/lib/services/planCheckout";
+import { PAYMENT_PROVIDER_ERRORS, PROVIDER_LIST_ERRORS, marketErrorCode } from "@/lib/services/marketplace";
 
 type Term = 1 | 6 | 12;
 type Variant = "personal" | "all";
@@ -85,12 +81,6 @@ const AI_TERM_ID: Record<Term, string> = {
   1: "pricing.billing.monthly",
   6: "pricing.billing.six-month",
   12: "pricing.billing.yearly",
-};
-const PERIOD_SEG: Record<ManualDocBillingPeriod, string> = {
-  monthly: "monthly",
-  six_month: "six-month",
-  yearly: "yearly",
-  prepaid_yearly: "prepaid-yearly",
 };
 
 function som(n: number): string {
@@ -187,8 +177,11 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   const pays = useCheckoutProviders();
   const [clickBuy, setClickBuy] = useState<{ title: string; payment: ClickPayment | null } | null>(null);
   const [planKey, setPlanKey] = useState(0);
-  // Set when a purchase falls through to the Telegram approval flow.
-  const [tgPlan, setTgPlan] = useState<{ plan: BackendPlan; period: ManualDocBillingPeriod } | null>(null);
+  // Click or ATMOS, as the backend has them on (2026-11-21 contract §1).
+  const [payPick, setPayPick] = useState("");
+  const [payNotice, setPayNotice] = useState("");
+  const payOptions = pays.options.map((o) => ({ provider: o.provider, label: o.label }));
+  const payVia = payOptions.some((o) => o.provider === payPick) ? payPick : payOptions.some((o) => o.provider === "click") ? "click" : (payOptions[0]?.provider ?? "");
   // "Choose" first opens the terms (amount now, renewal and its price, the
   // refund rules); only "Pay" there starts the purchase.
   const [review, setReview] = useState<{ plan: BackendPlan; total: number; listed: number; period: string } | null>(null);
@@ -316,25 +309,20 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   function openReview(plan: BackendPlan, total: number, period: string, listed = total) {
     if (busy) return;
     setRenew(autopay?.enabled ?? false);
+    setPayNotice("");
     setReview({ plan, total, listed, period });
   }
 
-  async function choose(plan: BackendPlan, total: number, period: string, autoRenew: boolean) {
+  async function choose(plan: BackendPlan, total: number, period: string, autoRenew: boolean, via: string) {
     if (busy || !once()) return;
     setBusy(plan.id);
     setIntent(null);
+    setPayNotice("");
     let leaving = false; // stay busy while the browser opens the checkout
+    let keepReview = false;
     try {
-      // The renewal choice made on the terms: sent with an ATMOS purchase;
-      // otherwise saved the way the auto-pay switch saves it (on the current
-      // subscription, or kept until there is one), when it changed.
-      const viaClick = !isAtmosCheckout() && !isDemoCheckout() && pays.has("click");
-      if (!isAtmosCheckout() && !viaClick && uid && autoRenew !== (autopay?.enabled ?? false)) {
-        const source = await saveAutopay(uid, autoRenew, autopay?.subscription?.id);
-        setAutopay((s) => (s ? { ...s, enabled: autoRenew, source } : s));
-      }
-      if (isAtmosCheckout()) {
-        const r = await purchasePlan(plan.id, { billing_period: period, auto_renew: autoRenew });
+      if (isDemoCheckout()) {
+        const r = await demoPlanPurchase(plan.id, { billing_period: period });
         if (r.paymentUrl) {
           leaving = true;
           notify.info(t("payRedirect"), { id: "plans-buy" });
@@ -344,7 +332,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
         }
         return;
       }
-      if (viaClick) {
+      if (via === "click") {
         // The server prices it (§6); the dialog shows its amount, not ours.
         setReview(null);
         setClickBuy({ title: planName(plan), payment: null });
@@ -357,38 +345,49 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
         setClickBuy({ title: planName(plan), payment: r.payment });
         return;
       }
-      if (!isDemoCheckout()) {
-        // No online provider switched on: the backend's own fallback, an
-        // operator-approved request (generic POST /payments is not for plans).
-        setTgPlan({ plan, period: asBillingPeriod(period) });
+      // ATMOS, or no provider named (the backend picks): POST
+      // /subscription-plans/{id}/purchase, then its payment_url (§1.2).
+      const r = await purchasePlanVia(plan.id, { billingPeriod: asBillingPeriod(period), provider: via, autoRenew });
+      if (r.approved) {
+        notify.success(t("activated", { plan: planName(plan) }), { id: "plans-buy" });
+        setPlanKey((k) => k + 1);
+        void res.refresh();
         return;
       }
-      const r = await demoPlanPurchase(plan.id, { billing_period: period });
+      if (r.provider === "click" && r.payment) {
+        setReview(null);
+        setClickBuy({ title: planName(plan), payment: r.payment });
+        return;
+      }
       if (r.paymentUrl) {
         leaving = true;
         notify.info(t("payRedirect"), { id: "plans-buy" });
-        goToPaymentPage(r.paymentUrl, r.paymentId);
-      } else {
-        notify.success(t("activated", { plan: planName(plan) }), { id: "plans-buy" });
+        goToPaymentPage(r.paymentUrl, r.paymentId, r.amount);
+        return;
       }
+      // No link: the provider is down for a moment (§1.2 step 3).
+      notify.error(t("purchaseError"), { id: "plans-buy" });
     } catch (e) {
-      // No provider to pay through — Payme and Click both answer 503
-      // "integratsiyasi sozlanmagan" until they are configured, and ATMOS is
-      // not shipped. LEXGO_FRONTEND_SECOND_OPINION_PLAN_UPDATE.md says what to
-      // do instead: telegram-purchase-request, which now works for every
-      // active plan. The plan is approved in the admin Telegram chat and
-      // activates itself, so this is a real way to buy rather than a dead end.
       setClickBuy(null);
       const ce = clickErrorOf(e);
-      if (PROVIDER_LIST_STALE.includes(ce.key)) refreshCheckoutProviders();
-      if (isProviderUnavailable(e) || isProviderUnsupported(e) || isDemoUnavailable(e) || PROVIDER_LIST_STALE.includes(ce.key)) {
-        setTgPlan({ plan, period: asBillingPeriod(period) });
-        return;
+      const stale = PROVIDER_LIST_STALE.includes(ce.key) || PROVIDER_LIST_ERRORS.includes(marketErrorCode(e));
+      if (stale) refreshCheckoutProviders();
+      if (stale || isProviderUnavailable(e) || isProviderUnsupported(e) || PAYMENT_PROVIDER_ERRORS.includes(marketErrorCode(e))) {
+        // The chosen provider cannot take it now: the other one, if it is on.
+        const alt = payOptions.find((o) => o.provider !== via);
+        const name = payOptions.find((o) => o.provider === via)?.label || via;
+        if (alt) {
+          keepReview = true;
+          setReview({ plan, total, listed: review?.listed ?? total, period });
+          setPayPick(alt.provider);
+          setPayNotice(t("providerOff", { provider: name || "", other: alt.label || alt.provider }));
+          return;
+        }
       }
       notify.error(t("purchaseError"), { id: "plans-buy", error: e });
     } finally {
       if (!leaving) setBusy(null);
-      setReview(null);
+      if (!keepReview) setReview(null);
     }
   }
 
@@ -409,8 +408,9 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
         autoRenew={renew}
         onAutoRenew={setRenew}
         busy={!!busy}
-        onConfirm={() => review && void choose(review.plan, review.total, review.period, renew)}
+        onConfirm={() => review && void choose(review.plan, review.total, review.period, renew, payVia)}
         onClose={() => setReview(null)}
+        pay={{ options: payOptions, value: payVia, onChange: (p) => (setPayPick(p), setPayNotice("")), notice: payNotice }}
       />
 
       <ClickPayDialog
@@ -428,19 +428,6 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
         }}
       />
 
-      <TelegramPlanRequest
-        target={tgPlan}
-        onClose={() => setTgPlan(null)}
-        // LEXGO_FRONTEND_SECOND_OPINION_PLAN_UPDATE.md step 6 — re-read the
-        // account state after the request. Nothing activates until somebody
-        // approves it in Telegram, but the pending Payment row is real and
-        // belongs in the billing list straight away.
-        onSent={() => {
-          void payments.refresh();
-          void res.refresh();
-          if (uid) loadAutopay(uid).then(setAutopay).catch(() => { /* keep what is on screen */ });
-        }}
-      />
 
 
       {/* ── ATMOS monthly auto-pay (clients and sellers alike) ─────────── */}
@@ -1004,206 +991,5 @@ function BindCardForm({
         </button>
       </div>
     </form>
-  );
-}
-
-// ── Telegram approval purchase ─────────────────────────────────────
-// LEXGO_FRONTEND_SECOND_OPINION_PLAN_UPDATE.md: POST
-// /subscription-plans/{id}/telegram-purchase-request now works for every
-// active plan, and it is what a purchase falls through to when there is no
-// payment provider to redirect to. The response is a `pending` request — a
-// Payment exists and the admin chats have been told — so this is a receipt,
-// not a checkout: there is nothing here to pay.
-function TelegramPlanRequest({
-  target,
-  onClose,
-  onSent,
-}: {
-  target: { plan: BackendPlan; period: ManualDocBillingPeriod } | null;
-  onClose: () => void;
-  onSent: () => void;
-}) {
-  const ttg = useTranslations("plans.telegram");
-  const tdoc = useTranslations("portal.client.documents");
-  const tl = useTranslations("lxPlans");
-  const locale = useLocale();
-  const [period, setPeriod] = useState<ManualDocBillingPeriod>("monthly");
-  const [only, setOnly] = useState<ManualDocBillingPeriod[] | null>(null);
-  const [busy, setBusy] = useState(false);
-  const once = useSameTickGuard();
-  const [sent, setSent] = useState(false);
-  // LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: SUB-ABCDE — quoted back on the
-  // receipt so the client has something to name when they chase the
-  // approval. Empty when the backend did not send one; nothing is printed.
-  const [sentWorkId, setSentWorkId] = useState("");
-  const [warn, setWarn] = useState("");
-  const [paid, setPaid] = useState<PlanQuote | null>(null);
-  // The backend's price for the chosen period, with any promotion.
-  const [quoted, setQuoted] = useState<{ key: string; q: PlanQuote | null } | null>(null);
-  const qPlan = target?.plan.id ?? "";
-  const qAllowed = target?.plan.allowedBillingPeriods?.length ? BILLING_PERIODS.filter((p) => target.plan.allowedBillingPeriods.includes(p)) : BILLING_PERIODS;
-  const qPeriods = only ?? (qAllowed.length ? qAllowed : BILLING_PERIODS);
-  const qEff = qPeriods.includes(period) ? period : qPeriods[0];
-  useEffect(() => {
-    if (!qPlan) return;
-    let alive = true;
-    const key = `${qPlan}|${qEff}`;
-    getPlanQuote(qPlan, qEff).then(
-      (q) => alive && setQuoted({ key, q }),
-      () => alive && setQuoted({ key, q: null }),
-    );
-    return () => {
-      alive = false;
-    };
-  }, [qPlan, qEff]);
-
-  // The plan the caller was on when the provider failed, and the period they
-  // had already chosen there. Reset during render so a second attempt never
-  // opens showing the previous plan's outcome.
-  const key = target ? `${target.plan.id}|${target.period}` : "";
-  const [prevKey, setPrevKey] = useState(key);
-  if (key !== prevKey) {
-    setPrevKey(key);
-    setPeriod(target?.period ?? "monthly");
-    setOnly(null);
-    setSent(false);
-    setWarn("");
-  }
-
-  if (!target) return <Modal open={false} onClose={onClose} title="">{null}</Modal>;
-  const { plan } = target;
-
-  // Only the periods this plan sells, narrowed further by a 422 that named
-  // them explicitly.
-  const allowed = plan.allowedBillingPeriods?.length
-    ? BILLING_PERIODS.filter((p) => plan.allowedBillingPeriods.includes(p))
-    : BILLING_PERIODS;
-  const periods = only ?? (allowed.length ? allowed : BILLING_PERIODS);
-  const eff = periods.includes(period) ? period : periods[0];
-
-  const quoteKey = `${plan.id}|${eff}`;
-  const quote = quoted && quoted.key === quoteKey ? quoted.q : null;
-  const priceFor = (p: ManualDocBillingPeriod): number => {
-    if (p === "six_month") return plan.sixMonthPrice || plan.monthlyPrice * 6;
-    if (p === "yearly") return plan.yearlyPrice || plan.monthlyPrice * 12;
-    if (p === "prepaid_yearly") return plan.prepaidYearlyPrice || plan.yearlyPrice || plan.monthlyPrice * 12;
-    return plan.monthlyPrice;
-  };
-
-  async function submit() {
-    if (busy || !once()) return;
-    setBusy(true);
-    setWarn("");
-    try {
-      const r = await requestPlanTelegramPurchase(plan.id, eff);
-      // status "pending" is the documented success; anything else still means
-      // the request exists, so the receipt is shown either way.
-      setSentWorkId(r.workId);
-      setPaid(r.pricing);
-      setSent(true);
-      notify.dismiss("plans-tg");
-      onSent();
-      if (r.telegramSent === false || (r.telegramDelivered === 0 && r.telegramFailed > 0)) {
-        setWarn(ttg("notDelivered"));
-      }
-    } catch (e) {
-      const refused = refusedBillingPeriods(e);
-      if (refused.length) {
-        setOnly(refused);
-        setPeriod(refused[0]);
-        setWarn(ttg("periodRefused"));
-      } else {
-        notify.error(ttg("error"), { id: "plans-tg", error: e });
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      title={ttg("title")}
-      footer={
-        sent ? (
-          <div className="plx-acts">
-            <button type="button" className="btn btn--line" onClick={onClose} data-ai-id="pricing.telegram-request-modal.close">{ttg("close")}</button>
-          </div>
-        ) : (
-          <div className="plx-acts">
-            <button type="button" className="btn btn--line" onClick={onClose} disabled={busy}>{tl("cancel")}</button>
-            <button type="button" className="btn btn--pri" disabled={busy} onClick={() => void submit()} data-ai-id="pricing.telegram-request-modal.confirm">
-              {busy ? ttg("sending") : ttg("submit")}
-            </button>
-          </div>
-        )
-      }
-    >
-      <div
-        className="cform plx-tg"
-        style={{ maxWidth: "none" }}
-        data-ai-id="pricing.telegram-request-modal"
-        data-ai-type="modal"
-        data-ai-label={ttg("title")}
-        data-ai-entity-type="subscription_plan"
-        data-ai-entity-id={plan.id}
-        data-ai-entity-slug={plan.slug}
-      >
-        {sent ? (
-          <>
-            {/* Sent: the dashboard's empty-state shape, in the ok tone. */}
-            <div className="plx-done" role="status">
-              <span className="plx-done__ic" aria-hidden><CircleCheck /></span>
-              <b>{ttg("sent")}</b>
-              <p>{ttg("sentLead")}</p>
-              {sentWorkId ? <span className="wid cx-tag">{sentWorkId}</span> : null}
-            </div>
-            {paid ? (
-              <div className="tgbuy__sum">
-                <span>{paid.discountAmount > 0 ? ttg("amountPromo", { title: paid.campaign?.title || ttg("promo") }) : ttg("amount")}</span>
-                <b>{fmtUzs(paid.amount)}</b>
-              </div>
-            ) : null}
-            {warn ? <InlineAlert tone="warn" compact>{warn}</InlineAlert> : null}
-          </>
-        ) : (
-          <>
-            <div className="plx-intro">
-              <span className="plx-intro__plate" style={planPlate(plan.slug, true)} aria-hidden />
-              <p className="advmuted">{ttg("lead", { plan: plan.name })}</p>
-            </div>
-            <div>
-              <label>{ttg("period")}</label>
-              <ScrollCue arrows className="chiprow" style={{ margin: "4px 0 0" }} data-ai-id="pricing.telegram-request-modal.period" data-ai-type="select">
-                {periods.map((p) => (
-                  <button key={p} type="button" className="fchip" aria-pressed={eff === p} onClick={() => setPeriod(p)} data-ai-id={aiId("pricing.telegram-request-modal.period", PERIOD_SEG[p])}>
-                    {tdoc.has(`period_${p}`) ? tdoc(`period_${p}`) : humanize(String(p))}
-                  </button>
-                ))}
-              </ScrollCue>
-            </div>
-            {quote && quote.discountAmount > 0 ? (
-              <div className="tgbuy__promo" role="note">
-                <IconTag aria-hidden="true" />
-                <span>
-                  <b>{quote.campaign?.title || ttg("promo")}</b>
-                  {quote.campaign?.endsAt ? <small>{ttg("promoUntil", { date: dateOnly(quote.campaign.endsAt, locale) })}</small> : null}
-                </span>
-                <em>−{fmtUzs(quote.discountAmount)}</em>
-              </div>
-            ) : null}
-            <div className="tgbuy__sum" aria-busy={!quoted || quoted.key !== quoteKey || undefined}>
-              <span>{ttg("amount")}</span>
-              <b>
-                {quote && quote.discountAmount > 0 ? <s className="tgbuy__was">{fmtUzs(quote.baseAmount)}</s> : null}
-                {fmtUzs(quote ? quote.amount : priceFor(eff))}
-              </b>
-            </div>
-            {warn ? <InlineAlert tone="warn" compact>{warn}</InlineAlert> : null}
-          </>
-        )}
-      </div>
-    </Modal>
   );
 }

@@ -6,10 +6,15 @@ import { useAuth } from "@/lib/auth";
 import { fmtUzs } from "@/lib/money";
 import { dateOnly } from "@/lib/date";
 import { humanizeSlug } from "@/lib/lawyers";
-import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
-import { addPaymentMethod, BILLING_PERIODS, demoPlanPurchase, getPlanQuote, getSubscriptionPlans, isAtmosCheckout, isProviderUnsupported, listPaymentMethods, listPayments, planForRole, purchasePlan, refusedBillingPeriods, requestPlanTelegramPurchase, type BackendPlan, type ManualDocBillingPeriod, type PlanQuote, isGiftOnlyPlan } from "@/lib/services/backend";
+import { isProviderUnavailable } from "@/lib/http";
+import { addPaymentMethod, BILLING_PERIODS, demoPlanPurchase, getPlanQuote, getSubscriptionPlans, isProviderUnsupported, listPaymentMethods, listPayments, planForRole, type BackendPlan, type ManualDocBillingPeriod, type PlanQuote, isGiftOnlyPlan } from "@/lib/services/backend";
 import { loadAutopay, planPrice, readAutopay, saveAutopay, type AutopayState } from "@/lib/services/plans";
-import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
+import { isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
+import { purchasePlanVia, renewCheckout } from "@/lib/services/planCheckout";
+import { PAYMENT_PROVIDER_ERRORS, PROVIDER_LIST_ERRORS, marketErrorCode } from "@/lib/services/marketplace";
+import { refreshCheckoutProviders, useCheckoutProviders } from "@/lib/useCheckoutProviders";
+import { openCheckoutTab, sendCheckoutTab } from "@/lib/services/clickCheckout";
+import { rememberPendingPayment } from "@/lib/services/paymentProviders";
 import { IconCard, IconCheck, IconCrown, IconGift, IconHistory, IconRefresh, IconSparkle } from "@/components/icons";
 import { App, Banner, Btn, Check, Dialog, Empty, Field, Input, Loading, Seg, Sidebar, Tag, Toggle, Tool, Toolbar, useOs, useToast, type NavSection } from "../kit/kit";
 import type { NativeProps } from "../native";
@@ -39,6 +44,7 @@ export default function SubscriptionApp(_props: NativeProps) {
   const ta = useTranslations("plans.autopay");
   const d = useTranslations("portal.desk.subs");
   const tc = useTranslations("checkoutTerms");
+  const tm = useTranslations("marketplace.purchase");
   const locale = useLocale();
   const os = useOs();
   const { session } = useAuth();
@@ -54,8 +60,12 @@ export default function SubscriptionApp(_props: NativeProps) {
   const [upfront, setUpfront] = useState(false);
   const [busy, setBusy] = useState("");
   const once = useSameTickGuard();
-  const [intent, setIntent] = useState<PaymentIntent | null>(null);
-  const [tg, setTg] = useState<{ plan: BackendPlan; period: ManualDocBillingPeriod } | null>(null);
+  const [intent, setIntent] = useState<PayIntent | null>(null);
+  // Click or ATMOS, as the backend has them on (2026-11-21 contract §1).
+  const pays = useCheckoutProviders();
+  const [payPick, setPayPick] = useState("");
+  const payOptions = pays.options.map((o) => ({ id: o.provider, label: o.label || (o.provider === "atmos" ? "ATMOS" : "Click") }));
+  const payVia = payOptions.some((o) => o.id === payPick) ? payPick : payOptions.some((o) => o.id === "click") ? "click" : (payOptions[0]?.id ?? "");
   const [bind, setBind] = useState(false);
   // "Choose" opens the terms first (amount now, renewal and its price, the
   // refund rules); only "Pay" there starts the purchase.
@@ -133,29 +143,29 @@ export default function SubscriptionApp(_props: NativeProps) {
     if (busy || !once()) return;
     setBusy(plan.id);
     try {
-      // The renewal choice from the terms: sent with an ATMOS purchase,
-      // otherwise saved as the auto-pay switch saves it, when it changed.
-      if (!isAtmosCheckout() && uid && autoRenew !== (autopay?.enabled ?? false)) {
-        const source = await saveAutopay(uid, autoRenew, autopay?.subscription?.id);
-        setAutopay((s) => (s ? { ...s, enabled: autoRenew, source } : s));
-      }
-      if (isAtmosCheckout()) {
-        const r = await purchasePlan(plan.id, { billing_period: period, auto_renew: autoRenew });
+      if (isDemoCheckout()) {
+        const r = await demoPlanPurchase(plan.id, { billing_period: period });
         if (r.paymentUrl) window.open(r.paymentUrl, "_blank", "noopener");
         else say(t("activated", { plan: plan.name }));
         return;
       }
-      if (!isDemoCheckout()) {
-        if (!total) return say(t("purchaseError"), "err");
-        setIntent(await createCheckout({ kind: "subscription_plan", planId: plan.id, amount: total, payload: { billing_period: period, title: plan.name } }));
+      // POST /subscription-plans/{id}/purchase with Click or ATMOS; the plan
+      // is active when the provider confirms (§1.2), or at once when free.
+      const r = await purchasePlanVia(plan.id, { billingPeriod: period, provider: payVia, autoRenew });
+      if (r.approved) {
+        say(t("activated", { plan: plan.name }));
+        setTick((n) => n + 1);
         return;
       }
-      const r = await demoPlanPurchase(plan.id, { billing_period: period });
-      if (r.paymentUrl) window.open(r.paymentUrl, "_blank", "noopener");
-      else say(t("activated", { plan: plan.name }));
+      setIntent({ id: r.paymentId, status: r.payment?.status || "pending", amount: r.amount || total, currency: "UZS", paymentUrl: r.paymentUrl || undefined, provider: r.provider || payVia });
     } catch (e) {
-      if (isProviderUnavailable(e) || isProviderUnsupported(e) || isDemoUnavailable(e)) setTg({ plan, period: asPeriod(period) });
-      else say(t("purchaseError"), "err");
+      const code = marketErrorCode(e);
+      if (PROVIDER_LIST_ERRORS.includes(code)) refreshCheckoutProviders();
+      const alt = payOptions.find((o) => o.id !== payVia);
+      if (alt && (isProviderUnavailable(e) || isProviderUnsupported(e) || PAYMENT_PROVIDER_ERRORS.includes(code))) {
+        setPayPick(alt.id);
+        say(t("providerOff", { provider: payOptions.find((o) => o.id === payVia)?.label ?? payVia, other: alt.label }), "err");
+      } else say(t("purchaseError"), "err");
     } finally {
       setBusy("");
       setReview(null);
@@ -354,6 +364,11 @@ export default function SubscriptionApp(_props: NativeProps) {
           </>
         }
       >
+        {review && payOptions.length > 1 ? (
+          <Field label={tm("providerTitle")}>
+            <Seg label={tm("providerTitle")} value={payVia} onChange={setPayPick} items={payOptions} />
+          </Field>
+        ) : null}
         {review ? (
           <PlanPurchaseTerms
             purchase={{ planName: review.plan.name, period: review.period, total: review.total, listed: review.listed }}
@@ -368,27 +383,54 @@ export default function SubscriptionApp(_props: NativeProps) {
         ) : null}
       </Dialog>
       <PaySheet intent={intent} onClose={() => setIntent(null)} />
-      {tg ? <TelegramRequest target={tg} onClose={() => setTg(null)} onSent={() => setTick((n) => n + 1)} /> : null}
       <BindCard open={bind} onClose={() => setBind(false)} onDone={() => (setBind(false), setTick((n) => n + 1))} />
       {toast}
     </App>
   );
 }
 
-function PaySheet({ intent, onClose }: { intent: PaymentIntent | null; onClose: () => void }) {
+// The plan's payment: its amount and state, and the Click or ATMOS page —
+// opened from the press itself, in a new tab. With no link (the provider was
+// down for a moment) a fresh one is asked for first (2026-11-21 §1.2).
+type PayIntent = PaymentIntent & { provider?: string };
+function PaySheet({ intent, onClose }: { intent: PayIntent | null; onClose: () => void }) {
   const t = useTranslations("portal.payment");
   const st = (intent?.status || "pending").toLowerCase();
+  const [renewing, setRenewing] = useState(false);
+  const [failed, setFailed] = useState(false);
+  async function proceed() {
+    if (!intent || renewing) return;
+    const tab = openCheckoutTab();
+    const go = (url: string) => sendCheckoutTab(tab, url, () => rememberPendingPayment({ id: intent.id, amount: intent.amount }));
+    if (intent.paymentUrl) return void go(intent.paymentUrl);
+    if (!intent.id) return void tab?.close();
+    setRenewing(true);
+    setFailed(false);
+    try {
+      const url = await renewCheckout(intent.provider || "click", intent.id);
+      if (url) go(url);
+      else {
+        tab?.close();
+        setFailed(true);
+      }
+    } catch {
+      tab?.close();
+      setFailed(true);
+    } finally {
+      setRenewing(false);
+    }
+  }
   return (
     <Dialog
       open={!!intent}
       title={t("intentTitle")}
       onClose={onClose}
-      onSubmit={() => intent?.paymentUrl && window.open(intent.paymentUrl, "_blank", "noopener")}
+      onSubmit={() => void proceed()}
       width={420}
       actions={
         <>
           <Btn onClick={onClose}>{t("cancel")}</Btn>
-          <Btn kind="primary" type="submit" disabled={!intent?.paymentUrl}>
+          <Btn kind="primary" type="submit" busy={renewing} disabled={!intent?.paymentUrl && !intent?.id}>
             {t("proceed")}
           </Btn>
         </>
@@ -406,69 +448,7 @@ function PaySheet({ intent, onClose }: { intent: PaymentIntent | null; onClose: 
           <dd>{t.has(`intentStates.${st}`) ? t(`intentStates.${st}`) : humanizeSlug(st)}</dd>
         </div>
       </dl>
-      {!intent?.paymentUrl ? <Banner tone="err" title={t("noLink")} /> : null}
-    </Dialog>
-  );
-}
-
-function TelegramRequest({ target, onClose, onSent }: { target: { plan: BackendPlan; period: ManualDocBillingPeriod }; onClose: () => void; onSent: () => void }) {
-  const t = useTranslations("plans.telegram");
-  const d = useTranslations("portal.desk.subs");
-  const tdoc = useTranslations("portal.client.documents");
-  const { plan } = target;
-  const [period, setPeriod] = useState<ManualDocBillingPeriod>(target.period);
-  const [only, setOnly] = useState<ManualDocBillingPeriod[] | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [sent, setSent] = useState("");
-  const [warn, setWarn] = useState("");
-  const allowed = plan.allowedBillingPeriods?.length ? BILLING_PERIODS.filter((p) => plan.allowedBillingPeriods.includes(p)) : BILLING_PERIODS;
-  const periods = only ?? (allowed.length ? allowed : BILLING_PERIODS);
-  const eff = periods.includes(period) ? period : periods[0];
-  const price = eff === "six_month" ? plan.sixMonthPrice || plan.monthlyPrice * 6 : eff === "yearly" ? plan.yearlyPrice || plan.monthlyPrice * 12 : eff === "prepaid_yearly" ? plan.prepaidYearlyPrice || plan.yearlyPrice || plan.monthlyPrice * 12 : plan.monthlyPrice;
-  async function submit() {
-    if (sent) return onClose();
-    setBusy(true);
-    setWarn("");
-    try {
-      const r = await requestPlanTelegramPurchase(plan.id, eff);
-      setSent(r.workId || "✓");
-      onSent();
-      if (r.telegramSent === false || (r.telegramDelivered === 0 && r.telegramFailed > 0)) setWarn(t("notDelivered"));
-    } catch (e) {
-      const refused = refusedBillingPeriods(e);
-      if (refused.length) {
-        setOnly(refused);
-        setPeriod(refused[0]);
-        setWarn(t("periodRefused"));
-      } else setWarn(t("error"));
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <Dialog open title={t("title")} onClose={onClose} onSubmit={() => void submit()} width={460} actions={sent ? <Btn kind="primary" type="submit">{d("ok")}</Btn> : <><Btn onClick={onClose}>{d("cancel")}</Btn><Btn kind="primary" type="submit" busy={busy}>{t("submit")}</Btn></>}>
-      {sent ? (
-        <>
-          <Banner tone="ok" title={t("sent")}>
-            {t("sentLead")}
-          </Banner>
-          {sent !== "✓" ? <code>{sent}</code> : null}
-        </>
-      ) : (
-        <>
-          <p className="dx-dlg__text">{t("lead", { plan: plan.name })}</p>
-          <Field label={t("period")}>
-            <Seg label={t("period")} value={eff} onChange={setPeriod} items={periods.map((p) => ({ id: p, label: tdoc.has(`period_${p}`) ? tdoc(`period_${p}`) : p }))} />
-          </Field>
-          <dl className="dxs2-sum">
-            <div>
-              <dt>{t("amount")}</dt>
-              <dd>{fmtUzs(price)}</dd>
-            </div>
-          </dl>
-        </>
-      )}
-      {warn ? <Banner tone="warn" title={warn} /> : null}
+      {failed || (!intent?.paymentUrl && !intent?.id) ? <Banner tone="err" title={t("noLink")} /> : null}
     </Dialog>
   );
 }

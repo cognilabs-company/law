@@ -3,7 +3,10 @@
 import "./plans1920.css";
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { getSubscriptionPlans, purchasePlan, demoPlanPurchase, isAtmosCheckout, isProviderUnsupported, requestPlanTelegramPurchase, type BackendPlan } from "@/lib/services/backend";
+import { getSubscriptionPlans, demoPlanPurchase, isProviderUnsupported, type BackendPlan } from "@/lib/services/backend";
+import { purchasePlanVia } from "@/lib/services/planCheckout";
+import { PAYMENT_PROVIDER_ERRORS, PROVIDER_LIST_ERRORS, marketErrorCode } from "@/lib/services/marketplace";
+import PayProviderPicker from "@/components/payments/PayProviderPicker";
 import { isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
 import { ClickPayLoading, ClickPayPanel } from "@/components/payments/ClickPay";
 import { PROVIDER_LIST_STALE, clickErrorOf, purchasePlanWithClick, type ClickPayment } from "@/lib/services/clickCheckout";
@@ -85,6 +88,10 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
   // Click (integration §6): the invoice for the chosen plan, priced by the server.
   const pays = useCheckoutProviders();
+  // Click or ATMOS, as the backend has them on (2026-11-21 contract §1).
+  const [payPick, setPayPick] = useState("");
+  const payOptions = pays.options.map((o) => ({ provider: o.provider, label: o.label }));
+  const payVia = payOptions.some((o) => o.provider === payPick) ? payPick : payOptions.some((o) => o.provider === "click") ? "click" : (payOptions[0]?.provider ?? "");
   const [clickBuy, setClickBuy] = useState<{ title: string; payment: ClickPayment | null } | null>(null);
   // Renewal is the subscriber's own choice on the terms below, unticked.
   const [renew, setRenew] = useState(false);
@@ -110,19 +117,7 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
     setIntent(null);
     let leaving = false;
     try {
-      if (isAtmosCheckout()) {
-        const r = await purchasePlan(plan.id, { billing_period: period, auto_renew: renew });
-        if (r.paymentUrl) {
-          leaving = true;
-          notify.info(t("payRedirect"), { id: "ai-plan-gate" });
-          goToPaymentPage(r.paymentUrl, r.paymentId);
-        } else {
-          notify.success(t("activated", { plan: plan.name }), { id: "ai-plan-gate" });
-          onClose();
-        }
-        return;
-      }
-      if (!isDemoCheckout() && pays.has("click")) {
+      if (!isDemoCheckout() && payVia === "click") {
         setClickBuy({ title: plan.name, payment: null });
         const r = await purchasePlanWithClick(plan.id, { billingPeriod: period, autoRenew: renew });
         if (!r.payment) {
@@ -134,11 +129,21 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
         return;
       }
       if (!isDemoCheckout()) {
-        // No online provider on: the operator-approved request (the backend's
-        // fallback); generic POST /payments is not for plans.
-        await requestPlanTelegramPurchase(plan.id, period);
-        notify.success(t("telegram.sent"), { id: "ai-plan-gate", body: t("telegram.sentLead") });
-        onClose();
+        // ATMOS, or no provider named (the backend picks): the plan's own
+        // purchase and its payment_url (2026-11-21 contract §1.2).
+        const r = await purchasePlanVia(plan.id, { billingPeriod: period, provider: payVia, autoRenew: renew });
+        if (r.approved) {
+          notify.success(t("activated", { plan: plan.name }), { id: "ai-plan-gate" });
+          onClose();
+        } else if (r.provider === "click" && r.payment) {
+          setClickBuy({ title: plan.name, payment: r.payment });
+        } else if (r.paymentUrl) {
+          leaving = true;
+          notify.info(t("payRedirect"), { id: "ai-plan-gate" });
+          goToPaymentPage(r.paymentUrl, r.paymentId, r.amount);
+        } else {
+          notify.error(t("purchaseError"), { id: "ai-plan-gate", body: tc("paymentUnavailable") });
+        }
         return;
       }
       const r = await demoPlanPurchase(plan.id, { billing_period: period });
@@ -153,8 +158,11 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
     } catch (e) {
       setClickBuy(null);
       const ce = clickErrorOf(e);
-      if (PROVIDER_LIST_STALE.includes(ce.key)) refreshCheckoutProviders();
-      const unavailable = isProviderUnavailable(e) || isProviderUnsupported(e) || isDemoUnavailable(e) || PROVIDER_LIST_STALE.includes(ce.key) || ce.key === "unavailable";
+      if (PROVIDER_LIST_STALE.includes(ce.key) || PROVIDER_LIST_ERRORS.includes(marketErrorCode(e))) refreshCheckoutProviders();
+      const unavailable = isProviderUnavailable(e) || isProviderUnsupported(e) || isDemoUnavailable(e) || PROVIDER_LIST_STALE.includes(ce.key) || ce.key === "unavailable" || PAYMENT_PROVIDER_ERRORS.includes(marketErrorCode(e));
+      // The other provider, when the chosen one cannot take it now.
+      const alt = unavailable ? payOptions.find((o) => o.provider !== payVia) : undefined;
+      if (alt) setPayPick(alt.provider);
       notify.error(t("purchaseError"), { id: "ai-plan-gate", body: unavailable ? tc("paymentUnavailable") : undefined, error: unavailable ? undefined : e });
     } finally {
       if (!leaving) setBusy(false);
@@ -241,6 +249,7 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
             {picked ? (
               <PlanPurchaseTerms purchase={{ planName: picked.name, period, total: priceFor(picked, period) }} autoRenew={renew} onAutoRenew={setRenew} />
             ) : null}
+            {picked ? <PayProviderPicker options={payOptions} value={payVia} onChange={setPayPick} disabled={busy} aiId="ai-plan-gate.provider" /> : null}
 
             <button className="btn btn--pri btn--full btn--lg" type="button" onClick={buy} disabled={!planId || busy}>
               {busy ? td("processingShort") : t("choose")}

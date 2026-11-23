@@ -11697,7 +11697,7 @@
         "planPicked": "Tanlandi",
         "constructorContinue": "Konstruktorda davom etish",
         "planGateTitle": "Qo'lda hujjat to'ldirish uchun paket",
-        "planGateLead": "Shablonni yuklab olish va qo'lda to'ldirish faqat mos paket tasdiqlangandan keyin ochiladi.",
+        "planGateLead": "Shablonni yuklab olish va qo'lda to'ldirish mos paket to'langandan keyin ochiladi. To'lov Click yoki ATMOS orqali.",
         "choosePlan": "Paketni tanlang",
         "choosePeriod": "Muddatni tanlang",
         "period_monthly": "Oylik",
@@ -11705,8 +11705,8 @@
         "period_yearly": "Yillik",
         "period_prepaid_yearly": "Oldindan to'langan yillik",
         "noQualifyingPlans": "Hozircha mos paket topilmadi.",
-        "planRequestSubmit": "So'rov yuborish",
-        "planRequestSent": "So'rovingiz yuborildi. Tasdiqlangandan keyin qo'lda hujjat to'ldirish ochiladi.",
+        "planRequestSubmit": "To'lovga o'tish",
+        "planRequestSent": "Paket faollashtirildi — shablonni yuklab olish va qo'lda to'ldirish ochiq.",
         "planRequestError": "So'rovni yuborib bo'lmadi. Qayta urinib ko'ring.",
         "planRequired": "Shablonni yuklab olish va qo'lda to'ldirish uchun paket sotib oling",
         "manualDisabled": "Qo'lda to'ldirish paket talab qiladi"
@@ -13948,23 +13948,6 @@
     "resumed": "Oldingi to'ldirilgan ma'lumotlar tiklandi — davom eting."
   },
   "plans": {
-    "telegram": {
-      "title": "Telegram orqali tasdiqlash",
-      "lead": "«{plan}» paketi uchun so'rov yuboriladi. To'lov tizimi hozircha ulanmagan — so'rov admin Telegramiga boradi va tasdiqlangach paket avtomatik faollashadi.",
-      "period": "Muddat",
-      "amount": "Summa",
-      "submit": "So'rov yuborish",
-      "sending": "Yuborilmoqda...",
-      "sent": "Paket so'rovingiz yuborildi.",
-      "sentLead": "Tasdiqlangandan keyin paket avtomatik faollashadi.",
-      "close": "Yopish",
-      "error": "So'rovni yuborib bo'lmadi",
-      "periodRefused": "Bu paket tanlangan muddatni qabul qilmaydi. Mavjud muddatlar qoldirildi.",
-      "notDelivered": "So'rov yaratildi, lekin Telegramga yetkazib bo'lmadi. Administrator bilan bog'laning.",
-      "promo": "Aksiya",
-      "promoUntil": "{date} gacha amal qiladi",
-      "amountPromo": "To'lov ({title} bilan)"
-    },
     "otherSubtitle": "Platformadagi qolgan barcha obunalar. Sovg'a tariflari faqat «Sovg'alar» bo'limida sotiladi.",
     "otherTitle": "Boshqa tariflar",
     "autopay": {
@@ -14115,7 +14098,8 @@
       "chip": "Aksiya −{amount}",
       "note": "{title}: {amount} ({was} o'rniga)",
       "title": "Aksiya"
-    }
+    },
+    "providerOff": "{provider} hozircha to'lovni qabul qila olmayapti. Pul yechilmadi — {other} orqali to'lashingiz mumkin."
   },
   "promotion": {
     "lapsedTitle": "Kutilayotgan to'lov bekor qilindi",

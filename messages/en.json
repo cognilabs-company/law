@@ -11691,7 +11691,7 @@
         "planPicked": "Chosen",
         "constructorContinue": "Continue in the builder",
         "planGateTitle": "Plan for manual document filling",
-        "planGateLead": "Downloading the template and filling it in yourself open up once a matching plan is approved.",
+        "planGateLead": "Template download and manual filling open once a suitable plan is paid. You pay with Click or ATMOS.",
         "choosePlan": "Choose a plan",
         "choosePeriod": "Choose a period",
         "period_monthly": "Monthly",
@@ -11699,8 +11699,8 @@
         "period_yearly": "Yearly",
         "period_prepaid_yearly": "Prepaid yearly",
         "noQualifyingPlans": "No matching plans right now.",
-        "planRequestSubmit": "Send request",
-        "planRequestSent": "Your request has been sent. Manual document filling unlocks once it's approved.",
+        "planRequestSubmit": "Go to payment",
+        "planRequestSent": "The plan is active — template download and manual filling are open.",
         "planRequestError": "Couldn't send the request. Please try again.",
         "planRequired": "Buy a plan to download and manually fill in the template",
         "manualDisabled": "Manual filling requires a plan"
@@ -13942,23 +13942,6 @@
     "resumed": "Your earlier answers were restored — carry on."
   },
   "plans": {
-    "telegram": {
-      "title": "Telegram approval",
-      "lead": "A request for the “{plan}” plan will be sent. No payment provider is connected yet — the request goes to the admin Telegram chat and the plan activates itself once it is approved.",
-      "period": "Period",
-      "amount": "Amount",
-      "submit": "Send request",
-      "sending": "Sending...",
-      "sent": "Your plan request has been sent.",
-      "sentLead": "The plan activates automatically once it is approved.",
-      "close": "Close",
-      "error": "The request could not be sent",
-      "periodRefused": "This plan does not sell the period you chose. Only the ones it does are left.",
-      "notDelivered": "The request was created but could not be delivered to Telegram. Please contact an administrator.",
-      "promo": "Promotion",
-      "promoUntil": "Valid until {date}",
-      "amountPromo": "To pay (with {title})"
-    },
     "otherSubtitle": "Every other subscription on the platform. Gift plans are sold only in the Gifts section.",
     "otherTitle": "Other plans",
     "autopay": {
@@ -14109,7 +14092,8 @@
       "chip": "Promo −{amount}",
       "note": "{title}: {amount} (instead of {was})",
       "title": "Promotion"
-    }
+    },
+    "providerOff": "{provider} can't take the payment right now. No money was taken — you can pay with {other} instead."
   },
   "promotion": {
     "lapsedTitle": "Pending payment cancelled",

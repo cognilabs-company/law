@@ -71,3 +71,11 @@
 .mk-ach__ok { display: inline-flex; align-items: center; gap: 5px; justify-self: start; margin-top: 4px; padding: 2px 9px; border-radius: 999px; background: color-mix(in srgb, #16a34a 13%, transparent); color: var(--dk-txt-ok, #15803d); font-size: .72rem; font-style: normal; font-weight: 800; }
 .mk-ach__ok svg { width: 12px; height: 12px; }
 .mk-ach__more { justify-self: center; margin-top: 10px; }
+
+/* The same cards in other checkouts (plans, documents): Click and ATMOS
+   side by side — 2026-11-21 contract §1. */
+.mk-pay--pick .mk-pay__opts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mk-pay__opt:disabled { cursor: default; opacity: .6; }
+@media (max-width: 400px) {
+  .mk-pay--pick .mk-pay__opts { grid-template-columns: minmax(0, 1fr); }
+}

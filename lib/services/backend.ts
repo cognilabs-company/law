@@ -1646,58 +1646,9 @@ export async function getClientEntitlements(): Promise<ClientEntitlements> {
 
 export type ManualDocBillingPeriod = "monthly" | "six_month" | "yearly" | "prepaid_yearly";
 export const BILLING_PERIODS: ManualDocBillingPeriod[] = ["monthly", "six_month", "yearly", "prepaid_yearly"];
-export type PlanPurchaseRequest = {
-  id: string;
-  // SUB-ABCDE (LEXGO_PUBLIC_WORK_IDS_FRONTEND.md); the payment behind it
-  // carries its own PAY-XXXXX.
-  workId: string;
-  paymentWorkId: string;
-  status: string;
-  paymentId: string;
-  planId: string;
-  planSlug: string;
-  amount: number;
-  currency: string;
-  telegramSent: boolean;
-  // One entry per admin chat the request was pushed to; an entry with ok:false
-  // means the plan request exists but nobody was told about it.
-  telegramDelivered: number;
-  telegramFailed: number;
-  // The backend's price breakdown with any promotion (contract 2026-10-26 §2).
-  pricing: PlanQuote | null;
-};
-// POST /subscription-plans/{id}/telegram-purchase-request — the approval flow:
-// a Payment is created and the request is pushed to the admin Telegram chats,
-// and the plan activates when someone there approves it. There is no redirect
-// and nothing to pay here, only a pending receipt. /purchase stays the real
-// provider-invoice flow.
-export async function requestPlanTelegramPurchase(
-  planId: string,
-  billingPeriod: ManualDocBillingPeriod,
-): Promise<PlanPurchaseRequest> {
-  const d = asDict(
-    await http(`/subscription-plans/${encodeURIComponent(planId)}/telegram-purchase-request`, {
-      method: "POST",
-      body: JSON.stringify({ billing_period: billingPeriod, currency: "UZS" }),
-    }),
-  );
-  const results = asArr(d.telegram_results).map((x) => asDict(x));
-  return {
-    id: asStr(d.id),
-    workId: asStr(d.work_id),
-    paymentWorkId: asStr(d.payment_work_id ?? asDict(d.payment).work_id),
-    status: asStr(d.status),
-    paymentId: asStr(d.payment_id),
-    planId: asStr(d.plan_id, planId),
-    planSlug: asStr(d.plan_slug),
-    amount: asNum(d.amount),
-    currency: asStr(d.currency, "UZS"),
-    telegramSent: Boolean(d.telegram_sent),
-    telegramDelivered: results.filter((r) => r.ok !== false).length,
-    telegramFailed: results.filter((r) => r.ok === false).length,
-    pricing: d.pricing && typeof d.pricing === "object" ? planQuoteOf(d.pricing) : null,
-  };
-}
+// The Telegram-approved plan request (POST /subscription-plans/{id}/
+// telegram-purchase-request) is gone: since the 2026-11-21 contract every
+// plan is bought through Click or ATMOS — lib/services/planCheckout.ts.
 
 // ── Plan quote with promotions (contract 2026-10-26 §2) ───────────────
 // GET /subscription-plans/{id}/quote?billing_period= — the backend's price
@@ -1744,7 +1695,11 @@ export function refusedBillingPeriods(e: unknown): ManualDocBillingPeriod[] {
 // Production has the demo provider disabled and Payme/Click answer 503 until
 // they are configured. A staging build sets NEXT_PUBLIC_PAYMENT_PROVIDER=demo_payme
 // in its deployment env to keep the demo checkout; inlined at build time.
-const CHECKOUT_PROVIDER = (process.env.NEXT_PUBLIC_PAYMENT_PROVIDER || "payme").trim().toLowerCase();
+// 2026-11-21 contract §1: every payment is Click or ATMOS — Payme and the
+// manual (Telegram) providers are refused, so a build still configured with
+// one of them checks out through Click.
+const CHECKOUT_RAW = (process.env.NEXT_PUBLIC_PAYMENT_PROVIDER || "click").trim().toLowerCase();
+const CHECKOUT_PROVIDER = CHECKOUT_RAW === "payme" || CHECKOUT_RAW === "telegram_manual" || CHECKOUT_RAW === "manual" ? "click" : CHECKOUT_RAW;
 // "atmos" is the GM-required monthly auto-pay provider. Backend HEAD f6c94f8
 // (payment_provider.py) knows payme / click / demo only and answers 400
 // "Payment provider qo'llab-quvvatlanmaydi" for anything else, so a build with

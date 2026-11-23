@@ -11,6 +11,7 @@ import CheckBox from "@/components/CheckBox";
 import Modal from "@/components/admin/Modal";
 import { IconCheck, IconExternal, IconShieldCheck } from "@/components/icons";
 import { planPlate } from "./PlanCard";
+import PayProviderPicker, { type PickOption } from "@/components/payments/PayProviderPicker";
 
 // The refund rules and the offer, as the backend publishes them
 // (/legal/consents slugs payment_refund_warranty and terms).
@@ -110,6 +111,7 @@ export function PlanCheckoutReview({
   busy,
   onConfirm,
   onClose,
+  pay,
 }: {
   purchase: PlanPurchase | null;
   autoRenew: boolean;
@@ -117,6 +119,9 @@ export function PlanCheckoutReview({
   busy: boolean;
   onConfirm: () => void;
   onClose: () => void;
+  // Click or ATMOS (2026-11-21 contract §1): the choice, and what to say when
+  // the chosen one could not take the payment.
+  pay?: { options: PickOption[]; value: string; onChange: (p: string) => void; notice?: string };
 }): ReactElement {
   const t = useTranslations("checkoutTerms");
   return (
@@ -144,6 +149,12 @@ export function PlanCheckoutReview({
           {/* The plan's own picture on the dashboard's light plate. */}
           {purchase.slug ? <span className="plx-review__art" style={planPlate(purchase.slug)} aria-hidden /> : null}
           <PlanPurchaseTerms purchase={purchase} autoRenew={autoRenew} onAutoRenew={onAutoRenew} />
+          {pay ? <PayProviderPicker options={pay.options} value={pay.value} onChange={pay.onChange} disabled={busy} aiId="pricing.checkout-review.provider" /> : null}
+          {pay?.notice ? (
+            <p className="plx-review__notice" role="alert">
+              {pay.notice}
+            </p>
+          ) : null}
         </div>
       ) : null}
     </Modal>

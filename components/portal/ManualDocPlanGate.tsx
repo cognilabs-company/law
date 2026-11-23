@@ -3,7 +3,14 @@
 import "./builder1920.css";
 import { useState, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { getSubscriptionPlans, requestPlanTelegramPurchase, refusedBillingPeriods, type BackendPlan, type ManualDocBillingPeriod, isGiftOnlyPlan } from "@/lib/services/backend";
+import { getSubscriptionPlans, refusedBillingPeriods, type BackendPlan, type ManualDocBillingPeriod, isGiftOnlyPlan } from "@/lib/services/backend";
+import { purchasePlanVia } from "@/lib/services/planCheckout";
+import { PAYMENT_PROVIDER_ERRORS, PROVIDER_LIST_ERRORS, marketErrorCode } from "@/lib/services/marketplace";
+import { refreshCheckoutProviders, useCheckoutProviders } from "@/lib/useCheckoutProviders";
+import { goToPaymentPage } from "@/lib/services/paymentProviders";
+import type { ClickPayment } from "@/lib/services/clickCheckout";
+import { ClickPayPanel } from "@/components/payments/ClickPay";
+import PayProviderPicker from "@/components/payments/PayProviderPicker";
 import { useResource } from "@/lib/useResource";
 import { Link } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
@@ -100,6 +107,14 @@ export default function ManualDocPlanGate({
   const selected = qualifying.find((p) => p.id === planId);
   const periods = only ?? periodsFor(selected);
 
+  // Click or ATMOS, as the backend has them on (2026-11-21 contract §1): the
+  // plan is paid through the provider and opens when it confirms.
+  const pays = useCheckoutProviders();
+  const [payPick, setPayPick] = useState("");
+  const [clickPay, setClickPay] = useState<ClickPayment | null>(null);
+  const payOptions = pays.options.map((o) => ({ provider: o.provider, label: o.label }));
+  const payVia = payOptions.some((o) => o.provider === payPick) ? payPick : payOptions.some((o) => o.provider === "click") ? "click" : (payOptions[0]?.provider ?? "");
+
   const [prevOpen, setPrevOpen] = useState(open);
   if (open !== prevOpen) {
     setPrevOpen(open);
@@ -109,6 +124,7 @@ export default function ManualDocPlanGate({
       setPeriodErr("");
       setSent(false);
       setOnly(null);
+      setClickPay(null);
     }
   }
 
@@ -122,10 +138,17 @@ export default function ManualDocPlanGate({
     setBusy(true);
     setPeriodErr("");
     try {
-      await requestPlanTelegramPurchase(planId, effPeriod);
+      const r = await purchasePlanVia(planId, { billingPeriod: effPeriod, provider: payVia, autoRenew: false });
       notify.dismiss("mdpg-request");
-      setSent(true);
+      if (r.approved) setSent(true);
+      else if (r.provider === "click" && r.payment) setClickPay(r.payment);
+      else if (r.paymentUrl) goToPaymentPage(r.paymentUrl, r.paymentId, r.amount);
+      else notify.error(t("planRequestError"), { id: "mdpg-request" });
     } catch (e) {
+      const code = marketErrorCode(e);
+      if (PROVIDER_LIST_ERRORS.includes(code)) refreshCheckoutProviders();
+      const alt = PAYMENT_PROVIDER_ERRORS.includes(code) ? payOptions.find((o) => o.provider !== payVia) : undefined;
+      if (alt) setPayPick(alt.provider);
       // The plan refused that billing period and named the ones it takes:
       // narrow the chips to those instead of showing a flat error the client
       // can do nothing about.
@@ -153,6 +176,8 @@ export default function ManualDocPlanGate({
 
         {sent ? (
           <InlineAlert tone="success" role="status">{t("planRequestSent")}</InlineAlert>
+        ) : clickPay ? (
+          <ClickPayPanel key={clickPay.id} payment={clickPay} title={selected?.name} onPaid={() => setSent(true)} aiId="mdpg.click" />
         ) : plans.status === "loading" ? (
           <Skeleton rows={3} />
         ) : !qualifying.length ? (
@@ -209,6 +234,8 @@ export default function ManualDocPlanGate({
               </ScrollCue>
               <FieldError id="mdpg-period-err" msg={periodErr} />
             </div>
+
+            <PayProviderPicker options={payOptions} value={payVia} onChange={setPayPick} disabled={busy} aiId="mdpg.provider" />
 
             <button className="btn btn--grad btn--full btn--lg" type="button" onClick={submit} disabled={!planId || busy}>
               {busy ? t("processingShort") : t("planRequestSubmit")}
