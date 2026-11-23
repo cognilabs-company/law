@@ -86,8 +86,28 @@ export async function getPayment(id: string, signal?: AbortSignal): Promise<Paym
 // §13: a fresh checkout for the same payment. Already paid → no URL, and the
 // payment is simply re-read.
 export type RenewedCheckout = { status: PayStatus; url: string; idempotent: boolean };
-export async function renewClickCheckout(id: string): Promise<RenewedCheckout> {
-  const d = asDict(await http(`/payments/${encodeURIComponent(id)}/click/checkout`, { method: "POST" }));
+// BACKEND_FIXES_LIVE_2026-11-23: the renewal may name the page Click sends the
+// client back to. Only the production site's own pages are accepted (anything
+// else is 422 return_url_not_allowed), so a preview or local build sends none
+// and Click behaves as before. No hash: it is never needed to land.
+const RETURN_PREFIXES = ["https://tezkorhimoya.uz/", "https://www.tezkorhimoya.uz/"];
+export function checkoutReturnUrl(href: string): string {
+  const s = href.split("#")[0];
+  return RETURN_PREFIXES.some((p) => s.startsWith(p)) ? s : "";
+}
+const herePage = (): string => (typeof window === "undefined" ? "" : checkoutReturnUrl(window.location.href));
+export async function renewClickCheckout(id: string, returnUrl = herePage()): Promise<RenewedCheckout> {
+  const path = `/payments/${encodeURIComponent(id)}/click/checkout`;
+  let raw: unknown;
+  try {
+    raw = await http(path, returnUrl ? { method: "POST", body: JSON.stringify({ return_url: returnUrl }) } : { method: "POST" });
+  } catch (e) {
+    // A refused return page must not cost the client the payment: ask again
+    // without one.
+    if (!returnUrl || !(e instanceof ApiError) || e.status !== 422 || clickErrorCode(e) !== "return_url_not_allowed") throw e;
+    raw = await http(path, { method: "POST" });
+  }
+  const d = asDict(raw);
   return { status: payStatusOf(asStr(d.status)), url: checkoutUrlOf(d.payment_url), idempotent: d.idempotent === true };
 }
 
@@ -151,7 +171,7 @@ export function clickErrorOf(e: unknown): ClickError {
   if (code === "payment_provider_mismatch") return { key: "mismatch", ...none };
   if (code === "payment_not_payable") return { key: "notPayable", ...none };
   if (code === "click_checkout_expired" || e.status === 410) return { key: "expired", ...none };
-  if (code === "marketplace_payment_provider_invalid") return { key: "providerInvalid", ...none };
+  if (code === "marketplace_payment_provider_invalid" || code === "payment_provider_not_allowed") return { key: "providerInvalid", ...none };
   if (code === "payment_currency_not_supported" || code === "marketplace_currency_not_supported") return { key: "currency", ...none };
   if (code === "payment_invoice_rejected") return { key: "rejected", message: safeProviderText(e), orderId: "" };
   if (code === "payment_provider_not_configured" || e.status === 503) return { key: "notConfigured", ...none };

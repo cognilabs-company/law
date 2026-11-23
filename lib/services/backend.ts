@@ -2947,11 +2947,13 @@ export async function createDocumentRequest(input: {
   title: string;
   questionnaire?: TemplateQuestion[];
   answers?: Record<string, unknown>;
-  price?: number; // whole so'm (legacy UZS)
+  price?: number; // ignored: always sent as 0
   currency?: string;
 }): Promise<DocumentRequest> {
+  // BACKEND_FIXES_LIVE_2026-11-23: the server ignores a client price and
+  // charges its own; 0 is sent so nothing computed here looks authoritative.
   return normDocRequest(
-    await http("/document-requests", { method: "POST", body: JSON.stringify({ currency: "UZS", ...input }) }),
+    await http("/document-requests", { method: "POST", body: JSON.stringify({ currency: "UZS", ...input, price: 0 }) }),
   );
 }
 export async function updateDocumentAnswers(
@@ -2962,15 +2964,16 @@ export async function updateDocumentAnswers(
     await http(`/document-requests/${requestId}/answers`, { method: "PUT", body: JSON.stringify({ answers }) }),
   );
 }
-export async function payDocumentRequest(
-  requestId: string,
-  provider: "payme" | "click",
-  amount: number, // whole so'm, as read by normDocRequest (legacy UZS, not tiyin)
-): Promise<DocumentRequest> {
+// BACKEND_FIXES_LIVE_2026-11-23: a document is paid with Click or ATMOS only
+// ("" lets the backend pick its default); anything else is a 422
+// payment_provider_not_allowed. The amount is always 0 — the server charges
+// the stored price.
+export type DocPayProvider = "" | "click" | "atmos";
+export async function payDocumentRequest(requestId: string, provider: DocPayProvider = ""): Promise<DocumentRequest> {
   return normDocRequest(
-    await http(`/document-requests/${requestId}/payments`, {
+    await http(`/document-requests/${encodeURIComponent(requestId)}/payments`, {
       method: "POST",
-      body: JSON.stringify({ provider, amount: Math.round(amount), currency: "UZS", provider_payload: {} }),
+      body: JSON.stringify({ provider, amount: 0, currency: "UZS", provider_payload: {} }),
     }),
   );
 }
