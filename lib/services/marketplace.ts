@@ -420,8 +420,9 @@ export const MAX_PURCHASE_VOICES = 10;
 export type PurchaseAttachment = { fileId: string; title: string };
 export type PurchaseVoice = { fileId: string; seconds: number };
 // How the client pays the 100% (§3, §5). Telegram: an operator confirms the
-// transfer; Payme / Click: the provider page, once production keys exist.
-export const PURCHASE_PROVIDERS = ["telegram_manual", "payme", "click"] as const;
+// transfer; Payme / Click / ATMOS: the provider page, offered only while
+// GET /payments/providers says enabled.
+export const PURCHASE_PROVIDERS = ["telegram_manual", "payme", "click", "atmos"] as const;
 export type PurchaseProvider = (typeof PURCHASE_PROVIDERS)[number];
 // A provider the backend cannot use right now; the client is offered Telegram.
 export const PAYMENT_PROVIDER_ERRORS: readonly string[] = ["payment_provider_not_configured", "payment_provider_unavailable", "marketplace_payment_provider_invalid", "payment_invoice_rejected"];
@@ -691,7 +692,11 @@ export type MarketOrder = {
   explicit: { start: boolean; complete: boolean; cancel: boolean };
   urls: { start: string; checklist: string; negotiations: string; cancellationReview: string; secondOpinion: string; complete: string; cancel: string; chat: string; callCreate: string; secondOpinionPromotion?: string };
   pricing: OrderPricing | null;
+  // The order's full payment, when the backend names it: ATMOS reopens or
+  // renews its checkout from here (the URL itself is never kept).
+  payment?: OrderPayment | null;
 };
+export type OrderPayment = { id: string; provider: string; status: string; amount: number; currency: string };
 
 // The price as the backend fixed it when the order was placed
 // (details.pricing_snapshot, details.financial_snapshot). Every amount and
@@ -1265,6 +1270,9 @@ export function normMarketOrder(v: unknown): MarketOrder {
       ...("second_opinion_promotion_url" in d || "second_opinion_promotion" in actions ? { secondOpinionPromotion: url("second_opinion_promotion_url") } : {}),
     },
     pricing: orderPricingOf(d, details),
+    payment: asStr(payment.id)
+      ? { id: asStr(payment.id), provider: asStr(payment.provider).toLowerCase(), status: asStr(payment.status).toLowerCase(), amount: uzs(payment, "amount"), currency: asStr(payment.currency, "UZS") || "UZS" }
+      : null,
   };
 }
 

@@ -36,6 +36,7 @@ import OrderHeader from "./OrderHeader";
 import SecondOpinion from "./SecondOpinion";
 import StartWork from "./StartWork";
 import StayInLexGo from "./StayInLexGo";
+import { AtmosPayPanel } from "@/components/payments/AtmosPay";
 import { ArrowLeftIcon, RefreshCwIcon, ClipboardListIcon, SearchIcon, SxIconScope, CircleAlertIcon, artStyle } from "./icons";
 import { SECTION_ID, orderAiBase, type OrderSectionProps, type OrderView } from "./types";
 import { useOrderDetail, type OrderDetail } from "./useOrderDetail";
@@ -142,13 +143,25 @@ function Sections({ d, o, phase, view, aiBase, listHref, preview, payouts }: { d
     ];
   } else if (phase === "pending") {
     // Paid with Click: "Pay with Click" on the order itself until the backend
-    // says paid (Click web contract 2026-11-17 §7). The Telegram note is for
-    // orders paid that way only.
+    // says paid (Click web contract 2026-11-17 §7). Bought with ATMOS and not
+    // paid yet: pay, reopen or renew the checkout right here, after a refresh
+    // or a new sign-in too. The Telegram note is for orders paid that way only.
     const clickOrder = o.fullPayment?.provider === "click";
+    const atmos = client && !preview && o.payment && o.payment.provider === "atmos" && o.paymentStatus !== "paid" ? o.payment : null;
     parts = [
       client && !preview && clickPaymentDue(o) ? <OrderClickPay key="click" o={o} aiBase={aiBase} onChanged={() => d.refresh("order")} /> : null,
+      atmos ? (
+        <AtmosPayPanel
+          key={`atmos-${atmos.id}`}
+          orderId={o.id}
+          payment={{ id: atmos.id, amount: atmos.amount, currency: atmos.currency }}
+          title={o.serviceTitle || o.packageTitle}
+          onSettled={() => d.refresh("order")}
+          aiId={`${aiBase}.atmos`}
+        />
+      ) : null,
       <NegotiationPanel key="negotiation" {...section} />,
-      client && !clickOrder ? (
+      client && !clickOrder && !atmos ? (
         <SxNote key="wait" tone="info">
           {to("waitNote")}
         </SxNote>
