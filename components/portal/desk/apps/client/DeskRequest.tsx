@@ -8,6 +8,7 @@ import { DocChromeContext, type DocRequestView } from "@/components/portal/DocFi
 import { IconAlert, IconArrowRight, IconCard, IconCheck, IconCircleX, IconClock, IconDocSearch, IconDownload, IconEdit, IconExternal, IconFileText, IconHeadset, IconRefresh, IconSparkle } from "@/components/icons";
 import { Banner, Btn, Empty, Field, Group, Select, SettingRow, Spinner, Tag, TextArea } from "../../kit/kit";
 import FileViewer from "../FileViewer";
+import { gateProviderName, useGatePay } from "@/components/payments/useGatePay";
 import { DeskDocChat, DeskSign } from "./DeskSign";
 
 // A document request's screens around its form, as a desktop window's
@@ -64,7 +65,7 @@ function Pay({ v }: { v: DocRequestView }) {
   );
 }
 
-function GateFacts({ gate, telegram }: { gate: DocPaymentGate; telegram: boolean }) {
+function GateFacts({ gate, pay }: { gate: DocPaymentGate; pay: boolean }) {
   const t = useTranslations("portal.client.documents");
   return (
     <>
@@ -74,7 +75,23 @@ function GateFacts({ gate, telegram }: { gate: DocPaymentGate; telegram: boolean
         {gate.includedPages ? <Tag>{t("gateIncluded", { n: gate.includedPages })}</Tag> : null}
         {gate.extraPages ? <Tag tone="warn">{t("gateExtra", { n: gate.extraPages })}</Tag> : null}
       </span>
-      {telegram ? <Banner tone={gate.telegramSent ? "info" : "warn"}>{gate.telegramSent ? t("gateTelegramOk") : t("gateTelegramFail")}</Banner> : null}
+      {pay ? <GatePay gate={gate} /> : null}
+    </>
+  );
+}
+
+// The gate is paid through Click or ATMOS, on its own page (2026-11-21 §1.3).
+function GatePay({ gate }: { gate: DocPaymentGate }) {
+  const t = useTranslations("portal.client.documents");
+  const g = useGatePay(gate);
+  if (!g.can) return null;
+  const name = gateProviderName(gate.provider);
+  return (
+    <>
+      <Btn kind="primary" icon={<IconExternal />} busy={g.busy} onClick={() => void g.pay()}>
+        {name ? t("gatePay", { provider: name }) : t("gatePayAny")}
+      </Btn>
+      <Banner tone={g.failed ? "warn" : "info"}>{g.failed ? t("gatePayFailed") : t("gatePayLead")}</Banner>
     </>
   );
 }
@@ -131,7 +148,7 @@ function Wait({ v }: { v: DocRequestView }) {
   if (s === "payGate")
     return (
       <Card tone="pay" icon={<IconCard />} title={t("gateTitle")} sub={t("gateSub")} badge={live(t("gateStatus"), "warn")}>
-        {v.gate ? <GateFacts gate={v.gate} telegram={v.gateKnown} /> : <small className="dxcs-lead">{t("gateNoFacts")}</small>}
+        {v.gate ? <GateFacts gate={v.gate} pay={v.gateKnown} /> : <small className="dxcs-lead">{t("gateNoFacts")}</small>}
         {check}
         <small className="dxcs-lead">{t("gateRefreshHint")}</small>
       </Card>
@@ -139,7 +156,7 @@ function Wait({ v }: { v: DocRequestView }) {
   if (s === "payCancelled")
     return (
       <Card tone="off" icon={<IconAlert />} title={t("cancelledTitle")} sub={t("cancelledSub")} badge={<Tag>{t("cancelledStatus")}</Tag>}>
-        {v.gate && v.gateKnown ? <GateFacts gate={v.gate} telegram={false} /> : null}
+        {v.gate && v.gateKnown ? <GateFacts gate={v.gate} pay={false} /> : null}
         <span className="dxcr-acts">
           {check}
           {v.onRetry ? (
@@ -196,7 +213,7 @@ function Done({ v }: { v: DocRequestView }) {
           <div className="dxcz-id">
             <b>{t("gateTitle")}</b>
             <small className="dxcs-lead">{t("gateSub")}</small>
-            <GateFacts gate={r.gate} telegram />
+            <GateFacts gate={r.gate} pay />
             <span>
               <Btn small icon={<IconRefresh />} busy={v.busy} onClick={v.refresh}>
                 {t("checkStatus")}

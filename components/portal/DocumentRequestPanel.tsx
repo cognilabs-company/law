@@ -45,6 +45,7 @@ import { notify } from "@/lib/toast";
 import InlineAlert from "@/components/ui/InlineAlert";
 import { Link, useRouter } from "@/i18n/navigation";
 import { IconDownload, IconExternal, IconHeadset, IconAlert, IconEdit, IconCircleCheck, IconCircleX } from "@/components/icons";
+import { gateProviderName, useGatePay } from "@/components/payments/useGatePay";
 import { useAiField } from "@/lib/ai/registry";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
 import ClickPayDialog from "@/components/payments/ClickPay";
@@ -76,10 +77,12 @@ const art = (name: string) => ({ "--art": `url(/img/xizmatlar/${name}.webp)` }) 
 // read from the MD and rendered defensively — a deployment that opens no gate
 // reaches none of it.
 
-// What the gate answer said, shown wherever the client is waiting on it.
-// MD L93-111 is the whole of what the frontend is ever told about a gate:
-// amount, page_count / included_pages / extra_pages, and telegram_sent.
-export function DocGateFacts({ gate, telegram = true }: { gate: DocPaymentGate; telegram?: boolean }) {
+// What the gate answer said, shown wherever the client is waiting on it:
+// the amount, page_count / included_pages / extra_pages, and — while the
+// gate is open — the way to pay it: Click or ATMOS, its own payment_url
+// (2026-11-21 contract §1.3; the Telegram approval is gone). Off once the
+// gate is closed.
+export function DocGateFacts({ gate, pay = true, onOpened }: { gate: DocPaymentGate; pay?: boolean; onOpened?: () => void }) {
   const t = useTranslations("portal.client.documents");
   return (
     <>
@@ -91,17 +94,26 @@ export function DocGateFacts({ gate, telegram = true }: { gate: DocPaymentGate; 
         {gate.includedPages ? <span className="cx-tag">{t("gateIncluded", { n: gate.includedPages })}</span> : null}
         {gate.extraPages ? <span className="cx-tag pgate__meta--x">{t("gateExtra", { n: gate.extraPages })}</span> : null}
       </div>
-      {/* telegram_sent false means the client is waiting on an approval
-          request that was never delivered — the one thing they cannot find
-          out for themselves, and the one that makes the wait pointless.
-          Off once the gate is closed: "press To'landi in Telegram" is
-          instructions for a message that has already been answered. */}
-      {telegram ? (
-        <p className={`pgate__tg${gate.telegramSent ? "" : " pgate__tg--bad"}`}>
-          {gate.telegramSent ? t("gateTelegramOk") : t("gateTelegramFail")}
-        </p>
-      ) : null}
+      {pay ? <DocGatePay gate={gate} onOpened={onOpened} /> : null}
     </>
+  );
+}
+
+function DocGatePay({ gate, onOpened }: { gate: DocPaymentGate; onOpened?: () => void }) {
+  const t = useTranslations("portal.client.documents");
+  const g = useGatePay(gate, onOpened);
+  if (!g.can) return null;
+  const name = gateProviderName(gate.provider);
+  return (
+    <div className="pgate__pay">
+      <button className="btn btn--pri" type="button" onClick={() => void g.pay()} disabled={g.busy} data-ai-id="documents.payment-gate.pay">
+        <IconExternal aria-hidden="true" />
+        {g.busy ? t("processingShort") : name ? t("gatePay", { provider: name }) : t("gatePayAny")}
+      </button>
+      <p className={`pgate__tg${g.failed ? " pgate__tg--bad" : ""}`} role={g.failed ? "alert" : undefined}>
+        {g.failed ? t("gatePayFailed") : t("gatePayLead")}
+      </p>
+    </div>
   );
 }
 
@@ -222,7 +234,7 @@ type GateOutcome = "" | "pooled" | "rejected";
 
 function priceGate(r: DocumentRequest): DocPaymentGate | null {
   if (!(r.price > 0)) return null;
-  return { id: "", status: "pending", paymentId: r.paymentId ?? "", amount: r.price, currency: r.currency, pageCount: 0, includedPages: 0, extraPages: 0, telegramSent: false };
+  return { id: "", status: "pending", paymentId: r.paymentId ?? "", amount: r.price, currency: r.currency, pageCount: 0, includedPages: 0, extraPages: 0, provider: "", paymentUrl: "" };
 }
 
 // The full answers → live document → pay → generate → download lifecycle for
@@ -1041,7 +1053,7 @@ export default function DocumentRequestPanel({
             <Loader aria-hidden="true" />
             {t("gateStatus")}
           </span>
-          {shownGate ? <DocGateFacts gate={shownGate} telegram={!!knownGate} /> : <p className="pgate__none">{t("gateNoFacts")}</p>}
+          {shownGate ? <DocGateFacts gate={shownGate} pay={!!knownGate} /> : <p className="pgate__none">{t("gateNoFacts")}</p>}
           <div className="lxdp-acts">
             <button className="btn btn--line" type="button" onClick={refresh} disabled={busy}>
               {busy ? t("processingShort") : t("checkStatus")}
@@ -1064,7 +1076,7 @@ export default function DocumentRequestPanel({
             <CircleX aria-hidden="true" />
             {t("cancelledStatus")}
           </span>
-          {knownGate ? <DocGateFacts gate={knownGate} telegram={false} /> : null}
+          {knownGate ? <DocGateFacts gate={knownGate} pay={false} /> : null}
           <div className="lxdp-acts">
             {onRetry ? (
               <button className="btn btn--pri" type="button" onClick={onRetry}>
@@ -1156,8 +1168,8 @@ export default function DocumentRequestPanel({
           ) : reviewSent && gate ? (
             /* The gate is open: this document did NOT go to the advocates
                (MD L124), so the green "yuborildi" notice is replaced by the
-               wait — with the amount, the page breakdown and whether the
-               Telegram request was actually sent. */
+               wait — with the amount, the page breakdown and the way to
+               pay it through Click or ATMOS. */
             <div className="docgate docgate--inline">
               <b className="pgate__t">{t("gateTitle")}</b>
               <span className="pgate__sub">{t("gateSub")}</span>

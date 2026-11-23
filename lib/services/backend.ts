@@ -2702,9 +2702,11 @@ export type DocPaymentGate = {
   pageCount: number;
   includedPages: number;
   extraPages: number;
-  // Whether the approval request actually reached Telegram. False means the
-  // client is waiting on something that was never sent.
-  telegramSent: boolean;
+  // 2026-11-21 contract §1.3: the fee is paid through Click or ATMOS — its
+  // provider and the checkout page (https only, opened as given; empty when
+  // the provider was down and a fresh link is to be asked for).
+  provider: string;
+  paymentUrl: string;
 };
 export type DocLawyerSubmitResult = {
   request: DocumentRequest;
@@ -2718,10 +2720,11 @@ export type DocLawyerSubmitResult = {
   message: string;
   constructorAction: DocConstructorAction | null;
 };
-function normDocPaymentGate(v: unknown): DocPaymentGate | null {
+function normDocPaymentGate(v: unknown, paymentRaw?: unknown): DocPaymentGate | null {
   if (!v || typeof v !== "object") return null;
   const d = asDict(v);
   if (!d.id && !d.payment_id && !d.amount) return null;
+  const pay = asDict(paymentRaw);
   return {
     id: asStr(d.id),
     status: asStr(d.status),
@@ -2731,7 +2734,8 @@ function normDocPaymentGate(v: unknown): DocPaymentGate | null {
     pageCount: asNum(d.page_count),
     includedPages: asNum(d.included_pages),
     extraPages: asNum(d.extra_pages),
-    telegramSent: Boolean(d.telegram_sent),
+    provider: asStr(d.provider ?? pay.provider).toLowerCase(),
+    paymentUrl: safePaymentUrl(d.payment_url) || safePaymentUrl(pay.payment_url),
   };
 }
 // Every lawyer-review POST goes through this, so one reading of the answer
@@ -2741,7 +2745,7 @@ export function normDocLawyerSubmit(v: unknown): DocLawyerSubmitResult {
   return {
     request: normDocRequest(d.request ?? d.document_request ?? d),
     paymentRequired: Boolean(d.payment_required),
-    gate: normDocPaymentGate(d.payment_gate),
+    gate: normDocPaymentGate(d.payment_gate, d.payment),
     alreadyExists: Boolean(d.already_exists),
     canSendLawyerRequest: d.can_send_lawyer_request !== false,
     message: asStr(d.message) || asStr(d.detail),
@@ -2870,7 +2874,7 @@ function normDocRequest(v: unknown): DocumentRequest {
     canSendLawyerRequest: d.can_send_lawyer_request !== false,
     lawyerRequestBlockReason: asStr(d.lawyer_request_block_reason),
     constructorAction: normConstructorAction(d.constructor_action),
-    gate: normDocPaymentGate(d.payment_gate),
+    gate: normDocPaymentGate(d.payment_gate, d.payment),
     paymentRequired: d.payment_required === true,
     contractFile: cf
       ? {
@@ -3158,7 +3162,7 @@ export type ClientDocFlowItem = {
   createdAt: string;
   updatedAt: string;
 };
-export type DocFlowPayment = { required: boolean; status: string; amount: number; currency: string; telegramSent: boolean | null };
+export type DocFlowPayment = { required: boolean; status: string; amount: number; currency: string };
 function normDocFlowPayment(d: Dict): DocFlowPayment {
   const gate = asDict(d.payment_gate);
   const req = asDict(d.document_request);
@@ -3174,7 +3178,6 @@ function normDocFlowPayment(d: Dict): DocFlowPayment {
     status: gateStatus || asStr(d.payment_status) || asStr(req.payment_status),
     amount: Math.max(0, uzsOpt(gate, "amount") ?? uzsOpt(d, "payment_amount", "amount") ?? uzsOpt(req, "price") ?? uzsOpt(d, "price") ?? 0),
     currency: asStr(gate.currency) || asStr(req.currency) || asStr(d.currency) || "UZS",
-    telegramSent: typeof gate.telegram_sent === "boolean" ? gate.telegram_sent : null,
   };
 }
 function normClientDocFlowItem(v: unknown): ClientDocFlowItem {
