@@ -1,4 +1,5 @@
 import { hasConsent } from "./consent";
+import { http } from "./http";
 
 // Referral attribution (T1A-08): the first ?ref= code a visitor arrives with is
 // kept for 90 days (first touch) and sent as referral_code at registration.
@@ -39,4 +40,23 @@ export function readReferral(): string {
   if (typeof window === "undefined") return "";
   const cur = read();
   return cur && Date.now() - cur.at < TTL_MS ? cur.code : "";
+}
+
+// 2026-11-21 contract §5.2: the registration form shows the code again and
+// checks it with GET /referrals/{code}/validate (public) — while the user
+// types, and when the page opens with ?ref=CODE.
+export const isReferralShape = (code: string): boolean => VALID.test(code.trim());
+
+// The ?ref= of the current page, when it looks like a code.
+export function referralFromUrl(search: string): string {
+  const code = (new URLSearchParams(search).get("ref") || "").trim();
+  return VALID.test(code) ? code : "";
+}
+
+export type ReferralCheck = { code: string; valid: boolean; referrerName: string };
+export async function validateReferral(code: string, signal?: AbortSignal): Promise<ReferralCheck> {
+  const c = code.trim();
+  const d = await http(`/referrals/${encodeURIComponent(c)}/validate`, { signal });
+  const o = d && typeof d === "object" ? (d as Record<string, unknown>) : {};
+  return { code: typeof o.code === "string" ? o.code : c, valid: o.valid === true, referrerName: typeof o.referrer_name === "string" ? o.referrer_name.trim() : "" };
 }

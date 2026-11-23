@@ -13775,7 +13775,15 @@
       "phone": "Phone",
       "password": "Password",
       "passwordPh": "At least 8 characters",
-      "passwordHint": "Use at least 8 characters."
+      "passwordHint": "Use at least 8 characters.",
+      "referral": "Referral code",
+      "referralPh": "For example, THREF001",
+      "referralHint": "If someone invited you, enter their code.",
+      "referralChecking": "Checking the code…",
+      "referralValid": "{name} invited you.",
+      "referralValidNoName": "The code is valid.",
+      "referralInvalid": "Referral code not found. Check it or leave the field empty.",
+      "referralUnchecked": "The code couldn't be checked right now — it's checked when you sign up."
     },
     "lawyer": {
       "basicTitle": "Your professional profile",

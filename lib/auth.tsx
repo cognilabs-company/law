@@ -462,7 +462,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       lastName: draft.profile.lastName,
       middleName: draft.profile.middleName,
       region: draft.profile.region,
-      referralCode: readReferral(),
+      referralCode: draft.referralCode !== undefined ? draft.referralCode.trim() : readReferral(),
       phone: normUzPhone(draft.phone),
       password: draft.password,
       otpDeliveryMethod: draft.otpDeliveryMethod,

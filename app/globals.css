@@ -2628,6 +2628,11 @@ body:has(.auth) .fab{display:none}
 .mpick__clear svg{width:13px;height:13px}
 
 .rf__hint{margin:6px 0 0;font-size:.76rem;color:var(--gray2)}
+/* The referral code's check (2026-11-21 contract §5.2). */
+.rf__hint--ok{color:var(--ok,#0e7a55)}
+.rf__hint--bad{color:var(--danger,#c2410c)}
+.rf__ref input{text-transform:uppercase}
+.rf__ref input::placeholder{text-transform:none}
 
 /* data loading skeleton */
 .pskel{display:grid;gap:10px;padding:6px 0}

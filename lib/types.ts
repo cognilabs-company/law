@@ -96,6 +96,10 @@ export type RegistrationDraft = {
   // Where the sign-up code (and every later one) is delivered.
   otpDeliveryMethod: OtpDeliveryMethod;
   profile: ProfessionalProfile;
+  // The referral code typed or brought by a ?ref= link (2026-11-21 §5.2).
+  // undefined = never touched (the stored first-touch code is sent);
+  // "" = cleared by the user (nothing is sent).
+  referralCode?: string;
 };
 
 export function emptyProfile(): ProfessionalProfile {

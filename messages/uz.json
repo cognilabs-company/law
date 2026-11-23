@@ -13781,7 +13781,15 @@
       "phone": "Telefon",
       "password": "Parol",
       "passwordPh": "Kamida 8 ta belgi",
-      "passwordHint": "Kamida 8 ta belgidan foydalaning."
+      "passwordHint": "Kamida 8 ta belgidan foydalaning.",
+      "referral": "Taklif kodi",
+      "referralPh": "Masalan, THREF001",
+      "referralHint": "Sizni taklif qilgan odamning kodi bo'lsa, kiriting.",
+      "referralChecking": "Kod tekshirilmoqda…",
+      "referralValid": "{name} sizni taklif qildi.",
+      "referralValidNoName": "Kod to'g'ri.",
+      "referralInvalid": "Taklif kodi topilmadi. Kodni tekshiring yoki maydonni bo'sh qoldiring.",
+      "referralUnchecked": "Kodni hozir tekshirib bo'lmadi — ro'yxatdan o'tishda tekshiriladi."
     },
     "lawyer": {
       "basicTitle": "Professional profilingiz",

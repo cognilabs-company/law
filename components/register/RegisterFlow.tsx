@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { readReferral } from "@/lib/referral";
+import { isReferralShape, readReferral, referralFromUrl, validateReferral } from "@/lib/referral";
 import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError, errDetail, isOffline, isOtpExpired, isRateLimited, retryAfterSec } from "@/lib/http";
@@ -189,7 +189,7 @@ export default function RegisterFlow() {
   // The details a code is issued for; any change (the channel included) needs
   // a new code.
   const keyOf = (d: RegistrationDraft) =>
-    JSON.stringify([d.accountType, d.phone, d.profile.firstName, d.profile.lastName, d.profile.middleName, d.profile.region, d.password, d.otpDeliveryMethod]);
+    JSON.stringify([d.accountType, d.phone, d.profile.firstName, d.profile.lastName, d.profile.middleName, d.profile.region, d.password, d.otpDeliveryMethod, d.referralCode ?? ""]);
   function setProfile(patch: Partial<ProfessionalProfile>) {
     setDraft((d) => ({ ...d, profile: { ...d.profile, ...patch } }));
   }
@@ -206,6 +206,67 @@ export default function RegisterFlow() {
       };
     });
   }
+
+  // The referral code (2026-11-21 contract §5.2): shown again, pre-filled
+  // from ?ref= (or the code kept from an earlier visit), and checked with
+  // GET /referrals/{code}/validate while the user types.
+  const refCode = (draft.referralCode ?? "").trim();
+  const [refCheck, setRefCheck] = useState<{ code: string; state: "valid" | "invalid" | "error"; name: string } | null>(null);
+  useEffect(() => {
+    if (draft.referralCode !== undefined) return;
+    const h = setTimeout(() => {
+      const code = referralFromUrl(window.location.search) || readReferral();
+      if (code) setDraft((d) => (d.referralCode === undefined ? { ...d, referralCode: code } : d));
+    }, 0);
+    return () => clearTimeout(h);
+  }, [draft.referralCode]);
+  useEffect(() => {
+    if (!refCode || !isReferralShape(refCode)) return;
+    const ctl = new AbortController();
+    const h = setTimeout(() => {
+      validateReferral(refCode, ctl.signal)
+        .then((r) => setRefCheck({ code: refCode, state: r.valid ? "valid" : "invalid", name: r.referrerName }))
+        .catch((e: unknown) => {
+          if (!ctl.signal.aborted) setRefCheck({ code: refCode, state: e instanceof ApiError && e.status === 404 ? "invalid" : "error", name: "" });
+        });
+    }, 400);
+    return () => {
+      clearTimeout(h);
+      ctl.abort();
+    };
+  }, [refCode]);
+  const refShown = refCode && refCheck?.code === refCode ? refCheck : null;
+  const refBad = !!refCode && (!isReferralShape(refCode) || refShown?.state === "invalid");
+  const refField = (
+    <div className="rf__ref" data-ai-id="register.referral">
+      <label htmlFor="rf-referral">
+        {t("fields.referral")} <span className="rf__opt">{t("optional")}</span>
+      </label>
+      <input
+        id="rf-referral"
+        value={draft.referralCode ?? ""}
+        onChange={(e) => setDraft((d) => ({ ...d, referralCode: e.target.value.replace(/\s+/g, "").slice(0, 32) }))}
+        placeholder={t("fields.referralPh")}
+        autoComplete="off"
+        spellCheck={false}
+        aria-invalid={refBad || undefined}
+        aria-describedby="rf-referral-note"
+      />
+      <p id="rf-referral-note" className={`rf__hint${refBad ? " rf__hint--bad" : refShown?.state === "valid" ? " rf__hint--ok" : ""}`} role={refBad ? "alert" : undefined}>
+        {!refCode
+          ? t("fields.referralHint")
+          : refBad
+            ? t("fields.referralInvalid")
+            : refShown?.state === "valid"
+              ? refShown.name
+                ? t("fields.referralValid", { name: refShown.name })
+                : t("fields.referralValidNoName")
+              : refShown?.state === "error"
+                ? t("fields.referralUnchecked")
+                : t("fields.referralChecking")}
+      </p>
+    </div>
+  );
 
   const pwField = (
     <div>
@@ -313,6 +374,11 @@ export default function RegisterFlow() {
         setStartErr({ msg: errDetail(e) || tc("rateLimited"), wait: true });
       } else if (e instanceof ApiError && e.status === 409) {
         setStartErr({ msg: t("verify.phoneExists"), login: true });
+      } else if (e instanceof ApiError && (e.code === "referral_code_invalid" || /referral/i.test(e.code ?? ""))) {
+        // §5.2: an unknown code is refused at registration — the field says so.
+        const code = (d.referralCode ?? "").trim();
+        if (code) setRefCheck({ code, state: "invalid", name: "" });
+        setStartErr({ msg: t("fields.referralInvalid") });
       } else if (channelDown(e)) {
         setStartErr({ msg: tm("unavailable", { method: methodName(d.otpDeliveryMethod) }), channel: d.otpDeliveryMethod });
       } else {
@@ -739,6 +805,7 @@ export default function RegisterFlow() {
                   </label>
                   <input type="email" value={p.email ?? ""} onChange={(e) => setProfile({ email: e.target.value })} placeholder={t("fields.emailPh")} />
                 </div>
+                {refField}
                 {pwField}
               </div>
               <p className="rf__wow">{t("client.wow")}</p>
@@ -778,6 +845,7 @@ export default function RegisterFlow() {
                   <b>{t("advocate.expBenefitTitle")}</b>
                   <p>{t("lawyer.expBenefit")}</p>
                 </div>
+                {refField}
                 {pwField}
               </div>
             </div>
@@ -821,6 +889,7 @@ export default function RegisterFlow() {
                   </div>
                   <div />
                 </div>
+                {refField}
                 {pwField}
               </div>
             </div>
