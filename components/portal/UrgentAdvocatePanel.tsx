@@ -8,12 +8,15 @@ import {
   getUrgentCatalog,
   createUrgentRequest,
   listMyUrgentRequests,
-  cancelUrgentRequest,
+  cancelMyUrgentRequest,
+  urgentCancelRefusal,
   urgentPrice,
   urgentMinutes,
   urgentChannels,
   isPriorPurchaseRequired,
   isUrgentEvent,
+  urgentEventInfo,
+  expressUnansweredOf,
   isMissingRoute,
   urgentViaOperator,
   rateUrgentRequest,
@@ -189,7 +192,7 @@ const CARD_ORDER = ["video_consultation", "chat_consultation", "traffic_accident
 // call. `lawyer` is the on-duty advocate the create response names in
 // `assigned_lawyer` (same MD, L51-56): the client is about to speak to a
 // person and should be told who before the room opens.
-type LiveCall = { call: NonNullable<UrgentCreated["call"]>; workId: string; serviceKind: string; lawyer: string };
+type LiveCall = { call: NonNullable<UrgentCreated["call"]>; requestId: string; workId: string; serviceKind: string; lawyer: string };
 
 // The 15-minute rating window, as mm:ss. Counted down from the backend's own
 // `rating_deadline_at` rather than from fifteen, so a detail left open all
@@ -317,13 +320,39 @@ export default function UrgentAdvocatePanel() {
   const refetch = useCallback(() => setReload((k) => k + 1), []);
   const again = useRef(refetch);
   useEffect(() => { again.current = refetch; }, [refetch]);
+  // The express call on screen, for the realtime handler below.
+  const liveRef = useRef<LiveCall | null>(null);
+  useEffect(() => { liveRef.current = live; }, [live]);
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const soon = () => {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => again.current(), 300);
     };
+    // BACKEND_FIXES_LIVE_2026-11-23: an express call nobody picked up (or that
+    // the client hung up before the advokat joined) puts the request back in
+    // the general queue. The ringing room closes and the client is told the
+    // request is still alive — the same toast whichever frame says it first.
+    const unanswered = (hungUp: boolean) => {
+      notify.warning(hungUp ? t("expressHungUp") : t("expressNoAnswer"), { id: "urgent-express-unanswered", body: t("expressBackToQueue"), duration: 10000 });
+    };
     const off = subscribeUserEvents((e) => {
+      const missed = expressUnansweredOf(e);
+      if (missed) {
+        const cur = liveRef.current;
+        if (cur && (!missed.recordId || missed.recordId === cur.requestId)) setLive(null);
+        unanswered(missed.hungUp);
+        soon();
+        return;
+      }
+      if (isUrgentEvent(e.event)) {
+        const info = urgentEventInfo(e);
+        const cur = liveRef.current;
+        if (cur && info.recordId === cur.requestId && (info.status || info.request?.status) === "open_pool") {
+          setLive(null);
+          unanswered(false);
+        }
+      }
       const assist = e.event === URGENT_ASSIST_EVENT;
       if (!assist && !isUrgentEvent(e.event)) return;
       const ids = operatorMadeIds(e);
@@ -485,6 +514,7 @@ export default function UrgentAdvocatePanel() {
         // service this is and who is on the other end.
         setLive({
           call: created.call,
+          requestId: created.request.id,
           workId: created.request.workId,
           serviceKind: sel.key,
           lawyer: created.request.assignedLawyerName,
@@ -1354,13 +1384,19 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
     setBusy("cancel");
     const nid = `urgent-cancel-${req.id}`;
     try {
-      await cancelUrgentRequest(req.id, reason.trim() || t("cancelDefaultReason"));
+      await cancelMyUrgentRequest(req.id, reason.trim() || t("cancelDefaultReason"));
       const kind = t.has(`kinds.${req.serviceKind}`) ? t(`kinds.${req.serviceKind}`) : req.serviceTitle || req.serviceKind;
       notify.success(t("cancelledTitle"), { id: nid, body: [kind, req.workId].filter(Boolean).join(" · ") || undefined });
       onCancelled();
     } catch (e) {
       logApiError("urgent cancel", e);
-      notify.error(t("cancelError"), { id: nid, error: e });
+      const no = urgentCancelRefusal(e);
+      if (no) {
+        // The record moved on (or is gone): say why, and show it as it is now.
+        const body = no.kind === "tooLate" ? t("cancelTooLate", { status: statusLabel(tcm, no.status || req.status) }) : no.kind === "notFound" ? t("cancelNotFound") : t("cancelForbidden");
+        notify.warning(t("cancelError"), { id: nid, body });
+        if (no.kind !== "forbidden") onCancelled();
+      } else notify.error(t("cancelError"), { id: nid, error: e });
     } finally {
       setBusy("");
     }

@@ -8894,6 +8894,26 @@ export async function setUrgentStatus(id: string, status: string, note?: string)
 export async function cancelUrgentRequest(id: string, reason: string): Promise<UrgentRequest> {
   return normUrgentRequest(await http(ccUrgent(id, "/cancel"), { method: "POST", body: JSON.stringify({ reason }) }));
 }
+// BACKEND_FIXES_LIVE_2026-11-23: the client's own cancel. The call-center
+// route above answers 403 to a client; this one is for the client who owns
+// the request, and it also ends a call that is still ringing.
+export async function cancelMyUrgentRequest(id: string, reason: string): Promise<void> {
+  const why = reason.trim();
+  await http(`/urgent-advokat/requests/${encodeURIComponent(id)}/cancel`, { method: "POST", body: JSON.stringify(why ? { reason: why } : {}) });
+}
+// Why the backend refused a client cancel: 404 urgent_request_not_found,
+// 403 urgent_request_forbidden, 409 urgent_request_not_cancellable {status}.
+export type UrgentCancelRefusal = { kind: "notFound" | "forbidden" | "tooLate"; status: string } | null;
+export function urgentCancelRefusal(e: unknown): UrgentCancelRefusal {
+  if (!(e instanceof ApiError)) return null;
+  const d = asDict(e.data.detail);
+  const code = e.code || asStr(d.code) || asStr(e.data.code);
+  const status = asStr(d.status ?? e.data.status);
+  if (e.status === 409 || code === "urgent_request_not_cancellable") return { kind: "tooLate", status };
+  if (e.status === 404 || code === "urgent_request_not_found") return { kind: "notFound", status };
+  if (e.status === 403 || code === "urgent_request_forbidden") return { kind: "forbidden", status };
+  return null;
+}
 
 // ── Realtime ──────────────────────────────────────────────────────
 // What /ws/users/me delivers for this module. The MD is explicit that these
@@ -8911,6 +8931,26 @@ export function urgentEventInfo(e: Record<string, unknown>): UrgentEventInfo {
     status: asStr(e.status),
     request: req && typeof req === "object" ? normUrgentRequest(req) : null,
   };
+}
+// BACKEND_FIXES_LIVE_2026-11-23: an express call that was missed, declined,
+// busy or unavailable — or that the client hung up before the advokat joined —
+// sends the request back to open_pool with no advokat, and the client gets the
+// notification urgent_advokat.express_call_unanswered ("Advokat javob
+// bermadi", or "Qo'ng'iroq bekor qilindi" when the client hung up). Nobody is
+// called automatically yet. Read from the notification frame (or the bare
+// event, should it ever come as one); null for anything else.
+export const EXPRESS_UNANSWERED = "urgent_advokat.express_call_unanswered";
+export type ExpressUnanswered = { recordId: string; hungUp: boolean };
+export function expressUnansweredOf(e: Record<string, unknown>): ExpressUnanswered | null {
+  const ev = asStr(e.event);
+  const n = ev === EXPRESS_UNANSWERED ? e : ev === "notification.created" ? asDict(e.notification ?? e) : null;
+  if (!n) return null;
+  const data = { ...asDict(n.payload), ...asDict(n.data) };
+  const kind = ev === EXPRESS_UNANSWERED ? ev : asStr(data.event ?? n.event_type ?? n.kind ?? n.type);
+  if (kind !== EXPRESS_UNANSWERED) return null;
+  const recordId = asStr(n.record_id ?? data.record_id ?? data.urgent_request_id ?? data.request_id ?? n.ref_id ?? data.target_id);
+  const why = [data.reason, data.call_status, data.outcome, n.title].map((x) => asStr(x).toLowerCase()).join(" ");
+  return { recordId, hungUp: /client_(hung|left|ended|cancel)|hung_up|hangup|bekor/.test(why) };
 }
 
 // ── helpers ───────────────────────────────────────────────────────
