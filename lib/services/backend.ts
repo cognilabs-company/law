@@ -2529,6 +2529,10 @@ export type DocumentRequestEditorSession = {
   editorFileDownloadUrl: string;
   draftUrl: string;
   finalizeUrl: string;
+  // BACKEND_FIXES_LIVE_2026-11-23: the saved draft and when it was last
+  // saved ("" when never), so a reopened editor knows its own state.
+  draft: { contentHtml: string; contentText: string; documentJson: unknown; savedAt: string } | null;
+  lastSavedAt: string;
 };
 function normEditorSession(v: unknown, fallbackRecordId = ""): DocumentRequestEditorSession {
   const d = asDict(v);
@@ -2555,6 +2559,13 @@ function normEditorSession(v: unknown, fallbackRecordId = ""): DocumentRequestEd
     editorFileDownloadUrl: asStr(file.download_url) || (base ? `${base}/file` : ""),
     draftUrl: asStr(d.draft_url) || (base ? `${base}/draft` : ""),
     finalizeUrl: asStr(d.finalize_url) || (base ? `${base}/finalize` : ""),
+    draft: d.draft && typeof d.draft === "object"
+      ? (() => {
+          const x = asDict(d.draft);
+          return { contentHtml: asStr(x.content_html), contentText: asStr(x.content_text), documentJson: x.document_json ?? null, savedAt: asStr(x.saved_at) };
+        })()
+      : null,
+    lastSavedAt: asStr(d.last_saved_at ?? asDict(d.draft).saved_at),
   };
 }
 export async function getDocumentRequestEditor(editorUrl: string): Promise<DocumentRequestEditorSession> {
