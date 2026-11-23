@@ -975,6 +975,11 @@ export type SupplementalPayment = {
   options: OrderOption[];
   expiresAt: string;
   createdAt: string;
+  // 2026-11-21 contract §1.3: the client pays it through Click or ATMOS —
+  // request.payload.provider / payment_url and the payment behind it.
+  paymentId: string;
+  provider: string;
+  paymentUrl: string;
 };
 
 const ROOM_RE = /\/secure-chats\/([^/?#]+)/;
@@ -1005,10 +1010,13 @@ const SUPPLEMENTAL_STATUS: Record<string, SupplementalStatus> = {
   replaced: "cancelled",
 };
 
-function normSupplemental(v: unknown): SupplementalPayment | null {
+function normSupplemental(v: unknown, paymentRaw?: unknown): SupplementalPayment | null {
   const d = asDict(v);
   if (!Object.keys(d).length) return null;
   const quote = asDict(d.quote);
+  const payload = asDict(d.payload);
+  const pay = asDict(paymentRaw ?? d.payment);
+  const link = asStr(payload.payment_url ?? d.payment_url ?? pay.payment_url).trim();
   const options = asArr(d.selected_options ?? d.options ?? quote.breakdown).map(normOrderOption).filter((o) => o.id || o.label);
   const ids = asArr(d.selected_option_ids).map((x) => asStr(x)).filter(Boolean);
   return {
@@ -1020,6 +1028,10 @@ function normSupplemental(v: unknown): SupplementalPayment | null {
     options: options.length ? options : ids.map((id) => ({ id, label: "", amount: 0 })),
     expiresAt: asStr(d.expires_at ?? d.deadline_at),
     createdAt: asStr(d.created_at),
+    paymentId: asStr(payload.payment_id ?? d.payment_id ?? pay.id),
+    provider: asStr(payload.provider ?? d.provider ?? pay.provider).toLowerCase(),
+    // Only an https provider page is ever followed.
+    paymentUrl: /^https:\/\/\S+$/i.test(link) ? link : "",
   };
 }
 
@@ -1477,7 +1489,7 @@ export async function requestAdditionalPayment(orderId: string, input: { selecte
       body: JSON.stringify({ selected_option_ids: input.selectedOptionIds, note: input.note.trim() }),
     }),
   );
-  return normSupplemental(d.additional_payment_request ?? d.request ?? d.additional_payment ?? d);
+  return normSupplemental(d.additional_payment_request ?? d.request ?? d.additional_payment ?? d, d.payment);
 }
 
 export const MARKET_EVENT = "lexgo:marketplace";

@@ -39,6 +39,7 @@ import {
   startCallRecordingServer,
   freeExtendCall,
   requestCallExtensionPayment,
+  answerCallExtensionPayment,
   pauseCall,
   resumeCall,
   parseCallQualityPolicy,
@@ -69,6 +70,8 @@ import { NO_BG, bgSupported, cameraProcessor, claimBgUnavailableNotice, getBgEff
 import CallBackgroundPicker from "./CallBackgroundPicker";
 import { IconPhone, IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus, IconPlus, IconClock, IconRecord, IconBgPerson, IconPip, IconSparkle } from "../icons";
 import { regionLabel } from "@/lib/labels";
+import { openCheckoutTab, sendCheckoutTab } from "@/lib/services/clickCheckout";
+import { rememberPendingPayment } from "@/lib/services/paymentProviders";
 import { CALLROOM_EVENT, CALLROOM_FLOAT_EVENT, isCallRoomMounted, trackCallRoomMount } from "@/lib/callEvents";
 import { callPipSupported, onAutoCallPip, openCallPip } from "@/lib/callPip";
 import { createPortal } from "react-dom";
@@ -467,6 +470,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   // the advocate's voice ("Mijoz Telegramda tasdiqlashi kerak"), i.e. it told
   // the client about the client.
   const [extAns, setExtAns] = useState<ExtAnswer>({ id: "" });
+  const [extPaying, setExtPaying] = useState(false);
   const [extLeft, setExtLeft] = useState(0);
   // Read by the LiveKit data handler, which is registered once at connect and
   // would otherwise close over the empty request id it saw then.
@@ -1213,7 +1217,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       // the kind of thing that must not wait out the 15-second poll. The
       // timer itself already honours `paused` — this is only about learning
       // of it at once.
-      if (/^call[.](extended|payment_extension_|paused|resumed)/.test(e.event)) setMetaTick((n) => n + 1);
+      // 2026-11-21 §7.2: the recording events come on this stream too.
+      if (/^call[.](extended|payment_extension_|paused|resumed|recording_)/.test(e.event)) setMetaTick((n) => n + 1);
       // Somebody else switched their camera on and the backend promoted this
       // audio call to video. The payload carries the updated call object, so
       // the policy is taken from there when it is present and otherwise
@@ -1713,37 +1718,38 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     }
   }
   // ── The client's answer to a paid extension ────────────────────
-  // FULL_DOCS §23 L887-891 asks for "Mijozda payment confirm/cancel UI" — the
-  // client, not only the advocate, has to be able to answer, and today the
-  // only route is the Telegram bot.
-  // There is no HTTP endpoint for that answer, and this deliberately does not
-  // invent one. LEXGO_MEETING_EXTENSION_FRONTEND_UPDATE.md L79 says the
-  // backend "Telegram inline approve/reject yuboradi", and a read-only sweep
-  // of production on 2026-09-29 (client +998900000005) found every plausible
-  // path 404: …/extension-payment-confirm, -approve, -reject, -accept,
-  // -decline, -answer, -response, -cancel, -pay, …/extension/confirm,
-  // …/extension-confirm, …/extensions, /call-extension-requests/{id},
-  // /me/extension-requests — while …/extension-payment-request answers 405
-  // with Allow: POST, i.e. exists and is the advocate's side only.
-  // (/calls/extension-requests looks like a hit at first glance; it is the
-  // PATCH /calls/{call_id} wildcard — /calls/zzzz-not-a-route answers
-  // identically.) A guessed POST here would move money, so it is not made.
-  // What this does instead is real on both sides: it tells the room over the
-  // LiveKit data channel — the same channel the recording consent already
-  // rides, and still open while paused because a pause only mutes tracks — so
-  // the advocate learns the client's decision at once instead of watching the
-  // five-minute window run out, and it moves this side's card to an
-  // acknowledgement that names where the payment is actually completed.
-  // When the backend exposes the answer route, this function is the one place
-  // that call goes.
-  function answerExtension(ok: boolean) {
-    const id = limits?.pendingExtensionRequest?.id ?? "";
-    if (!id) return;
-    setExtAns((cur) => ({ id, mine: ok ? "yes" : "no", peer: cur.id === id ? cur.peer : undefined }));
-    roomRef.current?.localParticipant
-      .publishData(enc({ t: "extans", allowed: ok, at: stamp() }), { reliable: true })
-      .catch(() => {});
-    say(ok ? "success" : "info", ok ? t("extAnsYesToast") : t("extAnsNoToast"), { id: "call-ext-answer" });
+  // 2026-11-21 contract §7.3: PATCH …/extension-payment-request with
+  // {approved}. Yes → the answer's pending_extension_request.payment_url is
+  // the Click or ATMOS page, opened in a tab taken inside the press; the call
+  // is extended only after the provider confirms (call.payment_extension_
+  // approved, then call.extended). The room still hears the decision over
+  // the LiveKit data channel, so the advocate's card moves at once.
+  async function answerExtension(ok: boolean) {
+    const pend = limits?.pendingExtensionRequest ?? null;
+    const id = pend?.id ?? "";
+    if (!id || extPaying) return;
+    const tab = ok ? openCheckoutTab() : null;
+    setExtPaying(true);
+    try {
+      const c = await answerCallExtensionPayment(roomId, callId, ok);
+      const next = callLimitsOf(c);
+      setLimits(next);
+      setExtAns((cur) => ({ id, mine: ok ? "yes" : "no", peer: cur.id === id ? cur.peer : undefined }));
+      roomRef.current?.localParticipant
+        .publishData(enc({ t: "extans", allowed: ok, at: stamp() }), { reliable: true })
+        .catch(() => {});
+      if (ok) {
+        const url = next.pendingExtensionRequest?.paymentUrl || pend?.paymentUrl || "";
+        if (url) sendCheckoutTab(tab, url, () => rememberPendingPayment({ id: next.pendingExtensionRequest?.paymentId || pend?.paymentId || "", amount: next.pendingExtensionRequest?.amount || pend?.amount || 0 }));
+        else tab?.close();
+      }
+      say(ok ? "success" : "info", ok ? t("extAnsYesToast") : t("extAnsNoToast"), { id: "call-ext-answer" });
+    } catch (e) {
+      tab?.close();
+      say("error", t("extAnsError"), { id: "call-ext-answer", error: e });
+    } finally {
+      setExtPaying(false);
+    }
   }
 
   // ── Holding the meeting ────────────────────────────────────────
@@ -2535,8 +2541,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
                 ) : (
                   <>
                     <div className="mtg__recask-btns">
-                      <button type="button" className="btn btn--pri btn--sm" onClick={() => answerExtension(true)} data-ai-id={aiAt("extend")} data-ai-label={aiScope ? t("extConfirm") : undefined}><IconPlus />{t("extConfirm")}</button>
-                      <button type="button" className="btn btn--line btn--sm" onClick={() => answerExtension(false)} data-ai-id={aiAt("extend.decline")} data-ai-label={aiScope ? t("extDecline") : undefined}><IconClose />{t("extDecline")}</button>
+                      <button type="button" className="btn btn--pri btn--sm" onClick={() => void answerExtension(true)} disabled={extPaying} data-ai-id={aiAt("extend")} data-ai-label={aiScope ? t("extConfirm") : undefined}><IconPlus />{t("extConfirm")}</button>
+                      <button type="button" className="btn btn--line btn--sm" onClick={() => void answerExtension(false)} disabled={extPaying} data-ai-id={aiAt("extend.decline")} data-ai-label={aiScope ? t("extDecline") : undefined}><IconClose />{t("extDecline")}</button>
                     </div>
                     <small>{t("extAskNote")}</small>
                   </>

@@ -11454,6 +11454,10 @@ html[data-theme="dark"] .splan--feat.splan--sel{
 .mko__supsum svg{width:14px;height:14px}
 .mko__supsum b{color:var(--ink)}
 .mko__supnote{margin:0;padding:8px 10px;border-left:3px solid var(--dk-line, var(--line));font-size:.84rem;line-height:1.5;color:var(--ink);white-space:pre-line}
+/* The extra paid through Click or ATMOS (2026-11-21 contract §1.3). */
+.mko__suppay{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+.mko__suppay .btn{max-width:100%;white-space:normal}
+.mko__suppay-err{color:var(--danger,#c2410c);font-size:.8rem;overflow-wrap:anywhere}
 .mko__res{display:grid;gap:8px;padding:14px;border-radius:16px;background:var(--dk-tint-ok, #EEFAF4);box-shadow:inset 0 0 0 1.5px rgba(16,163,112,.25)}
 .mko__resh{display:inline-flex;align-items:center;gap:6px;font-size:.9rem;color:var(--dk-txt-ok, #0B7A55)}
 .mko__resh svg{width:16px;height:16px}

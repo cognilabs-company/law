@@ -6653,7 +6653,9 @@ export type CallSession = {
   clientCallUsage: CallUsage | null;
 };
 // A paid extension waiting on the client's Telegram approve/reject.
-export type CallExtensionRequest = { id: string; minutes: number; amount: number; status: string; expiresAt: string };
+// paymentUrl / provider: the client pays it through Click or ATMOS
+// (2026-11-21 contract §1.3, §7.3); https only, opened as given.
+export type CallExtensionRequest = { id: string; minutes: number; amount: number; status: string; expiresAt: string; paymentId: string; provider: string; paymentUrl: string };
 // "Client hujjat ishi yakunlanmaguncha advokatga 3 martagacha ... call
 // boshlashi mumkin" — the 4th attempt is a 429.
 export type CallUsage = { used: number; limit: number; remaining: number };
@@ -6821,7 +6823,16 @@ function normCallLimits(d: Dict): Pick<
     freeExtensionMaxMinutes: asNum(d.free_extension_max_minutes),
     paidExtensionPricePerMinute: asNum(d.paid_extension_price_per_minute),
     pendingExtensionRequest: pend
-      ? { id: asStr(pend.id), minutes: asNum(pend.minutes), amount: asNum(pend.amount), status: asStr(pend.status), expiresAt: asStr(pend.expires_at) }
+      ? {
+          id: asStr(pend.id),
+          minutes: asNum(pend.minutes),
+          amount: asNum(pend.amount),
+          status: asStr(pend.status),
+          expiresAt: asStr(pend.expires_at),
+          paymentId: asStr(pend.payment_id ?? asDict(pend.payment).id),
+          provider: asStr(pend.provider ?? asDict(pend.payment).provider).toLowerCase(),
+          paymentUrl: safePaymentUrl(pend.payment_url ?? asDict(pend.payment).payment_url),
+        }
       : null,
     documentRequestId: asStr(d.document_request_id),
     documentLawyerRecordId: asStr(d.document_lawyer_record_id),
@@ -7070,12 +7081,22 @@ export async function resumeCall(roomId: string, callId: string): Promise<CallSe
 export async function freeExtendCall(roomId: string, callId: string, minutes = 3): Promise<CallSession> {
   return normCall(await http(`/secure-chats/${roomId}/calls/${callId}/free-extend`, { method: "POST", body: JSON.stringify({ minutes }) }));
 }
-// Puts the call into `paused` until the client approves or rejects in
-// Telegram; the pause itself expires after 5 minutes and the call then runs
-// out its remaining time as if nothing had been asked.
-export async function requestCallExtensionPayment(roomId: string, callId: string, minutes: number): Promise<CallSession> {
+// Puts the call into `paused` until the client answers; the pause itself
+// expires after 5 minutes and the call then runs out its remaining time as if
+// nothing had been asked. The payment is Click or ATMOS (2026-11-21 §1.3):
+// with no provider named the backend picks.
+export async function requestCallExtensionPayment(roomId: string, callId: string, minutes: number, provider = ""): Promise<CallSession> {
   return normCall(
-    await http(`/secure-chats/${roomId}/calls/${callId}/extension-payment-request`, { method: "POST", body: JSON.stringify({ minutes }) }),
+    await http(`/secure-chats/${roomId}/calls/${callId}/extension-payment-request`, { method: "POST", body: JSON.stringify(provider ? { minutes, provider } : { minutes }) }),
+  );
+}
+// The client's answer (2026-11-21 contract §7.3): approved → the answer
+// carries pending_extension_request.payment_url to open; the call is
+// extended once the provider confirms (call.payment_extension_approved, then
+// call.extended). Rejected → call.payment_extension_rejected.
+export async function answerCallExtensionPayment(roomId: string, callId: string, approved: boolean): Promise<CallSession> {
+  return normCall(
+    await http(`/secure-chats/${roomId}/calls/${callId}/extension-payment-request`, { method: "PATCH", body: JSON.stringify({ approved }) }),
   );
 }
 

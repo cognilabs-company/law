@@ -6799,8 +6799,8 @@
       "minutesLeft": "{m} daqiqa qoldi",
       "sup": {
         "pending": "Qo'shimcha to'lov kutilmoqda",
-        "pendingClient": "Ijrochi qo'shimcha opsiya uchun to'lov so'radi. To'lov tasdiqlanguncha ish to'xtatiladi.",
-        "pendingSeller": "So'rov Telegram orqali tasdiqlanadi. Tasdiqlanguncha ish to'xtatilgan; 24 soat ichida tasdiqlanmasa operator ko'rib chiqadi.",
+        "pendingClient": "Ijrochi qo'shimcha opsiya uchun to'lov so'radi. Click yoki ATMOS orqali to'lang — to'lov tasdiqlanguncha ish to'xtatiladi.",
+        "pendingSeller": "Mijoz Click yoki ATMOS orqali to'laydi. To'lov tasdiqlanguncha ish to'xtatilgan; 24 soat ichida to'lanmasa operator ko'rib chiqadi.",
         "approved": "Qo'shimcha to'lov tasdiqlandi",
         "approvedText": "Yangi umumiy narx kuchga kirdi, ish davom etmoqda.",
         "rejected": "Qo'shimcha to'lov rad etildi",
@@ -6813,7 +6813,10 @@
         "cancelledText": "Operator so'rovni almashtirdi yoki bekor qildi.",
         "options": "Qo'shimcha opsiyalar",
         "amount": "Qo'shimcha summa",
-        "newTotal": "Yangi umumiy narx"
+        "newTotal": "Yangi umumiy narx",
+        "pay": "{provider} orqali to'lash",
+        "payAny": "Qo'shimcha to'lovni to'lash",
+        "payFailed": "To'lov sahifasini ochib bo'lmadi. Birozdan so'ng qayta urinib ko'ring."
       },
       "result": {
         "title": "Ish natijasi",
@@ -18897,10 +18900,10 @@
     "extPeerNo": "Mijoz uzaytirishni rad etdi.",
     "extPeerYes": "Mijoz uzaytirishni tasdiqladi — to'lov kutilmoqda.",
     "extAnsNoToast": "Uzaytirish rad etildi.",
-    "extAnsYesToast": "Javobingiz advokatga yuborildi.",
+    "extAnsYesToast": "To'lov sahifasi ochildi.",
     "extAnsNoNote": "Siz rad etdingiz. Uchrashuv qolgan vaqti bilan davom etadi.",
-    "extAnsYesNote": "Javobingiz advokatga yetkazildi. To'lovni Telegram botda yakunlang — uchrashuv shundan keyin davom etadi.",
-    "extAskNote": "To'lovning o'zi Telegram botdagi tugma orqali yakunlanadi.",
+    "extAnsYesNote": "To'lov sahifasi yangi oynada ochildi. Click yoki ATMOS to'lovni tasdiqlagach, uchrashuv uzaytiriladi.",
+    "extAskNote": "«Tasdiqlash» bosilsa, Click yoki ATMOS to'lov sahifasi ochiladi.",
     "extDecline": "Rad etish",
     "extConfirm": "Tasdiqlash",
     "extAnswerLeft": "Javob berish uchun: {time}",
@@ -18978,7 +18981,7 @@
     "layoutSpeaker": "So'zlovchi ko'rinishi",
     "paused": "Pauza",
     "pausedTitle": "To'lov javobi kutilmoqda",
-    "pausedLead": "Uchrashuvni {minutes} daqiqaga uzaytirish uchun {amount} so'm to'lovi so'raldi. Mijoz Telegramda tasdiqlashi kerak.",
+    "pausedLead": "Uchrashuvni {minutes} daqiqaga uzaytirish uchun {amount} so'm to'lovi so'raldi. Mijoz Click yoki ATMOS orqali to'laydi.",
     "pausedLeadPlain": "Uzaytirish to'lovi tasdiqlanishi kutilmoqda.",
     "pausedExpiry": "5 daqiqada javob bo'lmasa, uchrashuv qolgan vaqti bilan davom etadi.",
     "extendFree": "+{n} daqiqa bepul",
@@ -19056,7 +19059,8 @@
     "recChip": "yozib olmoqda",
     "chatContacts": "Aloqa ma'lumotlarini (telefon, e-pochta, havola, Telegram) yuborib bo'lmaydi — aloqa faqat Tezkor Himoya ichida.",
     "pip": "Kichik oyna",
-    "pipHint": "Qo'ng'iroqni boshqa tab yoki dasturlar ustida kichik oynada ko'rsatish"
+    "pipHint": "Qo'ng'iroqni boshqa tab yoki dasturlar ustida kichik oynada ko'rsatish",
+    "extAnsError": "Javobni yuborib bo'lmadi. Qayta urinib ko'ring."
   },
   "theme": {
     "label": "Mavzu",

@@ -6799,8 +6799,8 @@
       "minutesLeft": "{m} min left",
       "sup": {
         "pending": "Supplemental payment pending",
-        "pendingClient": "The provider requested payment for an extra option. Work is paused until it's confirmed.",
-        "pendingSeller": "The request is confirmed through Telegram. Work is paused until then; if it isn't confirmed within 24 hours, an operator takes it over.",
+        "pendingClient": "The specialist asked for payment for an extra option. Pay with Click or ATMOS — the work is paused until the payment is confirmed.",
+        "pendingSeller": "The client pays with Click or ATMOS. The work is paused until the payment is confirmed; if it isn't paid within 24 hours, an operator reviews it.",
         "approved": "Supplemental payment confirmed",
         "approvedText": "The new total is in effect and work continues.",
         "rejected": "Supplemental payment rejected",
@@ -6813,7 +6813,10 @@
         "cancelledText": "An operator replaced or cancelled the request.",
         "options": "Extra options",
         "amount": "Extra amount",
-        "newTotal": "New total"
+        "newTotal": "New total",
+        "pay": "Pay with {provider}",
+        "payAny": "Pay the extra",
+        "payFailed": "The payment page couldn't be opened. Please try again in a little while."
       },
       "result": {
         "title": "Work result",
@@ -18891,10 +18894,10 @@
     "extPeerNo": "The client declined the extension.",
     "extPeerYes": "The client confirmed the extension — the payment is pending.",
     "extAnsNoToast": "The extension was declined.",
-    "extAnsYesToast": "Your answer was sent to the advocate.",
+    "extAnsYesToast": "The payment page is open.",
     "extAnsNoNote": "You declined. The meeting continues with the time it has left.",
-    "extAnsYesNote": "Your answer reached the advocate. Complete the payment in the Telegram bot and the meeting carries on.",
-    "extAskNote": "The payment itself is completed with the button in the Telegram bot.",
+    "extAnsYesNote": "The payment page opened in a new tab. The meeting is extended once Click or ATMOS confirms the payment.",
+    "extAskNote": "Pressing Confirm opens the Click or ATMOS payment page.",
     "extDecline": "Decline",
     "extConfirm": "Confirm",
     "extAnswerLeft": "Time left to answer: {time}",
@@ -18972,7 +18975,7 @@
     "layoutSpeaker": "Speaker view",
     "paused": "Paused",
     "pausedTitle": "Waiting for payment",
-    "pausedLead": "A payment of {amount} UZS was requested to extend the meeting by {minutes} min. The client confirms it in Telegram.",
+    "pausedLead": "A payment of {amount} UZS was requested to extend the meeting by {minutes} min. The client pays with Click or ATMOS.",
     "pausedLeadPlain": "Waiting for the extension payment to be confirmed.",
     "pausedExpiry": "With no answer in 5 minutes the meeting continues with the time it has left.",
     "extendFree": "+{n} min free",
@@ -19050,7 +19053,8 @@
     "recChip": "recording",
     "chatContacts": "Contact details (phone, email, links, Telegram) can't be sent — contact stays inside Tezkor Himoya.",
     "pip": "Mini window",
-    "pipHint": "Keep the call in a small window on top of other tabs and apps"
+    "pipHint": "Keep the call in a small window on top of other tabs and apps",
+    "extAnsError": "Your answer couldn't be sent. Please try again."
   },
   "theme": {
     "label": "Theme",

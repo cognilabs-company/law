@@ -3,7 +3,8 @@
 import { useEffect, useId, useRef, useState, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import { Notice } from "@/components/admin/AdminBits";
-import { IconAlert, IconCheck, IconCoins, IconDownload, IconFileText, IconHourglass, IconPause, IconStarRate } from "@/components/icons";
+import { IconAlert, IconCheck, IconCoins, IconDownload, IconExternal, IconFileText, IconHourglass, IconPause, IconStarRate } from "@/components/icons";
+import { gateProviderName, useGatePay } from "@/components/payments/useGatePay";
 import { fmtUzs } from "@/lib/money";
 import { saveBlob } from "@/lib/download";
 import { getSecureMessageFileAt } from "@/lib/services/backend";
@@ -109,6 +110,30 @@ export function SupplementalPanel({ o, view }: { o: MarketOrder; view: "client" 
         ) : null}
       </div>
       {s.note ? <blockquote className="mko__supnote">{s.note}</blockquote> : null}
+      {pending && view === "client" ? <SupplementalPay s={s} amount={s.amount} /> : null}
+    </div>
+  );
+}
+
+// The client pays the extra through Click or ATMOS, on the page the backend
+// gave (2026-11-21 contract §1.3); the order's price changes on its own once
+// the provider confirms.
+function SupplementalPay({ s, amount }: { s: NonNullable<MarketOrder["supplemental"]>; amount: number }) {
+  const t = useTranslations("marketplace.orderExtras");
+  const g = useGatePay({ paymentId: s.paymentId, amount, provider: s.provider, paymentUrl: s.paymentUrl });
+  if (!g.can) return null;
+  const name = gateProviderName(s.provider);
+  return (
+    <div className="mko__suppay">
+      <button type="button" className="btn btn--grad btn--sm" onClick={() => void g.pay()} disabled={g.busy} data-ai-id="marketplace.orders.supplemental.pay">
+        <IconExternal aria-hidden="true" />
+        {name ? t("sup.pay", { provider: name }) : t("sup.payAny")}
+      </button>
+      {g.failed ? (
+        <small role="alert" className="mko__suppay-err">
+          {t("sup.payFailed")}
+        </small>
+      ) : null}
     </div>
   );
 }
