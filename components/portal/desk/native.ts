@@ -48,6 +48,10 @@ const SELLER_APPS: Registry = {
   subscription: load(() => import("./apps/SubscriptionApp")),
   profile: load(() => import("./apps/ProfileApp")),
   assistant: load(() => import("./apps/AssistantApp")),
+  // The 1920 sidebar names these sections "ai" and "urgent"; the desktop
+  // keeps opening their own programs under the new keys too.
+  ai: load(() => import("./apps/AssistantApp")),
+  urgent: load(() => import("./apps/UrgentApp")),
   messages: load(() => import("./apps/messages/MessagesApp")),
   meetings: load(() => import("./apps/MeetingsApp")),
   support: load(() => import("./apps/SupportApp")),

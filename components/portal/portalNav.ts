@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import {
+  Bot,
   BriefcaseBusiness,
   Building2,
   CalendarDays,
@@ -13,6 +14,7 @@ import {
   Inbox,
   LayoutGrid,
   LifeBuoy,
+  Megaphone,
   MessageSquare,
   MessageSquareWarning,
   ShoppingBag,
@@ -25,7 +27,7 @@ import {
   Video,
   Zap,
 } from "lucide-react";
-import { IconBell, IconBolt, IconDocSearch, IconFileText, IconGem, IconPackage, IconUserPlus } from "../icons";
+import { IconBell, IconDocSearch, IconFileText, IconGem, IconPackage, IconUserPlus } from "../icons";
 
 // The cabinet's sidebar (Tezkor Himoya 1920 design): one grouped list per role.
 // PortalShell draws it; the Studio preview draws the same list around a
@@ -92,6 +94,9 @@ function sellerGroups(role: "advocate" | "lawyer"): NavGroup[] {
           ? { href: `${p}/organization`, key: "organization", Icon: Building2 }
           : { href: `${p}/documents`, key: "documents", Icon: Files },
         { href: `${p}/assistant`, key: "ai", Icon: Sparkles },
+        // The lawyer's AI chat had its own row in the old cabinet; after the
+        // 1920 redesign it was reachable only from the header search.
+        ...(role === "lawyer" ? [{ href: `${p}/ai`, key: "aiChat", Icon: Bot }] : []),
       ],
     },
     {
@@ -106,6 +111,9 @@ function sellerGroups(role: "advocate" | "lawyer"): NavGroup[] {
       collapsible: true,
       items: [
         { href: `${p}/services`, key: "services", Icon: Store },
+        // Back in the menu: on phones the header search is hidden, so promotion
+        // could not be opened at all.
+        { href: `${p}/promotion`, key: "promotion", Icon: Megaphone },
         { href: `${p}/referrals`, key: "referrals", Icon: Gift },
         { href: `${p}/subscription`, key: "subscription", Icon: CreditCard },
       ],
@@ -151,12 +159,9 @@ export const TITLE_ONLY: Record<"client" | "advocate" | "lawyer", NavItem[]> = {
   ],
   advocate: [
     { href: "/portal/advocate/notifications", key: "notifications", Icon: IconBell },
-    { href: "/portal/advocate/promotion", key: "promotion", Icon: IconBolt },
   ],
   lawyer: [
     { href: "/portal/lawyer/notifications", key: "notifications", Icon: IconBell },
-    { href: "/portal/lawyer/promotion", key: "promotion", Icon: IconBolt },
-    { href: "/portal/lawyer/ai", key: "aiChat", Icon: Sparkles },
   ],
 };
 /** @deprecated kept for older imports; use TITLE_ONLY.client */

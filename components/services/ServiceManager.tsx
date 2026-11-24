@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, useRef, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { isAborted } from "@/lib/http";
 import { toast } from "@/lib/toast";
@@ -164,6 +165,22 @@ export default function ServiceManager({
     if (isFilter(f)) setFilter(f);
   });
   useAiModal(data && denied !== skey ? `${aiBase}.form-modal` : "", () => setDialog({ kind: "add" }));
+
+  // The dashboard's "Add service" links here with ?new=1: open the form once
+  // the list is loaded (and only when adding is allowed), then drop the flag so
+  // a reload or back does not open it again.
+  const sp = useSearchParams();
+  const wantsNew = sp.get("new") === "1";
+  const openedNew = useRef(false);
+  useEffect(() => {
+    if (!wantsNew || openedNew.current || !data || denied === skey) return;
+    openedNew.current = true;
+    const h = setTimeout(() => setDialog({ kind: "add" }), 0);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("new");
+    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+    return () => clearTimeout(h);
+  }, [wantsNew, data, denied, skey]);
 
   useEffect(() => {
     onDataRef.current = onData;

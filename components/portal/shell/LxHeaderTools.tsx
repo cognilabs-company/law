@@ -10,6 +10,7 @@ import { initials } from "@/lib/lawyers";
 import { matchesSearch } from "@/lib/searchText";
 import Menu, { menuSeparator, type MenuEntry } from "@/components/ui/Menu";
 import type { NavItem } from "../portalNav";
+import { useRoleNav } from "../../RoleNavHost";
 
 // The cabinet header's right-hand tools (Tezkor Himoya 1920 design): search pill,
 // language select and the avatar menu. The help menu and bell are the
@@ -25,11 +26,15 @@ export function HeaderSearch({ role, pages, label }: { role: string; pages: NavI
   const listId = useId();
   const seller = role !== "client";
   const term = q.trim();
+  // A plain advocate's navigation hides the cases page: no row that only
+  // bounces back to the dashboard.
+  const { hides } = useRoleNav();
+  const canFind = !seller || !hides(`/portal/${role}/cases`);
 
   const hits = useMemo(() => (term ? pages.filter((p) => matchesSearch(label(p.key), term)).slice(0, 6) : pages.slice(0, 6)), [pages, term, label]);
   // The last row searches the role's main list with the typed text.
   const findHref = seller ? `/portal/${role}/cases?q=${encodeURIComponent(term)}` : `/portal/client/lawyers?q=${encodeURIComponent(term)}`;
-  const rows = term ? hits.length + 1 : hits.length;
+  const rows = term && canFind ? hits.length + 1 : hits.length;
 
   useEffect(() => {
     if (!open) return;
@@ -48,7 +53,7 @@ export function HeaderSearch({ role, pages, label }: { role: string; pages: NavI
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (at < hits.length && open && hits[at]) return go(hits[at].href);
-    if (term) go(findHref);
+    if (term && canFind) go(findHref);
   };
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Escape") return setOpen(false);
@@ -91,7 +96,7 @@ export function HeaderSearch({ role, pages, label }: { role: string; pages: NavI
           ) : (
             <span className="lx-search__none">{t("noPages")}</span>
           )}
-          {term ? (
+          {term && canFind ? (
             <button type="button" role="option" aria-selected={at === hits.length} className={`lx-search__it lx-search__find${at === hits.length ? " on" : ""}`} onMouseEnter={() => setAt(hits.length)} onClick={() => go(findHref)}>
               <Search />
               <span>{t(seller ? "findSeller" : "findClient", { q: term })}</span>
@@ -148,6 +153,10 @@ export function AccountMenu({
   onLogout: () => void;
 }) {
   const t = useTranslations("lxShell.menu");
+  const tl = useTranslations("lxShell.lang");
+  const locale = useLocale();
+  const pathname = usePathname();
+  const router = useRouter();
   const pref = useThemePref();
   const items: MenuEntry[] = [
     { key: "who", label: name, disabled: true, icon: <User /> },
@@ -162,6 +171,22 @@ export function AccountMenu({
         { key: "dark", label: t("dark"), icon: <Moon />, checked: pref === "dark", onSelect: () => setThemePref("dark") },
         { key: "system", label: t("system"), icon: <Monitor />, checked: pref === "system", onSelect: () => setThemePref("system") },
       ],
+    },
+    // The header's language select is hidden on screens up to 900px; this is
+    // the way to switch there (and a second one on wider screens).
+    {
+      key: "lang",
+      label: tl("label"),
+      icon: <Globe />,
+      aiId: "header.menu.language",
+      items: routing.locales.map((code) => ({
+        key: `lang-${code}`,
+        label: tl(code),
+        checked: code === locale,
+        onSelect: () => {
+          if (code !== locale) router.replace(pathname, { locale: code });
+        },
+      })),
     },
     ...(onDesktop ? [{ key: "desk", label: t("desktop"), icon: <LayoutGrid />, onSelect: onDesktop } satisfies MenuEntry] : []),
     ...(isAdmin ? [{ key: "admin", label: t("admin"), icon: <Shield />, href: "/admin" } satisfies MenuEntry] : []),

@@ -9,11 +9,12 @@ import ScrollCue from "@/components/ui/ScrollCue";
 import { IconCard, IconClock, IconCheck } from "@/components/icons";
 import { dateOnly } from "@/lib/date";
 
-const MIN_PAYOUT = 100000; // so'm (S-30)
-const PAID = new Set(["paid", "released", "completed", "done"]);
+export const MIN_PAYOUT = 100000; // so'm (S-30)
+export const PAYOUT_PAID = new Set(["paid", "released", "completed", "done"]);
+const PAID = PAYOUT_PAID;
 
 // Next Thursday (S-30: weekly payout on Thursdays), as a date string.
-function nextThursday(locale: string, from = new Date()): string {
+export function nextThursday(locale: string, from = new Date()): string {
   const d = new Date(from);
   const diff = (4 - d.getDay() + 7) % 7 || 7;
   d.setDate(d.getDate() + diff);

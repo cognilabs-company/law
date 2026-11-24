@@ -2,7 +2,7 @@
 
 import "./dash1920.css";
 import "./seller1920.css";
-import { createElement, useMemo, useState } from "react";
+import { createElement, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   ArrowRight,
@@ -42,6 +42,7 @@ import { useAuth } from "@/lib/auth";
 import { useResource } from "@/lib/useResource";
 import {
   listCalendarEvents,
+  listMyPayouts,
   listMyTasks,
   listNotifications,
   listOpenOrders,
@@ -49,7 +50,9 @@ import {
   type CalendarEvent,
   type Notification,
 } from "@/lib/services/backend";
-import { getMarketplaceSeller, listMarketplaceOrders, type MarketOrder } from "@/lib/services/marketplace";
+import { getMarketplaceSeller, listMarketplaceOrders, marketSignalOf, type MarketOrder } from "@/lib/services/marketplace";
+import { subscribeUserEvents } from "@/lib/userSocket";
+import { MIN_PAYOUT, PAYOUT_PAID, nextThursday } from "../SellerPayouts";
 import { getMySellerRating, type SellerRating } from "@/lib/services/sellerRating";
 import { useRulesGate } from "@/lib/services/rulesGate";
 import { fmtUzs, uzs } from "@/lib/money";
@@ -124,9 +127,23 @@ export default function SellerHome({ role }: { role: "advocate" | "lawyer" }) {
   const finance = cabinet.data?.stats.finance;
   const performance = cabinet.data?.stats.performance;
 
+  // §8 (2026-11-21): an order the call center gave to another lawyer leaves
+  // "waiting for you" at once, Accept/Decline with it, then the list is re-read.
+  const [revoked, setRevoked] = useState<ReadonlySet<string>>(() => new Set());
+  const refreshOrders = orders.refresh;
+  useEffect(
+    () =>
+      subscribeUserEvents((ev) => {
+        const sig = marketSignalOf(ev);
+        if (!sig || sig.kind !== "reassigned" || sig.sub !== "revoked" || !sig.orderId) return;
+        setRevoked((r) => new Set(r).add(sig.orderId));
+        void refreshOrders();
+      }),
+    [refreshOrders],
+  );
   const waiting = useMemo(
-    () => orders.data.slice().sort((a, b) => (a.confirmationDeadlineAt || "9").localeCompare(b.confirmationDeadlineAt || "9")),
-    [orders.data],
+    () => orders.data.filter((o) => !revoked.has(o.id)).slice().sort((a, b) => (a.confirmationDeadlineAt || "9").localeCompare(b.confirmationDeadlineAt || "9")),
+    [orders.data, revoked],
   );
   const todayKey = dayKey(now);
   const evToday = useMemo(() => events.data.filter((e) => localKey(e.startsAt) === todayKey && !DONE.has(e.status)).sort((a, b) => a.startsAt.localeCompare(b.startsAt)), [events.data, todayKey]);
@@ -147,6 +164,11 @@ export default function SellerHome({ role }: { role: "advocate" | "lawyer" }) {
   const firstLeft = firstWait?.confirmationDeadlineAt ? new Date(firstWait.confirmationDeadlineAt).getTime() - now.getTime() : null;
 
   const show = (href: string) => !hides(href);
+  // The backend's role navigation hides some pages from a plain advocate
+  // (opportunities, cases): their cards stay as figures, never a dead link.
+  const newOrdersHref = role === "advocate" ? `${base}/opportunities` : `${base}/marketplace`;
+  const kpiLink = (href: string, body: ReactNode) =>
+    show(href) ? <Link href={href} className="lxs-kpi">{body}</Link> : <div className="lxs-kpi is-static">{body}</div>;
 
   const newOrdersCard = (
     <>
@@ -173,14 +195,15 @@ export default function SellerHome({ role }: { role: "advocate" | "lawyer" }) {
         {/* No right to answer orders (cabinet available_actions.accept_orders
             false): the count stays readable, the way into the orders page
             (hidden from the menu too) does not. */}
-        {acceptOrders ? (
-          <Link href={role === "advocate" ? `${base}/opportunities` : `${base}/marketplace`} className="lxs-kpi lxs-kpi--pri">
+        {acceptOrders && show(newOrdersHref) ? (
+          <Link href={newOrdersHref} className="lxs-kpi lxs-kpi--pri">
             {newOrdersCard}
           </Link>
         ) : (
           <div className="lxs-kpi lxs-kpi--pri">{newOrdersCard}</div>
         )}
-        <Link href={`${base}/calendar`} className="lxs-kpi">
+        {kpiLink(`${base}/calendar`, (
+          <>
           <span className="lxs-kpi__top">
             <span className="lxs-kpi__ic"><CalendarClock /></span>
             <span className="lxs-kpi__go"><ArrowUpRight /></span>
@@ -188,17 +211,21 @@ export default function SellerHome({ role }: { role: "advocate" | "lawyer" }) {
           <span className="lxs-kpi__l">{t("kpi.deadlines")}</span>
           <b className="lxs-kpi__v">{deadlinesToday}</b>
           <span className="lxs-kpi__note"><Clock3 />{nearestToday ? t("kpi.nearestAt", { time: timeOnly(nearestToday.startsAt, locale) }) : t("kpi.noDeadlines")}</span>
-        </Link>
-        <Link href={`${base}/cases`} className="lxs-kpi">
+          </>
+        ))}
+        {kpiLink(`${base}/cases`, (
+          <>
           <span className="lxs-kpi__top">
             <span className="lxs-kpi__ic"><BriefcaseBusiness /></span>
             <span className="lxs-kpi__go"><ArrowUpRight /></span>
           </span>
           <span className="lxs-kpi__l">{t("kpi.active")}</span>
           <b className="lxs-kpi__v">{activeCases}</b>
-          <span className="lxs-kpi__note"><ArrowRight />{t("kpi.seeCases")}</span>
-        </Link>
-        <Link href={`${base}/marketplace-orders`} className="lxs-kpi">
+          {show(`${base}/cases`) ? <span className="lxs-kpi__note"><ArrowRight />{t("kpi.seeCases")}</span> : null}
+          </>
+        ))}
+        {kpiLink(`${base}/marketplace-orders`, (
+          <>
           <span className="lxs-kpi__top">
             <span className="lxs-kpi__ic"><TrendingUp /></span>
             <span className="lxs-kpi__go"><ArrowUpRight /></span>
@@ -206,7 +233,8 @@ export default function SellerHome({ role }: { role: "advocate" | "lawyer" }) {
           <span className="lxs-kpi__l">{t("kpi.income")}</span>
           <b className="lxs-kpi__v">{fmtUzs(income)} <small>{t("money.som")}</small></b>
           <span className="lxs-kpi__note"><Hourglass />{t("kpi.pending", { sum: `${fmtUzs(pendingPayout)} ${t("money.som")}` })}</span>
-        </Link>
+          </>
+        ))}
       </div>
 
       <div className="lxs-grid">
@@ -294,6 +322,10 @@ export default function SellerHome({ role }: { role: "advocate" | "lawyer" }) {
         <MoneyCard orders={ledger.data} status={ledger.status} income={income} pending={pendingPayout} payable={payable} base={base} now={now} />
         <RatingCard href={`${base}/profile?tab=work#rating`} rating={rating.data[0] ?? null} reviews={reviews.data} performance={performance} workload={workload} profileCases={cabinet.data?.profile.totalCases ?? 0} />
       </div>
+
+      {/* The payout ledger (/payouts/me): it lived in the old dashboard and
+          was lost in the 1920 rebuild — the only place a seller sees it. */}
+      <PayoutsCard />
 
       <div className="lxs-trio">
         {/* Notifications */}
@@ -534,6 +566,77 @@ function MoneyCard({ orders, status, income, pending, payable, base, now }: { or
         {rows.length > 5 ? (
           <button type="button" className="lxs-table__more" onClick={() => setAll((v) => !v)} aria-expanded={all}>
             {all ? t("money.less") : t("money.more", { n: rows.length - 5 })}
+            <ChevronDown />
+          </button>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+// What the platform owes and has paid the seller: weekly payouts on Thursday,
+// the minimum, and each payout record (S-30, T2-06).
+function PayoutsCard() {
+  const t = useTranslations("portal.sellerDash.payouts");
+  const tl = useTranslations("lxSeller");
+  const locale = useLocale();
+  const res = useResource(listMyPayouts, []);
+  const [all, setAll] = useState(false);
+  const rows = res.data;
+  const isPaid = (s: string) => PAYOUT_PAID.has(s.toLowerCase());
+  const pending = rows.filter((p) => !isPaid(p.status)).reduce((s, p) => s + p.amount, 0);
+  const paid = rows.filter((p) => isPaid(p.status)).reduce((s, p) => s + p.amount, 0);
+  const label = (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : s);
+  const shown = all ? rows : rows.slice(0, 5);
+  return (
+    <section className="lx-card lxs-money lxs-payouts" aria-labelledby="lxs-p-h" data-ai-target="seller-dashboard:payouts">
+      <div className="lxs-row-h">
+        <div className="lxs-h lxs-h--flat">
+          <span className="lxs-h__ic"><ReceiptText /></span>
+          <h2 id="lxs-p-h" className="lxs-h3">{t("title")}</h2>
+        </div>
+        <small className="lxs-muted">{t("nextPayout", { date: nextThursday(locale) })}</small>
+      </div>
+      <div className="lxs-money__tiles">
+        <div><span><Hourglass />{t("pending")}</span><b>{res.status === "loading" ? "…" : fmtUzs(pending)} <small>{t("som")}</small></b></div>
+        <div><span><BadgeCheck />{t("paid")}</span><b>{res.status === "loading" ? "…" : fmtUzs(paid)} <small>{t("som")}</small></b></div>
+        <div><span><ReceiptText />{t("count")}</span><b>{res.status === "loading" ? "…" : rows.length}</b></div>
+      </div>
+      <p className="lxs-muted lxs-payouts__rule">{pending > 0 && pending < MIN_PAYOUT ? t("belowMin", { min: fmtUzs(MIN_PAYOUT) }) : t("rule", { min: fmtUzs(MIN_PAYOUT) })}</p>
+      <div className="lxs-table" role="table">
+        <div className="lxs-table__h" role="row">
+          <span role="columnheader">{t("date")}</span>
+          <span role="columnheader">{t("period")}</span>
+          <span role="columnheader" className="r">{t("amount")}</span>
+          <span role="columnheader" className="r">{t("statusCol")}</span>
+        </div>
+        {shown.length ? (
+          shown.map((p) => (
+            <div key={p.id} className="lxs-table__r lxs-table__r--static" role="row">
+              <span role="cell" className="lxs-muted">{shortDateTime(p.createdAt, locale).split(",")[0]}</span>
+              <span role="cell">{p.period || "—"}</span>
+              <span role="cell" className="r"><b>{fmtUzs(p.amount)} {t("som")}</b></span>
+              <span role="cell" className="r">
+                <span className={`lxs-pay${isPaid(p.status) ? "" : " is-wait"}`} title={label(p.status.toLowerCase())}>
+                  {isPaid(p.status) ? <BadgeCheck aria-hidden /> : <Hourglass aria-hidden />}
+                  <span className="lxs-pay__t">{label(p.status.toLowerCase())}</span>
+                </span>
+              </span>
+            </div>
+          ))
+        ) : (
+          <div className="lxs-table__empty">
+            <b>{res.status === "loading" ? "…" : res.status === "error" ? tl("wait.error") : t("empty")}</b>
+            {res.status === "error" ? (
+              <button type="button" className="btn btn--line btn--sm" onClick={() => void res.refresh()}>{tl("wait.retry")}</button>
+            ) : res.status === "loading" ? null : (
+              <p className="lxs-muted">{t("emptyText")}</p>
+            )}
+          </div>
+        )}
+        {rows.length > 5 ? (
+          <button type="button" className="lxs-table__more" onClick={() => setAll((v) => !v)} aria-expanded={all}>
+            {all ? tl("money.less") : tl("money.more", { n: rows.length - 5 })}
             <ChevronDown />
           </button>
         ) : null}
