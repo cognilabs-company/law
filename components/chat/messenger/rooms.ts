@@ -141,6 +141,11 @@ export function markRoomRead(roomId: string) {
 // The room on screen. Its messages are being read as they arrive, so they
 // never count as unread; opening it clears what it had. The backend marks
 // the room read itself when its history is fetched.
+// The room open in a messenger pane right now ("" when none).
+export function openRoomId(): string {
+  return openRoom;
+}
+
 export function setOpenRoom(roomId: string) {
   openRoom = roomId;
   if (roomId) markRoomRead(roomId);

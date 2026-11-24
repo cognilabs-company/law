@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
-import { useAuth, canMakeCalls, sessionRoles, type Session } from "@/lib/auth";
+import { useAuth, canMakeCalls, isExternalSeller, sessionRoles, type Session } from "@/lib/auth";
 import { emitRoomCallEvent, isCallEvent, subscribeRoomCallEvents } from "@/lib/callEvents";
 import { CALL_LINK_RE, chatContacts, isMachineFileName, maskContacts } from "@/lib/chatFilter";
 import { getToken } from "@/lib/client";
@@ -747,6 +747,13 @@ export default function SecureChat({
   // room can be completed by the other side while this tab sits open.
   const [finishedSt, setFinished] = useState(false);
   const [callsOff, setCallsOff] = useState(false);
+  // The order behind this room lets this viewer start a call (paid, active,
+  // can_create_call). Since 2026-11-21 an external advocate/lawyer no longer
+  // holds meetings.manage, so this is what brings their call buttons back.
+  const [orderCallable, setOrderCallable] = useState(false);
+  // A call already running in this room, whoever started it: anyone in the
+  // room may join it (contract 2026-11-21 §7.1), even without the host right.
+  const [liveCall, setLiveCall] = useState<{ callId: string; callType: "audio" | "video" } | null>(null);
   // The room's own row, from the shared list (messenger/rooms.ts): who is in
   // it, its status and its order. A plain secure chat has no urgent record,
   // so the row is the only thing that can say it is closed. Measured on
@@ -765,6 +772,9 @@ export default function SecureChat({
   const rowClient = roomRow?.clientUserId ?? "";
   const rowSeller = roomRow?.sellerUserId ?? "";
   const roomOrder = useMemo(() => (rowOrder ? { orderId: rowOrder, clientUserId: rowClient, sellerUserId: rowSeller } : null), [rowOrder, rowClient, rowSeller]);
+  // Staff with meetings.manage start calls anywhere; an external advocate/lawyer
+  // only in the chat of a paid, active order the backend marks callable (§6).
+  const mayStartCall = canMakeCalls(session) || (isExternalSeller(session) && orderCallable);
   const [completing, setCompleting] = useState(false);
   // The Tezkor Advokat record this room belongs to, once it has been read
   // back. It is what supplies the three header facts the room itself does not
@@ -849,6 +859,10 @@ export default function SecureChat({
         setFinished(true);
       }
       setCallsOff(closed || !l.callsAllowed);
+      const callable = !closed && l.callsAllowed && l.canCreateCall === true;
+      setOrderCallable(callable);
+      // A refusal from before payment must not hide the buttons once the order is callable.
+      if (callable) setRefused((r) => (r.has("call") ? new Set([...r].filter((k) => k !== "call")) : r));
     };
     const off = subscribeOrderLock(roomOrder.orderId, apply, { viewerId: session?.id ?? "", roomId });
     roomOrderLock(roomOrder, session?.id ?? "", ctrl.signal)
@@ -956,7 +970,9 @@ export default function SecureChat({
       if (live) {
         setActiveCall({ callId: live.id, callType: live.callType === "video" ? "video" : "audio", isCaller: false });
       } else {
-        const c = await startCall(roomId, kind, t(kind === "video" ? "videoCall" : "audioCall"));
+        // An external seller may invite only the order's own client (§6).
+        const only = isExternalSeller(session) && roomOrder?.clientUserId ? { participantUserIds: [roomOrder.clientUserId] } : undefined;
+        const c = await startCall(roomId, kind, t(kind === "video" ? "videoCall" : "audioCall"), only);
         // Caller already has its LiveKit token from the create response.
         setActiveCall({
           callId: c.id,
@@ -1046,6 +1062,8 @@ export default function SecureChat({
           .filter((c) => isFreshIncomingCall(c, session.id) && !dismissedCalls.current.has(c.id))
           .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))[0];
         if (alive) setIncoming(live && !activeCallRef.current ? { callId: live.id, callType: live.callType === "video" ? "video" : "audio" } : null);
+        const running = calls.find((c) => ["active", "ringing"].includes(c.status.trim().toLowerCase()) && !c.endedAt);
+        if (alive) setLiveCall(running ? { callId: running.id, callType: running.callType === "video" ? "video" : "audio" } : null);
       } catch {
         /* ignore */
       }
@@ -1057,9 +1075,11 @@ export default function SecureChat({
       const callStatus = String(e.status ?? call.status ?? "").trim().toLowerCase();
       if (e.event === "call.ended" || TERMINAL_CALL_STATUSES.has(callStatus)) {
         setIncoming((cur) => (cur && cur.callId === callId ? null : cur));
+        setLiveCall((cur) => (cur && cur.callId === callId ? null : cur));
         return;
       }
       if (callStatus && !["active", "ringing"].includes(callStatus)) return;
+      if (e.event === "call.created" && callId) setLiveCall({ callId, callType: String(call.call_type) === "audio" ? "audio" : "video" });
       if (e.event === "call.created") {
         const caller = String(e.caller_user_id ?? call.caller_user_id ?? "");
         if (!callId || caller === session.id || dismissedCalls.current.has(callId) || activeCall) return;
@@ -1807,7 +1827,13 @@ export default function SecureChat({
           ) : null}
         </div>
         <div className="mxr__acts">
-          {!compact && canMakeCalls(session) && !callsOff && !roomClosed && !refused.has("call") ? (
+          {!compact && !mayStartCall && liveCall && !activeCall && !incoming && !roomClosed ? (
+            <button className="mxr__join" type="button" onClick={() => setActiveCall({ callId: liveCall.callId, callType: liveCall.callType, isCaller: false })} title={t("callActive")}>
+              {liveCall.callType === "video" ? <IconVideo /> : <IconPhone />}
+              <span>{t("callJoin")}</span>
+            </button>
+          ) : null}
+          {!compact && mayStartCall && !callsOff && !roomClosed && !refused.has("call") ? (
             <span className="mxr__calls" data-ai-target="chat-room:calls">
               <button className="mxr__ib" type="button" onClick={() => beginCall("audio")} disabled={callBusy || !!activeCall} aria-label={t("audioCall")} title={t("audioCall")}>
                 <IconPhone />

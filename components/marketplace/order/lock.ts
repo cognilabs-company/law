@@ -4,7 +4,9 @@ import { ApiError } from "@/lib/http";
 import { findMarketplaceOrder, getMarketplaceOrder, isOrderPending, marketPaymentSignalOf, marketSignalOf, peekMarketOrder, type MarketOrder } from "@/lib/services/marketplace";
 import { subscribeUserEvents } from "@/lib/userSocket";
 
-export type OrderLock = { chatReadOnly: boolean; callsAllowed: boolean };
+// canCreateCall: the backend's per-order "this viewer may start a call" (can_create_call).
+// An external advocate/lawyer starts calls on it alone (contract 2026-11-21 §6).
+export type OrderLock = { chatReadOnly: boolean; callsAllowed: boolean; canCreateCall?: boolean };
 
 export const ORDER_LOCK_EVENT = "lexgo:market-lock";
 
@@ -12,8 +14,8 @@ const noted = new Map<string, OrderLock>();
 const SEEN_FRESH_MS = 60_000;
 export const PAYMENT_SETTLE_MS = 400;
 
-export function lockOfOrder(o: Pick<MarketOrder, "chatReadOnly" | "callsAllowed">): OrderLock {
-  return { chatReadOnly: o.chatReadOnly === true, callsAllowed: o.callsAllowed !== false };
+export function lockOfOrder(o: Pick<MarketOrder, "chatReadOnly" | "callsAllowed" | "canCreateCall">): OrderLock {
+  return { chatReadOnly: o.chatReadOnly === true, callsAllowed: o.callsAllowed !== false, canCreateCall: o.canCreateCall === true };
 }
 
 function broadcastLock(orderId: string, lock: OrderLock): void {
@@ -63,7 +65,7 @@ export function subscribeOrderLock(orderId: string, cb: (lock: OrderLock) => voi
   const off = subscribeUserEvents((ev) => {
     const sig = marketSignalOf(ev);
     if (sig?.kind === "completed" && sig.orderId === orderId) {
-      cb({ chatReadOnly: true, callsAllowed: false });
+      cb({ chatReadOnly: true, callsAllowed: false, canCreateCall: false });
       return;
     }
     const paid = marketPaymentSignalOf(ev);

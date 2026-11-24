@@ -9,6 +9,7 @@ import { listInvitedCalls, listLawyers, getCall, updateCallParticipant } from "@
 import { connectUserSocket, disconnectUserSocket, subscribeUserEvents, subscribeUserSocketState, type UserEvent } from "@/lib/userSocket";
 import { CALLROOM_EVENT, CALLROOM_OPEN_EVENT, isCallRoomMounted, subscribeRoomCallEvents, type CallRoomOpen } from "@/lib/callEvents";
 import { playRingtone, primeCallAudio, stopAllCallTones } from "@/lib/callSounds";
+import { openRoomId } from "@/components/chat/messenger/rooms";
 import { IconPhone, IconVideo, IconClose } from "@/components/icons";
 
 const CallRoom = dynamic(() => import("@/components/chat/CallRoom"), { ssr: false });
@@ -200,8 +201,9 @@ export default function IncomingCallWatcher() {
       // My own call (host / already joined) must never ring me, even if the event has no caller id.
       if (parts.some((p) => String(p.user_id ?? p.id) === me && ["host", "joined", "left", "declined", "removed"].includes(String(p.status)))) return;
       const isMeet = parts.some((p) => String(p.user_id ?? p.id) === me && String(p.status) === "invited");
-      // Inside that very chat the chat's own card handles it.
-      if (!isMeet && onChatPageRef.current) return;
+      // Inside that very chat the chat's own card handles it — the full-screen
+      // room route, or the room open in a cabinet's messenger (?room=).
+      if (!isMeet && (onChatPageRef.current || openRoomId() === roomId)) return;
       const name = String(e.caller_name ?? call.caller_name ?? "").trim() || (await callerNameOf(parts, caller, roomId, callId)) || t("someone");
       if (!alive) return;
       setInc({ kind: isMeet ? "meet" : "chat", roomId, callId, callType: String(call.call_type) === "audio" ? "audio" : "video", callerName: name });

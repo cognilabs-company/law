@@ -34,7 +34,7 @@ const fresh = (c: CallSession, me: string) => {
   return age >= -30_000 && age <= INCOMING_MAX_MS;
 };
 
-export function useChat(roomId: string, opts: { joinCallId?: string; onError: (e: ChatError, detail?: string, upload?: SecureUploadProblem | null) => void; callTitle: (kind: "audio" | "video") => string }) {
+export function useChat(roomId: string, opts: { joinCallId?: string; onError: (e: ChatError, detail?: string, upload?: SecureUploadProblem | null) => void; callTitle: (kind: "audio" | "video") => string; inviteOnly?: string[] }) {
   const { session } = useAuth();
   const me = session?.id ?? "";
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
@@ -354,7 +354,8 @@ export function useChat(roomId: string, opts: { joinCallId?: string; onError: (e
       const live = calls.find((c) => c.status === "active" || c.status === "ringing");
       if (live) setActive({ callId: live.id, callType: live.callType === "video" ? "video" : "audio", isCaller: false });
       else {
-        const c = await startCall(roomId, kind, opts.callTitle(kind));
+        // An external seller may invite only the order's client (contract 2026-11-21 §6).
+        const c = await startCall(roomId, kind, opts.callTitle(kind), opts.inviteOnly?.length ? { participantUserIds: opts.inviteOnly } : undefined);
         setActive({ callId: c.id, callType: kind, isCaller: true, lk: c.livekitToken ? { url: c.livekitUrl, room: c.livekitRoom, token: c.livekitToken, hints: c.hints, quality: c.quality } : null });
       }
       setIncoming(null);

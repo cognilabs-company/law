@@ -248,6 +248,8 @@ html[data-theme="dark"] :is(.portal.lx,.mx--standalone) .mx-pick__art{box-shadow
 :is(.portal.lx,.mx--standalone) .mxr__acts{gap:8px}
 :is(.portal.lx,.mx--standalone) .mxr__calls{gap:8px}
 :is(.portal.lx,.mx--standalone) .mxr__done{height:40px;border-radius:12px;background:var(--lx-ok-bg);color:var(--lx-ok);font:600 .84rem/1 var(--fb)}
+:is(.portal.lx,.mx--standalone) .mxr__join{height:40px;border-radius:12px;background:var(--lx-blue);color:#fff;font:600 .84rem/1 var(--fb)}
+:is(.portal.lx,.mx--standalone) .mxr__join:hover{background:var(--lx-blue-h);filter:none}
 /* the settings menu */
 :is(.portal.lx,.mx--standalone) .mxr__drop{
   width:268px;padding:8px;border-radius:16px;background:var(--lx-card);

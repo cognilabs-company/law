@@ -362,6 +362,27 @@ html[data-theme="dark"] .mx-chip.on { background: var(--mx-acc); color: #071226 
 .mxr__done svg { width: 16px; height: 16px }
 .mxr__done:hover:not(:disabled) { filter: brightness(.97) }
 .mxr__done:disabled { opacity: .6 }
+/* A call is running in this room: join it (anyone in the room may). */
+.mxr__join {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 13px;
+  margin: 0 4px;
+  border-radius: 11px;
+  border: 0;
+  background: var(--mx-accent, #1668F0);
+  color: #fff;
+  font: 700 .8rem/1 var(--fb);
+  cursor: pointer;
+  white-space: nowrap;
+  animation: mxr-join 1.6s ease-in-out infinite;
+}
+.mxr__join svg { width: 16px; height: 16px }
+.mxr__join:hover { filter: brightness(1.08) }
+@keyframes mxr-join { 0%, 100% { box-shadow: 0 0 0 0 rgba(22, 104, 240, .35) } 50% { box-shadow: 0 0 0 6px rgba(22, 104, 240, 0) } }
+@media (prefers-reduced-motion: reduce) { .mxr__join { animation: none } }
 .mxr__menu { position: relative }
 .mxr__scrim { position: fixed; inset: 0; z-index: 29 }
 .mxr__drop { position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; width: 250px; padding: 6px; border-radius: 16px; background: var(--mx-panel); box-shadow: var(--s3), 0 0 0 1px var(--mx-line); animation: mxDrop .16s ease-out both }
@@ -610,6 +631,8 @@ html[data-theme="dark"] .mxm__bub { box-shadow: none }
   .mxr__sub > span + .mxr__safe { display: none }
   .mxr__done span { display: none }
   .mxr__done { padding: 0 10px; margin: 0 }
+  .mxr__join span { display: none }
+  .mxr__join { padding: 0 10px; margin: 0 }
   .mxr__ai { display: none }
   .mxr__flow { padding: 12px 10px 14px }
   .mxm { max-width: 88% }

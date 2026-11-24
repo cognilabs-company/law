@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { canMakeCalls, sessionRoles, useAuth } from "@/lib/auth";
+import { canMakeCalls, isExternalSeller, sessionRoles, useAuth } from "@/lib/auth";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { dateOnly, shortDateTime, timeOnly } from "@/lib/date";
 import { CALL_LINK_RE, chatContacts, isMachineFileName, maskContacts } from "@/lib/chatFilter";
@@ -311,12 +311,15 @@ function Conversation({ roomId, room, title, urgentId, service, workId, join, pi
         { send: t("wsSendFailed"), attach: t("attachFailed"), call: t("callFailed"), session: t("wsSessionExpired"), forbidden: t("wsForbidden"), settings: t("settingsFailed"), delete: t("deleteFailed"), complete: t("completeFailed"), mic: t("micDenied") }[e],
       "err",
     );
-  const chat = useChat(roomId, { joinCallId: join, onError, callTitle: (k) => t(k === "video" ? "videoCall" : "audioCall") });
+  const inviteOnly = isExternalSeller(session) && room?.clientUserId ? [room.clientUserId] : undefined;
+  const chat = useChat(roomId, { joinCallId: join, onError, callTitle: (k) => t(k === "video" ? "videoCall" : "audioCall"), inviteOnly });
   const { setFinished } = chat;
   const [text, setText] = useState("");
   const [reply, setReply] = useState<ChatMsg | null>(null);
   const [ttl, setTtl] = useState(0);
   const [callsOff, setCallsOff] = useState(false);
+  // Paid, active order the backend marks callable: an external seller's call right (§6).
+  const [orderCallable, setOrderCallable] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [flash, setFlash] = useState("");
   const [today, setToday] = useState("");
@@ -352,9 +355,10 @@ function Conversation({ roomId, room, title, urgentId, service, workId, join, pi
   useEffect(() => {
     if (!orderId) return;
     const ctrl = new AbortController();
-    const apply = (l: { chatReadOnly: boolean; callsAllowed: boolean }) => {
+    const apply = (l: { chatReadOnly: boolean; callsAllowed: boolean; canCreateCall?: boolean }) => {
       if (l.chatReadOnly) setFinished(true);
       if (!l.callsAllowed) setCallsOff(true);
+      setOrderCallable(!l.chatReadOnly && l.callsAllowed && l.canCreateCall === true);
     };
     const off = subscribeOrderLock(orderId, apply);
     roomOrderLock({ orderId, clientUserId: room?.clientUserId, sellerUserId: room?.sellerUserId }, me, ctrl.signal)
@@ -466,7 +470,7 @@ function Conversation({ roomId, room, title, urgentId, service, workId, join, pi
       ...(m.failed && m.messageType === "text" && !chat.finished && !chat.denied ? [{ id: "again", label: d("resend"), icon: <IconSend />, onSelect: () => void chat.send(m.filteredContent, null) }] : []),
     ]);
   };
-  const calls = !pane && canMakeCalls(session) && !callsOff;
+  const calls = !pane && (canMakeCalls(session) || (isExternalSeller(session) && orderCallable)) && !callsOff;
   const sub = chat.conn === "online" ? [service, workId ? `#${workId}` : ""].filter(Boolean).join(" · ") || t("secured") : chat.conn === "connecting" ? t("connecting") : t("offline");
   const drag = (e: React.PointerEvent<HTMLElement>) => !(e.target as HTMLElement).closest("button,input,textarea,a") && dragWindow?.(e);
 
