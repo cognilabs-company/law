@@ -89,6 +89,9 @@ export default function Footer() {
                 <Link href="/faq">{tn("faq")}</Link>
               </li>
               <li>
+                <Link href="/support">{t("links.support")}</Link>
+              </li>
+              <li>
                 <Link href="/app">{tn("app")}</Link>
               </li>
             </ul>
