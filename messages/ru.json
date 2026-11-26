@@ -991,7 +991,7 @@
         "MP04__recordTitle": "Например: Баннер на главной",
         "MP09__recordTitle": "Например: Новогодняя скидка",
         "url": "https://…",
-        "email": "info@lexgo.uz",
+        "email": "zyovuddnov1@gmail.com",
         "phone": "+998 90 123 45 67",
         "K12-PROMO__title": "Например: Реклама профиля · 7 дней",
         "K12-PROMO__code": "например: profile-7",
@@ -8513,10 +8513,10 @@
     "title": "Свяжитесь с нами",
     "lead": "Оставьте заявку, и дежурный адвокат перезвонит вам, или выберите услугу через приложение.",
     "phone": "Телефон",
-    "phoneValue": "78 777 00 00",
+    "phoneValue": "+998 90 933 86 78",
     "phoneNote": "Дежурный адвокат · звонки бесплатны",
     "email": "Email",
-    "emailValue": "support@lexgo.uz",
+    "emailValue": "zyovuddnov1@gmail.com",
     "hours": "Часы работы",
     "hoursValue": "24/7 · каждый день",
     "form": {
@@ -8536,17 +8536,17 @@
       {
         "city": "Ташкент",
         "address": "пр. Амира Темура, 108, бизнес-центр",
-        "phone": "+998 78 777 00 00"
+        "phone": "+998 90 933 86 78"
       },
       {
         "city": "Самарканд",
         "address": "ул. Регистан, 15, 2-й этаж",
-        "phone": "+998 66 233 00 00"
+        "phone": "+998 90 933 86 78"
       },
       {
         "city": "Бухара",
         "address": "ул. Мустакиллик, 7",
-        "phone": "+998 65 224 00 00"
+        "phone": "+998 90 933 86 78"
       }
     ],
     "departmentsTitle": "Отделы",
@@ -8554,17 +8554,17 @@
       {
         "title": "Клиенты",
         "text": "Заказы, подписки и платежи.",
-        "contact": "help@lexgo.uz"
+        "contact": "zyovuddnov1@gmail.com"
       },
       {
         "title": "Юристы",
         "text": "Онбординг, проверка и дела.",
-        "contact": "lawyers@lexgo.uz"
+        "contact": "zyovuddnov1@gmail.com"
       },
       {
         "title": "Бизнес",
         "text": "Корпоративные пакеты и партнёрства.",
-        "contact": "business@lexgo.uz"
+        "contact": "zyovuddnov1@gmail.com"
       }
     ]
   },

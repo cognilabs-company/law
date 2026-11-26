@@ -5,7 +5,7 @@ type Props = { params: Promise<{ locale: string }> };
 
 const PROCESS_DAYS = "30";
 const KEEP_YEARS = "3";
-const EMAIL = "cognilabs@vallomat.com";
+const EMAIL = "zyovuddnov1@gmail.com";
 
 type Copy = {
   title: string;

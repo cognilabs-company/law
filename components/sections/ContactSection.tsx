@@ -105,7 +105,7 @@ export default function ContactSection() {
               <div>
                 <b>{t("phone")}</b>
                 <span>
-                  <a href="tel:+998787770000">{t("phoneValue")}</a> ·{" "}
+                  <a href="tel:+998909338678">{t("phoneValue")}</a> ·{" "}
                   {t("phoneNote")}
                 </span>
               </div>

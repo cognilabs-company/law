@@ -991,7 +991,7 @@
         "MP04__recordTitle": "e.g. Home page banner",
         "MP09__recordTitle": "e.g. New Year discount",
         "url": "https://…",
-        "email": "info@lexgo.uz",
+        "email": "zyovuddnov1@gmail.com",
         "phone": "+998 90 123 45 67",
         "K12-PROMO__title": "e.g. Profile ad · 7 days",
         "K12-PROMO__code": "e.g. profile-7",
@@ -8513,10 +8513,10 @@
     "title": "Get in touch",
     "lead": "Leave a request and the advocate on duty will get back to you, or select a service through the app.",
     "phone": "Phone",
-    "phoneValue": "78 777 00 00",
+    "phoneValue": "+998 90 933 86 78",
     "phoneNote": "Advocate on duty · calls are free",
     "email": "Email",
-    "emailValue": "support@lexgo.uz",
+    "emailValue": "zyovuddnov1@gmail.com",
     "hours": "Working hours",
     "hoursValue": "24/7 · every day",
     "form": {
@@ -8536,17 +8536,17 @@
       {
         "city": "Tashkent",
         "address": "Amir Temur Ave. 108, Business Center",
-        "phone": "+998 78 777 00 00"
+        "phone": "+998 90 933 86 78"
       },
       {
         "city": "Samarkand",
         "address": "Registan St. 15, 2nd floor",
-        "phone": "+998 66 233 00 00"
+        "phone": "+998 90 933 86 78"
       },
       {
         "city": "Bukhara",
         "address": "Mustaqillik St. 7",
-        "phone": "+998 65 224 00 00"
+        "phone": "+998 90 933 86 78"
       }
     ],
     "departmentsTitle": "Departments",
@@ -8554,17 +8554,17 @@
       {
         "title": "Clients",
         "text": "Orders, subscriptions and payments.",
-        "contact": "help@lexgo.uz"
+        "contact": "zyovuddnov1@gmail.com"
       },
       {
         "title": "Lawyers",
         "text": "Onboarding, verification and cases.",
-        "contact": "lawyers@lexgo.uz"
+        "contact": "zyovuddnov1@gmail.com"
       },
       {
         "title": "Business",
         "text": "Corporate packages and partnerships.",
-        "contact": "business@lexgo.uz"
+        "contact": "zyovuddnov1@gmail.com"
       }
     ]
   },

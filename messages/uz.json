@@ -991,7 +991,7 @@
         "MP04__recordTitle": "Masalan: Bosh sahifa banneri",
         "MP09__recordTitle": "Masalan: Yangi yil chegirmasi",
         "url": "https://…",
-        "email": "info@lexgo.uz",
+        "email": "zyovuddnov1@gmail.com",
         "phone": "+998 90 123 45 67",
         "K12-PROMO__title": "Masalan: Profil reklamasi · 7 kun",
         "K12-PROMO__code": "masalan: profile-7",
@@ -8519,10 +8519,10 @@
     "title": "Bog'laning",
     "lead": "Ariza qoldiring va navbatchi advokat siz bilan bog'lanadi yoki ilova orqali xizmatni tanlang.",
     "phone": "Telefon",
-    "phoneValue": "78 777 00 00",
+    "phoneValue": "+998 90 933 86 78",
     "phoneNote": "Navbatchi advokat · qo'ng'iroq bepul",
     "email": "Email",
-    "emailValue": "support@lexgo.uz",
+    "emailValue": "zyovuddnov1@gmail.com",
     "hours": "Ish vaqti",
     "hoursValue": "24/7 · har kuni",
     "form": {
@@ -8542,17 +8542,17 @@
       {
         "city": "Toshkent",
         "address": "Amir Temur shoh ko'chasi 108, Biznes markaz",
-        "phone": "+998 78 777 00 00"
+        "phone": "+998 90 933 86 78"
       },
       {
         "city": "Samarqand",
         "address": "Registon ko'chasi 15, 2-qavat",
-        "phone": "+998 66 233 00 00"
+        "phone": "+998 90 933 86 78"
       },
       {
         "city": "Buxoro",
         "address": "Mustaqillik ko'chasi 7",
-        "phone": "+998 65 224 00 00"
+        "phone": "+998 90 933 86 78"
       }
     ],
     "departmentsTitle": "Bo'limlar",
@@ -8560,17 +8560,17 @@
       {
         "title": "Mijozlar",
         "text": "Buyurtmalar, obunalar va to'lovlar.",
-        "contact": "help@lexgo.uz"
+        "contact": "zyovuddnov1@gmail.com"
       },
       {
         "title": "Advokatlar",
         "text": "Ishga ulash, tasdiqlash va ishlar.",
-        "contact": "lawyers@lexgo.uz"
+        "contact": "zyovuddnov1@gmail.com"
       },
       {
         "title": "Biznes",
         "text": "Korporativ paketlar va hamkorlik.",
-        "contact": "business@lexgo.uz"
+        "contact": "zyovuddnov1@gmail.com"
       }
     ]
   },

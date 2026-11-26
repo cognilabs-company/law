@@ -19,8 +19,8 @@ export default function Footer() {
               <IconLogoText />
             </Link>
             <p style={{ maxWidth: "32ch", margin: "16px 0 0" }}>{t("about")}</p>
-            <a href="tel:+998787770000" className="ftr__p">
-              78 777 00 00
+            <a href="tel:+998909338678" className="ftr__p">
+              +998 90 933 86 78
               <small>{t("phoneNote")}</small>
             </a>
           </div>
