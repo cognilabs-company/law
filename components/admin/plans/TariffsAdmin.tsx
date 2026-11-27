@@ -46,7 +46,9 @@ export default function TariffsAdmin(): ReactElement {
 
   return (
     <div className="ppanel trf-page" data-ai-id="admin.tariffs" data-ai-type="section" data-ai-label={t("title")}>
-      <header className="trf-hero">
+      {/* Owner's PDF 2026-11-27 (S7): a slim head, the numbers as tiles, the
+          "how it works" folded away — the tariffs themselves come first. */}
+      <header className="trf-hero trf-hero--slim">
         <span className="trf-hero__ico" aria-hidden="true">
           <IconStar />
         </span>
@@ -66,6 +68,8 @@ export default function TariffsAdmin(): ReactElement {
             </Link>
           ) : null}
         </div>
+        <details className="trf-howbox">
+          <summary>{t("howTitle")}</summary>
         <ol className="trf-how" aria-label={t("howTitle")}>
           {(["how1", "how2", "how3"] as const).map((k, i) => (
             <li key={k}>
@@ -77,7 +81,17 @@ export default function TariffsAdmin(): ReactElement {
             </li>
           ))}
         </ol>
+        </details>
       </header>
+
+      {res.status === "ready" ? (
+        <div className="adm-kpis trf-kpis">
+          <div className="adm-kpi adm-kpi--pri"><span>{t("title")}</span><b className="sx-num">{plans.length}</b></div>
+          <div className="adm-kpi"><span>{t("kpiActive")}</span><b className="sx-num">{plans.filter((p) => p.isActive !== false).length}</b></div>
+          <div className="adm-kpi"><span>{t("kpiPaid")}</span><b className="sx-num">{plans.filter((p) => p.monthlyPrice > 0).length}</b></div>
+          <div className="adm-kpi"><span>{t("free")}</span><b className="sx-num">{plans.filter((p) => !(p.monthlyPrice > 0)).length}</b></div>
+        </div>
+      ) : null}
 
       <div className="trf-seg" role="tablist" aria-label={t("title")}>
         <button type="button" role="tab" id="trf-tab-plans" aria-controls="trf-pane-plans" aria-selected={tab === "plans"} onClick={() => setTab("plans")} data-ai-id="admin.tariffs.tab.plans">

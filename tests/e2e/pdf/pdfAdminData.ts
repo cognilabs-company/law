@@ -32,6 +32,13 @@ const REQS = [
 
 export function adminExtra(): Routes {
   return {
+    "/admin/subscription-plans": { items: [
+      { id: "pl1", slug: "lexgo-ai-free", name: "Free", monthly_price: 0, is_active: true, sort_order: 1, audience: "client", features: ["AI bilan suhbat", "Shablonlarni ko'rish"] },
+      { id: "pl2", slug: "lexgo-ai-lite", name: "Lite", monthly_price: 99000, is_active: true, sort_order: 2, audience: "client", features: ["AI cheksiz", "Hujjat konstruktori"] },
+      { id: "pl3", slug: "lexgo-ai-pro", name: "Pro", monthly_price: 199000, is_active: true, sort_order: 3, audience: "client", features: ["Hammasi", "Ustuvor yordam"] },
+      { id: "pl4", slug: "shaxsiy-advokat-standart", name: "Shaxsiy advokat · Standart", monthly_price: 350000, is_active: true, sort_order: 4, audience: "personal" },
+      { id: "pl5", slug: "shaxsiy-advokat-premium", name: "Shaxsiy advokat · Premium", monthly_price: 650000, is_active: false, sort_order: 5, audience: "personal" },
+    ] },
     "/admin/platform/policies": { items: {
       order: { accept_timeout_minutes: 30, auto_cancel_hours: 24, rework_limit: 2 },
       payment: { refund_window_hours: 72, prepayment_percent: 10 },

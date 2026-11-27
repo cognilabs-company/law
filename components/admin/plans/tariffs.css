@@ -171,3 +171,11 @@
   .trf-table th, .trf-table td { padding: 8px 6px; }
 }
 .trf-dev__m small.trf-dev__note { white-space: normal; color: var(--dk-txt-warn, #8a5a00); }
+
+/* Slim head (owner's PDF 2026-11-27, S7) */
+.trf-hero.trf-hero--slim{padding:14px 18px;gap:10px 14px}
+.trf-hero--slim .trf-hero__txt p{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin:2px 0 0;font-size:.86rem}
+.trf-howbox{grid-column:1 / -1;flex:1 1 100%}
+.trf-howbox > summary{cursor:pointer;font-size:.86rem;font-weight:600;color:var(--lx-link,var(--b600))}
+.trf-howbox[open] > summary{margin-bottom:10px}
+.trf-kpis{margin:14px 0}
