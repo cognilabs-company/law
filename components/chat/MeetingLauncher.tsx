@@ -29,6 +29,8 @@ import InlineAlert from "@/components/ui/InlineAlert";
 import ScrollCue from "@/components/ui/ScrollCue";
 import { CountBadge, StatusBadge } from "@/components/ui/Badge";
 import MiniCalendar, { type MiniCalEvent } from "@/components/portal/MiniCalendar";
+import "@/components/portal/dash/seller1920.css";
+import "@/components/portal/pdf1920.css";
 import { IconVideo, IconClock, IconRefresh, IconUsers, IconUser, IconCalendar, IconPlus, IconMoreHorizontal, IconPhone, IconClipboardCheck, IconSearch, IconChevronRight, IconChevronDown } from "@/components/icons";
 import { regionLabel, humanize, statusMap, statusSpecOf, type StatusMap, type StatusTone, type StatusToneRule } from "@/lib/labels";
 import { subscribeUserEvents } from "@/lib/userSocket";
@@ -1176,50 +1178,41 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   };
 
   return (
-    <div className="mlaunch mlaunch--compact">
-      {/* A slim head instead of the big hero (owner's PDF 2026-11-27, K6:
-          smaller cards, easier to work with). */}
-      <div className="mhero mhero--slim">
-        <span className="mhero__ico"><IconVideo /></span>
-        <div className="mhero__t">
-          <h2 className="psec-h">{t("title")}</h2>
-          <p>{t("subtitle")}</p>
-        </div>
-        {copilotHero ? <CopilotLauncher surface="lawyer_meeting" context={{ label: t("title"), live: live.length, today: todayItems.length }} /> : null}
-      </div>
-
+    <div className="mlaunch lxp mlp">
+      {/* Rebuilt in the dashboard's language (owner's PDF 2026-11-27, K6):
+          the numbers as KPI tiles, today's and all meetings on the left, the
+          calendar and the rule on the right. */}
       {history !== null && !histErr ? (
-        <div className="pk">
-          <div className="pk__i pk__i--ic pk__i--active">
-            <span className="pk__ico"><IconCalendar /></span>
-            <b>{live.length}</b>
-            <span>{t("statLive")}</span>
+        <div className="lxs-kpis lxp-kpis">
+          <div className="lxs-kpi lxs-kpi--pri is-static">
+            <span className="lxs-kpi__top"><span className="lxs-kpi__ic"><IconVideo /></span></span>
+            <span className="lxs-kpi__l">{t("statLive")}</span>
+            <b className="lxs-kpi__v sx-num">{live.length}</b>
           </div>
-          <div className="pk__i pk__i--ic pk__i--neutral">
-            <span className="pk__ico"><IconCalendar /></span>
-            <b>{todayItems.length}</b>
-            <span>{t("statToday")}</span>
+          <div className="lxs-kpi is-static">
+            <span className="lxs-kpi__top"><span className="lxs-kpi__ic"><IconCalendar /></span></span>
+            <span className="lxs-kpi__l">{t("statToday")}</span>
+            <b className="lxs-kpi__v sx-num">{todayItems.length}</b>
           </div>
-          <div className="pk__i pk__i--ic pk__i--ok">
-            <span className="pk__ico"><IconClock /></span>
-            <b>{ended.length}</b>
-            <span>{t("statEnded")}</span>
+          <div className="lxs-kpi is-static">
+            <span className="lxs-kpi__top"><span className="lxs-kpi__ic"><IconClock /></span></span>
+            <span className="lxs-kpi__l">{t("statEnded")}</span>
+            <b className="lxs-kpi__v sx-num">{ended.length}</b>
           </div>
-          <div className="pk__i pk__i--ic pk__i--warn">
-            <span className="pk__ico"><IconUsers /></span>
-            <b>{effectiveHistory.length}</b>
-            <span>{t("statTotal")}</span>
+          <div className="lxs-kpi is-static">
+            <span className="lxs-kpi__top"><span className="lxs-kpi__ic"><IconUsers /></span></span>
+            <span className="lxs-kpi__l">{t("statTotal")}</span>
+            <b className="lxs-kpi__v sx-num">{effectiveHistory.length}</b>
           </div>
         </div>
       ) : null}
-
-      {externalNote ? <div className="ppanel mext">{externalNote}</div> : null}
-      <div className={canHost ? "mgrid3" : "pgrid2"} style={canHost ? undefined : { marginBottom: 16, alignItems: "start" }}>
-        {canHost ? createForm : null}
-
-        <div className="ppanel" data-ai-target="meetings:today">
+      {canHost ? createForm : null}
+      <div className="lxs-grid lxp-grid">
+        <div className="lxs-col">
+        <div className="lx-card lxp-main" data-ai-target="meetings:today">
           <div className="ppanel__h">
             <b className="ppanel__t"><span className="pico"><IconCalendar /></span>{t("todayAgenda")}</b>
+            {copilotHero ? <CopilotLauncher surface="lawyer_meeting" context={{ label: t("title"), live: live.length, today: todayItems.length }} /> : null}
           </div>
           {history === null ? (
             <Skeleton rows={2} />
@@ -1242,21 +1235,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
           )}
         </div>
 
-        <div className="ppanel">
-          <div className="ppanel__h">
-            <b className="ppanel__t"><span className="pico"><IconCalendar /></span>{t("calendar")}</b>
-          </div>
-          {history === null ? (
-            <Skeleton rows={3} />
-          ) : histErr ? (
-            <ErrorState compact error={histErr.error} />
-          ) : (
-            <MiniCalendar events={calEvents} />
-          )}
-        </div>
-      </div>
-
-      <div className="ppanel" data-ai-target="seller:meeting-list">
+      <div className="lx-card lxp-main" data-ai-target="seller:meeting-list">
         <div className="ppanel__h">
           <b className="ppanel__t"><span className="pico"><IconClock /></span>{t("history")}</b>
           <button type="button" className="btn btn--line btn--sm" onClick={reloadHistory} disabled={history === null} aria-disabled={refreshing || undefined} aria-busy={refreshing || undefined}>
@@ -1290,6 +1269,23 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
           ) : (
             emptyHistory
           ))}
+      </div>
+        </div>
+        <aside className="lxs-col">
+        <div className="lx-card lxp-rail">
+          <div className="ppanel__h">
+            <b className="ppanel__t"><span className="pico"><IconCalendar /></span>{t("calendar")}</b>
+          </div>
+          {history === null ? (
+            <Skeleton rows={3} />
+          ) : histErr ? (
+            <ErrorState compact error={histErr.error} />
+          ) : (
+            <MiniCalendar events={calEvents} />
+          )}
+        </div>
+          {externalNote ? <div className="lx-card lxp-rail mext">{externalNote}</div> : null}
+        </aside>
       </div>
     </div>
   );

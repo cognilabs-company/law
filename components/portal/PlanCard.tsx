@@ -88,6 +88,8 @@ export type PlanCardProps = {
   slug: string;
   name: string;
   features: string[];
+  /** "Yana {n} ta imkoniyat": when given, only the first five show and the rest open on demand. */
+  featsMore?: (n: number) => string;
   price: PlanCardPrice;
   /** "featured" draws the blue frame; "current" only changes the pill. */
   state?: "plain" | "featured" | "current";
@@ -117,6 +119,7 @@ export default function PlanCard({
   slug,
   name,
   features,
+  featsMore,
   price,
   state = "plain",
   ribbon,
@@ -180,13 +183,27 @@ export default function PlanCard({
       {totalNote ? <p className="splan__total">{totalNote}</p> : null}
       {usage ? <p className="splan__usage">{usage}</p> : null}
       <ol className="splan__feats" data-ai-id={aiId ? `${aiId}.features` : undefined} data-ai-type={aiId ? "list" : undefined}>
-        {features.map((f, k) => (
+        {(featsMore && features.length > 6 ? features.slice(0, 5) : features).map((f, k) => (
           <li key={k}>
             <IconCheck />
             {f}
           </li>
         ))}
       </ol>
+      {featsMore && features.length > 6 ? (
+        // Owner's PDF 2026-11-27 (K8): plan cards were too long.
+        <details className="splan__rest">
+          <summary className="splan__more">{featsMore(features.length - 5)}</summary>
+          <ol className="splan__feats" start={6}>
+            {features.slice(5).map((f, k) => (
+              <li key={k}>
+                <IconCheck />
+                {f}
+              </li>
+            ))}
+          </ol>
+        </details>
+      ) : null}
       {cta.onClick ? (
         <button
           type="button"

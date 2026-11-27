@@ -1,0 +1,159 @@
+/* ═══ Advocate/lawyer pages rebuilt in the dashboard's language ═══
+   Owner's PDF «Tezkor Himoya platforma o'zgarishlar» (2026-11-27): the
+   pages after the dashboard kept the old layout. Each page now has the
+   dashboard's parts (seller1920.css): a KPI row, white cards with an icon
+   header, and a right column — in light and dark alike (--lx-* tokens). */
+
+.lxp{display:grid;gap:22px;min-width:0}
+.lxp-kpis .lxs-kpi{min-height:132px;font:inherit;text-align:left;cursor:pointer}
+.lxp-kpis .lxs-kpi.is-static{cursor:default}
+.lxp-kpis .lxs-kpi:focus-visible{outline:2px solid var(--lx-blue);outline-offset:2px}
+.lxp-kpis .lxs-kpi__note{flex-wrap:wrap}
+.lxp-main{padding:24px!important;display:grid;gap:16px;min-width:0}
+.lxp-main > .lxs-h{margin:0;flex-wrap:wrap}
+.lxp-main .lxs-h__t h2{display:flex;align-items:center;gap:10px}
+.lxp-rail{padding:20px!important;display:grid;gap:14px;align-content:start}
+
+/* Orders: tabs + search inside the card, rows as a calm list */
+.mk-orders--seller .mko-bar{margin:0;gap:12px}
+.mk-orders--seller .mko-tabs{background:var(--lx-chip);border:0;border-radius:12px;padding:4px}
+.mk-orders--seller .mko-tab{border-radius:9px}
+.mk-orders--seller .mko-tab[aria-selected="true"]{background:var(--lx-card);color:var(--lx-ink);box-shadow:0 1px 3px rgba(10,21,38,.12)}
+.mk-orders--seller .mko-search{background:var(--lx-chip);border:0;border-radius:12px}
+.mk-orders--seller .mko-list{gap:0;border:1px solid var(--lx-line);border-radius:14px;overflow:hidden}
+.mk-orders--seller .mko-card{border-radius:0;box-shadow:none;background:var(--lx-card);border-top:1px solid var(--lx-line);padding:14px 16px 14px 18px}
+.mk-orders--seller .mko-card:first-child{border-top:0}
+.mk-orders--seller .mko-card:hover{box-shadow:none;background:var(--lx-chip)}
+.mk-orders--seller .mko-card::before{inset:12px auto 12px 0}
+.mk-orders--seller .mko-card[data-stage="cancelled"]{background:var(--lx-card);opacity:.78}
+.mk-orders--seller .mko-card__title,.mk-orders--seller .mko-card__link{color:var(--lx-ink)}
+.mk-orders--seller .mko-facts{color:var(--lx-gray)}
+.mk-orders--seller .mko-price{color:var(--lx-ink)}
+/* new requests live in the right column now */
+.lxp-new{grid-template-columns:1fr!important;gap:10px}
+.lxp-new .mko-req{border-radius:14px}
+/* stage bars */
+.lxp-bars{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.lxp-bar{display:grid;grid-template-columns:1fr auto;gap:6px 10px;width:100%;padding:10px 12px;border:1px solid var(--lx-line);border-radius:12px;background:none;font:inherit;color:var(--lx-ink);text-align:left;cursor:pointer}
+.lxp-bar:hover,.lxp-bar[aria-pressed="true"]{border-color:var(--lx-blue)}
+.lxp-bar span{font-size:.86rem;font-weight:600}
+.lxp-bar b{font-size:.9rem}
+.lxp-bar i{grid-column:1 / -1;height:6px;border-radius:999px;background:var(--lx-chip);overflow:hidden}
+.lxp-bar em{display:block;height:100%;border-radius:inherit;background:var(--c,var(--lx-blue))}
+.lxp-bar--pending{--c:#E3A008}.lxp-bar--active{--c:var(--lx-blue)}.lxp-bar--completed{--c:#10B981}.lxp-bar--cancelled{--c:#94A3B8}
+
+@media (max-width:1280px){.lxp .lxs-grid{grid-template-columns:minmax(0,1fr) minmax(280px,360px)}}
+@media (max-width:1100px){
+  .lxp .lxs-grid{grid-template-columns:1fr}
+  .lxp .lxs-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:560px){
+  .lxp .lxs-kpis{grid-template-columns:1fr 1fr;gap:10px}
+  .lxp-kpis .lxs-kpi{min-height:0;padding:14px}
+  .lxp-kpis .lxs-kpi__v{font-size:1.5rem}
+  .lxp-main{padding:16px!important}
+}
+/* Orders: the list gets the room, the right column stays narrow */
+.lxp-grid{grid-template-columns:minmax(0,1fr) minmax(300px,360px)}
+.mk-orders--seller .mko-tabs{overflow-x:auto;scrollbar-width:none;max-width:100%}
+.mk-orders--seller .mko-tabs::-webkit-scrollbar{display:none}
+.mk-orders--seller .mko-card__title{font-size:.98rem}
+.mk-orders--seller .mko-card__chips{gap:6px}
+
+/* ── Calendar (K2) ───────────────────────────────────────────────────── */
+.calp-seg{grid-template-columns:repeat(3,auto);min-width:240px}
+.calp-seg button{padding:0 14px}
+.calp-main .calgrid,.calp-main .calweek{border:0;border-radius:0;background:none}
+.calp-main .calgrid__nav{border:0;padding:0 0 10px}
+.calp-main .calgrid__nav>button{background:var(--lx-chip);color:var(--lx-ink)}
+.calp-main .calgrid__nav b{color:var(--lx-ink)}
+.calp-main .calgrid__cells{padding:6px 0 0;gap:6px}
+.calp-main .calgrid__wd{padding:0}
+.calp-main .calgrid__d{background:var(--lx-chip);border-radius:12px;min-height:92px;color:var(--lx-ink)}
+.calp-main .calgrid__d:hover{background:var(--lx-card);border-color:var(--lx-line)}
+.calp-main .calgrid__d.sel{border-color:var(--lx-blue);box-shadow:inset 0 0 0 1px var(--lx-blue);background:var(--lx-card)}
+.calp-main .calgrid__d.today .calgrid__n{background:var(--lx-blue);box-shadow:none}
+.calp-main .calweek__day{background:var(--lx-chip)}
+.calp-day .calside__h{display:flex;align-items:center;justify-content:space-between}
+.calp-day .calside__h b{font-family:var(--fd);font-size:1.12rem;color:var(--lx-ink)}
+.calp-day .calist{display:grid;gap:8px}
+.calp-day .calev{display:grid;grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"type ical x" "m m m";gap:6px;padding:12px;border:1px solid var(--lx-line);border-radius:12px;background:var(--lx-card)}
+.calp-day .calev__type{grid-area:type;justify-self:start}
+.calp-day .calev__m{grid-area:m}
+.calp-day .calev__ical{grid-area:ical}
+.calp-day .calev__x,.calp-day .calev--task > a.calev__ical{grid-area:x}
+.calp .calside__empty{margin:0;font-size:.86rem;color:var(--lx-gray)}
+.calp .calup button:hover{background:var(--lx-chip)}
+.calp-quick{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.calp-q{display:grid;gap:22px;align-content:space-between;min-height:104px;padding:14px;border:0;border-radius:14px;background:var(--lx-chip);color:var(--lx-ink);text-align:left;font:inherit;cursor:pointer}
+.calp-q:hover{outline:1px solid var(--lx-blue)}
+.calp-q span{width:34px;height:34px;border-radius:10px;background:var(--lx-card);display:grid;place-items:center;color:var(--lx-blue-ink)}
+.calp-q span svg{width:17px;height:17px}
+.calp-q b{font-size:.86rem;font-weight:600}
+.calp-q:first-child{background:var(--lx-blue);color:#fff}
+.calp-q:first-child span{background:rgba(255,255,255,.18);color:#fff}
+@media (max-width:640px){.calp-main .calgrid__d{min-height:52px}.calp-seg{min-width:0;width:100%}}
+
+/* ── Tasks (K3) ──────────────────────────────────────────────────────── */
+.tboard__dot{width:12px;height:12px;border-radius:50%;background:var(--c,#3b82f6);display:block}
+.tboard__kpi--todo{--c:#fff}.tboard__kpi--doing{--c:#8b5cf6}.tboard__kpi--review{--c:#f59e0b}.tboard__kpi--done{--c:#10b981}
+.tboard__kpi .lxs-kpi__note svg{width:14px;height:14px}
+.tboard__card .wfb{margin:0}
+.tboard__card .pipe--tasks{padding:0}
+.tboard__card .pipe--tasks .pipe__col{background:var(--lx-chip);border:0}
+.tboard__card .pipe--tasks .pipe__card{background:var(--lx-card);border-color:var(--lx-line)}
+.tboard__card .task__t{color:var(--lx-ink)}
+
+/* ── AI workspace (K4) ───────────────────────────────────────────────── */
+.lxp-aiw{grid-template-columns:minmax(0,1fr) minmax(280px,340px);gap:22px}
+.lxp-aiw .aiw__ico{background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff}
+.lxp-aiw .aiw__tool{background:var(--lx-chip);border-color:transparent;border-radius:14px;color:var(--lx-ink)}
+.lxp-aiw .aiw__tool:hover:not(:disabled){border-color:#8b5cf6;background:var(--lx-card)}
+.lxp-aiw .aiw__tico{background:var(--lx-card);color:#7c3aed}
+.lxp-aiw .aiw__tool small{color:var(--lx-gray)}
+.lxp-aiw .aiw__ta{background:var(--lx-chip);border:1px solid var(--lx-line);border-radius:14px;color:var(--lx-ink)}
+.lxp-aiw .aiw__run{border-color:var(--lx-line);color:var(--lx-ink)}
+.lxp-aiw .aiw__h3,.lxp-aiw .aiw__count{color:var(--lx-gray)}
+.lxp-aiw .aiw__notes{border-color:var(--lx-line)}
+@media (max-width:1100px){.lxp-aiw{grid-template-columns:1fr}}
+
+/* ── Meetings (K6) ───────────────────────────────────────────────────── */
+.mlp .lxs-kpi{min-height:120px}
+.mlp .lxs-kpi__top .btn,.mlp .lxs-kpi__top button{flex:none}
+.mlp .lxp-main{padding:22px!important}
+.mlp .lxp-main .ppanel__h{margin-bottom:12px}
+.mlp .lxp-main .ppanel__t{font-family:var(--fd);font-size:1.12rem;color:var(--lx-ink)}
+.mlp .mext{font-size:.86rem}
+.mlp .mext .mext-note{margin:0}
+.mlp .minical__d{aspect-ratio:auto;height:34px}
+.mlp .magenda__row{border-radius:12px;background:var(--lx-chip)}
+
+/* ── Promotion (K7) ──────────────────────────────────────────────────── */
+.promop.promo--compact{display:grid;gap:22px}
+.promop .lxs-kpi{min-height:118px}
+.promop .promop__boost{justify-self:start;margin:0;background:var(--lx-blue-tint);color:var(--lx-blue-ink);border:0}
+.promop .promop__boost *{color:inherit}
+.promop .promop__sub{margin-top:4px}
+.promop .promo__places{grid-template-columns:repeat(auto-fit,minmax(min(190px,100%),1fr))}
+.promop .promo__place{background:var(--lx-chip);border:1px solid transparent;border-radius:16px;color:var(--lx-ink)}
+.promop .promo__place:hover,.promop .promo__place:focus-visible{border-color:var(--lx-blue);transform:none;box-shadow:none;background:var(--lx-card)}
+.promop .promo__place>span:not([class]){color:var(--lx-gray)}
+.promop .promo__filters{grid-template-columns:1fr;margin:0}
+.promop .promo__note{text-align:left;color:var(--lx-gray)}
+.promop .promo__active{margin:0}
+/* phones: one column that never grows past the screen */
+@media (max-width:1100px){.lxp .lxs-grid,.lxp-grid,.lxp-aiw{grid-template-columns:minmax(0,1fr)}}
+.lxp-main,.lxp-rail{min-width:0}
+.lxp-main > .lxs-h > *{min-width:0}
+@media (max-width:640px){
+  .lxp-main > .lxs-h{gap:10px}
+  .lxp-main > .lxs-h .lxs-h__t{flex:1 1 100%;order:-1}
+  .lxp-main > .lxs-h .lxs-h__ic{display:none}
+  .lxp-main .lxs-h__t h2{flex-wrap:wrap}
+  .mk-orders--seller .mko-bar{flex-direction:column;align-items:stretch}
+  .mk-orders--seller .mko-search{max-width:none;width:100%}
+  .mlp .lxs-kpi__top{flex-wrap:wrap;gap:8px}
+  .mlp .lxs-kpi__top .cpl-launch{max-width:100%}
+}
+.lxp > *,.lxp-main > *,.lxp-rail > *,.lxs-col > *{min-width:0}
+.mk-orders--seller .mko-card > *{min-width:0}

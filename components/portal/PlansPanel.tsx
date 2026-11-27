@@ -455,7 +455,6 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
 
 
       {/* ── ATMOS monthly auto-pay (clients and sellers alike) ─────────── */}
-      {session ? <AutopayCard uid={session.id} state={autopay} onStateChange={setAutopay} planSlug={currentSlug} /> : null}
 
       {/* ── Tezkor Himoya AI: Free / Lite / Pro ─────────────────────────────── */}
       {/* Headed like the dashboard's "Xizmatlar": the title and its line on
@@ -510,6 +509,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                 slug={plan.slug}
                 name={planName(plan)}
                 features={plan.features ?? []}
+                featsMore={(n) => t("featsMore", { n })}
                 state={isCurrent ? "current" : featured ? "featured" : "plain"}
                 ribbon={isCurrent ? t("current") : featured ? t("recommended") : undefined}
                 saves={[
@@ -550,6 +550,9 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
 
       {/* Why it is safe to subscribe: the dashboard's quiet icons, no tinted tiles. */}
       <div className="subs__side plx-side">
+        {/* The account (tariff, next charge, card, auto-pay) moved beside the
+            plans, so the plans start at the top (owner's PDF 2026-11-27, K8). */}
+        {session ? <AutopayCard uid={session.id} state={autopay} onStateChange={setAutopay} planSlug={currentSlug} /> : null}
         <div className="benefit">
           <span className="benefit__ico"><IconShieldCheck /></span>
           <div>

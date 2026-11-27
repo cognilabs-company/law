@@ -662,3 +662,32 @@ html[data-theme="dark"] .ntitem__art{box-shadow:none}
    place and readable, visibly not available. */
 .mxr__calls--locked .mxr__ib{opacity:.45;cursor:help}
 .mxr__calls--locked .mxr__ib:hover{opacity:.7}
+
+/* The order beside an order chat (owner's PDF 2026-11-27, K5) */
+.portal.lx .mx.mx--info{grid-template-columns:minmax(250px,280px) minmax(0,1fr) minmax(240px,280px)}
+/* the panel's own button opens the order; the header keeps its room */
+.mx--info .mxr__acts > a.mxr__ib{display:none}
+.mx__info{border-left:1px solid var(--lx-line-2);padding:18px;overflow:auto;background:var(--lx-card)}
+.mxi{display:grid;gap:14px}
+.mxi__h{display:flex;align-items:center;gap:12px}
+.mxi__h > div{display:grid;gap:4px}
+.mxi__h b{font-family:var(--fd);font-size:1.05rem;color:var(--lx-ink)}
+.mxi__h code{justify-self:start;font-family:inherit;font-size:.74rem;font-weight:700;background:var(--lx-chip);color:var(--lx-ink);padding:3px 8px;border-radius:6px}
+.mxi__ic{width:42px;height:42px;border-radius:12px;background:var(--lx-blue-tint);color:var(--lx-blue-ink);display:grid;place-items:center;flex:none}
+.mxi__ic svg{width:20px;height:20px}
+.mxi__svc{margin:0;font-weight:600;color:var(--lx-ink);overflow-wrap:anywhere}
+.mxi__facts{margin:0;display:grid;gap:8px;padding:12px;border-radius:12px;background:var(--lx-chip)}
+.mxi__facts div{display:flex;justify-content:space-between;gap:10px;font-size:.84rem}
+.mxi__facts dt{color:var(--lx-gray)}
+.mxi__facts dd{margin:0;color:var(--lx-ink);font-weight:600;text-align:right}
+.mxi__pill{display:inline-flex;height:24px;align-items:center;padding:0 10px;border-radius:999px;font-size:.76rem;background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
+.mxi__pill--pending{background:var(--lx-warn-bg);color:var(--lx-warn)}
+.mxi__pill--completed{background:var(--lx-ok-bg);color:var(--lx-ok)}
+.mxi__pill--cancelled{background:var(--lx-chip);color:var(--lx-gray)}
+.mxi__calls{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;padding:12px;border-radius:12px;border:1px dashed var(--lx-line);color:var(--lx-gray)}
+.mxi__calls > svg{width:18px;height:18px;margin-top:2px}
+.mxi__calls b{display:block;font-size:.86rem;color:var(--lx-ink)}
+.mxi__calls small{font-size:.78rem;line-height:1.4}
+.mxi__calls.is-on{border-style:solid;border-color:var(--lx-ok);color:var(--lx-ok)}
+.mxi__ci{display:none}
+@media (max-width:1399px){.portal.lx .mx.mx--info{grid-template-columns:minmax(280px,320px) minmax(0,1fr)}.mx__info{display:none}.mx--info .mxr__acts > a.mxr__ib{display:grid}}

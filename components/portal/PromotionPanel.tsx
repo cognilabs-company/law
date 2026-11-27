@@ -22,9 +22,10 @@ import { useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import PromoteServicesSection from "@/components/services/PromoteServicesSection";
 import PromoteModal from "@/components/services/PromoteModal";
-import { Skeleton } from "./DataState";
 import { IconRocket, IconEye, IconSearch, IconTarget, IconChat, IconClock, IconArrowRight, IconAlert } from "@/components/icons";
 import { PlacementSketch } from "@/components/services/bits";
+import "@/components/portal/dash/seller1920.css";
+import "@/components/portal/pdf1920.css";
 import { TrendingUpIcon } from "lucide-react";
 
 const PROFILE_KEY = pendingPromoKey("profile");
@@ -108,14 +109,6 @@ export default function PromotionPanel() {
   }, [uid]);
 
   const a = analytics.data;
-  const cards = a
-    ? [
-        { v: a.impressions, label: t("impressions"), Icon: IconEye },
-        { v: a.searchAppearances, label: t("searchAppearances"), Icon: IconSearch },
-        { v: a.profileClicks, label: t("profileClicks"), Icon: IconTarget },
-        { v: a.contactRequests, label: t("contactRequests"), Icon: IconChat },
-      ]
-    : [];
   const st = status.data;
   const boost = svc?.items.find((x) => x.profileBoost)?.profileBoost ?? null;
   const profileLive = st?.byPlacement.profile_boost;
@@ -127,31 +120,10 @@ export default function PromotionPanel() {
   };
 
   return (
-    <div className="promo promo--compact">
-      <div className="promo__hero">
-        <div className="promo__hero-t">
-          <span className="kick" style={{ color: "var(--b300)", background: "rgba(92,168,255,.16)" }}>
-            <IconRocket />
-            {t("kicker")}
-          </span>
-          <h2 className="h2" style={{ color: "#fff" }}>{t("title")}</h2>
-          <p className="lead" style={{ color: "#B7CDEC" }}>{t("intro")}</p>
-          <p className="promo__boost" data-ai-id="promotion.multiplier">
-            <TrendingUpIcon size={18} strokeWidth={1.75} aria-hidden="true" />
-            <span>
-              <b>{t("multiplier")}</b>
-              {maxReach > 1 ? <span className="promo__boostx">{t("multiplierUpTo", { x: maxReach })}</span> : null}
-            </span>
-          </p>
-        </div>
-        {profileDays !== null ? (
-          <div className="promo__gauge">
-            <b>{profileDays}</b>
-            <span>{t("activeShort")}</span>
-          </div>
-        ) : null}
-      </div>
-
+    <div className="promo promo--compact lxp promop">
+      {/* Rebuilt in the dashboard's language (owner's PDF 2026-11-27, K7):
+          the reach numbers as KPI tiles, the ad types in the main card and
+          the analytics filter in the right column. */}
       {profileDays !== null ? (
         <div className="promo__active">
           <IconRocket />
@@ -159,60 +131,37 @@ export default function PromotionPanel() {
         </div>
       ) : null}
 
-      <div className="ppanel" style={{ marginTop: 18 }} data-ai-target="promotion:analytics">
-        <div className="ppanel__h">
-          <b>{t("analyticsTitle")}</b>
-        </div>
-        <div className="promo__filters">
-          <label>
-            <span>{t("filterPlacement")}</span>
-            <Select
-              value={filter.placement ?? ""}
-              onChange={(v) => setFilter((f) => ({ ...f, placement: v as PromotionPlacementKey | "", serviceId: v === "service_boost" ? f.serviceId : "" }))}
-              options={[{ value: "", label: t("filterAll") }, ...PLACES.map((p) => ({ value: p.value, label: ts(`promote.${p.title}`) }))]}
-              ariaLabel={t("filterPlacement")}
-            />
-          </label>
-          {filter.placement === "service_boost" && svc?.items.length ? (
-            <label>
-              <span>{t("filterService")}</span>
-              <Select
-                value={filter.serviceId ?? ""}
-                onChange={(v) => setFilter((f) => ({ ...f, serviceId: v }))}
-                options={[{ value: "", label: t("filterAll") }, ...svc.items.map((x) => ({ value: x.id, label: x.service.name }))]}
-                ariaLabel={t("filterService")}
-              />
-            </label>
-          ) : null}
-          <label>
-            <span>{t("filterFrom")}</span>
-            <DatePicker value={filter.dateFrom ?? ""} onChange={(v) => setFilter((f) => ({ ...f, dateFrom: v }))} placeholder={t("filterFrom")} ariaLabel={t("filterFrom")} max={filter.dateTo || undefined} />
-          </label>
-          <label>
-            <span>{t("filterTo")}</span>
-            <DatePicker value={filter.dateTo ?? ""} onChange={(v) => setFilter((f) => ({ ...f, dateTo: v }))} placeholder={t("filterTo")} ariaLabel={t("filterTo")} min={filter.dateFrom || undefined} />
-          </label>
-        </div>
-        {rangeBad ? <p className="promo__ferr" role="alert">{t(rangeBad === "order" ? "filterOrder" : "filterLong")}</p> : null}
-        {analytics.status === "loading" ? (
-          <Skeleton rows={2} />
-        ) : (
-          <div className="promo__analytics">
-            {cards.map((c) => (
-              <div className="promo__acard" key={c.label}>
-                <span className="promo__ai"><c.Icon /></span>
-                <b>{som(c.v)}</b>
-                <span>{c.label}</span>
-              </div>
-            ))}
+      <div className="lxs-kpis lxp-kpis" data-ai-target="promotion:analytics">
+        {[
+          { v: a?.impressions, label: t("impressions"), Icon: IconEye },
+          { v: a?.searchAppearances, label: t("searchAppearances"), Icon: IconSearch },
+          { v: a?.profileClicks, label: t("profileClicks"), Icon: IconTarget },
+          { v: a?.contactRequests, label: t("contactRequests"), Icon: IconChat },
+        ].map((c, k) => (
+          <div className={`lxs-kpi is-static${k === 0 ? " lxs-kpi--pri" : ""}`} key={c.label}>
+            <span className="lxs-kpi__top"><span className="lxs-kpi__ic"><c.Icon /></span></span>
+            <span className="lxs-kpi__l">{c.label}</span>
+            <b className="lxs-kpi__v sx-num">{analytics.status === "loading" ? "…" : som(c.v ?? 0)}</b>
           </div>
-        )}
+        ))}
       </div>
-
-      <div className="ppanel" style={{ marginTop: 18 }} data-ai-target="promotion:packages">
-        <div className="ppanel__h">
-          <b>{t("placesTitle")}</b>
-        </div>
+      <div className="lxs-grid lxp-grid">
+        <section className="lx-card lxp-main" data-ai-target="promotion:packages" aria-labelledby="promop-h">
+          <div className="lxs-h">
+            <span className="lxs-h__ic"><IconRocket /></span>
+            <div className="lxs-h__t">
+              <h2 id="promop-h">{t("title")}</h2>
+              <small>{t("intro")}</small>
+            </div>
+          </div>
+          <p className="promo__boost promop__boost" data-ai-id="promotion.multiplier">
+            <TrendingUpIcon size={18} strokeWidth={1.75} aria-hidden="true" />
+            <span>
+              <b>{t("multiplier")}</b>
+              {maxReach > 1 ? <span className="promo__boostx">{t("multiplierUpTo", { x: maxReach })}</span> : null}
+            </span>
+          </p>
+          <h3 className="lxs-h3 promop__sub">{t("placesTitle")}</h3>
 
         {/* A checkout waiting for its Click or ATMOS payment (2026-11-21
             contract §1.3): it switches on when the provider confirms. */}
@@ -291,6 +240,44 @@ export default function PromotionPanel() {
           })}
         </div>
         <p className="promo__note">{t("boostNote")}</p>
+        </section>
+        <aside className="lxs-col">
+          <section className="lx-card lxp-rail">
+            <h2 className="lxs-h3">{t("analyticsTitle")}</h2>
+        <div className="promo__filters">
+          <label>
+            <span>{t("filterPlacement")}</span>
+            <Select
+              value={filter.placement ?? ""}
+              onChange={(v) => setFilter((f) => ({ ...f, placement: v as PromotionPlacementKey | "", serviceId: v === "service_boost" ? f.serviceId : "" }))}
+              options={[{ value: "", label: t("filterAll") }, ...PLACES.map((p) => ({ value: p.value, label: ts(`promote.${p.title}`) }))]}
+              ariaLabel={t("filterPlacement")}
+            />
+          </label>
+          {filter.placement === "service_boost" && svc?.items.length ? (
+            <label>
+              <span>{t("filterService")}</span>
+              <Select
+                value={filter.serviceId ?? ""}
+                onChange={(v) => setFilter((f) => ({ ...f, serviceId: v }))}
+                options={[{ value: "", label: t("filterAll") }, ...svc.items.map((x) => ({ value: x.id, label: x.service.name }))]}
+                ariaLabel={t("filterService")}
+              />
+            </label>
+          ) : null}
+          <label>
+            <span>{t("filterFrom")}</span>
+            <DatePicker value={filter.dateFrom ?? ""} onChange={(v) => setFilter((f) => ({ ...f, dateFrom: v }))} placeholder={t("filterFrom")} ariaLabel={t("filterFrom")} max={filter.dateTo || undefined} />
+          </label>
+          <label>
+            <span>{t("filterTo")}</span>
+            <DatePicker value={filter.dateTo ?? ""} onChange={(v) => setFilter((f) => ({ ...f, dateTo: v }))} placeholder={t("filterTo")} ariaLabel={t("filterTo")} min={filter.dateFrom || undefined} />
+          </label>
+        </div>
+        {rangeBad ? <p className="promo__ferr" role="alert">{t(rangeBad === "order" ? "filterOrder" : "filterLong")}</p> : null}
+            {rangeBad ? <p className="promo__ferr" role="alert">{t(rangeBad === "order" ? "filterOrder" : "filterLong")}</p> : null}
+          </section>
+        </aside>
       </div>
 
       {open && !denied ? (

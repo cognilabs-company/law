@@ -6554,7 +6554,8 @@
       "contactSpeed": "Bog'lanish tezligi",
       "emptyFilter": "Filtrga mos buyurtma topilmadi",
       "searchLabel": "Buyurtma qidirish",
-      "searchPhSeller": "Xizmat, ADV raqam yoki mijoz","searchPhShort":"Qidirish",
+      "searchPhSeller": "Xizmat, ADV raqam yoki mijoz",
+      "searchPhShort": "Qidirish",
       "searchPhClient": "Xizmat, ADV raqam yoki mutaxassis",
       "filterStatus": "Holat",
       "clientTitle": "Xizmat buyurtmalarim",
@@ -6634,7 +6635,21 @@
       "newTitle": "Yangi buyurtmalar — javob bering",
       "newOver": "Muddat tugadi",
       "rework": "Qayta bajarishda",
-      "phoneClosed": "Xizmat yakunlangan — yashirildi"
+      "phoneClosed": "Xizmat yakunlangan — yashirildi",
+      "listTitle": "Buyurtmalar",
+      "byStage": "Holatlar bo‘yicha",
+      "kpi": {
+        "new": "Yangi buyurtmalar",
+        "newWaiting": "{n} tasi javobingizni kutmoqda",
+        "newNone": "Hozir javob kutayotgan so‘rov yo‘q",
+        "active": "Faol ishlar",
+        "activeNote": "Jarayondagi buyurtmalar",
+        "done": "Yakunlangan",
+        "cancelled": "Bekor qilingan: {n}",
+        "income": "Bu oy yakunlangan",
+        "som": "so‘m",
+        "incomeNote": "Shu oy yakunlangan ishlar summasi"
+      }
     },
     "toast": {
       "started": "Ish boshlandi",
@@ -9256,7 +9271,14 @@
         "newTask": "Yangi vazifa",
         "markDone": "Bajarildi deb belgilash",
         "taskDone": "Vazifa bajarildi",
-        "openTasks": "Vazifalarga o‘tish"
+        "openTasks": "Vazifalarga o‘tish",
+        "kpiToday": "Bugun",
+        "kpiWeek": "Shu hafta",
+        "kpiWeekNote": "Voqea va vazifalar",
+        "kpiDeadlines": "Muddatlar",
+        "kpiDeadlinesNote": "Hafta oxirigacha",
+        "kpiTasks": "Ochiq vazifalar",
+        "quick": "Tezkor amallar"
       },
       "respond": {
         "left": "Javob uchun {time}",
@@ -9323,7 +9345,12 @@
       "checklist": "Nazorat ro'yxati",
       "checklistPh": "Har bir qatorga bitta band\n[x] bajarilgan band",
       "checklistHint": "Har bir qator — alohida band. Bajarilganini \"[x]\" bilan belgilang.",
-      "overdue": "Muddati o'tgan"
+      "overdue": "Muddati o'tgan",
+      "stageNote": {
+        "todo": "Hali boshlanmagan",
+        "doing": "Hozir ishlanmoqda",
+        "review": "Tasdiq kutmoqda"
+      }
     },
     "aiAssistant": {
       "handoff": {
@@ -18893,7 +18920,19 @@
     "callOnlyOrderClient": "Qo'ng'iroqqa faqat shu buyurtma mijozini taklif qilish mumkin.",
     "callLockedTitle": "Qo‘ng‘iroq hozircha yopiq",
     "callLocked": "Audio va video qo‘ng‘iroq buyurtma to‘langan va faol bo‘lganda ochiladi.",
-    "openOrder": "Buyurtmani ochish"
+    "openOrder": "Buyurtmani ochish",
+    "orderInfo": {
+      "title": "Buyurtma",
+      "status": "Holat",
+      "price": "Narx",
+      "som": "so‘m",
+      "created": "Yaratilgan",
+      "callsOn": "Qo‘ng‘iroq ochiq",
+      "callsOnText": "Audio va video qo‘ng‘iroq suhbat sarlavhasidan boshlanadi.",
+      "callsOff": "Qo‘ng‘iroq hozircha yopiq",
+      "callsOffText": "Buyurtma to‘langan va faol bo‘lganda ochiladi.",
+      "open": "Buyurtmani ochish"
+    }
   },
   "academy": {
     "kicker": "Tezkor Himoya Akademiya",

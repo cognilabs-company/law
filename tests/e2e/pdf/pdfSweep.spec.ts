@@ -15,9 +15,10 @@ test.setTimeout(600_000);
 const WIDTHS = [320, 375, 430, 640, 768, 1024, 1280, 1366, 1440, 1470, 1512, 1600, 1728, 1920, 2560];
 const PAGES = (process.env.PDF_PAGES || "marketplace-orders,calendar,tasks,assistant,messages?room=r1,meetings,promotion,subscription").split(",");
 
-for (const lang of ["uz", "ru", "en"]) {
-  test(`sweep ${lang}`, async ({ page }) => {
-    await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
+for (const lang of ["uz", "ru", "en"]) for (const theme of ["light", "dark"] as const) {
+  test(`sweep ${lang} ${theme}`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
+    await page.addInitScript((th) => localStorage.setItem("lexgo_theme", th), theme);
     await mockBackend(page, await signIn(page, ADVOCATE_S, { ...mocksFor("advocate"), ...advocateExtra() }));
     const bad: string[] = [];
     for (const p of PAGES) {
@@ -48,7 +49,7 @@ for (const lang of ["uz", "ru", "en"]) {
     }
     const dir = join(process.cwd(), "coverage", "pdf-shots");
     mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, `sweep-${lang}.txt`), bad.join("\n") || "OK");
+    writeFileSync(join(dir, `sweep-${lang}-${theme}.txt`), bad.join("\n") || "OK");
     expect(bad, bad.join("\n")).toEqual([]);
   });
 }

@@ -544,3 +544,17 @@ html[data-theme="dark"] .amodal .plx-made__art.gift__done-ic{box-shadow:none}
 .splan__more{align-self:flex-start;margin:0 0 14px;padding:4px 0;border:0;background:none;font:inherit;font-size:.82rem;font-weight:700;color:var(--lx-blue,#1668F0);cursor:pointer}
 .splan__more:hover{text-decoration:underline}
 .splan__more:focus-visible{outline:2px solid var(--lx-blue,#1668F0);outline-offset:2px;border-radius:4px}
+
+/* The account card in the right column (owner's PDF 2026-11-27, K8): its
+   three facts stack, auto-pay under them. */
+.portal.lx .plx-side .plx-acct__top{grid-template-columns:minmax(0,1fr)}
+.portal.lx .plx-side .plx-acct__cell{padding:14px 18px;border-left:0!important;border-top:1px solid var(--lx-line-2)}
+.portal.lx .plx-side .plx-acct__cell:first-child{border-top:0}
+.portal.lx .plx-side .plx-acct .plx-acct__pay{padding:14px 18px}
+.portal.lx .plx-side .plx-acct .apay__row{flex-direction:column;align-items:stretch}
+.portal.lx .plx-side .plx-acct .apay__row .btn{width:100%;justify-content:center}
+.splan__rest{margin:-12px 0 16px}
+.splan__rest > summary{list-style:none;display:inline-block}
+.splan__rest > summary::-webkit-details-marker{display:none}
+.splan__rest[open] > summary{margin-bottom:8px}
+.splan.plx-plan .splan__rest .splan__feats{margin:0}

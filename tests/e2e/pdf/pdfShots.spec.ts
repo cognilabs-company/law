@@ -15,12 +15,14 @@ test.skip(!TAG, "set PDF_SHOTS=before|after to take the shots");
 
 const SIZES = { desk: { width: 1470, height: 920 }, phone: { width: 375, height: 812 } } as const;
 
+// Both themes: PDF_THEME=light|dark (dark by default, as the PDF's shots).
+const THEME = (process.env.PDF_THEME || "dark") as "light" | "dark";
 async function dark(page: Page) {
-  await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
-  await page.addInitScript(() => {
-    localStorage.setItem("lexgo_theme", "dark");
+  await page.emulateMedia({ colorScheme: THEME, reducedMotion: "reduce" });
+  await page.addInitScript((th) => {
+    localStorage.setItem("lexgo_theme", th);
     localStorage.setItem("lexgo_sidebar_collapsed", "0");
-  });
+  }, THEME);
 }
 
 async function shoot(page: Page, name: string) {
@@ -29,7 +31,7 @@ async function shoot(page: Page, name: string) {
   for (const [size, vp] of Object.entries(SIZES)) {
     await page.setViewportSize(vp);
     await page.waitForTimeout(700);
-    await page.screenshot({ path: join(OUT, `${name}-${size}.png`) });
+    await page.screenshot({ path: join(OUT, `${name}-${size}${THEME === "light" ? "-light" : ""}.png`) });
   }
 }
 

@@ -6554,7 +6554,8 @@
       "contactSpeed": "Contact speed",
       "emptyFilter": "No orders match these filters",
       "searchLabel": "Search orders",
-      "searchPhSeller": "Service, ADV number or client","searchPhShort":"Search",
+      "searchPhSeller": "Service, ADV number or client",
+      "searchPhShort": "Search",
       "searchPhClient": "Service, ADV number or specialist",
       "filterStatus": "Status",
       "clientTitle": "My service orders",
@@ -6634,7 +6635,21 @@
       "newTitle": "New orders — answer them",
       "newOver": "Time's up",
       "rework": "Being redone",
-      "phoneClosed": "Service closed — hidden"
+      "phoneClosed": "Service closed — hidden",
+      "listTitle": "Orders",
+      "byStage": "By status",
+      "kpi": {
+        "new": "New orders",
+        "newWaiting": "{n} waiting for your answer",
+        "newNone": "No requests are waiting for an answer",
+        "active": "Active work",
+        "activeNote": "Orders in progress",
+        "done": "Completed",
+        "cancelled": "Cancelled: {n}",
+        "income": "Completed this month",
+        "som": "UZS",
+        "incomeNote": "Total of work completed this month"
+      }
     },
     "toast": {
       "started": "Work started",
@@ -9250,7 +9265,14 @@
         "newTask": "New task",
         "markDone": "Mark as done",
         "taskDone": "Task done",
-        "openTasks": "Go to tasks"
+        "openTasks": "Go to tasks",
+        "kpiToday": "Today",
+        "kpiWeek": "This week",
+        "kpiWeekNote": "Events and tasks",
+        "kpiDeadlines": "Deadlines",
+        "kpiDeadlinesNote": "Until the end of the week",
+        "kpiTasks": "Open tasks",
+        "quick": "Quick actions"
       },
       "respond": {
         "left": "{time} to respond",
@@ -9317,7 +9339,12 @@
       "checklist": "Checklist",
       "checklistPh": "One item per line\n[x] a done item",
       "checklistHint": "Each line is an item. Mark done items with \"[x]\".",
-      "overdue": "Overdue"
+      "overdue": "Overdue",
+      "stageNote": {
+        "todo": "Not started yet",
+        "doing": "In progress now",
+        "review": "Waiting for review"
+      }
     },
     "aiAssistant": {
       "handoff": {
@@ -18887,7 +18914,19 @@
     "callOnlyOrderClient": "Only this order's client can be invited to the call.",
     "callLockedTitle": "Calls are not open yet",
     "callLocked": "Audio and video calls open once the order is paid and active.",
-    "openOrder": "Open the order"
+    "openOrder": "Open the order",
+    "orderInfo": {
+      "title": "Order",
+      "status": "Status",
+      "price": "Price",
+      "som": "UZS",
+      "created": "Created",
+      "callsOn": "Calls are open",
+      "callsOnText": "Start an audio or video call from the chat header.",
+      "callsOff": "Calls are not open yet",
+      "callsOffText": "They open once the order is paid and active.",
+      "open": "Open the order"
+    }
   },
   "academy": {
     "kicker": "Tezkor Himoya Academy",

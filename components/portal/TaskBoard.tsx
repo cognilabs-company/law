@@ -16,6 +16,8 @@ import { Skeleton, EmptyState, ErrorState } from "./DataState";
 import { IconClipboardCheck, IconChevronLeft, IconChevronRight, IconPlus, IconEdit, IconTrash, IconEye, IconAlert, IconCalendar, IconBriefcase } from "@/components/icons";
 import { dateOnly } from "@/lib/date";
 import { isForbidden } from "@/lib/http";
+import "@/components/portal/dash/seller1920.css";
+import "@/components/portal/pdf1920.css";
 
 // Backend task statuses: todo · doing · review · done (+ blocked as a flag, deleted).
 const STAGES = ["todo", "doing", "review", "done"] as const;
@@ -163,28 +165,30 @@ export default function TaskBoard() {
   }
 
   return (
-    <div className="ppanel tboard" data-ai-target={res.data.length ? undefined : "tasks:board"}>
-      {/* The shell's h1 names the page; this strip is the board at a glance
-          (owner's PDF 2026-11-27: the page looked old). */}
-      <div className="tboard__h">
-        <ul className="tboard__sum" aria-label={t("count", { n: res.data.length, open: res.data.filter((x) => stageOf(x.status) !== "done").length })}>
-          {STAGES.map((s) => (
-            <li key={s} className={`tboard__chip tboard__chip--${s}`}>
-              <i aria-hidden="true" />
-              {t(`stages.${s}`)}
-              <b className="sx-num">{cols[s].length}</b>
-            </li>
-          ))}
-          {overdueCount ? (
-            <li className="tboard__chip tboard__chip--over">
-              <IconAlert aria-hidden="true" />
-              {t("overdue")}
-              <b className="sx-num">{overdueCount}</b>
-            </li>
-          ) : null}
-        </ul>
-        {readOnly ? null : <button className="btn btn--pri btn--sm" type="button" onClick={() => setEditing("new")} data-ai-target="button:new-task"><IconPlus />{t("add")}</button>}
+    <div className="lxp tboard" data-ai-target={res.data.length ? undefined : "tasks:board"}>
+      {/* Rebuilt in the dashboard's language (owner's PDF 2026-11-27, K3):
+          the stages as KPI tiles, the board in its own card. */}
+      <div className="lxs-kpis lxp-kpis">
+        {STAGES.map((s, i) => (
+          <button key={s} type="button" className={`lxs-kpi tboard__kpi tboard__kpi--${s}${i === 0 ? " lxs-kpi--pri" : ""}`} onClick={() => { if (s === "done") setHideDone(false); document.getElementById(`tcol-${s}`)?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" }); }}>
+            <span className="lxs-kpi__top"><span className="lxs-kpi__ic"><i className="tboard__dot" /></span></span>
+            <span className="lxs-kpi__l">{t(`stages.${s}`)}</span>
+            <b className="lxs-kpi__v sx-num">{cols[s].length}</b>
+            <span className="lxs-kpi__note">
+              {s === "todo" && overdueCount ? <><IconAlert />{t("overdue")}: {overdueCount}</> : s === "done" ? t("count", { n: res.data.length, open: res.data.filter((x) => stageOf(x.status) !== "done").length }) : t(`stageNote.${s}`)}
+            </span>
+          </button>
+        ))}
       </div>
+      <section className="lx-card lxp-main tboard__card" aria-labelledby="tboard-h">
+        <div className="lxs-h">
+          <span className="lxs-h__ic"><IconClipboardCheck /></span>
+          <div className="lxs-h__t">
+            <h2 id="tboard-h">{t("title")}</h2>
+            <small>{t("lead")}</small>
+          </div>
+          {readOnly ? null : <button className="btn btn--pri btn--sm" type="button" onClick={() => setEditing("new")} data-ai-target="button:new-task"><IconPlus />{t("add")}</button>}
+        </div>
       <FilterBar
         className="wfb"
         fields={[
@@ -219,6 +223,7 @@ export default function TaskBoard() {
             const si = STAGES.indexOf(s);
             return (
               <div
+                id={`tcol-${s}`}
                 className={`pipe__col pipe__col--${s === "todo" ? "new" : s === "doing" ? "contacted" : s === "review" ? "proposal" : "won"}${overStage === s ? " pipe__col--over" : ""}`}
                 key={s}
                 onDragOver={(e) => { if (dragId && !readOnly) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropInstant(false); setOverStage(s); } }}
@@ -283,6 +288,7 @@ export default function TaskBoard() {
         </ScrollCue>
       )}
 
+      </section>
       <TaskModal
         target={readOnly ? null : editing}
         onClose={() => setEditing(null)}

@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import AiLabel from "@/components/ui/AiLabel";
 import { askAiAssistant } from "@/lib/services/backend";
+import "@/components/portal/dash/seller1920.css";
+import "@/components/portal/pdf1920.css";
 import { notify } from "@/lib/toast";
 import { timeOnly } from "@/lib/date";
 import { IconSparkle, IconSend, IconCopy, IconDownload, IconFileText, IconClose, IconClock, IconList, IconCalendar, IconSearch, IconAlert, IconClipboardList, IconHelpCircle, IconEdit } from "@/components/icons";
@@ -155,14 +157,14 @@ export default function AiAssistant() {
   }
 
   return (
-    <div className="aiw asist">
+    <div className="aiw asist lxp-aiw">
       <div className="aiw__main">
-        <section className="ppanel aiw__ws" data-ai-target="ai-chat:input" data-ai-label={t("caseLabel")}>
-          <header className="aiw__h">
-            <span className="aiw__ico" aria-hidden="true"><IconSparkle /></span>
-            <div>
-              <h2 className="aiw__t">{t("title")}</h2>
-              <p className="aiw__sub">{t("subtitle")}</p>
+        <section className="lx-card lxp-main aiw__ws" data-ai-target="ai-chat:input" data-ai-label={t("caseLabel")}>
+          <header className="lxs-h">
+            <span className="lxs-h__ic aiw__ico" aria-hidden="true"><IconSparkle /></span>
+            <div className="lxs-h__t">
+              <h2>{t("title")}</h2>
+              <small>{t("subtitle")}</small>
             </div>
           </header>
 
@@ -232,13 +234,13 @@ export default function AiAssistant() {
         </section>
 
         {busy ? (
-          <section className="ppanel aiw__ans" aria-busy="true">
+          <section className="lx-card lxp-main aiw__ans" aria-busy="true">
             <div className="aiw__ansh"><b>{toolName(active || "free")}</b></div>
             <div className="aiw__skel" aria-hidden="true"><i /><i /><i /></div>
             <p className="intake__hint" role="status">{t("thinking")}</p>
           </section>
         ) : current ? (
-          <section className="ppanel aiw__ans asist__ans" data-ai-target="assistant:answer" tabIndex={-1} ref={answerRef} aria-label={toolName(current.tool)}>
+          <section className="lx-card lxp-main aiw__ans asist__ans" data-ai-target="assistant:answer" tabIndex={-1} ref={answerRef} aria-label={toolName(current.tool)}>
             <div className="aiw__ansh">
               <b>{toolName(current.tool)}</b>
               <small className="sx-num">{timeOnly(current.at, locale)}</small>
@@ -261,7 +263,7 @@ export default function AiAssistant() {
         ) : null}
       </div>
 
-      <aside className="ppanel aiw__side" aria-label={t("history")}>
+      <aside className="lx-card lxp-rail aiw__side" aria-label={t("history")}>
         <div className="aiw__sideh">
           <b>{t("history")}</b>
           {runs.length ? (

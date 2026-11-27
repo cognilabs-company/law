@@ -246,7 +246,7 @@
 @media (min-width: 900px) {
   .mk-orders--seller .mko-card {
     grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-areas: "chips title price" "facts facts acts";
+    grid-template-areas: "title title price" "chips facts acts";
     align-items: center;
   }
   .mk-orders--seller .mko-card__head,
@@ -255,7 +255,7 @@
   .mk-orders--seller .mko-card__title { grid-area: title; min-width: 0; overflow-wrap: anywhere; }
   .mk-orders--seller .mko-price { grid-area: price; justify-self: end; }
   .mk-orders--seller .mko-facts { grid-area: facts; }
-  .mk-orders--seller .mko-card__acts { grid-area: acts; align-self: center; max-width: none; }
+  .mk-orders--seller .mko-card__acts { grid-area: acts; align-self: center; max-width: none; justify-self: end; }
   /* Package, options, notes and panels keep their own full-width rows. */
   .mk-orders--seller .mko-card__body > :not(.mko-card__title):not(.mko-facts) { grid-column: 1 / -1; }
 }

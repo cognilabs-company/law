@@ -18,6 +18,8 @@ import {
   type WorkTask,
 } from "@/lib/services/backend";
 import { Link } from "@/i18n/navigation";
+import "@/components/portal/dash/seller1920.css";
+import "@/components/portal/pdf1920.css";
 import { useResource } from "@/lib/useResource";
 import { useAiReveal } from "@/lib/guide/targets";
 import { Skeleton, EmptyState, ErrorState } from "./DataState";
@@ -328,35 +330,71 @@ export default function CalendarPanel({ ns }: { ns: string }) {
     </div>
   );
 
+  const weekNow = (() => {
+    const d = new Date();
+    const mon = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
+    const sun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 7);
+    return [iso(mon.getFullYear(), mon.getMonth(), mon.getDate()), iso(sun.getFullYear(), sun.getMonth(), sun.getDate())];
+  })();
+  const weekCount = items.filter((x) => { const k = dayKey(x.startsAt); return k >= weekNow[0] && k < weekNow[1]; }).length;
+  const soonDeadlines = items.filter((x) => /deadline/.test(x.type) && dayKey(x.startsAt) >= todayKey && dayKey(x.startsAt) < weekNow[1]).length;
+  const openTasks = tasks.status === "ready" ? tasks.data.filter((x) => x.status !== "done").length : 0;
+  const todayCount = (byDay.get(todayKey) ?? []).length;
+
+  // Rebuilt in the dashboard's language (owner's PDF 2026-11-27, K2): the
+  // day's numbers on top, the calendar in its own card, the day and the
+  // upcoming items with the quick actions in the right column.
   return (
-    <div className="ppanel">
-      <div className="ppanel__h">
-        <b>{t("title")}</b>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <div className="segs segs--sm" role="tablist" aria-label={tc("view")} data-ai-target="calendar:view">
-            <button type="button" role="tab" className="seg" aria-selected={mode === "month"} onClick={() => setMode("month")}>{tc("month")}</button>
-            <button type="button" role="tab" className="seg" aria-selected={mode === "week"} onClick={() => setMode("week")}>{tc("week")}</button>
-            <button type="button" role="tab" className="seg" aria-selected={mode === "list"} onClick={() => setMode("list")}>{tc("list")}</button>
-          </div>
-          <button className="btn btn--soft btn--sm" type="button" onClick={() => { setCalcRes(null); setCalcOpen(true); }} data-ai-target="button:deadline-calculator">
-            <IconClock />
-            {td("open")}
-          </button>
-          <button className="btn btn--soft btn--sm" type="button" onClick={() => openAdd(undefined, "task")} data-ai-target="button:add-task">
-            <IconClipboardCheck />
-            {tt("add")}
-          </button>
-          <button className="btn btn--pri btn--sm" type="button" onClick={() => openAdd()} data-ai-target="button:add-event">
-            <IconPlus />
-            {t("add")}
-          </button>
+    <div className="lxp calp">
+      <div className="lxs-kpis lxp-kpis">
+        <button type="button" className="lxs-kpi lxs-kpi--pri" onClick={goToday}>
+          <span className="lxs-kpi__top"><span className="lxs-kpi__ic"><IconCalendar /></span></span>
+          <span className="lxs-kpi__l">{tc("kpiToday")}</span>
+          <b className="lxs-kpi__v sx-num">{todayCount}</b>
+          <span className="lxs-kpi__note">{fmtDate(todayKey, locale)}</span>
+        </button>
+        <button type="button" className="lxs-kpi" onClick={() => { goToday(); setMode("week"); }}>
+          <span className="lxs-kpi__top"><span className="lxs-kpi__ic"><IconClock /></span></span>
+          <span className="lxs-kpi__l">{tc("kpiWeek")}</span>
+          <b className="lxs-kpi__v sx-num">{weekCount}</b>
+          <span className="lxs-kpi__note">{tc("kpiWeekNote")}</span>
+        </button>
+        <div className="lxs-kpi is-static">
+          <span className="lxs-kpi__top"><span className="lxs-kpi__ic"><IconBell /></span></span>
+          <span className="lxs-kpi__l">{tc("kpiDeadlines")}</span>
+          <b className="lxs-kpi__v sx-num">{soonDeadlines}</b>
+          <span className="lxs-kpi__note">{tc("kpiDeadlinesNote")}</span>
         </div>
+        <Link className="lxs-kpi" href={ns.includes("lawyer") ? "/portal/lawyer/tasks" : "/portal/advocate/tasks"}>
+          <span className="lxs-kpi__top"><span className="lxs-kpi__ic"><IconClipboardCheck /></span></span>
+          <span className="lxs-kpi__l">{tc("kpiTasks")}</span>
+          <b className="lxs-kpi__v sx-num">{openTasks}</b>
+          <span className="lxs-kpi__note">{tc("openTasks")}</span>
+        </Link>
       </div>
-      {res.status === "loading" ? (
-        <Skeleton rows={3} />
-      ) : res.status === "error" ? (
-        <ErrorState error={res.error} onRetry={() => res.refresh()} />
-      ) : mode === "list" ? (
+
+      <div className="lxs-grid lxp-grid">
+        <section className="lx-card lxp-main calp-main" aria-labelledby="calp-h">
+          <div className="lxs-h">
+            <span className="lxs-h__ic"><IconCalendar /></span>
+            <div className="lxs-h__t">
+              <h2 id="calp-h">{t("title")}</h2>
+            </div>
+            <div className="lxs-seg calp-seg" role="tablist" aria-label={tc("view")} data-ai-target="calendar:view">
+              <button type="button" role="tab" className={mode === "month" ? "on" : ""} aria-selected={mode === "month"} onClick={() => setMode("month")}>{tc("month")}</button>
+              <button type="button" role="tab" className={mode === "week" ? "on" : ""} aria-selected={mode === "week"} onClick={() => setMode("week")}>{tc("week")}</button>
+              <button type="button" role="tab" className={mode === "list" ? "on" : ""} aria-selected={mode === "list"} onClick={() => setMode("list")}>{tc("list")}</button>
+            </div>
+            <button className="btn btn--pri btn--sm" type="button" onClick={() => openAdd()} data-ai-target="button:add-event">
+              <IconPlus />
+              {t("add")}
+            </button>
+          </div>
+          {res.status === "loading" ? (
+            <Skeleton rows={3} />
+          ) : res.status === "error" ? (
+            <ErrorState error={res.error} onRetry={() => res.refresh()} />
+          ) : mode === "list" ? (
         !items.length ? (
           <EmptyState icon={<IconCalendar />} title={t("empty")} text={t("emptyText")} />
         ) : (
@@ -364,7 +402,7 @@ export default function CalendarPanel({ ns }: { ns: string }) {
             {[...items].sort((a, b) => a.startsAt.localeCompare(b.startsAt)).map((ev) => eventRow(ev, true))}
           </div>
         )
-      ) : mode === "week" ? (
+          ) : mode === "week" ? (
         <div className="calweek" data-ai-target="calendar:week">
           <div className="calgrid__nav">
             <button type="button" aria-label={tc("prevWeek")} onClick={() => stepWeek(-1)}><IconChevronLeft /></button>
@@ -393,8 +431,7 @@ export default function CalendarPanel({ ns }: { ns: string }) {
             })}
           </div>
         </div>
-      ) : (
-        <div className="calwrap">
+          ) : (
           <div className="calgrid" data-ai-target="calendar:month">
             <div className="calgrid__nav">
               <button type="button" aria-label={tc("prev")} onClick={() => step(-1)}><IconChevronLeft /></button>
@@ -430,7 +467,11 @@ export default function CalendarPanel({ ns }: { ns: string }) {
               })}
             </div>
           </div>
-          <aside className="calside" data-ai-target="calendar:agenda">
+          )}
+        </section>
+
+        <aside className="lxs-col">
+          <section className="lx-card lxp-rail calp-day" data-ai-target="calendar:agenda">
             <div className="calside__h">
               <b>{sel === todayKey ? t("today") : fmtDate(sel, locale)}</b>
               <button type="button" className="aitem__act" aria-label={t("add")} title={t("add")} onClick={() => openAdd(sel)}><IconPlus /></button>
@@ -440,7 +481,9 @@ export default function CalendarPanel({ ns }: { ns: string }) {
             ) : (
               <p className="calside__empty">{tc("noneDay")}</p>
             )}
-            <div className="calside__h calside__h--up"><b>{tc("upcoming")}</b></div>
+          </section>
+          <section className="lx-card lxp-rail">
+            <h2 className="lxs-h3">{tc("upcoming")}</h2>
             {upcoming.length ? (
               <ul className="calup">
                 {upcoming.map((ev) => (
@@ -455,9 +498,22 @@ export default function CalendarPanel({ ns }: { ns: string }) {
             ) : (
               <p className="calside__empty">{t("empty")}</p>
             )}
-          </aside>
-        </div>
-      )}
+          </section>
+          <section className="lx-card lxp-rail">
+            <h2 className="lxs-h3">{tc("quick")}</h2>
+            <div className="calp-quick">
+              <button className="calp-q" type="button" onClick={() => openAdd(undefined, "task")} data-ai-target="button:add-task">
+                <span><IconClipboardCheck /></span>
+                <b>{tt("add")}</b>
+              </button>
+              <button className="calp-q" type="button" onClick={() => { setCalcRes(null); setCalcOpen(true); }} data-ai-target="button:deadline-calculator">
+                <span><IconClock /></span>
+                <b>{td("open")}</b>
+              </button>
+            </div>
+          </section>
+        </aside>
+      </div>
 
       <Modal open={calcOpen} onClose={() => setCalcOpen(false)} title={td("title")}>
         <form className="cform" style={{ maxWidth: "none" }} onSubmit={calc}>

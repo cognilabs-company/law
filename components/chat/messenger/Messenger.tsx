@@ -11,6 +11,7 @@ import type { SecureRoom, UrgentRequest } from "@/lib/services/backend";
 import SecureChat from "../SecureChat";
 import { ChatList } from "./ChatList";
 import { setOpenRoom, useRoom } from "./rooms";
+import OrderInfo from "./OrderInfo";
 
 // The secure messenger: the conversation list beside the open room on a wide
 // screen, one or the other on a phone. Two homes, one component:
@@ -48,7 +49,10 @@ export default function Messenger({
   const router = useRouter();
   const active = standalone ? roomProp || "" : sp.get("room") || "";
   const inbox = INBOX_HREF[session?.role ?? "client"];
-  const { record } = useRoom(session?.id ?? "", active);
+  const { record, room } = useRoom(session?.id ?? "", active);
+  // An advocate/lawyer sees the order beside an order chat (PDF 2026-11-27, K5).
+  const seller = session?.role === "advocate" || session?.role === "lawyer";
+  const infoOrder = seller && !standalone && active && !record ? room?.orderId || "" : "";
 
   useEffect(() => {
     setOpenRoom(active);
@@ -78,7 +82,7 @@ export default function Messenger({
   const back = () => router.push(standalone ? inbox : pathname, { scroll: false });
 
   return (
-    <div className={`mx${standalone ? " mx--standalone" : ""}`} data-open={active ? "" : undefined}>
+    <div className={`mx${standalone ? " mx--standalone" : ""}${infoOrder ? " mx--info" : ""}`} data-open={active ? "" : undefined}>
       <aside className="mx__list" aria-label={t("title")}>
         <ChatList activeId={active} hrefOf={hrefOf} backHref={standalone ? inbox : undefined} />
       </aside>
@@ -94,6 +98,11 @@ export default function Messenger({
           </div>
         )}
       </section>
+      {infoOrder ? (
+        <aside className="mx__info">
+          <OrderInfo key={infoOrder} orderId={infoOrder} role={session?.role ?? ""} />
+        </aside>
+      ) : null}
     </div>
   );
 }

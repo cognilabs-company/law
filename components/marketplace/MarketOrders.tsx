@@ -47,6 +47,8 @@ import { clientPhoneShow, lawyerPhoneShow, telHref } from "./order/phone";
 import { markRefused, useRefused } from "./order/refused";
 import "./order/cards.css";
 import "./order/orderList.css";
+import "@/components/portal/dash/seller1920.css";
+import "@/components/portal/pdf1920.css";
 import SellerOrderActions from "@/components/portal/OrderActions";
 import { clockOf, useCountdown } from "@/lib/useCountdown";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
@@ -152,6 +154,12 @@ export default function MarketOrders({ view }: { view: View }) {
   }, [flash]);
 
   const tabs = TABS;
+  // This month's completed, paid work — the seller's income line.
+  const monthIncome = useMemo(() => {
+    const now = new Date();
+    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    return orders.filter((o) => marketStageOf(o) === "completed" && (o.createdAt || "").slice(0, 7) === ym).reduce((n, o) => n + (o.price || 0), 0);
+  }, [orders]);
   const term = q.trim();
   const searched = useMemo(() => (term ? orders.filter((o) => matchesSearch(haystackOf(o, view), term)) : orders), [orders, term, view]);
   const counts = useMemo(() => {
@@ -206,46 +214,8 @@ export default function MarketOrders({ view }: { view: View }) {
 
   const patch = (id: string, next: Partial<MarketOrder>) => setOrders((cur) => cur.map((o) => (o.id === id ? { ...o, ...next, canCancel: false, canComplete: false } : o)));
 
-  return (
-    <section className={`mk mk-orders${client ? " mko-lx" : " mk-orders--seller"}`}>
-      {client ? (
-        // The shell already titles the page; this is the card's own head, as
-        // the dashboard's "Jarayondagi ishlar": a small title with its count
-        // and the one tool on the right.
-        <div className="mko-lx__head">
-          <div className="mko-lx__headt">
-            <h2 className="cx-h3">
-              {tl("orders.listTitle")}
-              {status === "ready" ? <span className="cx-count">{orders.length}</span> : null}
-            </h2>
-            <p className="lx-sub">{t("clientLead")}</p>
-          </div>
-          <button
-            type="button"
-            className="cx-iconbtn mko-lx__refresh"
-            onClick={() => void load(true)}
-            disabled={refreshing || status === "loading"}
-            aria-label={t("refresh")}
-            title={t("refresh")}
-          >
-            <RefreshCw className={refreshing ? "mk-spin" : undefined} aria-hidden />
-          </button>
-        </div>
-      ) : (
-        // The shell's h1 already names the page (owner's PDF 2026-11-27: the
-        // title showed twice); this strip keeps only the lead and the tools.
-        <header className="mk-orders__head mk-orders__head--slim">
-          <p className="mk-orders__l">{t("sellerLead")}</p>
-          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
-            <CopilotLauncher surface="lawyer_work_queue" context={{ label: t("sellerTitle"), status_filter: tab, count: status === "ready" ? shown.length : undefined }} />
-            <button type="button" className="btn btn--line btn--sm" onClick={() => void load(true)} disabled={refreshing || status === "loading"}>
-              <IconRefresh className={refreshing ? "mk-spin" : undefined} />
-              {t("refresh")}
-            </button>
-          </div>
-        </header>
-      )}
-
+  const body = (
+    <>
       {flash ? (
         <div className="mk-flash" role="status">
           <IconCheck />
@@ -286,20 +256,6 @@ export default function MarketOrders({ view }: { view: View }) {
         </label>
       </div>
 
-      {view === "seller" && fresh.length && (tab === "all" || tab === "pending") ? (
-        <section className="mko-new" aria-label={t("newTitle")}>
-          <p className="mko-new__h">
-            <i aria-hidden="true" />
-            {t("newTitle")}
-            <span className="sx-num">{fresh.length}</span>
-          </p>
-          <div className="mko-new__list">
-            {fresh.map((o) => (
-              <NewRequest key={o.id} o={o} listHref={pathname} onDone={() => void load(true)} />
-            ))}
-          </div>
-        </section>
-      ) : null}
 
       {status === "loading" ? (
         <div className="mk-olist">
@@ -373,6 +329,10 @@ export default function MarketOrders({ view }: { view: View }) {
         </div>
       )}
 
+    </>
+  );
+  const dialogs = (
+    <>
       <ActionDialog
         aiId={`${ai}.cancel-modal`}
         order={cancelFor}
@@ -417,6 +377,125 @@ export default function MarketOrders({ view }: { view: View }) {
           void load(true);
         }}
       />
+    </>
+  );
+
+  if (client) {
+    return (
+      <section className="mk mk-orders mko-lx">
+      {(
+        // The shell already titles the page; this is the card's own head, as
+        // the dashboard's "Jarayondagi ishlar": a small title with its count
+        // and the one tool on the right.
+        <div className="mko-lx__head">
+          <div className="mko-lx__headt">
+            <h2 className="cx-h3">
+              {tl("orders.listTitle")}
+              {status === "ready" ? <span className="cx-count">{orders.length}</span> : null}
+            </h2>
+            <p className="lx-sub">{t("clientLead")}</p>
+          </div>
+          <button
+            type="button"
+            className="cx-iconbtn mko-lx__refresh"
+            onClick={() => void load(true)}
+            disabled={refreshing || status === "loading"}
+            aria-label={t("refresh")}
+            title={t("refresh")}
+          >
+            <RefreshCw className={refreshing ? "mk-spin" : undefined} aria-hidden />
+          </button>
+        </div>
+      )}
+        {body}
+        {dialogs}
+      </section>
+    );
+  }
+
+  // Seller layout (owner's PDF 2026-11-27, K1 — redesign in the dashboard's
+  // language): the numbers first, the list in its own card, and what waits
+  // for an answer in the right column.
+  const stageBars = (["pending", "active", "completed", "cancelled"] as const).map((k) => ({ k, n: counts[k] }));
+  const maxBar = Math.max(1, ...stageBars.map((x) => x.n));
+  return (
+    <section className="mk mk-orders mk-orders--seller lxp">
+      <div className="lxs-kpis lxp-kpis">
+        <button type="button" className="lxs-kpi lxs-kpi--pri" onClick={() => setTab("pending")}>
+          <span className="lxs-kpi__top"><span className="lxs-kpi__ic"><ShoppingBag /></span><span className="lxs-kpi__go"><ArrowUpRight /></span></span>
+          <span className="lxs-kpi__l">{t("kpi.new")}</span>
+          <b className="lxs-kpi__v sx-num">{status === "ready" ? fresh.length + counts.pending : "…"}</b>
+          <span className="lxs-kpi__note">{fresh.length ? t("kpi.newWaiting", { n: fresh.length }) : t("kpi.newNone")}</span>
+        </button>
+        <button type="button" className="lxs-kpi" onClick={() => setTab("active")}>
+          <span className="lxs-kpi__top"><span className="lxs-kpi__ic"><Loader /></span><span className="lxs-kpi__go"><ArrowUpRight /></span></span>
+          <span className="lxs-kpi__l">{t("kpi.active")}</span>
+          <b className="lxs-kpi__v sx-num">{status === "ready" ? counts.active : "…"}</b>
+          <span className="lxs-kpi__note"><Clock />{t("kpi.activeNote")}</span>
+        </button>
+        <button type="button" className="lxs-kpi" onClick={() => setTab("completed")}>
+          <span className="lxs-kpi__top"><span className="lxs-kpi__ic"><CircleCheck /></span><span className="lxs-kpi__go"><ArrowUpRight /></span></span>
+          <span className="lxs-kpi__l">{t("kpi.done")}</span>
+          <b className="lxs-kpi__v sx-num">{status === "ready" ? counts.completed : "…"}</b>
+          <span className="lxs-kpi__note"><CircleX />{t("kpi.cancelled", { n: counts.cancelled })}</span>
+        </button>
+        <div className="lxs-kpi is-static">
+          <span className="lxs-kpi__top"><span className="lxs-kpi__ic"><Coins /></span></span>
+          <span className="lxs-kpi__l">{t("kpi.income")}</span>
+          <b className="lxs-kpi__v sx-num">{fmtUzs(monthIncome)} <small>{t("kpi.som")}</small></b>
+          <span className="lxs-kpi__note">{t("kpi.incomeNote")}</span>
+        </div>
+      </div>
+
+      <div className="lxs-grid lxp-grid">
+        <section className="lx-card lxp-main" aria-labelledby="lxp-orders-h">
+          <div className="lxs-h">
+            <span className="lxs-h__ic"><ShoppingBag /></span>
+            <div className="lxs-h__t">
+              <h2 id="lxp-orders-h">{t("listTitle")} <span className="lxs-count sx-num">{status === "ready" ? listed.length : "…"}</span></h2>
+              <small>{t("sellerLead")}</small>
+            </div>
+            <CopilotLauncher surface="lawyer_work_queue" context={{ label: t("sellerTitle"), status_filter: tab, count: status === "ready" ? shown.length : undefined }} />
+            <button type="button" className="cx-iconbtn" onClick={() => void load(true)} disabled={refreshing || status === "loading"} aria-label={t("refresh")} title={t("refresh")}>
+              <RefreshCw className={refreshing ? "mk-spin" : undefined} aria-hidden />
+            </button>
+          </div>
+          {body}
+        </section>
+
+        <aside className="lxs-col">
+          <section className="lx-card lxp-rail" aria-labelledby="lxp-wait-h">
+            <div className="lxs-row-h">
+              <h2 id="lxp-wait-h" className="lxs-h3">{t("newTitle")}</h2>
+              <span className="lxs-count sx-num">{fresh.length}</span>
+            </div>
+            {fresh.length ? (
+              <div className="mko-new__list lxp-new">
+                {fresh.map((o) => (
+                  <NewRequest key={o.id} o={o} listHref={pathname} onDone={() => void load(true)} />
+                ))}
+              </div>
+            ) : (
+              <p className="lxs-muted">{t("kpi.newNone")}</p>
+            )}
+          </section>
+          <section className="lx-card lxp-rail" aria-labelledby="lxp-st-h">
+            <h2 id="lxp-st-h" className="lxs-h3">{t("byStage")}</h2>
+            <ul className="lxp-bars">
+              {stageBars.map((b) => (
+                <li key={b.k}>
+                  <button type="button" className={`lxp-bar lxp-bar--${b.k}`} aria-pressed={tab === b.k} onClick={() => setTab(b.k)}>
+                    <span>{b.k === "pending" ? t("tabs.new") : t(`tabs.${b.k}`)}</span>
+                    <b className="sx-num">{b.n}</b>
+                    <i aria-hidden="true"><em style={{ width: `${Math.round((b.n / maxBar) * 100)}%` }} /></i>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </aside>
+      </div>
+      {dialogs}
     </section>
   );
 }
