@@ -18177,7 +18177,11 @@
         "warning": "Warning",
         "configured": "Configured",
         "not_configured": "Not configured",
-        "failed": "Failed"
+        "failed": "Failed",
+        "partial": "Partly ready",
+        "waiting": "Waiting",
+        "in_progress": "In progress",
+        "blocked": "Blocked"
       },
       "loadError": "Could not load.",
       "title": "Platform policies",

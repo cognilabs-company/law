@@ -18183,7 +18183,11 @@
         "warning": "Ogohlantirish",
         "configured": "Sozlangan",
         "not_configured": "Sozlanmagan",
-        "failed": "Xato"
+        "failed": "Xato",
+        "partial": "Qisman tayyor",
+        "waiting": "Kutilmoqda",
+        "in_progress": "Jarayonda",
+        "blocked": "To‘xtab qolgan"
       },
       "loadError": "Yuklab bo'lmadi.",
       "title": "Platforma qoidalari",

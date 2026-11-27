@@ -32,6 +32,20 @@ const REQS = [
 
 export function adminExtra(): Routes {
   return {
+    "/admin/platform/policies": { items: {
+      order: { accept_timeout_minutes: 30, auto_cancel_hours: 24, rework_limit: 2 },
+      payment: { refund_window_hours: 72, prepayment_percent: 10 },
+      document_analysis: { max_pages: 10, price_per_extra_page: 5000 },
+      workspace: { file_limit_mb: 50 },
+      security: { otp_ttl_seconds: 120, max_sessions: 5 },
+      notifications: { sms_enabled: true, telegram_enabled: true },
+    } },
+    "/admin/compliance/readiness": { overall_status: "partial", checks: [
+      { key: "click", label: "Click to'lov", ok: true, status: "ok" },
+      { key: "atmos", label: "ATMOS to'lov", ok: true, status: "ok" },
+      { key: "sms", label: "SMS provayder", ok: false, status: "waiting", note: "Eskiz shartnomasi kutilmoqda" },
+      { key: "backup", label: "Zaxira nusxa", ok: true, status: "ok" },
+    ] },
     "/payments/reconciliation": { payments_count: 64, paid_count: 58, gross_amount: 24600000, platform_fee: 4428000, provider_fee: 246000, seller_share: 19926000, payout_statuses: { pending: 6, paid: 41, processing: 3 }, by_provider: [{ provider: "Click", count: 37, amount: 15200000 }, { provider: "ATMOS", count: 21, amount: 9400000 }] },
     "/admin/payouts": { items: [
       { id: "p1", gross: 500000, platform_fee: 90000, provider_fee: 5000, seller_share: 405000, currency: "UZS", status: "pending" },

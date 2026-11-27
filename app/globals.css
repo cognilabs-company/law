@@ -21472,3 +21472,14 @@ a.calev__ical{display:grid;place-items:center;color:inherit}
 .adm-plain{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:6px}
 .adm-plain li{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;background:var(--lx-chip,#eef2f7);font-size:.86rem}
 .adm-plain small{color:var(--lx-gray,var(--gray))}
+/* Platform rules (S15): rules wide on the left; checklist, pricing and
+   unverified sellers in the right column */
+.adm-pol{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,400px);grid-template-areas:"main ready" "main unv" "price price";gap:16px;align-items:start}
+.adm-pol > *{min-width:0;margin:0!important}
+.adm-pol__main{grid-area:main}
+.adm-pol__ready{grid-area:ready}
+.adm-pol__price{grid-area:price}
+.adm-pol__unv{grid-area:unv}
+@media (max-width:1100px){.adm-pol{grid-template-columns:minmax(0,1fr);grid-template-areas:"main" "ready" "price" "unv"}}
+.adm-pol .polcard__h{flex-wrap:wrap;row-gap:8px}
+.adm-pol .polcard__h > :first-child{flex:1 1 100%;min-width:0}
