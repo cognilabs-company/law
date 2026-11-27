@@ -17645,7 +17645,8 @@
         "held": "Ushlab turilgan",
         "failed": "Xato",
         "calculated": "Hisoblangan",
-        "cancelled": "Bekor qilingan"
+        "cancelled": "Bekor qilingan",
+        "pending": "Kutilmoqda"
       }
     },
     "approvals": {

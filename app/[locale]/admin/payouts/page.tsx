@@ -9,7 +9,7 @@ import { useReload } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import { ApiError, isForbidden } from "@/lib/http";
 import { notify } from "@/lib/toast";
-import { IconCard, IconCheck } from "@/components/icons";
+import { IconCard } from "@/components/icons";
 import { aiId } from "@/lib/ai/ids";
 
 const som = (n: number) => fmtUzs(n);
@@ -48,24 +48,20 @@ export default function AdminPayouts() {
 
   return (
     <>
-      <div className="ppanel">
-        <div className="ppanel__h"><b>{t("title")}</b></div>
-        {rec.status === "loading" ? (
-          <Skeleton rows={2} />
-        ) : rec.status === "error" ? (
-          <ErrorState compact onRetry={reload} />
-        ) : (
-          <div className="castat" data-ai-target="payouts:reconciliation" data-ai-id="admin.payouts.reconciliation" data-ai-type="section" data-ai-label={t("title")}>
-            <div className="castat__c"><span className="castat__i"><IconCard /></span><b>{som(r.gross)}</b><span>{t("gross")}</span></div>
-            <div className="castat__c"><span className="castat__i"><IconCard /></span><b>{som(r.platformFee)}</b><span>{t("platformFee")} · 18%</span></div>
-            <div className="castat__c"><span className="castat__i"><IconCard /></span><b>{som(r.providerFee)}</b><span>{t("providerFee")} · 1%</span></div>
-            <div className="castat__c"><span className="castat__i castat__i--ok"><IconCheck /></span><b>{som(r.sellerShare)}</b><span>{t("sellerShare")}</span></div>
-            <div className="castat__c"><span className="castat__i"><IconCard /></span><b>{r.paidCount}/{r.paymentsCount}</b><span>{t("paidCount")}</span></div>
-          </div>
-        )}
-      </div>
-
-      <div className="ppanel">
+      {/* Owner's PDF 2026-11-27 (S9): the reconciliation as KPI tiles, the
+          payouts as the main column, statuses and providers on the right. */}
+      {rec.status === "error" ? (
+        <div className="ppanel"><ErrorState compact onRetry={reload} /></div>
+      ) : (
+        <div className="adm-kpis" data-ai-target="payouts:reconciliation" data-ai-id="admin.payouts.reconciliation" data-ai-type="section" data-ai-label={t("title")}>
+          <div className="adm-kpi adm-kpi--pri"><span>{t("gross")}</span><b className="sx-num">{rec.status === "loading" ? "…" : som(r.gross)}</b></div>
+          <div className="adm-kpi"><span>{t("platformFee")} · 18%</span><b className="sx-num">{rec.status === "loading" ? "…" : som(r.platformFee)}</b></div>
+          <div className="adm-kpi"><span>{t("sellerShare")}</span><b className="sx-num">{rec.status === "loading" ? "…" : som(r.sellerShare)}</b></div>
+          <div className="adm-kpi"><span>{t("paidCount")}</span><b className="sx-num">{rec.status === "loading" ? "…" : `${r.paidCount}/${r.paymentsCount}`}</b></div>
+        </div>
+      )}
+      <div className="adm-split">
+        <div className="ppanel adm-split__main">
         <div className="ppanel__h"><b>{t("listTitle")}</b><span className="advmuted">{list.data.length}</span></div>
         {list.status === "loading" ? (
           <Skeleton rows={3} />
@@ -99,6 +95,27 @@ export default function AdminPayouts() {
             ))}
           </div>
         )}
+      </div>
+        <aside className="ppanel adm-split__side">
+          <div className="ppanel__h"><b>{t("title")}</b></div>
+          <ul className="adm-bars">
+            {Object.entries(r.payoutStatuses ?? {}).map(([k, n]) => (
+              <li key={k}>
+                <span>{t.has(`status.${k}`) ? t(`status.${k}`) : t.has("statusOther") ? t("statusOther") : k}</span>
+                <b className="sx-num">{n}</b>
+                <i aria-hidden="true"><em style={{ width: `${Math.round((Number(n) / Math.max(1, ...Object.values(r.payoutStatuses ?? {}).map(Number))) * 100)}%` }} /></i>
+              </li>
+            ))}
+          </ul>
+          <p className="advmuted">{t("providerFee")} · 1% — {som(r.providerFee)}</p>
+          {r.byProvider?.length ? (
+            <ul className="adm-plain">
+              {r.byProvider.map((x) => (
+                <li key={x.provider}><span>{x.provider}</span><b className="sx-num">{som(x.amount)}</b><small>{x.count}</small></li>
+              ))}
+            </ul>
+          ) : null}
+        </aside>
       </div>
     </>
   );

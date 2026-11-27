@@ -32,6 +32,12 @@ const REQS = [
 
 export function adminExtra(): Routes {
   return {
+    "/payments/reconciliation": { payments_count: 64, paid_count: 58, gross_amount: 24600000, platform_fee: 4428000, provider_fee: 246000, seller_share: 19926000, payout_statuses: { pending: 6, paid: 41, processing: 3 }, by_provider: [{ provider: "Click", count: 37, amount: 15200000 }, { provider: "ATMOS", count: 21, amount: 9400000 }] },
+    "/admin/payouts": { items: [
+      { id: "p1", gross: 500000, platform_fee: 90000, provider_fee: 5000, seller_share: 405000, currency: "UZS", status: "pending" },
+      { id: "p2", gross: 350000, platform_fee: 63000, provider_fee: 3500, seller_share: 283500, currency: "UZS", status: "processing" },
+      { id: "p3", gross: 450000, platform_fee: 81000, provider_fee: 4500, seller_share: 364500, currency: "UZS", status: "paid" },
+    ] },
     "/approvals": { items: [
       { id: "a1", type: "refund", work_id: "APR-JFQDL", status: "pending", admin_approved: false, manager_approved: false },
       { id: "a2", type: "lawyer_change", work_id: "APR-KD21Q", status: "partial", admin_approved: true, manager_approved: false },
