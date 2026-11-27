@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent } from "react";
+import AdminTabs from "@/components/admin/AdminTabs";
 import { useLocale, useTranslations } from "next-intl";
 import StaffPerson from "@/components/ui/StaffPerson";
 import { listAuditTrail, exportAuditTrailCsv, listAdminSecurityEvents, searchUsers, type ActivityEntry, type AuditFilters, type ModuleRecord } from "@/lib/services/backend";
@@ -315,6 +316,7 @@ export default function AdminAuditTrail() {
 
   return (
     <>
+    <AdminTabs set="audit" />
     {!pageReady ? (
       <div className="ppanel">
         <Skeleton rows={6} />

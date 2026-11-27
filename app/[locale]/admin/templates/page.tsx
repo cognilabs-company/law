@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import AdminTabs from "@/components/admin/AdminTabs";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { listEditorTemplates, type TemplateRow } from "@/lib/services/templateEditor";
@@ -97,6 +98,8 @@ export default function AdminTemplates() {
   };
 
   return (
+    <>
+      <AdminTabs set="documents" />
     <div className="ppanel">
       <div className="ppanel__h">
         <b>{t("templates.listTitle")}</b>
@@ -234,5 +237,6 @@ export default function AdminTemplates() {
         ) : null}
       </Modal>
     </div>
+    </>
   );
 }

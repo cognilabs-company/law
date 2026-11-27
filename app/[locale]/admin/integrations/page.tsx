@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations, useLocale } from "next-intl";
+import AdminTabs from "@/components/admin/AdminTabs";
 import { getIntegrationsOverview, type DataResidency, type Integration } from "@/lib/services/backend";
 import { useResourceOne } from "@/lib/useResource";
 import { humanizeSlug } from "@/lib/lawyers";
@@ -56,6 +57,8 @@ export default function AdminIntegrations() {
   }
 
   return (
+    <>
+      <AdminTabs set="monitoring" />
     <div className="ppanel intgp">
       <div className="ppanel__h cch">
         <h2 className="ppanel__t cch__t">
@@ -116,5 +119,6 @@ export default function AdminIntegrations() {
         ))
       )}
     </div>
+    </>
   );
 }

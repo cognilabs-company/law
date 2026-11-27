@@ -21435,3 +21435,31 @@ a.calev__ical{display:grid;place-items:center;color:inherit}
 /* No cut titles (owner's 15-width rule): the upcoming list and today's
    meetings wrap instead of ending in "…". */
 .calup__m b,.magenda__m b{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+
+/* Folded admin pages (owner's PDF 2026-11-27: S11, S14, S20) */
+.adm-tabs{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 16px;padding:4px;border-radius:14px;background:var(--lx-chip,var(--dk-surface-2,#f1f5f9));width:max-content;max-width:100%}
+.adm-tabs__a{display:inline-flex;align-items:center;min-height:38px;padding:0 16px;border-radius:10px;font-size:.88rem;font-weight:600;color:var(--lx-gray,var(--gray));text-decoration:none}
+.adm-tabs__a:hover{color:var(--lx-ink,var(--ink))}
+.adm-tabs__a.is-on{background:var(--lx-card,#fff);color:var(--lx-ink,var(--ink));box-shadow:0 1px 3px rgba(10,21,38,.12)}
+
+/* ── Superadmin pages, shared frame (owner's PDF 2026-11-27, S6–S17) ─────
+   A KPI row on top and a main column with a narrow side column — the
+   dashboard's order instead of two equal halves. */
+.adm-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:0 0 16px}
+.adm-kpi{display:grid;gap:6px;padding:16px 18px;border-radius:18px;background:var(--lx-card,var(--dk-surface,#fff));border:1px solid var(--lx-line-2,var(--line));min-width:0}
+.adm-kpi span{font-size:.84rem;color:var(--lx-gray,var(--gray))}
+.adm-kpi b{font-family:var(--fd);font-size:1.7rem;font-weight:700;line-height:1.1;color:var(--lx-ink,var(--ink))}
+.adm-kpi--pri{background:var(--lx-blue,#1668F0);border-color:var(--lx-blue,#1668F0)}
+.adm-kpi--pri span,.adm-kpi--pri b{color:#fff}
+.adm-split{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(280px,360px)!important;gap:16px;align-items:start}
+.adm-split > *{min-width:0}
+.adm-split__main{order:1}
+.adm-split__side{order:2}
+@media (max-width:1100px){.adm-split{grid-template-columns:minmax(0,1fr)!important}.adm-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* Roles (S12): the matrix wide on the left, roles and assigning on the right */
+.adm-roles{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(300px,380px)!important;grid-template-areas:"matrix list" "matrix assign";gap:16px;align-items:start}
+.adm-roles > *{min-width:0}
+.adm-roles__matrix{grid-area:matrix}
+.adm-roles__list{grid-area:list}
+.adm-roles__assign{grid-area:assign}
+@media (max-width:1100px){.adm-roles{grid-template-columns:minmax(0,1fr)!important;grid-template-areas:"list" "assign" "matrix"}}

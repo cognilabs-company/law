@@ -81,11 +81,14 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
       { href: "/admin/profile", key: "profile", Icon: NavOverview, hidden: true },
       { href: "/admin/ceo", key: "ceo", Icon: NavCeo },
       { href: "/admin/live-office", key: "liveOffice", Icon: NavLiveOffice, perm: "users.manage" },
-      { href: "/admin/team-tasks", key: "teamTasks", Icon: NavApprovals, perm: "tasks.view" },
+      // Owner's PDF 2026-11-27 (S23): team tasks leave the menu (URL kept).
+      { href: "/admin/team-tasks", key: "teamTasks", Icon: NavApprovals, perm: "tasks.view", hidden: true },
     ],
   },
   {
-    group: "sales",
+    // Owner's PDF 2026-11-27 (S5, S18, S19): the CRM is its own section, like
+    // the HRM — everything from "Mijozlar va sotuv" plus the operator chats.
+    group: "crm",
     items: [
       // The CRM (contract 2026-10-26, /crm/*): customers and leads apart,
       // the operator queue and the AI copilot. Each page then follows
@@ -111,6 +114,9 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
       // URL and keeps its permission, but has no menu entry.
       { href: "/admin/retention", key: "retention", Icon: NavRetention, perm: "leads.manage", hidden: true },
       { href: "/admin/b2b", key: "b2b", Icon: NavB2b, perm: "b2b.manage" },
+      // The support queue backend checks callcenter.access specifically.
+      // leads.manage alone must not expose a link that will return 403.
+      { href: "/admin/call-center/support", key: "supportTickets", Icon: NavSupport, perm: "callcenter.access" },
     ],
   },
   {
@@ -123,7 +129,8 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
       // the client-facing benefit lines.
       { href: "/admin/tariffs", key: "plans", Icon: NavPlans, perm: "subscriptions.manage" },
       { href: "/admin/templates", key: "templates", Icon: NavTemplates, perm: "templates.manage" },
-      { href: "/admin/document-settings", key: "documentSettings", Icon: NavTemplates, perm: "templates.manage" },
+      // S14: one "documents" entry; the settings are a tab of the templates page.
+      { href: "/admin/document-settings", key: "documentSettings", Icon: NavTemplates, perm: "templates.manage", hidden: true },
       { href: "/admin/document-templates", key: "templateEditor", Icon: NavTemplates, perm: "templates.manage", hidden: true },
       { href: "/admin/ads", key: "ads", Icon: NavAds, perm: "ads.manage" },
       // Discounts on ads and plans (Studio MP09), listed with a way in.
@@ -148,9 +155,6 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
   {
     group: "support",
     items: [
-      // The support queue backend checks callcenter.access specifically.
-      // leads.manage alone must not expose a link that will return 403.
-      { href: "/admin/call-center/support", key: "supportTickets", Icon: NavSupport, perm: "callcenter.access" },
       // Supervisors (admin/manager) monitor and emergency-revoke sessions.
       { href: "/admin/remote-assistance", key: "remoteAssist", Icon: NavCallAnalytics, perm: ["remote_assist.supervise", "remote_assist.view_audit"] },
       { href: "/admin/legal-aid", key: "legalAid", Icon: NavLegalAid, perm: "legal_aid.manage" },
@@ -160,18 +164,22 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
   {
     group: "system",
     items: [
-      { href: "/admin/integrations", key: "integrations", Icon: NavIntegrations },
+      // S11: integrations are a tab of Monitoring now.
+      { href: "/admin/integrations", key: "integrations", Icon: NavIntegrations, hidden: true },
       { href: "/admin/monitoring", key: "monitoring", Icon: NavCallAnalytics, perm: "users.manage" },
-      { href: "/admin/test-otps", key: "testOtps", Icon: NavTestOtps },
+      // S4: developer tools leave the superadmin menu (URLs kept).
+      { href: "/admin/test-otps", key: "testOtps", Icon: NavTestOtps, hidden: true },
       // Superadmin only (403 superadmin_required for anyone else); see canSee.
-      { href: "/admin/otp-delivery", key: "otpDelivery", Icon: NavTestOtps },
+      // S20: OTP delivery is a tab of the audit journal now.
+      { href: "/admin/otp-delivery", key: "otpDelivery", Icon: NavTestOtps, hidden: true },
       // Primary superadmin only (/auth/me is_primary_superadmin); see canSee.
-      { href: "/admin/mobile-testing", key: "mobileTesting", Icon: NavMobileTesting },
+      { href: "/admin/mobile-testing", key: "mobileTesting", Icon: NavMobileTesting, hidden: true },
       { href: "/admin/roles", key: "roles", Icon: NavRoles, perm: "roles.manage" },
       { href: "/admin/audit-trail", key: "audit", Icon: NavAudit, perm: "users.manage" },
       { href: "/admin/legal", key: "legal", Icon: NavLegal, perm: "users.manage" },
       { href: "/admin/policies", key: "policies", Icon: NavPolicies },
-      { href: "/admin/ai-reglaments", key: "aiReglaments", Icon: NavAiReglaments },
+      // S16: the AI rules live with the platform rules; the page leaves the menu.
+      { href: "/admin/ai-reglaments", key: "aiReglaments", Icon: NavAiReglaments, hidden: true },
       // Not in the visible nav on purpose: one-time first-superadmin setup
       // (bootstrap_key), not a page anyone uses day to day. Still reachable
       // by URL — isBootstrap/bootstrapOk below gate it independently of NAV,

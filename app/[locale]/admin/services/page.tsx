@@ -291,8 +291,16 @@ export default function AdminServices() {
         </button>
       ) : null}
     </div>
-    <div className="agrid svcadm__grid">
-      <div className="ppanel" data-ai-target="services:categories">
+    {/* Owner's PDF 2026-11-27 (S6): the numbers on top, the services list
+        as the main column, the category tree as a narrow right column. */}
+    <div className="adm-kpis">
+      <div className="adm-kpi adm-kpi--pri"><span>{t("services.svcTitle")}</span><b className="sx-num">{svcs.status === "ready" ? svcs.data.length : "…"}</b></div>
+      <div className="adm-kpi"><span>{t("form.active")}</span><b className="sx-num">{svcs.status === "ready" ? svcs.data.filter((x) => x.isActive).length : "…"}</b></div>
+      <div className="adm-kpi"><span>{t("form.inactive")}</span><b className="sx-num">{svcs.status === "ready" ? svcs.data.filter((x) => !x.isActive).length : "…"}</b></div>
+      <div className="adm-kpi"><span>{t("services.catTitle")}</span><b className="sx-num">{cats.status === "ready" ? cats.data.length : "…"}</b></div>
+    </div>
+    <div className="agrid svcadm__grid adm-split">
+      <div className="ppanel adm-split__side" data-ai-target="services:categories">
         <div className="ppanel__h">
           <b>{t("services.catTitle")}</b>
           <span className="ahdr">
@@ -321,7 +329,7 @@ export default function AdminServices() {
       </div>
 
       {/* Services */}
-      <div className="ppanel svcadm">
+      <div className="ppanel svcadm adm-split__main">
         <div className="ppanel__h">
           <b>{t("services.svcTitle")}</b>
           <span className="ahdr">

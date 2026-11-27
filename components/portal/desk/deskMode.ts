@@ -10,11 +10,10 @@ import type { Session } from "@/lib/auth";
 
 export type DeskMode = "classic" | "desktop";
 
-// The desktop is being tried out with one account first (an advocate,
-// LGA-45431074); everyone else keeps the classic cabinet. Matched by the
-// account's id, which does not change with its phone number or name.
-const DESK_USERS = new Set(["efeb656a-93c5-42fb-aaf0-1f572995e239"]);
-export const canUseDesk = (session: Session | null) => !!session?.id && DESK_USERS.has(session.id);
+// The desktop was tried with one advocate first; the owner's PDF
+// (2026-11-27, S21) opens it to every advocate and lawyer. Clients and staff
+// keep the classic cabinet.
+export const canUseDesk = (session: Session | null) => !!session?.id && (session.role === "advocate" || session.role === "lawyer");
 
 // The desktop is for computers: a mouse or trackpad and a wide screen. A
 // phone or a tablet held by touch keeps the classic cabinet, and so does a

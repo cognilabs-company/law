@@ -15594,7 +15594,8 @@
       "sellers": "Sotuvchilar",
       "finance": "To'lov va moliya",
       "support": "Yordam va huquq",
-      "system": "Tizim"
+      "system": "Tizim",
+      "crm": "CRM"
     },
     "nav": { "salesScripts": "Sotuv skriptlari",
       "templateEditor": "Shablon muharriri",

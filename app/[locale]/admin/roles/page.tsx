@@ -132,10 +132,12 @@ export default function AdminRoles() {
     );
   }
 
+  // Owner's PDF 2026-11-27 (S12): the matrix is the page; the roles and the
+  // assign form sit in the right column.
   return (
-    <div className="agrid">
-      {/* Roles list (full width when the assign panel isn't offered) */}
-      <div className="ppanel" style={canAssign ? undefined : { gridColumn: "1 / -1" }}>
+    <div className="agrid adm-roles">
+      {/* Roles list */}
+      <div className="ppanel adm-roles__list">
         <div className="ppanel__h">
           <b>{t("roles.listTitle")}</b>
           <span className="ahdr">
@@ -171,7 +173,7 @@ export default function AdminRoles() {
 
       {/* Assign role */}
       {canAssign ? (
-      <div className="ppanel" data-ai-target="roles:assign">
+      <div className="ppanel adm-roles__assign" data-ai-target="roles:assign">
         <div className="ppanel__h"><b>{t("roles.assignTitle")}</b></div>
         <p className="advmuted" style={{ marginBottom: 16 }}>{t("roles.assignLead")}</p>
         <form className="cform" style={{ maxWidth: "none" }} onSubmit={submitAssign}>
@@ -214,7 +216,7 @@ export default function AdminRoles() {
       ) : null}
 
       {/* Permission matrix (read-only): roles × permissions */}
-      <div className="ppanel" style={{ gridColumn: "1 / -1" }} data-ai-target="roles:matrix">
+      <div className="ppanel adm-roles__matrix" data-ai-target="roles:matrix">
         <div className="ppanel__h"><b>{t("roles.matrixTitle")}</b></div>
         {matrix.status === "loading" ? (
           <Skeleton rows={4} />
