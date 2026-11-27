@@ -7233,13 +7233,18 @@
       "economic": "Iqtisodiy nizolar",
       "findLawyer": "Advokat qidirish",
       "courses": "Kurslar",
-      "legalAid": "Yuridik yordam"
+      "legalAid": "Yuridik yordam",
+      "support": "Yordam markazi"
     },
     "rights": "© 2026 Tezkor Himoya — barcha huquqlar himoyalangan",
     "terms": "Foydalanish shartlari",
     "privacy": "Maxfiylik siyosati",
     "disclaimer": "Huquqiy ogohlantirish",
-    "accountDeletion": "Hisobni o'chirish", "refund": "To'lov va qaytarish qoidalari", "cookiePolicy": "Cookie siyosati", "cookieSettings": "Cookie sozlamalari", "licenses": "Ochiq kodli litsenziyalar"
+    "accountDeletion": "Hisobni o'chirish",
+    "refund": "To'lov va qaytarish qoidalari",
+    "cookiePolicy": "Cookie siyosati",
+    "cookieSettings": "Cookie sozlamalari",
+    "licenses": "Ochiq kodli litsenziyalar"
   },
   "home": {
     "metaTitle": "Yuridik yordam, bir necha tegishda",
@@ -8523,8 +8528,6 @@
     "phoneNote": "Navbatchi advokat · qo'ng'iroq bepul",
     "email": "Email",
     "emailValue": "zyovuddnov1@gmail.com",
-    "hours": "Ish vaqti",
-    "hoursValue": "24/7 · har kuni",
     "form": {
       "name": "Ismingiz",
       "namePlaceholder": "F.I.Sh.",
@@ -8537,42 +8540,27 @@
       "required": "Iltimos, majburiy maydonlarni to'ldiring.",
       "sending": "Yuborilmoqda…"
     },
-    "officesTitle": "Ofislar",
-    "offices": [
-      {
-        "city": "Toshkent",
-        "address": "Amir Temur shoh ko'chasi 108, Biznes markaz",
-        "phone": "+998 90 933 86 78"
-      },
-      {
-        "city": "Samarqand",
-        "address": "Registon ko'chasi 15, 2-qavat",
-        "phone": "+998 90 933 86 78"
-      },
-      {
-        "city": "Buxoro",
-        "address": "Mustaqillik ko'chasi 7",
-        "phone": "+998 90 933 86 78"
-      }
-    ],
-    "departmentsTitle": "Bo'limlar",
-    "departments": [
-      {
-        "title": "Mijozlar",
-        "text": "Buyurtmalar, obunalar va to'lovlar.",
-        "contact": "zyovuddnov1@gmail.com"
-      },
-      {
-        "title": "Advokatlar",
-        "text": "Ishga ulash, tasdiqlash va ishlar.",
-        "contact": "zyovuddnov1@gmail.com"
-      },
-      {
-        "title": "Biznes",
-        "text": "Korporativ paketlar va hamkorlik.",
-        "contact": "zyovuddnov1@gmail.com"
-      }
-    ]
+    "operator": "Platforma operatori",
+    "supportCenter": "Yordam markazi",
+    "supportCenterText": "Hisob, to'lov va texnik savollar bo'yicha ko'rsatmalar"
+  },
+  "supportPage": {
+    "metaTitle": "Yordam markazi",
+    "kicker": "Yordam",
+    "fallbackTitle": "Yordam markazi",
+    "fallbackIntro": "Tezkor Himoya ilovasi bo'yicha yordam olish uchun email yozing yoki qo'ng'iroq qiling.",
+    "contactTitle": "Biz bilan bog'lanish",
+    "howTitle": "Qanday yordam olish mumkin",
+    "includeTitle": "Murojaatda nimani yozish kerak",
+    "securityTitle": "Xavfsizlik",
+    "companyTitle": "Kompaniya haqida",
+    "taxId": "STIR",
+    "address": "Manzil",
+    "linksTitle": "Hujjatlar",
+    "emailAction": "Email yozish",
+    "phoneAction": "Qo'ng'iroq qilish",
+    "privacy": "Maxfiylik siyosati",
+    "deletion": "Hisobni o'chirish"
   },
   "chat": {
     "guestTotalLimit": "Mehmon uchun bepul savollar tugadi. Davom etish uchun ro'yxatdan o'ting.",

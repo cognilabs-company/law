@@ -7233,13 +7233,18 @@
       "economic": "Economic disputes",
       "findLawyer": "Find a lawyer",
       "courses": "Courses",
-      "legalAid": "Legal aid"
+      "legalAid": "Legal aid",
+      "support": "Support center"
     },
     "rights": "© 2026 Tezkor Himoya — all rights reserved",
     "terms": "Terms of use",
     "privacy": "Privacy policy",
     "disclaimer": "Legal disclaimer",
-    "accountDeletion": "Delete account", "refund": "Payment and refund rules", "cookiePolicy": "Cookie policy", "cookieSettings": "Cookie settings", "licenses": "Open-source licences"
+    "accountDeletion": "Delete account",
+    "refund": "Payment and refund rules",
+    "cookiePolicy": "Cookie policy",
+    "cookieSettings": "Cookie settings",
+    "licenses": "Open-source licences"
   },
   "home": {
     "metaTitle": "Legal help in a few taps",
@@ -8517,8 +8522,6 @@
     "phoneNote": "Advocate on duty · calls are free",
     "email": "Email",
     "emailValue": "zyovuddnov1@gmail.com",
-    "hours": "Working hours",
-    "hoursValue": "24/7 · every day",
     "form": {
       "name": "Your name",
       "namePlaceholder": "Full name",
@@ -8531,42 +8534,27 @@
       "required": "Please fill in the required fields.",
       "sending": "Sending…"
     },
-    "officesTitle": "Offices",
-    "offices": [
-      {
-        "city": "Tashkent",
-        "address": "Amir Temur Ave. 108, Business Center",
-        "phone": "+998 90 933 86 78"
-      },
-      {
-        "city": "Samarkand",
-        "address": "Registan St. 15, 2nd floor",
-        "phone": "+998 90 933 86 78"
-      },
-      {
-        "city": "Bukhara",
-        "address": "Mustaqillik St. 7",
-        "phone": "+998 90 933 86 78"
-      }
-    ],
-    "departmentsTitle": "Departments",
-    "departments": [
-      {
-        "title": "Clients",
-        "text": "Orders, subscriptions and payments.",
-        "contact": "zyovuddnov1@gmail.com"
-      },
-      {
-        "title": "Lawyers",
-        "text": "Onboarding, verification and cases.",
-        "contact": "zyovuddnov1@gmail.com"
-      },
-      {
-        "title": "Business",
-        "text": "Corporate packages and partnerships.",
-        "contact": "zyovuddnov1@gmail.com"
-      }
-    ]
+    "operator": "Platform operator",
+    "supportCenter": "Support center",
+    "supportCenterText": "Help with your account, payments and technical issues"
+  },
+  "supportPage": {
+    "metaTitle": "Support center",
+    "kicker": "Support",
+    "fallbackTitle": "Support center",
+    "fallbackIntro": "Get help with the Tezkor Himoya application: email or call us.",
+    "contactTitle": "Contact us",
+    "howTitle": "How to get help",
+    "includeTitle": "What to include",
+    "securityTitle": "Security",
+    "companyTitle": "Company",
+    "taxId": "Tax ID",
+    "address": "Address",
+    "linksTitle": "Documents",
+    "emailAction": "Email support",
+    "phoneAction": "Call support",
+    "privacy": "Privacy policy",
+    "deletion": "Account deletion"
   },
   "chat": {
     "guestTotalLimit": "You've used all the free guest questions. Sign up to keep going.",

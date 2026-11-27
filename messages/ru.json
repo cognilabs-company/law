@@ -7233,13 +7233,18 @@
       "economic": "Экономические споры",
       "findLawyer": "Найти юриста",
       "courses": "Курсы",
-      "legalAid": "Правовая помощь"
+      "legalAid": "Правовая помощь",
+      "support": "Центр поддержки"
     },
     "rights": "© 2026 Tezkor Himoya — все права защищены",
     "terms": "Условия использования",
     "privacy": "Политика конфиденциальности",
     "disclaimer": "Отказ от ответственности",
-    "accountDeletion": "Удаление аккаунта", "refund": "Правила оплаты и возврата", "cookiePolicy": "Политика cookie", "cookieSettings": "Настройки cookie", "licenses": "Лицензии открытого ПО"
+    "accountDeletion": "Удаление аккаунта",
+    "refund": "Правила оплаты и возврата",
+    "cookiePolicy": "Политика cookie",
+    "cookieSettings": "Настройки cookie",
+    "licenses": "Лицензии открытого ПО"
   },
   "home": {
     "metaTitle": "Юридическая помощь в несколько касаний",
@@ -8517,8 +8522,6 @@
     "phoneNote": "Дежурный адвокат · звонки бесплатны",
     "email": "Email",
     "emailValue": "zyovuddnov1@gmail.com",
-    "hours": "Часы работы",
-    "hoursValue": "24/7 · каждый день",
     "form": {
       "name": "Ваше имя",
       "namePlaceholder": "ФИО",
@@ -8531,42 +8534,27 @@
       "required": "Пожалуйста, заполните обязательные поля.",
       "sending": "Отправка…"
     },
-    "officesTitle": "Офисы",
-    "offices": [
-      {
-        "city": "Ташкент",
-        "address": "пр. Амира Темура, 108, бизнес-центр",
-        "phone": "+998 90 933 86 78"
-      },
-      {
-        "city": "Самарканд",
-        "address": "ул. Регистан, 15, 2-й этаж",
-        "phone": "+998 90 933 86 78"
-      },
-      {
-        "city": "Бухара",
-        "address": "ул. Мустакиллик, 7",
-        "phone": "+998 90 933 86 78"
-      }
-    ],
-    "departmentsTitle": "Отделы",
-    "departments": [
-      {
-        "title": "Клиенты",
-        "text": "Заказы, подписки и платежи.",
-        "contact": "zyovuddnov1@gmail.com"
-      },
-      {
-        "title": "Юристы",
-        "text": "Онбординг, проверка и дела.",
-        "contact": "zyovuddnov1@gmail.com"
-      },
-      {
-        "title": "Бизнес",
-        "text": "Корпоративные пакеты и партнёрства.",
-        "contact": "zyovuddnov1@gmail.com"
-      }
-    ]
+    "operator": "Оператор платформы",
+    "supportCenter": "Центр поддержки",
+    "supportCenterText": "Инструкции по аккаунту, оплате и техническим вопросам"
+  },
+  "supportPage": {
+    "metaTitle": "Центр поддержки",
+    "kicker": "Поддержка",
+    "fallbackTitle": "Центр поддержки",
+    "fallbackIntro": "Чтобы получить помощь по приложению Tezkor Himoya, напишите нам на email или позвоните.",
+    "contactTitle": "Связаться с нами",
+    "howTitle": "Как получить помощь",
+    "includeTitle": "Что указать в обращении",
+    "securityTitle": "Безопасность",
+    "companyTitle": "О компании",
+    "taxId": "ИНН",
+    "address": "Адрес",
+    "linksTitle": "Документы",
+    "emailAction": "Написать на email",
+    "phoneAction": "Позвонить",
+    "privacy": "Политика конфиденциальности",
+    "deletion": "Удаление аккаунта"
   },
   "chat": {
     "guestTotalLimit": "Бесплатные гостевые вопросы закончились. Зарегистрируйтесь, чтобы продолжить.",
