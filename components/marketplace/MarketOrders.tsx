@@ -63,6 +63,7 @@ const SEARCH_MAX = 100;
 const aiBaseOf = (view: View) => (view === "client" ? "marketplace.orders" : "advocate.marketplace-orders");
 
 const TABS: Tab[] = ["all", "pending", "active", "completed", "cancelled"];
+const STAGE_RANK: Record<Exclude<Tab, "all">, number> = { pending: 0, active: 1, completed: 2, cancelled: 3 };
 
 const lower = (s: string) => s.trim().toLowerCase();
 
@@ -161,7 +162,13 @@ export default function MarketOrders({ view }: { view: View }) {
   // A seller's new requests sit in their own strip above the list.
   const fresh = view === "seller" ? searched.filter((o) => awaitingSeller(o)) : [];
   const listed = view === "seller" ? searched.filter((o) => !awaitingSeller(o)) : searched;
-  const shown = tab === "all" ? listed : listed.filter((o) => marketStageOf(o) === tab);
+  // "All" puts the work that needs the seller first: new, then running,
+  // then finished, and the cancelled ones last (owner's PDF 2026-11-27).
+  const shown = useMemo(() => {
+    const rows = tab === "all" ? listed : listed.filter((o) => marketStageOf(o) === tab);
+    if (tab !== "all") return rows;
+    return rows.map((o, i) => ({ o, i, r: STAGE_RANK[marketStageOf(o)] })).sort((a, b) => a.r - b.r || a.i - b.i).map((x) => x.o);
+  }, [listed, tab]);
   const ai = aiBaseOf(view);
 
   const tabOf = (v: string): Tab | null => {
@@ -200,7 +207,7 @@ export default function MarketOrders({ view }: { view: View }) {
   const patch = (id: string, next: Partial<MarketOrder>) => setOrders((cur) => cur.map((o) => (o.id === id ? { ...o, ...next, canCancel: false, canComplete: false } : o)));
 
   return (
-    <section className={`mk mk-orders${client ? " mko-lx" : ""}`}>
+    <section className={`mk mk-orders${client ? " mko-lx" : " mk-orders--seller"}`}>
       {client ? (
         // The shell already titles the page; this is the card's own head, as
         // the dashboard's "Jarayondagi ishlar": a small title with its count
@@ -225,11 +232,10 @@ export default function MarketOrders({ view }: { view: View }) {
           </button>
         </div>
       ) : (
-        <header className="mk-orders__head">
-          <div>
-            <h1 className="mk-orders__t">{t("sellerTitle")}</h1>
-            <p className="mk-orders__l">{t("sellerLead")}</p>
-          </div>
+        // The shell's h1 already names the page (owner's PDF 2026-11-27: the
+        // title showed twice); this strip keeps only the lead and the tools.
+        <header className="mk-orders__head mk-orders__head--slim">
+          <p className="mk-orders__l">{t("sellerLead")}</p>
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
             <CopilotLauncher surface="lawyer_work_queue" context={{ label: t("sellerTitle"), status_filter: tab, count: status === "ready" ? shown.length : undefined }} />
             <button type="button" className="btn btn--line btn--sm" onClick={() => void load(true)} disabled={refreshing || status === "loading"}>

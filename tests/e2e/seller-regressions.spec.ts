@@ -48,10 +48,20 @@ test("a paid order's chat gives the advocate audio and video calls again, inviti
   expect(body.call_type).toBe("audio");
 });
 
-test("an unpaid order's chat offers no call to an external advocate", async ({ page }) => {
-  await openRoom(page, order({ status: "waiting_payment", payment_status: "pending", can_create_call: false, calls_allowed: false }));
+test("an unpaid order's chat starts no call: the buttons stay, dimmed, and say why", async ({ page }) => {
+  // Owner's PDF 2026-11-27 (K5): hidden buttons read as "calls are missing";
+  // they stay in place, disabled, and explain the rule when pressed.
+  const mock = await openRoom(page, order({ status: "waiting_payment", payment_status: "pending", can_create_call: false, calls_allowed: false }));
   await expect(page.locator(".mxr__acts")).toBeVisible();
-  await expect(page.locator(".mxr__calls")).toHaveCount(0);
+  const locked = page.locator(".mxr__calls--locked button");
+  await expect(locked).toHaveCount(2);
+  await expect(locked.first()).toHaveAttribute("aria-disabled", "true");
+  // aria-disabled keeps it focusable and clickable for people; Playwright
+  // treats it as disabled, so the press is forced.
+  await locked.first().click({ force: true });
+  await expect(page.locator(".ntf__t")).toContainText("Qo‘ng‘iroq hozircha yopiq");
+  expect(mock.calls.filter((c) => c.method === "POST" && c.path === "/secure-chats/r1/calls")).toHaveLength(0);
+  await expect(page.locator('.mxr__acts a[href$="/portal/advocate/marketplace-orders/' + ORDER_ID + '"]')).toBeVisible();
 });
 
 test("a call already running in the room can be joined from the chat header", async ({ page }) => {

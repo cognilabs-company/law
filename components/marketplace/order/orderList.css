@@ -228,3 +228,38 @@
 @media (prefers-reduced-motion: reduce) {
   .mko-new__h > i, .mko-stage > i { animation: none !important; }
 }
+
+/* ── seller list, compact (owner's PDF 2026-11-27, K1) ─────────────────
+   The shell already titles the page, so the strip keeps the lead and the
+   tools on one line. Each order is two lines on a wide screen:
+   number · status · service ........................ price
+   client · phone · date .................... actions        */
+.mk-orders__head--slim { align-items: center; }
+.mk-orders__head--slim .mk-orders__l { margin: 0; font-size: 0.9rem; flex: 1 1 320px; }
+.mk-orders--seller .mko-list { gap: 8px; }
+.mk-orders--seller .mko-card { padding: 10px 16px 10px 18px; gap: 6px 14px; border-radius: 14px; }
+.mk-orders--seller .mko-card::before { inset: 8px auto 8px 0; width: 3px; }
+.mk-orders--seller .mko-card__title { font-size: 0.95rem; font-weight: 650; }
+.mk-orders--seller .mko-price { font-size: 0.98rem; }
+.mk-orders--seller .mko-facts { font-size: 0.8rem; gap: 2px 14px; }
+.mk-orders--seller .mko-more { min-height: 32px; padding: 0 10px; }
+@media (min-width: 900px) {
+  .mk-orders--seller .mko-card {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "chips title price" "facts facts acts";
+    align-items: center;
+  }
+  .mk-orders--seller .mko-card__head,
+  .mk-orders--seller .mko-card__body { display: contents; }
+  .mk-orders--seller .mko-card__chips { grid-area: chips; flex-wrap: nowrap; }
+  .mk-orders--seller .mko-card__title { grid-area: title; min-width: 0; overflow-wrap: anywhere; }
+  .mk-orders--seller .mko-price { grid-area: price; justify-self: end; }
+  .mk-orders--seller .mko-facts { grid-area: facts; }
+  .mk-orders--seller .mko-card__acts { grid-area: acts; align-self: center; max-width: none; }
+  /* Package, options, notes and panels keep their own full-width rows. */
+  .mk-orders--seller .mko-card__body > :not(.mko-card__title):not(.mko-facts) { grid-column: 1 / -1; }
+}
+/* Cancelled work steps back: quieter, the history is one click away. */
+.mk-orders--seller .mko-card[data-stage="cancelled"] { background: transparent; }
+.mk-orders--seller .mko-card[data-stage="cancelled"] :is(.mko-card__title, .mko-price) { color: var(--gray); }
+.mk-orders--seller .mko-card[data-stage="cancelled"] .mko-card__link { color: inherit; }

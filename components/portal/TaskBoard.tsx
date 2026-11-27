@@ -13,7 +13,7 @@ import DatePicker from "@/components/DatePicker";
 import FilterBar from "@/components/filters/FilterBar";
 import { useAiField } from "@/lib/ai/registry";
 import { Skeleton, EmptyState, ErrorState } from "./DataState";
-import { IconClipboardCheck, IconChevronLeft, IconChevronRight, IconPlus, IconEdit, IconTrash, IconEye, IconAlert } from "@/components/icons";
+import { IconClipboardCheck, IconChevronLeft, IconChevronRight, IconPlus, IconEdit, IconTrash, IconEye, IconAlert, IconCalendar, IconBriefcase } from "@/components/icons";
 import { dateOnly } from "@/lib/date";
 import { isForbidden } from "@/lib/http";
 
@@ -86,6 +86,7 @@ export default function TaskBoard() {
     return by;
   }, [res.data, q]);
   const shownStages = hideDone ? STAGES.filter((s) => s !== "done") : STAGES;
+  const overdueCount = res.data.filter((x) => !!x.dueDate && x.dueDate.slice(0, 10) < today() && stageOf(x.status) !== "done").length;
   const shownCount = shownStages.reduce((n, s) => n + cols[s].length, 0);
   useAiField("advocate.tasks.search.input", { get: () => q, set: setQ, sensitive: true });
   useAiField("advocate.tasks.filters.show", {
@@ -162,15 +163,28 @@ export default function TaskBoard() {
   }
 
   return (
-    <div className="ppanel" data-ai-target={res.data.length ? undefined : "tasks:board"}>
-      <div className="ppanel__h">
-        <b>{t("title")}</b>
-        <span className="ahdr">
-          <span className="advmuted">{t("count", { n: res.data.length, open: res.data.filter((x) => stageOf(x.status) !== "done").length })}</span>
-          {readOnly ? null : <button className="btn btn--pri btn--sm" type="button" onClick={() => setEditing("new")} data-ai-target="button:new-task"><IconPlus />{t("add")}</button>}
-        </span>
+    <div className="ppanel tboard" data-ai-target={res.data.length ? undefined : "tasks:board"}>
+      {/* The shell's h1 names the page; this strip is the board at a glance
+          (owner's PDF 2026-11-27: the page looked old). */}
+      <div className="tboard__h">
+        <ul className="tboard__sum" aria-label={t("count", { n: res.data.length, open: res.data.filter((x) => stageOf(x.status) !== "done").length })}>
+          {STAGES.map((s) => (
+            <li key={s} className={`tboard__chip tboard__chip--${s}`}>
+              <i aria-hidden="true" />
+              {t(`stages.${s}`)}
+              <b className="sx-num">{cols[s].length}</b>
+            </li>
+          ))}
+          {overdueCount ? (
+            <li className="tboard__chip tboard__chip--over">
+              <IconAlert aria-hidden="true" />
+              {t("overdue")}
+              <b className="sx-num">{overdueCount}</b>
+            </li>
+          ) : null}
+        </ul>
+        {readOnly ? null : <button className="btn btn--pri btn--sm" type="button" onClick={() => setEditing("new")} data-ai-target="button:new-task"><IconPlus />{t("add")}</button>}
       </div>
-      <p className="ppanel__note">{t("lead")}</p>
       <FilterBar
         className="wfb"
         fields={[
@@ -227,23 +241,28 @@ export default function TaskBoard() {
                       const done = x.checklist?.filter((c) => c.done).length ?? 0;
                       return (
                         <div
-                          className={`pipe__card task${dragId === x.id ? " pipe__card--drag" : ""}${overdue ? " task--overdue" : ""}${blocked ? " task--blocked" : ""}`}
+                          className={`pipe__card task task--p-${x.priority}${dragId === x.id ? " pipe__card--drag" : ""}${overdue ? " task--overdue" : ""}${blocked ? " task--blocked" : ""}`}
                           key={x.id}
                           draggable={!readOnly}
                           onDragStart={(e) => { setDragId(x.id); e.dataTransfer.effectAllowed = "move"; }}
                           onDragEnd={() => { setDragId(null); setOverStage(null); }}
                         >
                           <div className="pipe__ctop">
-                            <b>{x.title || "—"}</b>
                             <span className={`tprio tprio--${x.priority}`}>{t.has(`priority.${x.priority}`) ? t(`priority.${x.priority}`) : x.priority}</span>
+                            {blocked ? <span className="tprio task__blocked">{t("blocked")}</span> : null}
                           </div>
+                          <b className="task__t">{x.title || "—"}</b>
                           {x.description ? <p className="task__desc">{x.description}</p> : null}
                           <div className="task__meta">
-                            {x.caseTitle ? <span className="pipe__meta">{x.caseTitle}</span> : null}
-                            {x.dueDate ? <span className={`pipe__meta${overdue ? " task__due--over" : ""}`}>{overdue ? <IconAlert /> : null}{t("due")}: {fmtDue(x.dueDate, locale)}</span> : null}
-                            {x.checklist?.length ? <span className="pipe__meta">{t("checklistCount", { done, total: x.checklist.length })}</span> : null}
-                            {blocked ? <span className="pipe__meta task__blocked">{t("blocked")}</span> : null}
+                            {x.caseTitle ? <span className="pipe__meta"><IconBriefcase aria-hidden="true" />{x.caseTitle}</span> : null}
+                            {x.dueDate ? <span className={`pipe__meta${overdue ? " task__due--over" : ""}`}>{overdue ? <IconAlert aria-hidden="true" /> : <IconCalendar aria-hidden="true" />}<span className="sr-only">{t("due")}: </span>{fmtDue(x.dueDate, locale)}</span> : null}
                           </div>
+                          {x.checklist?.length ? (
+                            <div className="task__prog" title={t("checklistCount", { done, total: x.checklist.length })}>
+                              <span className="task__bar"><i style={{ width: `${Math.round((done / x.checklist.length) * 100)}%` }} /></span>
+                              <small className="sx-num">{done}/{x.checklist.length}</small>
+                            </div>
+                          ) : null}
                           {readOnly ? null : <div className="pipe__actions">
                             <button className="pipe__mv" disabled={si === 0 || busy === x.id} onClick={() => move(x, -1)} aria-label={t("back")}><IconChevronLeft /></button>
                             <span className="task__tools">

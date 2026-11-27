@@ -83,6 +83,30 @@ const AI_TERM_ID: Record<Term, string> = {
   12: "pricing.billing.yearly",
 };
 
+// A plan's features: the first few, the rest behind one button, so the cards
+// stay short and comparable (owner's PDF 2026-11-27, K8: plans too long).
+const FEATS_SHOWN = 5;
+function FeatList({ items, aiId }: { items: string[]; aiId?: string }) {
+  const t = useTranslations("plans");
+  const [all, setAll] = useState(false);
+  const rest = items.length - FEATS_SHOWN;
+  const shown = all || rest <= 1 ? items : items.slice(0, FEATS_SHOWN);
+  return (
+    <>
+      <ul className="splan__feats" data-ai-id={aiId} data-ai-type={aiId ? "list" : undefined}>
+        {shown.map((f, k) => (
+          <li key={k}><IconCheck />{f}</li>
+        ))}
+      </ul>
+      {rest > 1 ? (
+        <button type="button" className="splan__more" aria-expanded={all} onClick={() => setAll((v) => !v)}>
+          {all ? t("featsLess") : t("featsMore", { n: rest })}
+        </button>
+      ) : null}
+    </>
+  );
+}
+
 function som(n: number): string {
   return fmtUzs(n);
 }
@@ -668,11 +692,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                       <span>{t("perMonth")}</span>
                     </div>
                     <p className="splan__total">{t("totalNote", { term: pr.months, total: som(pr.total) })}</p>
-                    <ul className="splan__feats" data-ai-id={`${planAi}.features`} data-ai-type="list">
-                      {(plan.features ?? []).map((f, k) => (
-                        <li key={k}><IconCheck />{f}</li>
-                      ))}
-                    </ul>
+                    <FeatList items={plan.features ?? []} aiId={`${planAi}.features`} />
                     {isCurrent ? (
                       <span className="btn btn--soft btn--full" aria-disabled><IconCheck />{t("current")}</span>
                     ) : (

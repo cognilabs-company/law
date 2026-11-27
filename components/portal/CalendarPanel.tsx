@@ -11,8 +11,13 @@ import {
   type DeadlineResult,
   createCalendarEvent,
   deleteCalendarEvent,
+  listMyTasks,
+  createTask,
+  updateTaskStatus,
   type CalendarEvent,
+  type WorkTask,
 } from "@/lib/services/backend";
+import { Link } from "@/i18n/navigation";
 import { useResource } from "@/lib/useResource";
 import { useAiReveal } from "@/lib/guide/targets";
 import { Skeleton, EmptyState, ErrorState } from "./DataState";
@@ -22,13 +27,20 @@ import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import DatePicker from "@/components/DatePicker";
 import TimePicker from "@/components/TimePicker";
-import { IconCalendar, IconPlus, IconClock, IconMapPin, IconClose, IconBell, IconDownload, IconChevronLeft, IconChevronRight } from "@/components/icons";
+import { IconCalendar, IconPlus, IconClock, IconMapPin, IconClose, IconBell, IconDownload, IconChevronLeft, IconChevronRight, IconCheck, IconClipboardCheck } from "@/components/icons";
 
 // GM T1B-04: court hearing, investigative action, meeting, filing deadline, appeal deadline.
 const TYPES = ["hearing", "investigative", "meeting", "filing_deadline", "appeal_deadline"] as const;
 // Reminder presets in minutes before the event ("" = no reminder).
 const REMINDERS = ["", "15", "30", "60", "1440"] as const;
 const DEADLINE_KINDS = ["appeal", "document", "complaint", "general"] as const;
+const PRIORITIES = ["low", "medium", "high"] as const;
+
+// One row on the calendar: a calendar event, or one of the seller's own tasks
+// with a due date (owner's PDF 2026-11-27: add and see tasks from here).
+type Item = CalendarEvent & { task?: WorkTask };
+const taskItem = (tk: WorkTask): Item | null =>
+  tk.dueDate ? ({ id: `task-${tk.id}`, type: "task", title: tk.title, startsAt: tk.dueDate, task: tk } as unknown as Item) : null;
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const iso = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
@@ -67,6 +79,8 @@ export default function CalendarPanel({ ns }: { ns: string }) {
   const tn = useTranslations("common.notify");
   const [reloadKey, setReloadKey] = useState(0);
   const res = useResource<CalendarEvent>(() => listCalendarEvents(), [reloadKey]);
+  const tasks = useResource<WorkTask>(() => listMyTasks(), [reloadKey]);
+  const tt = useTranslations("portal.tasks");
   const reload = () => setReloadKey((k) => k + 1);
 
   const now = new Date();
@@ -74,7 +88,9 @@ export default function CalendarPanel({ ns }: { ns: string }) {
   const [vy, setVy] = useState(now.getFullYear());
   const [vm, setVm] = useState(now.getMonth());
   const [sel, setSel] = useState(todayKey);
-  const [mode, setMode] = useState<"month" | "list">("month");
+  const [mode, setMode] = useState<"month" | "week" | "list">("month");
+  const [kindAdd, setKindAdd] = useState<"event" | "task">("event");
+  const [priority, setPriority] = useState<string>("medium");
   useAiReveal(/^calendar:(month|agenda)$/, () => setMode("month"));
   useAiReveal("calendar:list", () => setMode("list"));
 
@@ -97,20 +113,45 @@ export default function CalendarPanel({ ns }: { ns: string }) {
   const [calcRes, setCalcRes] = useState<DeadlineResult | null>(null);
   const [icalBusy, setIcalBusy] = useState<string | null>(null);
 
-  // Events grouped by local day, sorted by time.
+  // Events and open tasks with a due date, grouped by local day, by time.
+  const items = useMemo<Item[]>(
+    () => [...res.data, ...(tasks.status === "ready" ? tasks.data.filter((tk) => tk.status !== "done").map(taskItem).filter((x): x is Item => !!x) : [])],
+    [res.data, tasks.status, tasks.data],
+  );
   const byDay = useMemo(() => {
-    const m = new Map<string, CalendarEvent[]>();
-    const sorted = [...res.data].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+    const m = new Map<string, Item[]>();
+    const sorted = [...items].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
     for (const ev of sorted) {
       const k = dayKey(ev.startsAt);
       m.set(k, [...(m.get(k) ?? []), ev]);
     }
     return m;
-  }, [res.data]);
+  }, [items]);
   const upcoming = useMemo(() => {
     const nowIso = new Date().toISOString();
-    return [...res.data].filter((e) => e.startsAt >= nowIso || dayKey(e.startsAt) >= todayKey).sort((a, b) => a.startsAt.localeCompare(b.startsAt)).slice(0, 8);
-  }, [res.data, todayKey]);
+    return [...items].filter((e) => e.startsAt >= nowIso || dayKey(e.startsAt) >= todayKey).sort((a, b) => a.startsAt.localeCompare(b.startsAt)).slice(0, 8);
+  }, [items, todayKey]);
+
+  // The week of the selected day, Monday first.
+  const week = useMemo(() => {
+    const [y, m, d] = sel.split("-").map((x) => parseInt(x, 10));
+    const base = new Date(y, m - 1, d);
+    const mon = new Date(base);
+    mon.setDate(base.getDate() - ((base.getDay() + 6) % 7));
+    return Array.from({ length: 7 }, (_, i) => {
+      const x = new Date(mon);
+      x.setDate(mon.getDate() + i);
+      return { key: iso(x.getFullYear(), x.getMonth(), x.getDate()), d: x.getDate() };
+    });
+  }, [sel]);
+  function stepWeek(delta: number) {
+    const [y, m, d] = sel.split("-").map((x) => parseInt(x, 10));
+    const x = new Date(y, m - 1, d + delta * 7);
+    const k = iso(x.getFullYear(), x.getMonth(), x.getDate());
+    setSel(k);
+    setVy(x.getFullYear());
+    setVm(x.getMonth());
+  }
 
   const firstDow = (new Date(vy, vm, 1).getDay() + 6) % 7; // Monday-first
   const daysIn = new Date(vy, vm + 1, 0).getDate();
@@ -127,9 +168,10 @@ export default function CalendarPanel({ ns }: { ns: string }) {
     setVm(m); setVy(y);
   }
   function goToday() { setVy(now.getFullYear()); setVm(now.getMonth()); setSel(todayKey); }
-  function openAdd(day?: string) {
+  function openAdd(day?: string, kind: "event" | "task" = "event") {
     if (day) setDate(day);
     else if (!date) setDate(sel);
+    setKindAdd(kind);
     setOpen(true);
   }
 
@@ -169,14 +211,19 @@ export default function CalendarPanel({ ns }: { ns: string }) {
     const name = title.trim();
     const when = fmtDate(date, locale);
     try {
-      await createCalendarEvent({
-        type,
-        title: name,
-        starts_at: new Date(`${date}T${time || "09:00"}`).toISOString(),
-        location: location.trim() || undefined,
-        ...(reminder ? { reminder_minutes_before: parseInt(reminder, 10) } : {}),
-      });
-      notify.success(t("created"), { id: "calendar-add", body: [name, time ? `${when}, ${time}` : when].filter(Boolean).join(" · ") });
+      if (kindAdd === "task") {
+        await createTask({ title: name, status: "todo", priority, due_date: new Date(`${date}T${time || "18:00"}`).toISOString() });
+        notify.success(tt("created"), { id: "calendar-add", body: [name, time ? `${when}, ${time}` : when].filter(Boolean).join(" · ") });
+      } else {
+        await createCalendarEvent({
+          type,
+          title: name,
+          starts_at: new Date(`${date}T${time || "09:00"}`).toISOString(),
+          location: location.trim() || undefined,
+          ...(reminder ? { reminder_minutes_before: parseInt(reminder, 10) } : {}),
+        });
+        notify.success(t("created"), { id: "calendar-add", body: [name, time ? `${when}, ${time}` : when].filter(Boolean).join(" · ") });
+      }
       setSel(date);
       const [y, m] = date.split("-").map((x) => parseInt(x, 10));
       if (y && m) { setVy(y); setVm(m - 1); }
@@ -187,9 +234,20 @@ export default function CalendarPanel({ ns }: { ns: string }) {
       reload();
       setOpen(false);
     } catch (err) {
-      notify.error(tc("createFailed"), { id: "calendar-add", error: err });
+      notify.error(kindAdd === "task" ? tt("createFailed") : tc("createFailed"), { id: "calendar-add", error: err });
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function taskDone(tk: WorkTask) {
+    const nid = `calendar-task-${tk.id}`;
+    try {
+      await updateTaskStatus(tk.id, "done");
+      tasks.setData((cur) => cur.map((x) => (x.id === tk.id ? { ...x, status: "done" } : x)));
+      notify.success(tc("taskDone"), { id: nid, body: tk.title || undefined });
+    } catch (err) {
+      notify.error(tt("statusFailed"), { id: nid, error: err });
     }
   }
 
@@ -217,7 +275,7 @@ export default function CalendarPanel({ ns }: { ns: string }) {
   }
 
   const typeOpts = TYPES.map((v) => ({ value: v, label: t(v) }));
-  const typeLabel = (v: string) => (t.has(v) ? t(v) : v);
+  const typeLabel = (v: string) => (v === "task" ? tc("task") : t.has(v) ? t(v) : v);
   // "30 daqiqa oldin" / "1 soat oldin" / "1 kun oldin".
   const beforeLabel = (min: number) =>
     min > 0 && min % 1440 === 0
@@ -228,7 +286,28 @@ export default function CalendarPanel({ ns }: { ns: string }) {
   const reminderOpts = REMINDERS.map((v) => ({ value: v, label: v ? beforeLabel(parseInt(v, 10)) : tr("none") }));
   const selEvents = byDay.get(sel) ?? [];
 
-  const eventRow = (ev: CalendarEvent, withDate: boolean) => (
+  const taskRow = (it: Item, withDate: boolean) => (
+    <div className="calev calev--task" key={it.id}>
+      <span className="calev__type calev__type--task">{tc("task")}</span>
+      <div className="calev__m">
+        <b>{it.title}</b>
+        <span>
+          <IconClock />
+          {withDate ? fmt(it.startsAt) : timeOf(it.startsAt)}
+          {it.task?.priority ? <>{" · "}{tt.has(`priority.${it.task.priority}`) ? tt(`priority.${it.task.priority}`) : it.task.priority}</> : null}
+        </span>
+      </div>
+      {it.task ? (
+        <button className="calev__ical" type="button" title={tc("markDone")} aria-label={tc("markDone")} onClick={() => void taskDone(it.task!)}>
+          <IconCheck />
+        </button>
+      ) : null}
+      <Link className="calev__ical" href={ns.includes("lawyer") ? "/portal/lawyer/tasks" : "/portal/advocate/tasks"} title={tc("openTasks")} aria-label={tc("openTasks")}>
+        <IconClipboardCheck />
+      </Link>
+    </div>
+  );
+  const eventRow = (ev: Item, withDate: boolean) => ev.task ? taskRow(ev, withDate) : (
     <div className={`calev calev--${ev.type}`} key={ev.id}>
       <span className={`calev__type calev__type--${ev.type}`}>{typeLabel(ev.type)}</span>
       <div className="calev__m">
@@ -256,11 +335,16 @@ export default function CalendarPanel({ ns }: { ns: string }) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <div className="segs segs--sm" role="tablist" aria-label={tc("view")} data-ai-target="calendar:view">
             <button type="button" role="tab" className="seg" aria-selected={mode === "month"} onClick={() => setMode("month")}>{tc("month")}</button>
+            <button type="button" role="tab" className="seg" aria-selected={mode === "week"} onClick={() => setMode("week")}>{tc("week")}</button>
             <button type="button" role="tab" className="seg" aria-selected={mode === "list"} onClick={() => setMode("list")}>{tc("list")}</button>
           </div>
           <button className="btn btn--soft btn--sm" type="button" onClick={() => { setCalcRes(null); setCalcOpen(true); }} data-ai-target="button:deadline-calculator">
             <IconClock />
             {td("open")}
+          </button>
+          <button className="btn btn--soft btn--sm" type="button" onClick={() => openAdd(undefined, "task")} data-ai-target="button:add-task">
+            <IconClipboardCheck />
+            {tt("add")}
           </button>
           <button className="btn btn--pri btn--sm" type="button" onClick={() => openAdd()} data-ai-target="button:add-event">
             <IconPlus />
@@ -273,13 +357,42 @@ export default function CalendarPanel({ ns }: { ns: string }) {
       ) : res.status === "error" ? (
         <ErrorState error={res.error} onRetry={() => res.refresh()} />
       ) : mode === "list" ? (
-        !res.data.length ? (
+        !items.length ? (
           <EmptyState icon={<IconCalendar />} title={t("empty")} text={t("emptyText")} />
         ) : (
           <div className="calist" data-ai-target="calendar:list" data-ai-label={tc("list")}>
-            {[...res.data].sort((a, b) => a.startsAt.localeCompare(b.startsAt)).map((ev) => eventRow(ev, true))}
+            {[...items].sort((a, b) => a.startsAt.localeCompare(b.startsAt)).map((ev) => eventRow(ev, true))}
           </div>
         )
+      ) : mode === "week" ? (
+        <div className="calweek" data-ai-target="calendar:week">
+          <div className="calgrid__nav">
+            <button type="button" aria-label={tc("prevWeek")} onClick={() => stepWeek(-1)}><IconChevronLeft /></button>
+            <b>{`${fmtDate(week[0].key, locale)} — ${fmtDate(week[6].key, locale)}`}</b>
+            <button type="button" aria-label={tc("nextWeek")} onClick={() => stepWeek(1)}><IconChevronRight /></button>
+            <button type="button" className="calgrid__today" onClick={goToday}>{t("today")}</button>
+          </div>
+          <div className="calweek__cols">
+            {week.map((w, i) => {
+              const evs = byDay.get(w.key) ?? [];
+              return (
+                <section key={w.key} className={["calweek__day", w.key === todayKey ? "today" : "", i >= 5 ? "we" : ""].filter(Boolean).join(" ")} aria-label={fmtDate(w.key, locale)}>
+                  <header className="calweek__h">
+                    <span>{wd[i]}</span>
+                    <b>{w.d}</b>
+                    <button type="button" className="aitem__act" aria-label={`${t("add")} · ${fmtDate(w.key, locale)}`} title={t("add")} onClick={() => openAdd(w.key)}><IconPlus /></button>
+                  </header>
+                  {evs.length ? evs.map((ev) => (
+                    <button type="button" key={ev.id} className={`calweek__ev calgrid__ev--${ev.type}`} onClick={() => setSel(w.key)} title={ev.title}>
+                      <em>{timeOf(ev.startsAt)}</em>
+                      <span>{ev.title}</span>
+                    </button>
+                  )) : <p className="calweek__none">—</p>}
+                </section>
+              );
+            })}
+          </div>
+        </div>
       ) : (
         <div className="calwrap">
           <div className="calgrid" data-ai-target="calendar:month">
@@ -377,15 +490,26 @@ export default function CalendarPanel({ ns }: { ns: string }) {
         </form>
       </Modal>
 
-      <Modal open={open} onClose={() => setOpen(false)} title={t("addTitle")}>
+      <Modal open={open} onClose={() => setOpen(false)} title={kindAdd === "task" ? tc("newTask") : t("addTitle")}>
         <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit}>
-          <div>
-            <label>{t("typeLabel")}</label>
-            <Select value={type} onChange={setType} options={typeOpts} ariaLabel={t("typeLabel")} />
+          <div className="segs segs--sm calkind" role="tablist" aria-label={tc("kind")}>
+            <button type="button" role="tab" className="seg" aria-selected={kindAdd === "event"} onClick={() => setKindAdd("event")}>{tc("kindEvent")}</button>
+            <button type="button" role="tab" className="seg" aria-selected={kindAdd === "task"} onClick={() => setKindAdd("task")}>{tc("task")}</button>
           </div>
+          {kindAdd === "event" ? (
+            <div>
+              <label>{t("typeLabel")}</label>
+              <Select value={type} onChange={setType} options={typeOpts} ariaLabel={t("typeLabel")} />
+            </div>
+          ) : (
+            <div>
+              <label>{tt("priorityLabel")}</label>
+              <Select value={priority} onChange={setPriority} options={PRIORITIES.map((v) => ({ value: v, label: tt(`priority.${v}`) }))} ariaLabel={tt("priorityLabel")} />
+            </div>
+          )}
           <div>
             <label>{t("titleLabel")}</label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("titlePh")} />
+            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={kindAdd === "task" ? tt("taskTitlePh") : t("titlePh")} />
           </div>
           <div>
             <label>{t("dateLabel")}</label>
@@ -394,14 +518,18 @@ export default function CalendarPanel({ ns }: { ns: string }) {
               <TimePicker value={time} onChange={setTime} placeholder={tc("time")} ariaLabel={tc("time")} />
             </div>
           </div>
-          <div>
-            <label>{t("locationLabel")}</label>
-            <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder={t("locationPh")} />
-          </div>
-          <div>
-            <label>{tr("label")}</label>
-            <Select value={reminder} onChange={setReminder} options={reminderOpts} ariaLabel={tr("label")} />
-          </div>
+          {kindAdd === "event" ? (
+            <>
+              <div>
+                <label>{t("locationLabel")}</label>
+                <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder={t("locationPh")} />
+              </div>
+              <div>
+                <label>{tr("label")}</label>
+                <Select value={reminder} onChange={setReminder} options={reminderOpts} ariaLabel={tr("label")} />
+              </div>
+            </>
+          ) : null}
           <button className="btn btn--pri btn--full" type="submit" disabled={busy || !title.trim() || !date}>
             {busy ? t("saving") : t("save")}
           </button>

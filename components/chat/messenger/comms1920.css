@@ -657,3 +657,8 @@ html[data-theme="dark"] .ntitem__art{box-shadow:none}
   .ntitem__art{width:44px;height:44px}
   .portal.lx .ntl .ntitem__go{justify-self:start;margin:0 0 10px 70px;padding:4px 0}
 }
+
+/* Locked call buttons in an order chat (owner's PDF 2026-11-27, K5): in
+   place and readable, visibly not available. */
+.mxr__calls--locked .mxr__ib{opacity:.45;cursor:help}
+.mxr__calls--locked .mxr__ib:hover{opacity:.7}

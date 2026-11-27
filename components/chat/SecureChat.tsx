@@ -81,7 +81,9 @@ import {
   IconEye,
   IconClipboardCheck,
   IconInfo,
+  IconPackage,
 } from "../icons";
+import { orderDetailHref, sellerListHref } from "@/lib/services/marketplace";
 import { timeOnly } from "@/lib/date";
 import { localizeApiDetail } from "@/lib/apiMessage";
 import { notify } from "@/lib/toast";
@@ -1832,6 +1834,31 @@ export default function SecureChat({
               {liveCall.callType === "video" ? <IconVideo /> : <IconPhone />}
               <span>{t("callJoin")}</span>
             </button>
+          ) : null}
+          {/* An advocate/lawyer in an order chat the backend has not opened for
+              calls yet (unpaid, finished): the buttons stay in place, dimmed,
+              and say why instead of disappearing (owner's PDF 2026-11-27, K5). */}
+          {!compact && !mayStartCall && !liveCall && !roomClosed && isExternalSeller(session) && rowOrder ? (
+            <span className="mxr__calls mxr__calls--locked">
+              {(["audio", "video"] as const).map((k) => (
+                <button
+                  key={k}
+                  className="mxr__ib"
+                  type="button"
+                  aria-disabled="true"
+                  aria-label={`${t(k === "audio" ? "audioCall" : "videoCall")} — ${t("callLocked")}`}
+                  title={t("callLocked")}
+                  onClick={() => notify.info(t("callLockedTitle"), { id: "chat-call-locked", body: t("callLocked") })}
+                >
+                  {k === "audio" ? <IconPhone /> : <IconVideo />}
+                </button>
+              ))}
+            </span>
+          ) : null}
+          {!compact && isExternalSeller(session) && rowOrder ? (
+            <Link className="mxr__ib" href={orderDetailHref(sellerListHref(session?.role ?? ""), rowOrder)} aria-label={t("openOrder")} title={t("openOrder")}>
+              <IconPackage />
+            </Link>
           ) : null}
           {!compact && mayStartCall && !callsOff && !roomClosed && !refused.has("call") ? (
             <span className="mxr__calls" data-ai-target="chat-room:calls">

@@ -127,7 +127,7 @@ export default function PromotionPanel() {
   };
 
   return (
-    <div className="promo">
+    <div className="promo promo--compact">
       <div className="promo__hero">
         <div className="promo__hero-t">
           <span className="kick" style={{ color: "var(--b300)", background: "rgba(92,168,255,.16)" }}>

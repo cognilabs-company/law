@@ -1176,22 +1176,16 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   };
 
   return (
-    <div className="mlaunch">
-      <div className="mhero">
+    <div className="mlaunch mlaunch--compact">
+      {/* A slim head instead of the big hero (owner's PDF 2026-11-27, K6:
+          smaller cards, easier to work with). */}
+      <div className="mhero mhero--slim">
         <span className="mhero__ico"><IconVideo /></span>
         <div className="mhero__t">
           <h2 className="psec-h">{t("title")}</h2>
           <p>{t("subtitle")}</p>
-          {copilotHero ? (
-            <div style={{ marginTop: 14 }}>
-              <CopilotLauncher surface="lawyer_meeting" context={{ label: t("title"), live: live.length, today: todayItems.length }} />
-            </div>
-          ) : null}
         </div>
-        <span className="mhero__art">
-          <span className="mhero__art-cal"><IconCalendar /></span>
-          <span className="mhero__art-vid"><IconVideo /></span>
-        </span>
+        {copilotHero ? <CopilotLauncher surface="lawyer_meeting" context={{ label: t("title"), live: live.length, today: todayItems.length }} /> : null}
       </div>
 
       {history !== null && !histErr ? (
