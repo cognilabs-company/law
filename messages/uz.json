@@ -6639,7 +6639,7 @@
       "listTitle": "Buyurtmalar",
       "byStage": "Holatlar bo‘yicha",
       "kpi": {
-        "new": "Yangi buyurtmalar",
+        "new": "Javob kutayotganlar",
         "newWaiting": "{n} tasi javobingizni kutmoqda",
         "newNone": "Hozir javob kutayotgan so‘rov yo‘q",
         "active": "Faol ishlar",
@@ -6648,7 +6648,8 @@
         "cancelled": "Bekor qilingan: {n}",
         "income": "Bu oy yakunlangan",
         "som": "so‘m",
-        "incomeNote": "Shu oy yakunlangan ishlar summasi"
+        "incomeNote": "Shu oy yakunlangan ishlar summasi",
+        "payWaiting": "To‘lovi kutilayotgan: {n}"
       }
     },
     "toast": {

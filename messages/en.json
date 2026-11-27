@@ -6639,7 +6639,7 @@
       "listTitle": "Orders",
       "byStage": "By status",
       "kpi": {
-        "new": "New orders",
+        "new": "Awaiting your answer",
         "newWaiting": "{n} waiting for your answer",
         "newNone": "No requests are waiting for an answer",
         "active": "Active work",
@@ -6648,7 +6648,8 @@
         "cancelled": "Cancelled: {n}",
         "income": "Completed this month",
         "som": "UZS",
-        "incomeNote": "Total of work completed this month"
+        "incomeNote": "Total of work completed this month",
+        "payWaiting": "Awaiting payment: {n}"
       }
     },
     "toast": {

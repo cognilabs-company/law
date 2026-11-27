@@ -558,3 +558,9 @@ html[data-theme="dark"] .amodal .plx-made__art.gift__done-ic{box-shadow:none}
 .splan__rest > summary::-webkit-details-marker{display:none}
 .splan__rest[open] > summary{margin-bottom:8px}
 .splan.plx-plan .splan__rest .splan__feats{margin:0}
+/* in the column the row stacks: the 300px basis must not become a height */
+.portal.lx .plx-side .plx-acct__tg{flex:none}
+.portal.lx .plx-side .plx-acct .apay__tg{font-size:.92rem}
+.portal.lx .plx-side .plx-acct .apay__tg > span:last-child{min-width:0}
+/* one frame, not a card inside a card */
+.portal.lx .plx-side > .plx-acct{border:1px solid var(--lx-line-2);border-radius:18px;box-shadow:none}

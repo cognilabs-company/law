@@ -157,3 +157,11 @@
 }
 .lxp > *,.lxp-main > *,.lxp-rail > *,.lxs-col > *{min-width:0}
 .mk-orders--seller .mko-card > *{min-width:0}
+/* phones: the KPI tiles become a compact 2×2 so the content starts sooner */
+@media (max-width:560px){
+  .lxp-kpis .lxs-kpi{min-height:0;gap:2px;padding:12px 14px}
+  .lxp-kpis .lxs-kpi__top{display:none}
+  .lxp-kpis .lxs-kpi__l{margin:0;font-size:.8rem}
+  .lxp-kpis .lxs-kpi__v{font-size:1.35rem}
+  .lxp-kpis .lxs-kpi__note{display:none}
+}

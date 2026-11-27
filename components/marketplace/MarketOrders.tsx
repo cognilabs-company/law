@@ -424,8 +424,8 @@ export default function MarketOrders({ view }: { view: View }) {
         <button type="button" className="lxs-kpi lxs-kpi--pri" onClick={() => setTab("pending")}>
           <span className="lxs-kpi__top"><span className="lxs-kpi__ic"><ShoppingBag /></span><span className="lxs-kpi__go"><ArrowUpRight /></span></span>
           <span className="lxs-kpi__l">{t("kpi.new")}</span>
-          <b className="lxs-kpi__v sx-num">{status === "ready" ? fresh.length + counts.pending : "…"}</b>
-          <span className="lxs-kpi__note">{fresh.length ? t("kpi.newWaiting", { n: fresh.length }) : t("kpi.newNone")}</span>
+          <b className="lxs-kpi__v sx-num">{status === "ready" ? fresh.length : "…"}</b>
+          <span className="lxs-kpi__note">{counts.pending ? t("kpi.payWaiting", { n: counts.pending }) : fresh.length ? t("kpi.newWaiting", { n: fresh.length }) : t("kpi.newNone")}</span>
         </button>
         <button type="button" className="lxs-kpi" onClick={() => setTab("active")}>
           <span className="lxs-kpi__top"><span className="lxs-kpi__ic"><Loader /></span><span className="lxs-kpi__go"><ArrowUpRight /></span></span>
