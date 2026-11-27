@@ -8532,7 +8532,8 @@
       "submit": "Send the request",
       "success": "Thank you! The advocate on duty will contact you shortly.",
       "required": "Please fill in the required fields.",
-      "sending": "Sending…"
+      "sending": "Sending…",
+      "failed": "Couldn’t send. Please try again in a moment."
     },
     "operator": "Platform operator",
     "supportCenter": "Support center",
@@ -18830,6 +18831,7 @@
     "required": "Please fill in all fields.",
     "success": "Request sent. We will contact you soon.",
     "sending": "Sending…",
+    "failed": "Couldn’t send. Please try again in a moment.",
     "submit": "Send request"
   },
   "legal": {

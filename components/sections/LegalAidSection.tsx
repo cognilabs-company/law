@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
+import { notify } from "@/lib/toast";
 import { createLegalAidRequest } from "@/lib/services/backend";
 import { IconShieldCheck } from "@/components/icons";
 
@@ -10,13 +11,13 @@ export default function LegalAidSection() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [details, setDetails] = useState("");
-  const [state, setState] = useState<"idle" | "sending" | "ok" | "error">("idle");
+  const [state, setState] = useState<"idle" | "sending">("idle");
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (state === "sending") return;
     if (!name.trim() || !phone.trim() || !details.trim()) {
-      setState("error");
+      notify.error(t("required"), { id: "legalAid-form" });
       return;
     }
     setState("sending");
@@ -25,12 +26,14 @@ export default function LegalAidSection() {
         title: details.trim().slice(0, 80),
         payload: { name: name.trim(), phone: phone.trim(), details: details.trim() },
       });
-      setState("ok");
+      setState("idle");
+      notify.success(t("success"), { id: "legalAid-form" });
       setName("");
       setPhone("");
       setDetails("");
-    } catch {
-      setState("error");
+    } catch (error) {
+      setState("idle");
+      notify.error(t("failed"), { id: "legalAid-form", error });
     }
   }
 
@@ -58,10 +61,6 @@ export default function LegalAidSection() {
             <label htmlFor="la-details">{t("details")}</label>
             <textarea id="la-details" value={details} onChange={(e) => setDetails(e.target.value)} placeholder={t("detailsPh")} />
           </div>
-          {state === "error" ? (
-            <p className="disc" style={{ color: "var(--dk-txt-err, #C0392B)", borderTop: 0, padding: 0 }}>{t("required")}</p>
-          ) : null}
-          {state === "ok" ? <div className="cform__ok">{t("success")}</div> : null}
           <button className="btn btn--pri" type="submit" disabled={state === "sending"}>
             {state === "sending" ? t("sending") : t("submit")}
           </button>

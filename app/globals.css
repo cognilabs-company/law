@@ -773,7 +773,6 @@ html[data-nav-pending],html[data-nav-pending] a{cursor:progress}
   font-weight:500;outline:0;box-shadow:inset 0 0 0 1.5px var(--line);transition:.2s}
 .cform input:focus,.cform textarea:focus{box-shadow:inset 0 0 0 1.5px var(--b400);background:var(--dk-surface, #fff)}
 .cform textarea{resize:vertical;min-height:120px;line-height:1.5}
-.cform__ok{background:var(--dk-tint-ok, #E1F6EE);color:var(--ok);border-radius:14px;padding:14px 16px;font-weight:600;font-size:.92rem}
 .contact__grid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(28px,4.5vw,56px);align-items:start}
 .contact__info{display:grid;gap:16px}
 .contact__row{display:flex;gap:14px;align-items:flex-start}

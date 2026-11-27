@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
+import { notify } from "@/lib/toast";
 import { createLead } from "@/lib/services/backend";
 import { Link } from "@/i18n/navigation";
 import { IconInfo, IconChat, IconBuilding, IconHelpCircle } from "../icons";
@@ -15,13 +16,13 @@ export default function ContactSection({ company = null }: { company?: ContactCo
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const [message, setMessage] = useState("");
-  const [state, setState] = useState<"idle" | "error" | "ok" | "sending">("idle");
+  const [state, setState] = useState<"idle" | "sending">("idle");
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (state === "sending") return;
     if (!name.trim() || !contact.trim()) {
-      setState("error");
+      notify.error(t("form.required"), { id: "contactPage-form" });
       return;
     }
     setState("sending");
@@ -31,12 +32,14 @@ export default function ContactSection({ company = null }: { company?: ContactCo
         phone: contact.trim(),
         note: message.trim(),
       });
-      setState("ok");
+      setState("idle");
+      notify.success(t("form.success"), { id: "contactPage-form" });
       setName("");
       setContact("");
       setMessage("");
-    } catch {
-      setState("error");
+    } catch (error) {
+      setState("idle");
+      notify.error(t("form.failed"), { id: "contactPage-form", error });
     }
   }
 
@@ -78,14 +81,6 @@ export default function ContactSection({ company = null }: { company?: ContactCo
                 placeholder={t("form.messagePlaceholder")}
               />
             </div>
-            {state === "error" ? (
-              <p className="disc" style={{ color: "var(--dk-txt-err, #C0392B)", borderTop: 0, padding: 0 }}>
-                {t("form.required")}
-              </p>
-            ) : null}
-            {state === "ok" ? (
-              <div className="cform__ok">{t("form.success")}</div>
-            ) : null}
             <button className="btn btn--pri" type="submit" disabled={state === "sending"}>
               {state === "sending" ? t("form.sending") : t("form.submit")}
             </button>
