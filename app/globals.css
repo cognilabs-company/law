@@ -21463,3 +21463,9 @@ a.calev__ical{display:grid;place-items:center;color:inherit}
 .adm-roles__list{grid-area:list}
 .adm-roles__assign{grid-area:assign}
 @media (max-width:1100px){.adm-roles{grid-template-columns:minmax(0,1fr)!important;grid-template-areas:"list" "assign" "matrix"}}
+.adm-bars{list-style:none;margin:0 0 12px;padding:0;display:grid;gap:10px}
+.adm-bars li{display:grid;grid-template-columns:1fr auto;gap:6px 10px;font-size:.88rem;color:var(--lx-ink,var(--ink))}
+.adm-bars b{font-weight:700}
+.adm-bars i{grid-column:1 / -1;height:6px;border-radius:999px;background:var(--lx-chip,#eef2f7);overflow:hidden}
+.adm-bars em{display:block;height:100%;border-radius:inherit;background:var(--lx-blue,#1668F0)}
+.adm-steps{margin:10px 0 0;padding-left:20px;display:grid;gap:6px;font-size:.88rem;color:var(--lx-ink,var(--ink))}

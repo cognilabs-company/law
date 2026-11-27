@@ -24,8 +24,21 @@ const ROLES = [
   ["marketing", "Marketing", ["notifications.manage"]],
 ] as const;
 
+const iso = (minAgo: number) => new Date(Date.now() - minAgo * 60_000).toISOString();
+const REQS = [
+  ["Dilshod Rahimov", "advokat", 30], ["Nodira Karimova", "yurist", 120], ["Jasur Toshmatov", "advokat", 60 * 5],
+  ["\"Adolat\" advokatlik byurosi", "advokat_tashkiloti", 60 * 26], ["Malika Usmonova", "yurist", 60 * 30],
+] as const;
+
 export function adminExtra(): Routes {
   return {
+    "/approvals": { items: [
+      { id: "a1", type: "refund", work_id: "APR-JFQDL", status: "pending", admin_approved: false, manager_approved: false },
+      { id: "a2", type: "lawyer_change", work_id: "APR-KD21Q", status: "partial", admin_approved: true, manager_approved: false },
+      { id: "a3", type: "refund", work_id: "APR-LM88X", status: "partial", admin_approved: false, manager_approved: true },
+      { id: "a4", type: "refund", work_id: "APR-PZ03A", status: "approved", admin_approved: true, manager_approved: true },
+    ] },
+    "/admin/seller-requests": { items: REQS.map(([name, role, ago], i) => ({ id: `rr${i}`, verification_id: `v${i}`, status: "pending", role, name, phone: `+99890000${String(1000 + i)}`, created_at: iso(ago) })), stats: { total: 48, advokat: 22, yurist: 19, advokat_tashkiloti: 7, pending: 5, approved: 38, rejected: 5 } },
     "/admin/roles": ROLES.map(([name, title, p], i) => ({ id: `r${i}`, name, title, permissions: p, description: "" })),
     "/admin/permissions": PERMS.map((code) => ({ code, title: code })),
     "/admin/permission-matrix": { roles: ROLES.map(([name, title, p], i) => ({ id: `r${i}`, name, title, permissions: p })), permissions: PERMS, seller_rules: {} },

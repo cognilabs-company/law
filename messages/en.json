@@ -17660,7 +17660,10 @@
         "service": "Service",
         "ad": "Ad",
         "withdrawal": "Withdrawal",
-        "advocate_change": "Lawyer change"
+        "advocate_change": "Lawyer change",
+        "lawyer_change": "Lawyer change",
+        "seller_change": "Executor change",
+        "reassign": "Executor change"
       },
       "status": {
         "pending": "Pending",
@@ -17668,7 +17671,9 @@
         "rejected": "Rejected",
         "partial": "Partial",
         "completed": "Completed"
-      }
+      },
+      "allTitle": "All requests",
+      "ruleTitle": "Two-step approval"
     },
     "ads": {
       "som": "UZS",

@@ -17666,7 +17666,10 @@
         "service": "Xizmat",
         "ad": "Reklama",
         "withdrawal": "Yechib olish",
-        "advocate_change": "Advokat almashtirish"
+        "advocate_change": "Advokat almashtirish",
+        "lawyer_change": "Advokatni almashtirish",
+        "seller_change": "Ijrochini almashtirish",
+        "reassign": "Ijrochini almashtirish"
       },
       "status": {
         "pending": "Kutilmoqda",
@@ -17674,7 +17677,9 @@
         "rejected": "Rad etilgan",
         "partial": "Qisman",
         "completed": "Yakunlangan"
-      }
+      },
+      "allTitle": "Jami so‘rovlar",
+      "ruleTitle": "Ikki bosqichli tasdiq"
     },
     "ads": {
       "som": "so'm",

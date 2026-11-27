@@ -142,25 +142,30 @@ export default function AdminRegisterRequests() {
   const day = (iso: string) => (iso ? shortDate(iso, locale) : "…");
   const dateChip = from || to ? (from && from === to ? day(from) : `${day(from)} – ${day(to)}`) : null;
 
+  // Owner's PDF 2026-11-27 (S9): a review queue — the counts on top, the
+  // requests as the main column, the split by role on the right.
+  const roleBars = stats ? [
+    { k: "advokat", n: stats.advokat },
+    { k: "yurist", n: stats.yurist },
+    { k: "organization", n: stats.advokatTashkiloti },
+  ] : [];
+  const maxRole = Math.max(1, ...roleBars.map((x) => x.n));
   return (
-    <div className="ppanel">
+    <>
+      <div className="adm-kpis" data-ai-target="register-requests:stats" data-ai-id="admin.register-requests.stats" data-ai-type="section" data-ai-label={t("stats.total")}>
+        <div className="adm-kpi adm-kpi--pri"><span>{t("stats.pending")}</span><b className="sx-num">{stats ? stats.pending : "…"}</b></div>
+        <div className="adm-kpi"><span>{t("stats.approved")}</span><b className="sx-num">{stats ? stats.approved : "…"}</b></div>
+        <div className="adm-kpi"><span>{t("stats.rejected")}</span><b className="sx-num">{stats ? stats.rejected : "…"}</b></div>
+        <div className="adm-kpi"><span>{t("stats.total")}</span><b className="sx-num">{stats ? stats.total : "…"}</b></div>
+      </div>
+      <div className="adm-split">
+      <div className="ppanel adm-split__main">
       <div className="ppanel__h">
         <b>{t("title")}</b>
         <span className="advmuted">{items.length}</span>
       </div>
       <p className="advmuted" style={{ marginBottom: 16 }}>{t("lead")}</p>
 
-      {stats ? (
-        <div className="amet" style={{ marginBottom: 16 }} data-ai-target="register-requests:stats" data-ai-id="admin.register-requests.stats" data-ai-type="section" data-ai-label={t("stats.total")}>
-          <div className="amet__c"><b>{stats.total}</b><span className="amet__l">{t("stats.total")}</span></div>
-          <div className="amet__c"><b>{stats.advokat}</b><span className="amet__l">{t("role.advokat")}</span></div>
-          <div className="amet__c"><b>{stats.yurist}</b><span className="amet__l">{t("role.yurist")}</span></div>
-          <div className="amet__c"><b>{stats.advokatTashkiloti}</b><span className="amet__l">{t("role.organization")}</span></div>
-          <div className="amet__c"><b>{stats.pending}</b><span className="amet__l">{t("stats.pending")}</span></div>
-          <div className="amet__c"><b>{stats.approved}</b><span className="amet__l">{t("stats.approved")}</span></div>
-          <div className="amet__c"><b>{stats.rejected}</b><span className="amet__l">{t("stats.rejected")}</span></div>
-        </div>
-      ) : null}
 
       <FilterBar
         className="uf--tray"
@@ -234,5 +239,20 @@ export default function AdminRegisterRequests() {
       )}
       <RegisterRequestDetail id={detail} onClose={() => setDetail(null)} />
     </div>
+        <aside className="ppanel adm-split__side">
+          <div className="ppanel__h"><b>{t("roleLabel")}</b></div>
+          <ul className="adm-bars">
+            {roleBars.map((r) => (
+              <li key={r.k}>
+                <span>{t(`role.${r.k}`)}</span>
+                <b className="sx-num">{r.n}</b>
+                <i aria-hidden="true"><em style={{ width: `${Math.round((r.n / maxRole) * 100)}%` }} /></i>
+              </li>
+            ))}
+          </ul>
+          <p className="advmuted">{t("lead")}</p>
+        </aside>
+      </div>
+    </>
   );
 }

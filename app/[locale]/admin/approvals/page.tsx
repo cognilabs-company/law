@@ -40,8 +40,21 @@ export default function AdminApprovals() {
     }
   }
 
+  // Owner's PDF 2026-11-27 (S9): the same review-queue frame as the other
+  // pages of this group — counts on top, the queue, the rule on the right.
+  const open = res.data.filter((a) => !a.status || a.status === "pending" || a.status === "partial");
+  const needAdmin = open.filter((a) => !a.adminApproved).length;
+  const needManager = open.filter((a) => !a.managerApproved).length;
   return (
-    <div className="ppanel" data-ai-target="approvals:queue" data-ai-id="admin.approvals.queue" data-ai-type="list" data-ai-label={t("approvals.title")}>
+    <>
+      <div className="adm-kpis">
+        <div className="adm-kpi adm-kpi--pri"><span>{t("approvals.title")}</span><b className="sx-num">{res.status === "loading" ? "…" : open.length}</b></div>
+        <div className="adm-kpi"><span>{t("approvals.adminApprove")}</span><b className="sx-num">{res.status === "loading" ? "…" : needAdmin}</b></div>
+        <div className="adm-kpi"><span>{t("approvals.managerApprove")}</span><b className="sx-num">{res.status === "loading" ? "…" : needManager}</b></div>
+        <div className="adm-kpi"><span>{t("approvals.allTitle")}</span><b className="sx-num">{res.status === "loading" ? "…" : res.data.length}</b></div>
+      </div>
+      <div className="adm-split">
+      <div className="ppanel adm-split__main" data-ai-target="approvals:queue" data-ai-id="admin.approvals.queue" data-ai-type="list" data-ai-label={t("approvals.title")}>
       <div className="ppanel__h">
         <b>{t("approvals.title")}</b>
         <span className="advmuted">{res.data.length}</span>
@@ -113,5 +126,15 @@ export default function AdminApprovals() {
         </div>
       )}
     </div>
+        <aside className="ppanel adm-split__side">
+          <div className="ppanel__h"><b>{t("approvals.ruleTitle")}</b></div>
+          <p className="advmuted">{t("approvals.lead")}</p>
+          <ol className="adm-steps">
+            <li>{t("approvals.admin")}</li>
+            <li>{t("approvals.manager")}</li>
+          </ol>
+        </aside>
+      </div>
+    </>
   );
 }
